@@ -11,21 +11,31 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import environ
+
+# Initialise environment variables
+env = environ.Env(
+    # Set casting and default values
+    DEBUG=(bool, False),
+)
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+# Read environment variables from .env file
+environ.Env.read_env(BASE_DIR / '.env')
 
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-xtgoa#n&^(($d!=-lcbs0q7i&4lvraeg(lqc^oz&)j=9-y$+2j"
+SECRET_KEY = env('SECRET_KEY', default="default-insecure-key-please-change-me")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = env('DEBUG')
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=[])
 
 
 # Application definition
@@ -99,16 +109,13 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
-# Internationalization
+# Internationalisation
 # https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-LANGUAGE_CODE = "en-us"
-
-TIME_ZONE = "UTC"
-
-USE_I18N = True
-
-USE_TZ = True
+LANGUAGE_CODE = "en-gb"  # language identifier
+TIME_ZONE = "Europe/Stockholm"  # TZ identifier
+USE_I18N = True  # enable internationalisation
+USE_TZ = True  # enable timezone support
 
 
 # Static files (CSS, JavaScript, Images)

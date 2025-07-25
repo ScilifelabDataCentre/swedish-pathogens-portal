@@ -39,13 +39,7 @@ coverage.xml
 
 # Visual Studio Code
 .vscode/
-.vscode/*
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-!.vscode/extensions.json
-!.vscode/*.code-snippets
-!*.code-workspace
+*.code-workspace
 
 # OS
 .DS_Store
