@@ -11,7 +11,7 @@ This PR ...
  
 ### ✅ Checklist
 - [ ] PR title follows the pattern: `FREYA-XXXX: Clear and short description`
-- [ ] Jira / Github issue is linked
+- [ ] Jira / Github issue is linked in description
 - [ ] Assignee is selected
 - [ ] Code and content adhere to [conventions](https://scilifelab.atlassian.net/wiki/spaces/CDP2/pages/1909424133/Guidelines+for+the+portal+content)
 - [ ] Automated checks pass

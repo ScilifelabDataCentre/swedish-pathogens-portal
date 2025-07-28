@@ -38,7 +38,7 @@ coverage.xml
 *.pot
 
 # Visual Studio Code
-.vscode/
+.vscode
 *.code-workspace
 
 # OS
