@@ -19,6 +19,7 @@ env = environ.Env(
     # set casting and default values
     DEBUG=(bool, False),
     ALLOWED_HOST=(list, []),
+    DJANGO_ADMIN_URL_PATH=(str, "admin"),
 )
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -39,6 +40,8 @@ DEBUG = env("DEBUG")
 
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS")
 
+# Admin URL configuration
+ADMIN_URL_PATH = env("DJANGO_ADMIN_URL_PATH")
 
 # Application definition
 
