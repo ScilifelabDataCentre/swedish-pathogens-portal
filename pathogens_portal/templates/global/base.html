@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="en">
+    {% include "global/html_head_tag.html" %}
+    <body>
+        {% include "global/header.html" %}
+        <main>
+            <div class="container">
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+        {% include "global/footer.html" %}
+    </body>
+</html>

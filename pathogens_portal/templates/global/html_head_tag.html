@@ -1,0 +1,43 @@
+{% load static %}
+
+<head>
+
+    <!-- Required meta tags -->
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <!-- Page Title, can be passed via a title block in another template or via context in a view -->
+     <title>
+        {% block title %}
+            {% if title %}
+                {{ title }}
+            {% else %}
+                Swedish Pathogens Portal
+            {% endif %}
+        {% endblock %}
+     </title>
+
+    <!-- Site meta info -->
+    <meta http-equiv="content-language" content="en">
+    <meta name="description" content="
+        {% block description %}
+            {% if description %}
+                {{ description }}
+            {% else %}
+                The Swedish Pathogens Portal provides information about available datasets,
+                resources, tools, and services related to pandemic preparedness in Sweden.
+                We offer support to all those involved in pandemic preparedness research
+                that are affiliated with a Swedish research institution or university.
+            {% endif %}
+        {% endblock %}
+    ">
+
+    <!-- Favicons -->
+    <link rel="apple-touch-icon" sizes="180x180" href="{% static 'images/apple-touch-icon.png' %}">
+    <link rel="icon" type="image/png" sizes="32x32" href="{% static 'images/favicon-32x32.png' %}">
+    <link rel="icon" type="image/png" sizes="16x16" href="{% static 'images/favicon-16x16.png' %}">
+
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="{% static 'css/portal.css' %}">
+
+</head>
