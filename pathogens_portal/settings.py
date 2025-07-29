@@ -51,6 +51,11 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
 ]
 
+# Apps/code developed by Team Freya
+INSTALLED_APPS += [
+    "pages.home",
+]
+
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -66,7 +71,9 @@ ROOT_URLCONF = "pathogens_portal.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [
+            BASE_DIR / "pathogens_portal" / "templates"
+        ],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -124,6 +131,10 @@ USE_TZ = True  # enable timezone support
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = "static/"
+
+STATICFILES_DIRS = [
+    BASE_DIR / "pathogens_portal" / "static"
+]
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
