@@ -51,6 +51,11 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
 ]
 
+# Apps/code developed by Team Freya
+INSTALLED_APPS += [
+    "pages.home",
+]
+
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
