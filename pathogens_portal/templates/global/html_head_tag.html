@@ -8,13 +8,11 @@
 
     <!-- Page Title, can be passed via a title block in another template or via context in a view -->
      <title>
-        {% block title %}
-            {% if title %}
-                {{ title }}
-            {% else %}
-                Swedish Pathogens Portal
-            {% endif %}
-        {% endblock %}
+        {% if title %}
+            {{ title }}
+        {% else %}
+            Swedish Pathogens Portal
+        {% endif %}
      </title>
 
     <!-- Site meta info -->

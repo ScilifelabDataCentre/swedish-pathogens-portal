@@ -1,6 +1,9 @@
-from django.shortcuts import render
+from django.views.generic import TemplateView
 
 # Create your views here.
 
-def home(request):
-    return render(request, "home/index.html")
+class Home(TemplateView):
+    template_name = "home/index.html"
+    extra_context = {
+        "title": "Swedish Pathogens Portal: supporting pandemic preparedness"
+    }
