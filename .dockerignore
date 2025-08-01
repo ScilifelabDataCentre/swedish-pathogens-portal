@@ -25,6 +25,7 @@ coverage.xml
 .mypy_cache
 .pytest_cache
 .hypothesis
+.ruff_cache
 
 # Virtual environments
 .env
@@ -57,7 +58,7 @@ db.sqlite3
 *.sqlite3
 devbox.json
 devbox.lock
-.python-version
+.env.example
 
 # Documentation
 README.md
@@ -67,4 +68,4 @@ LICENSE
 # Docker
 Dockerfile
 .dockerignore
-docker-compose*.yml
+compose*.yaml

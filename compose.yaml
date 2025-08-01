@@ -3,14 +3,13 @@ services:
     build:
       context: ./
       dockerfile: Dockerfile
+      target: dev
+    entrypoint: python manage.py runserver 0.0.0.0:8000
     container_name: pathogens_portal_web
     ports:
       - "8000:8000"
-    environment:
-      - DEBUG=${DEBUG}
-      - SECRET_KEY=${SECRET_KEY}
-      - ALLOWED_HOSTS=${ALLOWED_HOSTS}
-      - DATABASE_URL=${DATABASE_URL}
+    env_file:
+      - .env
     depends_on:
       db:
         condition: service_healthy
@@ -28,12 +27,14 @@ services:
       - POSTGRES_USER=${POSTGRES_USER}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
     volumes:
-      - postgres_db:/var/lib/postgresql/data
+      - type: volume
+        source: postgres_db
+        target: /var/lib/postgresql/data
     ports:
       - "5432:5432"
     healthcheck:
       test: pg_isready --username=${POSTGRES_USER} --dbname=${POSTGRES_DB}
-      interval: 10s
+      interval: 5s
       timeout: 10s
       retries: 5
       start_period: 30s
