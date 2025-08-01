@@ -59,7 +59,7 @@ RUN groupadd --system app && \
 
 # Copy pre-built dependancy from 'build' stage
 # assign ownership to `app` user and group.
-COPY --from=build --chown=app:app /app /app
+COPY --from=build --chown=app:app /app/.venv /app/.venv
 
 # Copy source code to image
 COPY --chown=app:app . .
