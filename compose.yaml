@@ -1,9 +1,9 @@
 services:
   web:
-    build: .
+    build:
+      context: ./
+      dockerfile: Dockerfile
     container_name: pathogens_portal_web
-    profiles:
-      - dev
     ports:
       - "8000:8000"
     environment:
@@ -16,15 +16,13 @@ services:
         condition: service_healthy
         restart: true
     volumes:
-      - .:/app
-    env_file:
-      - .env
+      - type: bind
+        source: ./
+        target: /app
 
   db:
     image: postgres:17
     container_name: pathogens_portal_db
-    profiles:
-      - dev
     environment:
       - POSTGRES_DB=${POSTGRES_DB}
       - POSTGRES_USER=${POSTGRES_USER}
@@ -34,7 +32,7 @@ services:
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: pg_isready --username=${POSTGRES_USER} --dbname=${POSTGRES_DB}
       interval: 10s
       timeout: 10s
       retries: 5

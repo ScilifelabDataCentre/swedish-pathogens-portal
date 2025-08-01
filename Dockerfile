@@ -1,4 +1,4 @@
-FROM python:3.13.5-slim-bookworm
+FROM python:3.13-slim
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -7,9 +7,6 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 # Set work directory
 WORKDIR /app
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y curl
 
 # Install uv    
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
