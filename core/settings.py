@@ -43,9 +43,20 @@ ALLOWED_HOSTS = env.list("ALLOWED_HOSTS")
 # Admin URL configuration
 ADMIN_URL_PATH = env("DJANGO_ADMIN_URL_PATH")
 
-# Application definition
+# INTERNATIONALISATION
+# ------------------------------------------------------------------------------
+# https://docs.djangoproject.com/en/5.2/topics/i18n/
 
-INSTALLED_APPS = [
+LANGUAGE_CODE = "en-gb"  # language identifier
+TIME_ZONE = "Europe/Stockholm"  # TZ identifier
+USE_I18N = True  # enable internationalisation
+USE_TZ = True  # enable timezone support
+
+
+# APPS
+# ------------------------------------------------------------------------------
+
+DJANGO_APPS = [
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -54,11 +65,20 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
 ]
 
-# Apps/code developed by Team Freya
-INSTALLED_APPS += [
+THIRD_PARTY_APPS = [
+
+]
+
+LOCAL_APPS = [
     "pages.home",
 ]
 
+# https://docs.djangoproject.com/en/5.2/ref/settings/#installed-apps
+INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
+
+
+# MIDDLEWARE
+# ------------------------------------------------------------------------------
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -69,8 +89,18 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = "core.urls"
 
+# URLS
+# ------------------------------------------------------------------------------
+# https://docs.djangoproject.com/en/5.2/ref/settings/#root-urlconf
+ROOT_URLCONF = "core.urls"
+# https://docs.djangoproject.com/en/5.2/ref/settings/#wsgi-application
+WSGI_APPLICATION = "core.wsgi.application"
+
+
+# TEMPLATES
+# ------------------------------------------------------------------------------
+# https://docs.djangoproject.com/en/5.2/ref/settings/#templates
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
@@ -88,10 +118,9 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "core.wsgi.application"
 
-
-# Database
+# DATABASES
+# ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
@@ -105,10 +134,16 @@ DATABASES = {
     }
 }
 
+# Default primary key field type
+# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# Password validation
+
+# PASSWORDS
+# ------------------------------------------------------------------------------
+
+# https://docs.djangoproject.com/en/5.2/ref/settings/#password-hashers
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators
-
 AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
@@ -125,16 +160,8 @@ AUTH_PASSWORD_VALIDATORS = [
 ]
 
 
-# Internationalisation
-# https://docs.djangoproject.com/en/5.2/topics/i18n/
-
-LANGUAGE_CODE = "en-gb"  # language identifier
-TIME_ZONE = "Europe/Stockholm"  # TZ identifier
-USE_I18N = True  # enable internationalisation
-USE_TZ = True  # enable timezone support
-
-
-# Static files (CSS, JavaScript, Images)
+# STATIC FILES (CSS, JavaScript, Images)
+# ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = "static/"
@@ -142,8 +169,3 @@ STATIC_URL = "static/"
 STATICFILES_DIRS = [
     BASE_DIR / "core" / "static"
 ]
-
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
-
-DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
