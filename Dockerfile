@@ -41,6 +41,16 @@ COPY . .
 
 FROM python:3.13-bookworm AS runtime
 
+# Following are required prerequistes for psycopg[c], by default they are
+# all included in full bookworm distro. But keeping here for reference
+# in case needed later. We can remove it at the end if not needed
+# RUN apt-get update && \
+#     apt-get install -y \
+#     gcc \
+#     python3-dev \
+#     postgresql-dev \
+#     libpq
+
 # Copy UV executable from UV image
 COPY --from=ghcr.io/astral-sh/uv:0.8.2 /uv /usr/local/bin/uv
 
