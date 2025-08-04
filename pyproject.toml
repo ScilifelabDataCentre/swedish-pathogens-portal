@@ -7,5 +7,12 @@ requires-python = ">=3.13"
 dependencies = [
     "django>=5.2.4",
     "django-environ>=0.12.0",
-    "psycopg[binary]>=3.1.0",
+]
+
+[dependency-groups]
+dev = [
+    "psycopg[binary]>=3.2.9",
+]
+runtime = [
+    "psycopg[c]>=3.2.9",
 ]

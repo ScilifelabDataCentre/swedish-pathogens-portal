@@ -1,7 +1,6 @@
 # Git
 .git
 .gitignore
-# CI/CD
 .github/
 
 # Python
@@ -36,8 +35,11 @@ ENV/
 env.bak/
 venv.bak/
 
+# Node JS
+node_modules
+
 # IDE
-.vscode/
+.vscode
 *.code-workspace
 .idea/
 *.swp
