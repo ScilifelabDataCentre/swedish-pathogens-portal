@@ -1,27 +1,67 @@
-FROM python:3.13-slim
+###############################################################################
+#                                 Build Stage                                 #
+###############################################################################
 
-# Set environment variables
-ENV PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/app
+FROM python:3.13-slim AS build
 
-# Set work directory
+# Copy UV executable from UV image
+COPY --from=ghcr.io/astral-sh/uv:0.8.2 /uv /usr/local/bin/uv
+
+# Copy relevant files to find dependencies
+COPY pyproject.toml uv.lock .python-version ./
+
+# Set dependency root directory and UV options
+ENV UV_PROJECT_ENVIRONMENT=/app/.venv \
+    UV_LINK_MODE=copy \
+    UV_COMPILE_BYTECODE=1 \
+    UV_PYTHON_DOWNLOADS=never
+
+# Install python dependencies
+RUN uv sync \
+        --locked \
+        --no-dev \
+        --no-install-project
+
+###############################################################################
+#                             Development Image                               #
+###############################################################################
+
+FROM build AS dev
+
+# add dependency to PATH and PYTHONPATH
+ENV PATH=/app/.venv/bin:$PATH \
+    PYTHONPATH=/app/.venv \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# Set working dir
 WORKDIR /app
 
-# Install uv    
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
-
-# Copy dependency files
-COPY pyproject.toml uv.lock* ./
-
-# Install dependencies
-RUN uv sync --frozen
-
-# Copy the rest of the application
+# Copy all code
 COPY . .
 
-# Expose the port
-EXPOSE 8000
+###############################################################################
+#                         Runtime Stage - Production                          #
+###############################################################################
 
-# Run the application
-CMD ["uv", "run", "manage.py", "runserver", "0.0.0.0:8000"]
+FROM python:3.13-slim AS production
+
+# Set working dir
+WORKDIR /app
+
+# Add app venv to PATH and PYTHONPATH
+ENV PATH=/app/.venv/bin:$PATH \
+    PYTHONPATH=/app/.venv \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
+# Create non-root group and user `app`.
+RUN groupadd --system app && \
+    useradd --system --no-user-group --home /app --gid app app
+
+# Copy pre-built dependancy from 'build' stage
+# assign ownership to `app` user and group.
+COPY --from=build --chown=app:app /app/.venv /app/.venv
+
+# Copy source code to image
+COPY --chown=app:app . .

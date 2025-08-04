@@ -1,42 +1,44 @@
+name: SPP
 services:
+  # Portal website
   web:
     build:
       context: ./
       dockerfile: Dockerfile
-    container_name: pathogens_portal_web
+      target: dev
+    container_name: spp_web
+    entrypoint: python manage.py runserver 0.0.0.0:8000
+    env_file:
+      - .env
     ports:
       - "8000:8000"
-    environment:
-      - DEBUG=${DEBUG}
-      - SECRET_KEY=${SECRET_KEY}
-      - ALLOWED_HOSTS=${ALLOWED_HOSTS}
-      - DATABASE_URL=${DATABASE_URL}
+    working_dir: /app/local
+    volumes:
+      - type: bind
+        source: ./
+        target: /app/local
     depends_on:
       db:
         condition: service_healthy
         restart: true
-    volumes:
-      - type: bind
-        source: ./
-        target: /app
-
+  # Postgresql DB
   db:
     image: postgres:17
-    container_name: pathogens_portal_db
-    environment:
-      - POSTGRES_DB=${POSTGRES_DB}
-      - POSTGRES_USER=${POSTGRES_USER}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
-    volumes:
-      - postgres_db:/var/lib/postgresql/data
+    container_name: spp_db
+    env_file:
+      - .env
     ports:
       - "5432:5432"
+    volumes:
+      - type: volume
+        source: postgres_db
+        target: /var/lib/postgresql/data
     healthcheck:
       test: pg_isready --username=${POSTGRES_USER} --dbname=${POSTGRES_DB}
-      interval: 10s
+      interval: 5s
       timeout: 10s
       retries: 5
       start_period: 30s
-
+# Persistant volume for DB
 volumes:
   postgres_db:
