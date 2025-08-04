@@ -10,27 +10,29 @@ COPY --from=ghcr.io/astral-sh/uv:0.8.2 /uv /usr/local/bin/uv
 # Copy relevant files to find dependencies
 COPY pyproject.toml uv.lock .python-version ./
 
-# Set dependency root directory and
-# add it to PATH and PYTHONPATH
+# Set dependency root directory and UV options
 ENV UV_PROJECT_ENVIRONMENT=/app/.venv \
-    PATH=/app/.venv/bin:$PATH \
-    PYTHONPATH=/app/.venv \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    UV_LINK_MODE=copy \
+    UV_COMPILE_BYTECODE=1 \
+    UV_PYTHON_DOWNLOADS=never
 
-# Install dependencies
+# Install python dependencies
 RUN uv sync \
         --locked \
-        --no-python-downloads \
-        --no-install-project \
-        --link-mode copy \
-        --compile-bytecode
+        --no-dev \
+        --no-install-project
 
 ###############################################################################
 #                             Development Image                               #
 ###############################################################################
 
 FROM build AS dev
+
+# add dependency to PATH and PYTHONPATH
+ENV PATH=/app/.venv/bin:$PATH \
+    PYTHONPATH=/app/.venv \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
 
 # Set working dir
 WORKDIR /app
