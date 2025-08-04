@@ -8,3 +8,11 @@ dependencies = [
     "django>=5.2.4",
     "django-environ>=0.12.0",
 ]
+
+[dependency-groups]
+dev = [
+    "psycopg[binary]>=3.2.9",
+]
+runtime = [
+    "psycopg[c]>=3.2.9",
+]

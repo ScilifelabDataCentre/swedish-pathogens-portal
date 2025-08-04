@@ -1,31 +1,31 @@
-# swedish-pathogens-portal
+# Swedish Pathogens Portal
 
 WIP repository for Swedish Pathogens Portal 2.0
 
-## Technology stack
+## Technology Stack
 
-- Django
-- PostgreSQL
-- Django templates language
-- TailwindCSS
-- htmx
+- **Backend**: Django
+- **Database**: PostgreSQL
+- **Template Engine**: Django templates
+- **CSS Framework**: TailwindCSS
+- **JavaScript**: htmx
+- **Package Manager**: uv
+- **Containerization**: Docker & Docker Compose
 
-## How to recreate the development environment
+## Prerequisites
 
-This project is configured to use reproducible and isolated environments for development.
-It uses `uv` for python dependencies and environment management.
-There are two options:
+- Docker and Docker Compose
+- Python 3.13+ (for local development)
+- uv (for local development) |
 
-### Docker
+## Contributing
 
-```
-docker compose --profile dev up
-```
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Run tests: `uv run python manage.py test`
+5. Submit a pull request
 
-### Devbox 
+## License
 
-```
-devbox shell
-```
-
-Or add `direnv` to your local project directory for automated shell environment switching.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
