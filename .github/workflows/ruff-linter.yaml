@@ -1,0 +1,24 @@
+name: Ruff Linting check
+
+on:
+  push:
+    paths:
+      - '**.py'
+  pull_request:
+    paths:
+      - '**.py'
+
+jobs:
+  ruff-linting:
+    name: Ruff linting check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout the repo
+        uses: actions/checkout@v4
+      
+      - name: Run ruff check
+        uses: astral-sh/ruff-action@v3
+        with:
+          version: latest
+          src: "./"
+          args: check --config ./pyproject.toml
