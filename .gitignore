@@ -1,3 +1,7 @@
+# Ignore tailwind generated css locally
+# Will generated during built time
+pathogens_portal/static/css/portal.css
+
 # Python byte-compiled, optimised, DLL files, etc.
 __pycache__/
 *.py[codz]

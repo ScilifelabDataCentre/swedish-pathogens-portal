@@ -1,0 +1,48 @@
+/* This is base CSS file used as input for Tailwindcss */
+
+/* Import fonts */
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,200;0,400;0,500;0,700;1,400&display=swap");
+
+/* Tailwind css import */
+@import "tailwindcss";
+
+/* Pathogens portal visual identity colors */
+@theme {
+    --color-pp-teal: #37ae94;
+    --color-pp-mid-blue: #4770b1;
+    --color-pp-dark-blue: #295986;
+    --color-pp-lime-green: #d4de27;
+    --color-pp-pale-grey: #d8d8d8;
+    --color-pp-dark-grey: #55585a;
+    --color-pp-almost-black: #1a1c1a;
+}
+
+@layer base {
+    body {
+        font-family: "IBM Plex Sans", Helvetica, Arial, sans-serif;
+        @apply flex flex-col min-h-screen m-0;
+    }
+
+    main {
+        @apply flex-1;
+    }
+
+    footer {
+        @apply w-full border-t border-solid border-pp-pale-grey;
+
+    }
+
+    a {
+        @apply text-pp-mid-blue no-underline;
+    }
+
+    a:hover {
+        @apply text-pp-mid-blue underline underline-offset-2 cursor-pointer;
+    }
+}
+
+@layer components {
+    .container {
+        @apply mx-16 my-4 px-8 pt-0 overflow-auto;
+    }
+}

@@ -5,12 +5,6 @@
 
 FROM python:3.13-slim-bookworm AS dev
 
-# Copy UV executable from UV image
-COPY --from=ghcr.io/astral-sh/uv:0.8.2 /uv /usr/local/bin/uv
-
-# Copy relevant files to find dependencies
-COPY pyproject.toml uv.lock .python-version ./
-
 # Set dependency root directory and UV options
 ENV UV_PROJECT_ENVIRONMENT=/app/.venv \
     UV_LINK_MODE=copy \
@@ -23,17 +17,28 @@ ENV PATH=/app/.venv/bin:$PATH \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-# Install python project (and dev) dependencies
-RUN uv sync \
-        --locked \
-        --dev \
-        --no-install-project
-
 # Set working dir
 WORKDIR /app
 
-# Copy all code
-COPY . .
+# Download curl
+RUN apt-get update && apt-get install -y curl
+
+# Download standalone Tailwind CLI into the PATH
+RUN curl -sLo /usr/local/bin/tailwindcss \
+        https://github.com/tailwindlabs/tailwindcss/releases/download/v4.1.11/tailwindcss-linux-x64 && \
+    chmod u+x /usr/local/bin/tailwindcss
+
+# Copy UV executable from UV image
+COPY --from=ghcr.io/astral-sh/uv:0.8.2 /uv /usr/local/bin/uv
+
+# Install python project (and dev) dependencies
+RUN --mount=type=bind,source=uv.lock,target=uv.lock \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    --mount=type=bind,source=.python-version,target=.python-version \
+    uv sync \
+        --locked \
+        --dev \
+        --no-install-project
 
 ###############################################################################
 #                                 Runtime Stage                               #
