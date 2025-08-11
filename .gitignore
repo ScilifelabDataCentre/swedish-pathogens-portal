@@ -1,7 +1,3 @@
-# Ignore tailwind generated css locally
-# Will generated during built time
-pathogens_portal/static/css/portal.css
-
 # Python byte-compiled, optimised, DLL files, etc.
 __pycache__/
 *.py[codz]
@@ -26,6 +22,9 @@ db.sqlite3-journal
 *.dump
 media/
 staticfiles/
+
+# Tailwind CSS (ignore the locally generated CSS, it will be at build time)
+pathogens_portal/static/css/portal.css
 
 # Unit test / coverage reports
 htmlcov/
