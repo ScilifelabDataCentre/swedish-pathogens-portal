@@ -50,8 +50,8 @@ services:
     pull_policy: never
     entrypoint: >
       tailwindcss 
-        -i pathogens_portal/static/css/base.css 
-        -o pathogens_portal/static/css/portal.css 
+        --input core/static/global/css/base.css
+        --output core/static/global/css/portal.css
         --watch=always
     container_name: spp_tailwind_watch
     working_dir: /app/local

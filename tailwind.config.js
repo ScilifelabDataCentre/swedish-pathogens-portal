@@ -1,8 +1,8 @@
 module.exports = {
   // Folders to pickup and watch for tailwind classes
   content: [
-    './pathogens_portal/static/**/*.{js}',
-    './pathogens_portal/templates/**/*.{html}',
+    './core/static/global/**/*.{js}',
+    './core/templates/global/**/*.{html}',
     './pages/**/templates/**/*.{html}'
   ]
 }

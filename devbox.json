@@ -20,6 +20,9 @@
       ],
       "db": [
         "django migrate"
+      ],
+      "test-dockerignore": [
+	"rsync -avn . /dev/shm --exclude-from .dockerignore"
       ]
     }
   }

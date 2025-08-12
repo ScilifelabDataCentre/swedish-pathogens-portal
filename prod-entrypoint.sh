@@ -18,7 +18,7 @@ python manage.py collectstatic --noinput || true
 
 # If first arg looks like a flag, assume we want to run gunicorn
 if [ "${1:-}" = "" ] || [ "${1#-}" != "$1" ]; then
-  set -- gunicorn pathogens_portal.wsgi:application \
+  set -- gunicorn core.wsgi:application \
     --bind 0.0.0.0:8000 \
     --workers ${GUNICORN_WORKERS:-2} \
     --threads ${GUNICORN_THREADS:-4} \
