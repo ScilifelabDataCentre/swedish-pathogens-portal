@@ -1,8 +1,12 @@
+# syntax=docker/dockerfile:1
+
+ARG PYTHON_IMAGE=python:3.13-slim-bookworm
+
 ###############################################################################
 #                             Base Stage                                      #
 #     (prepare common dependencies and environment for dev and prod)          #
 ###############################################################################
-FROM python:3.13-slim-bookworm AS base
+FROM ${PYTHON_IMAGE} AS base
 
 # Sets default shell to `sh -exc`:
 # -e  exit on error
@@ -13,8 +17,16 @@ SHELL ["sh", "-exc"]
 # Avoid interactive prompts during package operations
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Copy `uv` from the third-party image into the base container
-COPY --from=ghcr.io/astral-sh/uv:0.8.6 /uv /usr/local/bin/uv
+# Install curl and CA certs, clean in same layer (no development tools here)
+RUN apt-get update --quiet --assume-yes \
+ && apt-get install --quiet --assume-yes --no-install-recommends \
+        curl \
+        ca-certificates \
+ && apt-get clean \
+ && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# Retrieve `uv` from the third-party image (pin version)
+COPY --from=ghcr.io/astral-sh/uv:0.8.10 /uv /usr/local/bin/uv
 
 # Set `uv` environment variables (https://docs.astral.sh/uv/reference/environment/)
 ENV UV_LINK_MODE=copy \
@@ -22,21 +34,14 @@ ENV UV_LINK_MODE=copy \
     UV_PYTHON_DOWNLOADS=never \
     UV_PROJECT_ENVIRONMENT=/app/.venv
 
-# DO NOT add development tools here
-RUN apt-get update --quiet --assume-yes && \
-    apt-get install --quiet --assume-yes \
-        --option APT::Install-Recommends=0 \
-        --option APT::Install-Suggests=0 \
-        curl
+# Retrieve standalone Tailwind CLI into PATH (pin version)
+RUN curl --fail --silent --show-error --location --output /usr/local/bin/tailwindcss \
+        "https://github.com/tailwindlabs/tailwindcss/releases/download/v4.1.11/tailwindcss-linux-x64" \
+ && chmod +x /usr/local/bin/tailwindcss
 
-# Download standalone Tailwind CLI into PATH
-RUN curl --silent --location --output /usr/local/bin/tailwindcss \
-        https://github.com/tailwindlabs/tailwindcss/releases/latest/download/tailwindcss-linux-x64 && \
-    chmod +x /usr/local/bin/tailwindcss
-
-# Synchronise common dependencies WITHOUT the application itself.
-# This layer is cached until uv.lock or pyproject.toml change, which are only
-# temporarily mounted into the base container since we don't need them in production.
+# Sync common dependencies only (no dev group, no project installation)
+# NOTE: This layer is cached until uv.lock or pyproject.toml change, which are only
+#       temporarily mounted into the base container since we don't need them in production
 RUN --mount=type=cache,target=/root/.cache \
     --mount=type=bind,source=./.python-version,target=.python-version \
     --mount=type=bind,source=./uv.lock,target=uv.lock \
@@ -59,10 +64,9 @@ WORKDIR /app
 # Set Python environment variables (https://docs.python.org/3/using/cmdline.html#environment-variables)
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PATH=/app/.venv/bin:$PATH \
-    PYTHONPATH=/app/.venv
+    PATH=/app/.venv/bin:$PATH
 
-# Synchronise additional dev dependencies
+# Sync additional dev dependencies
 RUN --mount=type=cache,target=/root/.cache \
     --mount=type=bind,source=./.python-version,target=.python-version \
     --mount=type=bind,source=./uv.lock,target=uv.lock \
@@ -75,32 +79,23 @@ RUN --mount=type=cache,target=/root/.cache \
 
 ###############################################################################
 #                                 Build Stage                                 #
-#            (compile necessary dependencies and prepare for prod)            #
+#                     (compile psycopg[c] and build CSS)                      #
 ###############################################################################
 FROM base AS build
 
 # Work in application directory
 WORKDIR /app
 
-# Copy source code into build container
-COPY . /app
-
-# Compile and minify CSS (scan templates for purge)
-RUN tailwindcss \
-    --input core/static/global/css/base.css \
-    --output core/static/global/css/portal.css \
-    --minify
-
-# Compile psycopg[c] for faster PostgreSQL in production
-RUN apt-get update --quiet --assume-yes && \
-    apt-get install --quiet --assume-yes \
-        --option APT::Install-Recommends=0 \
-        --option APT::Install-Suggests=0 \
-        build-essential \
+# Build dependencies for psycopg[c]
+RUN apt-get update --quiet --assume-yes \
+ && apt-get install --quiet --assume-yes --no-install-recommends \
+        gcc \
+        libc6-dev \
         libpq-dev \
-        pkg-config
+ && apt-get clean \
+ && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Sync prod dependency group (this compiles psycopg[c])
+# Sync prod group (this compiles psycopg[c] into .venv)
 RUN --mount=type=cache,target=/root/.cache \
     --mount=type=bind,source=./.python-version,target=.python-version \
     --mount=type=bind,source=./uv.lock,target=uv.lock \
@@ -110,6 +105,16 @@ RUN --mount=type=cache,target=/root/.cache \
         --no-group dev \
         --group prod \
         --no-install-project
+
+# Compile and minify CSS (bind-mount content so Tailwind can scan templates)
+RUN --mount=type=bind,source=./tailwind.config.js,target=tailwind.config.js \
+    --mount=type=bind,source=./core/static/css/base.css,target=base.css \
+    --mount=type=bind,source=./core/templates,target=core/templates \
+    --mount=type=bind,source=./pages,target=pages \
+    tailwindcss \
+        --input base.css \
+        --output portal.css \
+        --minify
 
 
 # NOTE: collectstatic is not run here because settings lack STATIC_ROOT.
@@ -122,54 +127,54 @@ RUN --mount=type=cache,target=/root/.cache \
 ###############################################################################
 # TODO No perfect choice here because of different python compilation strategies
 # Must profile our application and investigate python/alpine/ubuntu/debian
-FROM python:3.13-slim-bookworm AS production
+FROM ${PYTHON_IMAGE} AS production
 
-# Sets default shell to `sh -exc`.
+# Set shell defaults
 SHELL ["sh", "-exc"]
 
-# Set Python environment variables
+# Set Python runtime environment
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PATH=/app/.venv/bin:$PATH \
-    PYTHONPATH=/app/.venv
+    PYTHONFAULTHANDLER=1 \
+    PYTHONOPTIMIZE=1 \
+    PATH=/app/.venv/bin:$PATH
 
-# Install runtime libraries required by psycopg[c]
-RUN apt-get update --quiet --assume-yes && \
-    apt-get install --quiet --assume-yes \
-        --option APT::Install-Recommends=0 \
-        --option APT::Install-Suggests=0 \
+# Install runtime libraries required by psycopg[c] and clean up
+RUN apt-get update --quiet --assume-yes \
+ && apt-get install --quiet --assume-yes --no-install-recommends \
         libpq5 \
-        ca-certificates
-
-# Clean up package lists to reduce image size
-RUN apt-get clean && \
-    rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+        ca-certificates \
+ && apt-get clean \
+ && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
 # Create non-root group and user `app`
-RUN groupadd --system app && \
-    useradd --system --no-user-group --home-dir /app --gid app app
+RUN groupadd --system app \
+ && useradd --system --no-user-group --home-dir /app --gid app app
 
 # Working directory
 WORKDIR /app
 
-# Copy entrypoint script into container and make it executable
-COPY prod-entrypoint.sh /docker-entrypoint.sh
-RUN chmod +x /docker-entrypoint.sh
-
-# Copy pre-built virtualenv (includes compiled psycopg[c])
+# Copy pre-built virtual environment from build stage
 COPY --from=build --chown=app:app /app/.venv /app/.venv
 
-# Copy application code
-# NOTE: exclude tailwind input base.css?
-# NOTE: exclude static if whitenoise?
+# Copy application code (filtered by .dockerignore)
 COPY --chown=app:app . /app
 
-# Bring in compiled CSS from build stage
+# Remove build-time files
+RUN rm -f /app/pyproject.toml \
+          /app/uv.lock \
+          /app/tailwind.config.js \
+          /app/core/static/css/base.css
+
+# Retrieve compiled CSS from build stage
+COPY --from=build --chown=app:app /app/portal.css /app/core/static/css/portal.css
+
+# Make entrypoint script executable
+RUN chmod +x /prod-entrypoint.sh
+
 # NOTE: other static assets if whitenoise?
-COPY --from=build --chown=app:app /app/core/static/global/css/portal.css /app/core/static/global/css/portal.css
 
-# Switch to non-root user
+# Switch to non-root user, expose port, and set entrypoint
 USER app
-
-# Set entrypoint script and stop signal for the container
-ENTRYPOINT ["/docker-entrypoint.sh"]
+EXPOSE 8000
+ENTRYPOINT ["/prod-entrypoint.sh"]

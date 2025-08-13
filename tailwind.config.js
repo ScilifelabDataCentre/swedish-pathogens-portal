@@ -1,7 +1,7 @@
 module.exports = {
   // Folders to pickup and watch for tailwind classes
   content: [
-    './core/static/global/**/*.{js}',
+    './core/static/**/*.{js}',
     './core/templates/**/*.{html}',
     './pages/**/templates/**/*.{html}'
   ]
