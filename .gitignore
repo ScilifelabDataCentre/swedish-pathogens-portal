@@ -24,7 +24,7 @@ media/
 staticfiles/
 
 # Tailwind CSS (ignore the locally generated CSS, it will be at build time)
-core/static/global/css/portal.css
+core/static/css/portal.css
 
 # Unit test / coverage reports
 htmlcov/

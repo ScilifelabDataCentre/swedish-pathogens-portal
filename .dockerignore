@@ -24,8 +24,8 @@ db.sqlite3
 db.sqlite3-journal
 *.dump
 
-# Tailwind CSS (ignore the locally generated CSS, it will be at build time)
-core/static/global/css/portal.css
+# Tailwind CSS locally generated files
+core/static/css/portal.css
 
 # Unit test / coverage reports
 htmlcov/
