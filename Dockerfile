@@ -35,9 +35,16 @@ ENV UV_LINK_MODE=copy \
     UV_PROJECT_ENVIRONMENT=/app/.venv
 
 # Retrieve standalone Tailwind CLI into PATH (pin version)
-RUN curl --fail --silent --show-error --location --output /usr/local/bin/tailwindcss \
-        "https://github.com/tailwindlabs/tailwindcss/releases/download/v4.1.11/tailwindcss-linux-x64" \
- && chmod +x /usr/local/bin/tailwindcss
+ARG TARGETARCH
+RUN set -eux; \
+    case "${TARGETARCH}" in \
+        "amd64") TAILWIND_ARCH="x64" ;; \
+        "arm64" | "aarch64") TAILWIND_ARCH="arm64" ;; \
+        *) echo "Unsupported architecture: ${TARGETARCH}"; exit 1 ;; \
+    esac; \
+    curl --fail --silent --show-error --location --output /usr/local/bin/tailwindcss \
+        "https://github.com/tailwindlabs/tailwindcss/releases/download/v4.1.11/tailwindcss-linux-${TAILWIND_ARCH}" \
+    && chmod +x /usr/local/bin/tailwindcss
 
 # Sync common dependencies only (no dev group, no project installation)
 # NOTE: This layer is cached until uv.lock or pyproject.toml change, which are only
@@ -170,11 +177,11 @@ RUN rm -f /app/pyproject.toml \
 COPY --from=build --chown=app:app /app/portal.css /app/core/static/css/portal.css
 
 # Make entrypoint script executable
-RUN chmod +x /prod-entrypoint.sh
+RUN chmod +x ./prod-entrypoint.sh
 
 # NOTE: other static assets if whitenoise?
 
 # Switch to non-root user, expose port, and set entrypoint
 USER app
 EXPOSE 8000
-ENTRYPOINT ["/prod-entrypoint.sh"]
+ENTRYPOINT ["./prod-entrypoint.sh"]
