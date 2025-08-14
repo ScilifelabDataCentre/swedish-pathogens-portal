@@ -18,6 +18,10 @@ prod = [
     "gunicorn>=22.0.0",
 ]
 
+# Disable UV default dependency-groups
+[tool.uv]
+default-groups = []
+
 # Ruff linting and formatter settings
 [tool.ruff]
 

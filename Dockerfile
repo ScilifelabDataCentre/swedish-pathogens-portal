@@ -25,8 +25,22 @@ RUN apt-get update --quiet --assume-yes \
  && apt-get clean \
  && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
+# Retrieve standalone Tailwind CLI into PATH (pin version)
+ARG TARGETARCH
+RUN case "${TARGETARCH}" in \
+        "amd64") TAILWIND_ARCH="x64" ;; \
+        "arm64") TAILWIND_ARCH="arm64" ;; \
+        *) echo "Unsupported architecture: ${TARGETARCH}"; exit 1 ;; \
+    esac; \
+    curl --fail --silent --show-error --location --output /usr/local/bin/tailwindcss \
+        "https://github.com/tailwindlabs/tailwindcss/releases/download/v4.1.11/tailwindcss-linux-${TAILWIND_ARCH}" \
+ && chmod +x /usr/local/bin/tailwindcss
+
 # Retrieve `uv` from the third-party image (pin version)
 COPY --from=ghcr.io/astral-sh/uv:0.8.10 /uv /usr/local/bin/uv
+
+# Set working directory
+WORKDIR /app
 
 # Set `uv` environment variables (https://docs.astral.sh/uv/reference/environment/)
 ENV UV_LINK_MODE=copy \
@@ -34,28 +48,13 @@ ENV UV_LINK_MODE=copy \
     UV_PYTHON_DOWNLOADS=never \
     UV_PROJECT_ENVIRONMENT=/app/.venv
 
-# Retrieve standalone Tailwind CLI into PATH (pin version)
-ARG TARGETARCH
-RUN set -eux; \
-    case "${TARGETARCH}" in \
-        "amd64") TAILWIND_ARCH="x64" ;; \
-        "arm64" | "aarch64") TAILWIND_ARCH="arm64" ;; \
-        *) echo "Unsupported architecture: ${TARGETARCH}"; exit 1 ;; \
-    esac; \
-    curl --fail --silent --show-error --location --output /usr/local/bin/tailwindcss \
-        "https://github.com/tailwindlabs/tailwindcss/releases/download/v4.1.11/tailwindcss-linux-${TAILWIND_ARCH}" \
-    && chmod +x /usr/local/bin/tailwindcss
+# Copy required files to install dependancy
+COPY .python-version pyproject.toml uv.lock /app/
 
-# Sync common dependencies only (no dev group, no project installation)
-# NOTE: This layer is cached until uv.lock or pyproject.toml change, which are only
-#       temporarily mounted into the base container since we don't need them in production
+# Sync common dependencies only (no default group, no project installation)
 RUN --mount=type=cache,target=/root/.cache \
-    --mount=type=bind,source=./.python-version,target=.python-version \
-    --mount=type=bind,source=./uv.lock,target=uv.lock \
-    --mount=type=bind,source=./pyproject.toml,target=pyproject.toml \
     uv sync \
         --locked \
-        --no-group dev \
         --no-install-project
 
 
@@ -65,9 +64,6 @@ RUN --mount=type=cache,target=/root/.cache \
 ###############################################################################
 FROM base AS dev
 
-# Switch to application working directory
-WORKDIR /app
-
 # Set Python environment variables (https://docs.python.org/3/using/cmdline.html#environment-variables)
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -75,13 +71,10 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 # Sync additional dev dependencies
 RUN --mount=type=cache,target=/root/.cache \
-    --mount=type=bind,source=./.python-version,target=.python-version \
-    --mount=type=bind,source=./uv.lock,target=uv.lock \
-    --mount=type=bind,source=./pyproject.toml,target=pyproject.toml \
     uv sync \
         --locked \
-        --group dev \
-        --no-install-project
+        --no-install-project \
+        --group dev
 
 
 ###############################################################################
@@ -89,9 +82,6 @@ RUN --mount=type=cache,target=/root/.cache \
 #                     (compile psycopg[c] and build CSS)                      #
 ###############################################################################
 FROM base AS build
-
-# Work in application directory
-WORKDIR /app
 
 # Build dependencies for psycopg[c]
 RUN apt-get update --quiet --assume-yes \
@@ -104,25 +94,17 @@ RUN apt-get update --quiet --assume-yes \
 
 # Sync prod group (this compiles psycopg[c] into .venv)
 RUN --mount=type=cache,target=/root/.cache \
-    --mount=type=bind,source=./.python-version,target=.python-version \
-    --mount=type=bind,source=./uv.lock,target=uv.lock \
-    --mount=type=bind,source=./pyproject.toml,target=pyproject.toml \
     uv sync \
         --locked \
-        --no-group dev \
-        --group prod \
-        --no-install-project
+        --no-install-project \
+        --group prod
 
-# Compile and minify CSS (bind-mount content so Tailwind can scan templates)
-RUN --mount=type=bind,source=./tailwind.config.js,target=tailwind.config.js \
-    --mount=type=bind,source=./core/static/css/base.css,target=base.css \
-    --mount=type=bind,source=./core/templates,target=core/templates \
-    --mount=type=bind,source=./pages,target=pages \
+# Mount the source code to compile the final CSS using Tailwind
+RUN --mount=type=bind,source=./,target=/app \
     tailwindcss \
-        --input base.css \
-        --output portal.css \
+        --input core/static/css/base.css \
+        --output /portal.css \
         --minify
-
 
 # NOTE: collectstatic is not run here because settings lack STATIC_ROOT.
 # Consider adding Whitenoise and STATIC_ROOT for future optimisation
@@ -165,19 +147,19 @@ WORKDIR /app
 COPY --from=build --chown=app:app /app/.venv /app/.venv
 
 # Copy application code (filtered by .dockerignore)
-COPY --chown=app:app . /app
-
-# Remove build-time files
-RUN rm -f /app/pyproject.toml \
-          /app/uv.lock \
-          /app/tailwind.config.js \
-          /app/core/static/css/base.css
+COPY --chown=app:app ./ /app/
 
 # Retrieve compiled CSS from build stage
-COPY --from=build --chown=app:app /app/portal.css /app/core/static/css/portal.css
+COPY --from=build --chown=app:app /portal.css /app/core/static/css/portal.css
+
+# Remove unused files from final build
+RUN rm -f pyproject.toml \
+          uv.lock \
+          tailwind.config.js \
+          core/static/css/base.css
 
 # Make entrypoint script executable
-RUN chmod +x ./prod-entrypoint.sh
+RUN chmod +x prod-entrypoint.sh
 
 # NOTE: other static assets if whitenoise?
 
