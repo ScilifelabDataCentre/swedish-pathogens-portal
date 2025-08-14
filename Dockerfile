@@ -1,97 +1,169 @@
+# syntax=docker/dockerfile:1
+
+ARG PYTHON_IMAGE=python:3.13-slim-bookworm
+
+###############################################################################
+#                             Base Stage                                      #
+#     (prepare common dependencies and environment for dev and prod)          #
+###############################################################################
+FROM ${PYTHON_IMAGE} AS base
+
+# Sets default shell to `sh -exc`:
+# -e  exit on error
+# -x  write commands to standard error
+# -c  read commands from the command_string operand
+SHELL ["sh", "-exc"]
+
+# Avoid interactive prompts during package operations
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install curl and CA certs, clean in same layer (no development tools here)
+RUN apt-get update --quiet --assume-yes \
+ && apt-get install --quiet --assume-yes --no-install-recommends \
+        curl \
+        ca-certificates \
+ && apt-get clean \
+ && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# Retrieve standalone Tailwind CLI into PATH (pin version)
+ARG TARGETARCH
+RUN case "${TARGETARCH}" in \
+        "amd64") TAILWIND_ARCH="x64" ;; \
+        "arm64") TAILWIND_ARCH="arm64" ;; \
+        *) echo "Unsupported architecture: ${TARGETARCH}"; exit 1 ;; \
+    esac; \
+    curl --fail --silent --show-error --location --output /usr/local/bin/tailwindcss \
+        "https://github.com/tailwindlabs/tailwindcss/releases/download/v4.1.11/tailwindcss-linux-${TAILWIND_ARCH}" \
+ && chmod +x /usr/local/bin/tailwindcss
+
+# Retrieve `uv` from the third-party image (pin version)
+COPY --from=ghcr.io/astral-sh/uv:0.8.10 /uv /usr/local/bin/uv
+
+# Set working directory
+WORKDIR /app
+
+# Set `uv` environment variables (https://docs.astral.sh/uv/reference/environment/)
+ENV UV_LINK_MODE=copy \
+    UV_COMPILE_BYTECODE=1 \
+    UV_PYTHON_DOWNLOADS=never \
+    UV_PROJECT_ENVIRONMENT=/app/.venv
+
+# Copy required files to install dependancy
+COPY .python-version pyproject.toml uv.lock /app/
+
+# Sync common dependencies only (no default group, no project installation)
+RUN --mount=type=cache,target=/root/.cache \
+    uv sync \
+        --locked \
+        --no-install-project
+
+
 ###############################################################################
 #                             Development Image                               #
-#                      (used only for local development)                      #
+#                      (add dev specific dependencies)                        #
 ###############################################################################
+FROM base AS dev
 
-FROM python:3.13-slim-bookworm AS dev
+# Set Python environment variables (https://docs.python.org/3/using/cmdline.html#environment-variables)
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH=/app/.venv/bin:$PATH
 
-# Copy UV executable from UV image
-COPY --from=ghcr.io/astral-sh/uv:0.8.2 /uv /usr/local/bin/uv
-
-# Copy relevant files to find dependencies
-COPY pyproject.toml uv.lock .python-version ./
-
-# Set dependency root directory and UV options
-ENV UV_PROJECT_ENVIRONMENT=/app/.venv \
-    UV_LINK_MODE=copy \
-    UV_COMPILE_BYTECODE=1 \
-    UV_PYTHON_DOWNLOADS=never
-
-# add dependency to PATH and PYTHONPATH
-ENV PATH=/app/.venv/bin:$PATH \
-    PYTHONPATH=/app/.venv \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
-
-# Install python project (and dev) dependencies
-RUN uv sync \
+# Sync additional dev dependencies
+RUN --mount=type=cache,target=/root/.cache \
+    uv sync \
         --locked \
-        --dev \
-        --no-install-project
+        --no-install-project \
+        --group dev
 
-# Set working dir
+
+###############################################################################
+#                                 Build Stage                                 #
+#                     (compile psycopg[c] and build CSS)                      #
+###############################################################################
+FROM base AS build
+
+# Build dependencies for psycopg[c]
+RUN apt-get update --quiet --assume-yes \
+ && apt-get install --quiet --assume-yes --no-install-recommends \
+        gcc \
+        libc6-dev \
+        libpq-dev \
+ && apt-get clean \
+ && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# Sync prod group (this compiles psycopg[c] into .venv)
+RUN --mount=type=cache,target=/root/.cache \
+    uv sync \
+        --locked \
+        --no-install-project \
+        --group prod
+
+# Mount the source code to compile the final CSS using Tailwind
+RUN --mount=type=bind,source=./,target=/app \
+    tailwindcss \
+        --input core/static/css/base.css \
+        --output /portal.css \
+        --minify
+
+# NOTE: collectstatic is not run here because settings lack STATIC_ROOT.
+# Consider adding Whitenoise and STATIC_ROOT for future optimisation
+
+
+###############################################################################
+#                             Production Image                                #
+#                      (build minimal and clean image)                        #
+###############################################################################
+# TODO No perfect choice here because of different python compilation strategies
+# Must profile our application and investigate python/alpine/ubuntu/debian
+FROM ${PYTHON_IMAGE} AS production
+
+# Set shell defaults
+SHELL ["sh", "-exc"]
+
+# Set Python runtime environment
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONFAULTHANDLER=1 \
+    PYTHONOPTIMIZE=1 \
+    PATH=/app/.venv/bin:$PATH
+
+# Install runtime libraries required by psycopg[c] and clean up
+RUN apt-get update --quiet --assume-yes \
+ && apt-get install --quiet --assume-yes --no-install-recommends \
+        libpq5 \
+        ca-certificates \
+ && apt-get clean \
+ && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
+
+# Create non-root group and user `app`
+RUN groupadd --system app \
+ && useradd --system --no-user-group --home-dir /app --gid app app
+
+# Working directory
 WORKDIR /app
 
-# Copy all code
-COPY . .
-
-###############################################################################
-#                                 Runtime Stage                               #
-###############################################################################
-
-FROM python:3.13-bookworm AS runtime
-
-# Following are required prerequistes for psycopg[c], by default they are
-# all included in full bookworm distro. But keeping here for reference
-# in case needed later. We can remove it at the end if not needed
-# RUN apt-get update && \
-#     apt-get install -y \
-#     gcc \
-#     python3-dev \
-#     postgresql-dev \
-#     libpq
-
-# Copy UV executable from UV image
-COPY --from=ghcr.io/astral-sh/uv:0.8.2 /uv /usr/local/bin/uv
-
-# Copy relevant files to find dependencies
-COPY pyproject.toml uv.lock .python-version ./
-
-# Set dependency root directory and UV options
-ENV UV_PROJECT_ENVIRONMENT=/app/.venv \
-    UV_LINK_MODE=copy \
-    UV_COMPILE_BYTECODE=1 \
-    UV_PYTHON_DOWNLOADS=never
-
-# Install python dependencies
-RUN uv sync \
-        --locked \
-        --group runtime \
-        --no-dev \
-        --no-install-project
-
-###############################################################################
-#                         Runtime Stage - Production                          #
-###############################################################################
-
-FROM python:3.13-bookworm AS production
-
-# Add app venv to PATH and PYTHONPATH
-ENV PATH=/app/.venv/bin:$PATH \
-    PYTHONPATH=/app/.venv \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
-
-# Set working dir
-WORKDIR /app
-
-# Create non-root group and user `app`.
-RUN groupadd --system app && \
-    useradd --system --no-user-group --home /app --gid app app
-
-# Copy pre-built dependancy from 'build' stage
-# assign ownership to `app` user and group.
+# Copy pre-built virtual environment from build stage
 COPY --from=build --chown=app:app /app/.venv /app/.venv
 
-# Copy source code to image
-COPY --chown=app:app . .
+# Copy application code (filtered by .dockerignore)
+COPY --chown=app:app ./ /app/
+
+# Retrieve compiled CSS from build stage
+COPY --from=build --chown=app:app /portal.css /app/core/static/css/portal.css
+
+# Remove unused files from final build
+RUN rm -f pyproject.toml \
+          uv.lock \
+          tailwind.config.js \
+          core/static/css/base.css
+
+# Make entrypoint script executable
+RUN chmod +x prod-entrypoint.sh
+
+# NOTE: other static assets if whitenoise?
+
+# Switch to non-root user, expose port, and set entrypoint
+USER app
+EXPOSE 8000
+ENTRYPOINT ["./prod-entrypoint.sh"]

@@ -23,6 +23,9 @@ db.sqlite3-journal
 media/
 staticfiles/
 
+# Tailwind CSS (ignore the locally generated CSS, it will be at build time)
+core/static/css/portal.css
+
 # Unit test / coverage reports
 htmlcov/
 .coverage

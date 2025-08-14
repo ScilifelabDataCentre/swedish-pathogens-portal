@@ -13,9 +13,14 @@ dependencies = [
 dev = [
     "psycopg[binary]>=3.2.9",
 ]
-runtime = [
+prod = [
     "psycopg[c]>=3.2.9",
+    "gunicorn>=22.0.0",
 ]
+
+# Disable UV default dependency-groups
+[tool.uv]
+default-groups = []
 
 # Ruff linting and formatter settings
 [tool.ruff]

@@ -6,6 +6,8 @@ services:
       context: ./
       dockerfile: Dockerfile
       target: dev
+    image: swedish_pathogens_portal
+    pull_policy: never
     container_name: spp_web
     entrypoint: python manage.py runserver 0.0.0.0:8000
     env_file:
@@ -21,6 +23,8 @@ services:
       db:
         condition: service_healthy
         restart: true
+      tailwind:
+        condition: service_started
   # Postgresql DB
   db:
     image: postgres:17
@@ -39,6 +43,22 @@ services:
       timeout: 10s
       retries: 5
       start_period: 30s
+  # Tailwind watch
+  tailwind:
+    image: swedish_pathogens_portal
+    init: true
+    pull_policy: never
+    entrypoint: >
+      tailwindcss 
+        --input core/static/css/base.css
+        --output core/static/css/portal.css
+        --watch=always
+    container_name: spp_tailwind_watch
+    working_dir: /app/local
+    volumes:
+      - type: bind
+        source: ./
+        target: /app/local
 # Persistant volume for DB
 volumes:
   postgres_db:

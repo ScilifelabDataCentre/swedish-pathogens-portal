@@ -1,33 +1,16 @@
-# Git
-.git
-.gitignore
-.github/
-
-# Python
-__pycache__
-*.pyc
-*.pyo
-*.pyd
+# Python byte-compiled, optimised, DLL files, etc.
+__pycache__/
+*.py[codz]
+*$py.class
+*.so
 .Python
-env
-pip-log.txt
-pip-delete-this-directory.txt
 .tox
-.coverage
-.coverage.*
 .cache
-nosetests.xml
-coverage.xml
-*.cover
-*.log
-.git
-.mypy_cache
-.pytest_cache
-.hypothesis
-.ruff_cache
 
-# Virtual environments
+# Environments
 .env
+.env.example
+.envrc
 .venv
 env/
 venv/
@@ -35,39 +18,51 @@ ENV/
 env.bak/
 venv.bak/
 
-# Node JS
-node_modules
-
-# IDE
-.vscode
-*.code-workspace
-.idea/
-*.swp
-*.swo
-*~
-
-# OS
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-
-# Project specific
+# Django stuff
+*.log
 db.sqlite3
-*.sqlite3
-devbox.json
-devbox.lock
-.env.example
+db.sqlite3-journal
+*.dump
+
+# Tailwind CSS locally generated files
+core/static/css/portal.css
+
+# Unit test / coverage reports
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+.mypy_cache
+.pytest_cache/
+
+# Ruff stuff
+.ruff_cache/
 
 # Documentation
 README.md
 LICENSE
 *.md
 
+# Git
+.git
+.gitignore
+.github/
+
 # Docker
 Dockerfile
 .dockerignore
 compose*.yaml
+
+# Node JS
+node_modules
+
+# Editors & IDEs
+.vscode
+*.code-workspace
+*devbox*
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
