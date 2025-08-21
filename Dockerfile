@@ -155,7 +155,6 @@ COPY --from=build --chown=app:app /portal.css /app/core/static/css/portal.css
 # Remove unused files from final build
 RUN rm -f pyproject.toml \
           uv.lock \
-          tailwind.config.js \
           core/static/css/base.css
 
 # Make entrypoint script executable
