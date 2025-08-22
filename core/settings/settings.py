@@ -65,9 +65,7 @@ DJANGO_APPS = [
     "django.contrib.staticfiles",
 ]
 
-THIRD_PARTY_APPS = [
-
-]
+THIRD_PARTY_APPS = []
 
 LOCAL_APPS = [
     "pages.home",
@@ -104,9 +102,7 @@ WSGI_APPLICATION = "core.wsgi.application"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [
-            BASE_DIR / "core" / "templates"
-        ],
+        "DIRS": [BASE_DIR / "core" / "templates"],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -166,6 +162,4 @@ AUTH_PASSWORD_VALIDATORS = [
 
 STATIC_URL = "static/"
 
-STATICFILES_DIRS = [
-    BASE_DIR / "core" / "static"
-]
+STATICFILES_DIRS = [BASE_DIR / "core" / "static"]
