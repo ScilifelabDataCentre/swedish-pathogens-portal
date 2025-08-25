@@ -36,7 +36,6 @@ ADMIN_URL_PATH = env("ADMIN_URL_PATH")
 # MANAGERS = ADMINS
 
 
-
 # SECURITY
 # ------------------------------------------------------------------------------
 ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", [])
