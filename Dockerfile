@@ -106,8 +106,7 @@ RUN --mount=type=bind,source=./,target=/app \
         --output /portal.css \
         --minify
 
-# NOTE: collectstatic is not run here because settings lack STATIC_ROOT.
-# Consider adding Whitenoise and STATIC_ROOT for future optimisation
+# TODO: run collectstatic and set up for whitenoise in production
 
 
 ###############################################################################
@@ -152,6 +151,8 @@ COPY --chown=app:app ./ /app/
 # Retrieve compiled CSS from build stage
 COPY --from=build --chown=app:app /portal.css /app/core/static/css/portal.css
 
+# TODO: ensure we bring over the collected, compressed, and hashed static files
+
 # Remove unused files from final build
 RUN rm -f pyproject.toml \
           uv.lock \
@@ -159,8 +160,6 @@ RUN rm -f pyproject.toml \
 
 # Make entrypoint script executable
 RUN chmod +x prod-entrypoint.sh
-
-# NOTE: other static assets if whitenoise?
 
 # Switch to non-root user, expose port, and set entrypoint
 USER app
