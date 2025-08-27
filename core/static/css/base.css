@@ -6,8 +6,9 @@
 /* Tailwind css import */
 @import "tailwindcss";
 
-/* Pathogens portal visual identity colors */
+/* Custom variable and styling values */
 @theme {
+    /* Pathogens portal visual identity colours */
     --color-pp-teal: #37ae94;
     --color-pp-mid-blue: #4770b1;
     --color-pp-dark-blue: #295986;
@@ -15,23 +16,36 @@
     --color-pp-pale-grey: #d8d8d8;
     --color-pp-dark-grey: #55585a;
     --color-pp-almost-black: #1a1c1a;
+
+    /* REM values can used for marging, padding, etc */
+    --rem-small: 0.8rem;
+    --rem-base: 1rem;
+    --rem-md: 1.2rem;
+    --rem-lg: 1.5rem;
+    --rem-xl: 1.7rem;
+    --rem-2xl: 2rem;
+    --rem-3xl: 2.25rem;
 }
 
+/* Site's default element level styling */
 @layer base {
+    /* Default Font, Font size and body element styling  */
     body {
         font-family: "IBM Plex Sans", Helvetica, Arial, sans-serif;
-        @apply flex flex-col min-h-screen m-0;
+        @apply flex flex-col min-h-screen m-0 text-base font-normal;
     }
 
+    /* Main content, extends to end of viewport */
     main {
         @apply flex-1;
     }
 
+    /* Footer styling */
     footer {
         @apply w-full border-t border-solid border-pp-pale-grey;
-
     }
 
+    /* Default anchor a.k.a links styling and hover behaviour */
     a {
         @apply text-pp-mid-blue no-underline;
     }
@@ -39,8 +53,38 @@
     a:hover {
         @apply text-pp-mid-blue underline underline-offset-2 cursor-pointer;
     }
+
+    /* Default typography for headers and text */
+    h1 {
+        @apply text-5xl;
+    }
+
+    h2 {
+        @apply text-4xl;
+    }
+
+    h3 {
+        @apply text-3xl;
+    }
+
+    h4 {
+        @apply text-2xl;
+    }
+
+    h5 {
+        @apply text-xl;
+    }
+
+    h1, h2, h3, h4, h5, h6 {
+        @apply mt-(--rem-xl) mb-(--rem-base) font-medium tracking-tight;
+    }
+
+    p {
+        @apply my-(--rem-base)
+    }
 }
 
+/* Site's custom component styling */
 @layer components {
     .container {
         @apply mx-16 my-4 px-8 pt-0 overflow-auto;
