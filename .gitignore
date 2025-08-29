@@ -6,7 +6,6 @@ __pycache__/
 
 # Environments
 .env
-.envrc
 .venv
 env/
 venv/
@@ -43,6 +42,12 @@ coverage.xml
 # Visual Studio Code
 .vscode
 *.code-workspace
+
+# Devbox, direnv, process-compose
+devbox.json
+devbox.lock
+.envrc
+process-compose.yaml
 
 # OS
 .DS_Store
