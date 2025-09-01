@@ -106,7 +106,7 @@ RUN --mount=type=bind,source=./,target=/app \
         --output /portal.css \
         --minify
 
-# TODO: run collectstatic and set up for whitenoise in production
+# TODO: investigate static files serving
 
 
 ###############################################################################

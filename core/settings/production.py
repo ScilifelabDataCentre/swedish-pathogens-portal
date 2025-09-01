@@ -10,13 +10,6 @@ from .base import env
 
 DEBUG = False
 
-# Use compressed and hashed static files storage
-STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
-
-
-# TODO: WhiteNoise
-# https://docs.djangoproject.com/en/5.2/ref/settings/#storages)
-# https://whitenoise.readthedocs.io/en/stable/django.html#add-compression-and-caching-support
 
 
 # REVIEW: SECURITY HEADERS

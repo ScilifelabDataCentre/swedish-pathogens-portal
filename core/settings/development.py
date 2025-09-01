@@ -13,5 +13,3 @@ DEBUG = True
 # Allow all hosts in dev
 ALLOWED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0"]
 
-# WhiteNoise (https://whitenoise.readthedocs.io/en/stable/django.html#using-whitenoise-in-development)
-INSTALLED_APPS = ["whitenoise.runserver_nostatic", *INSTALLED_APPS]

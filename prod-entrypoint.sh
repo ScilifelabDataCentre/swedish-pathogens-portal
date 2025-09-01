@@ -2,7 +2,6 @@
 
 # THIS IS JUST A ROUGH DRAFT LAYOUT FOR NOW, IT NEEDS TO BE PROPERLY ADAPTED TO OUR PRODUCTION DEPLOYMENT NEEDS.
 # Some TODOs:
-# - Add Whitenoise and STATIC_ROOT for future optimisation
 # - Add proper logging
 # - Add proper error handling (e.g. 500 error page)
 # - Add proper monitoring (e.g. healthcheck)
