@@ -109,7 +109,12 @@ TEMPLATES = [
 
 # DATABASES (https://docs.djangoproject.com/en/5.2/ref/settings/#databases)
 # ------------------------------------------------------------------------------
-DATABASES = {"default": env.db("DATABASE_URL")}
+DATABASES = {
+  "default": {
+    **env.db("DATABASE_URL"),
+    "CONN_MAX_AGE": env.int("DB_CONN_MAX_AGE", default=0),
+  }
+}
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
