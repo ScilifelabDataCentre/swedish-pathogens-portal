@@ -36,12 +36,6 @@ ADMIN_URL = env("ADMIN_URL", default="admin").rstrip("/") + "/"
 # MANAGERS = ADMINS
 
 
-# SECURITY
-# ------------------------------------------------------------------------------
-ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", [])
-CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", [])
-
-
 # INTERNATIONALISATION (https://docs.djangoproject.com/en/5.2/topics/i18n/)
 # ------------------------------------------------------------------------------
 LANGUAGE_CODE = "en-gb"
@@ -139,6 +133,7 @@ AUTH_PASSWORD_VALIDATORS = [
 
 # STATIC FILES (https://docs.djangoproject.com/en/5.2/ref/settings/#static-files)
 # ------------------------------------------------------------------------------
+# REVIEW: These will depend on our static file serving strategy
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATIC_URL = "static/"
 STATICFILES_DIRS = [BASE_DIR / "core" / "static"]
