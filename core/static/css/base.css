@@ -16,15 +16,6 @@
     --color-pp-pale-grey: #d8d8d8;
     --color-pp-dark-grey: #55585a;
     --color-pp-almost-black: #1a1c1a;
-
-    /* REM values can used for marging, padding, etc */
-    --rem-small: 0.8rem;
-    --rem-base: 1rem;
-    --rem-md: 1.2rem;
-    --rem-lg: 1.5rem;
-    --rem-xl: 1.7rem;
-    --rem-2xl: 2rem;
-    --rem-3xl: 2.25rem;
 }
 
 /* Site's default element level styling */
@@ -76,11 +67,11 @@
     }
 
     h1, h2, h3, h4, h5, h6 {
-        @apply mt-(--rem-xl) mb-(--rem-base) font-medium tracking-tight;
+        @apply mt-7 mb-4 font-medium tracking-tight;
     }
 
     p {
-        @apply my-(--rem-base)
+        @apply my-4
     }
 }
 
