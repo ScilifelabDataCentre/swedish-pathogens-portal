@@ -31,7 +31,7 @@ SECRET_KEY = env("SECRET_KEY")
 
 # ADMIN
 # ------------------------------------------------------------------------------
-ADMIN_URL_PATH = env("ADMIN_URL_PATH")
+ADMIN_URL = env("ADMIN_URL", default="admin").rstrip("/") + "/"
 # ADMINS = [(Full name, email address)]
 # MANAGERS = ADMINS
 

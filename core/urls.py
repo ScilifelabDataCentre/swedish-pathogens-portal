@@ -17,9 +17,9 @@ Including another URLconf
 
 from django.contrib import admin
 from django.urls import path, include
-from django.conf import settings
+from django.conf.settings import ADMIN_URL
 
 urlpatterns = [
-    path(settings.ADMIN_URL_PATH.rstrip("/") + "/", admin.site.urls, name="admin"),
+    path(ADMIN_URL, admin.site.urls, name="admin"),
     path("", include("pages.home.urls")),
 ]
