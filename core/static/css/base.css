@@ -78,6 +78,6 @@
 /* Site's custom component styling */
 @layer utilities {
     .container {
-        @apply mx-auto my-4 overflow-auto;
+        @apply mx-auto my-4 xl:max-w-7xl max-sm:px-8 overflow-auto;
     }
 }
