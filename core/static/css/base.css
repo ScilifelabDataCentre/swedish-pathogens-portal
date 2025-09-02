@@ -76,8 +76,8 @@
 }
 
 /* Site's custom component styling */
-@layer components {
+@layer utilities {
     .container {
-        @apply mx-16 my-4 px-8 pt-0 overflow-auto;
+        @apply mx-auto my-4 overflow-auto;
     }
 }
