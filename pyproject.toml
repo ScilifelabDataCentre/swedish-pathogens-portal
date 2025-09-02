@@ -13,6 +13,7 @@ dependencies = [
 dev = [
     "django-extensions>=4.1",
     "psycopg[binary]>=3.2.9",
+    "pygraphviz>=1.14",
     "watchdog>=6.0.0",
     "werkzeug[watchdog]>=3.1.3",
 ]

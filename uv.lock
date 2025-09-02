@@ -140,6 +140,12 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/83/7f/6147cb842081b0b32692bf5a0fdf58e9ac95418ebac1184d4431ec44b85f/psycopg_c-3.2.9.tar.gz", hash = "sha256:8c9f654f20c6c56bddc4543a3caab236741ee94b6732ab7090b95605502210e2", size = 609538, upload-time = "2025-05-13T16:11:19.856Z" }
 
 [[package]]
+name = "pygraphviz"
+version = "1.14"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/66/ca/823d5c74a73d6b8b08e1f5aea12468ef334f0732c65cbb18df2a7f285c87/pygraphviz-1.14.tar.gz", hash = "sha256:c10df02377f4e39b00ae17c862f4ee7e5767317f1c6b2dfd04cea6acc7fc2bea", size = 106003, upload-time = "2024-09-29T18:31:12.471Z" }
+
+[[package]]
 name = "sqlparse"
 version = "0.5.3"
 source = { registry = "https://pypi.org/simple" }
@@ -161,6 +167,7 @@ dependencies = [
 dev = [
     { name = "django-extensions" },
     { name = "psycopg", extra = ["binary"] },
+    { name = "pygraphviz" },
     { name = "watchdog" },
     { name = "werkzeug", extra = ["watchdog"] },
 ]
@@ -179,6 +186,7 @@ requires-dist = [
 dev = [
     { name = "django-extensions", specifier = ">=4.1" },
     { name = "psycopg", extras = ["binary"], specifier = ">=3.2.9" },
+    { name = "pygraphviz", specifier = ">=1.14" },
     { name = "watchdog", specifier = ">=6.0.0" },
     { name = "werkzeug", extras = ["watchdog"], specifier = ">=3.1.3" },
 ]
