@@ -2,7 +2,6 @@
 
 # THIS IS JUST A ROUGH DRAFT LAYOUT FOR NOW, IT NEEDS TO BE PROPERLY ADAPTED TO OUR PRODUCTION DEPLOYMENT NEEDS.
 # Some TODOs:
-# - Add Whitenoise and STATIC_ROOT for future optimisation
 # - Add proper logging
 # - Add proper error handling (e.g. 500 error page)
 # - Add proper monitoring (e.g. healthcheck)
@@ -12,9 +11,14 @@
 # Exit on error and treat unset variables as errors
 set -eu
 
+# Export database URL environment variable
+export DATABASE_URL="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}"
+
+# REVIEW: Database connection in production
+wait-for-it "${POSTGRES_HOST}:${POSTGRES_PORT}" -t 30
+
 # Prepare database and static files
 python manage.py migrate --noinput
-python manage.py collectstatic --noinput || true
 
 # If first arg looks like a flag, assume we want to run gunicorn
 if [ "${1:-}" = "" ] || [ "${1#-}" != "$1" ]; then
