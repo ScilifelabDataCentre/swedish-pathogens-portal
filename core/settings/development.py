@@ -9,6 +9,7 @@ from .base import *  # noqa: F401,F403
 
 DEBUG = True
 
+ADMIN_URL = "admin/"
 
 # SECURITY
 # ------------------------------------------------------------------------------

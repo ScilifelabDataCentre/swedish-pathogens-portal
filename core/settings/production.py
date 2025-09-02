@@ -10,6 +10,11 @@ from .base import env
 
 DEBUG = False
 
+# ADMIN
+# ------------------------------------------------------------------------------
+ADMIN_URL = env("ADMIN_URL").rstrip("/") + "/"
+# ADMINS = [(Full name, email address)]
+# MANAGERS = ADMINS
 
 # SECURITY
 # ------------------------------------------------------------------------------

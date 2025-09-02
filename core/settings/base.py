@@ -28,14 +28,6 @@ environ.Env.read_env(BASE_DIR / ".env")
 
 SECRET_KEY = env("SECRET_KEY")
 
-
-# ADMIN
-# ------------------------------------------------------------------------------
-ADMIN_URL = env("ADMIN_URL", default="admin").rstrip("/") + "/"
-# ADMINS = [(Full name, email address)]
-# MANAGERS = ADMINS
-
-
 # INTERNATIONALISATION (https://docs.djangoproject.com/en/5.2/topics/i18n/)
 # ------------------------------------------------------------------------------
 LANGUAGE_CODE = "en-gb"
