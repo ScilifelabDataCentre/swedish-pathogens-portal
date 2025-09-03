@@ -2,9 +2,26 @@ from django.views.generic import TemplateView
 
 
 class BaseTemplateView(TemplateView):
-    """Inherits Django TemplateView class and adds title to the context if exists"""
+    """
+    Base template view that can be used for satic page views that only
+    renders a template by passing a context. Below defined attributes
+    can be set in the child class to be added to the context.
+    """
+
+    title = ""
+    description = ""
+    extra_context = None
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["title"] = getattr(self, "title", "")
+
+        if self.title:
+            context["title"] = self.title
+
+        if self.description:
+            context["description"] = self.description
+
+        if self.extra_context is not None and isinstance(self.extra_context, dict):
+            context.update(self.extra_context)
+
         return context

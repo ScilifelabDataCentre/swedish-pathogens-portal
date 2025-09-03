@@ -1,10 +1,6 @@
-from django.views.generic import TemplateView
-
-# Create your views here.
+from utils.views import BaseTemplateView
 
 
-class Privacy(TemplateView):
+class Privacy(BaseTemplateView):
     template_name = "privacy/index.html"
-    extra_context = {
-        "title": "Privacy Policy"
-    }
+    title = "Privacy Policy"
