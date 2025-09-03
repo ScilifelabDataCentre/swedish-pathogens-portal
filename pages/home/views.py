@@ -1,10 +1,6 @@
-from django.views.generic import TemplateView
-
-# Create your views here.
+from utils.views import BaseTemplateView
 
 
-class Home(TemplateView):
+class Home(BaseTemplateView):
     template_name = "home/index.html"
-    extra_context = {
-        "title": "Swedish Pathogens Portal: supporting pandemic preparedness"
-    }
+    title = "Swedish Pathogens Portal: supporting pandemic preparedness"
