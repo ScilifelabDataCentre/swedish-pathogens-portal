@@ -56,3 +56,8 @@ process-compose.yaml
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Cursor
+.cursor
+.cursorignore
+.cursorignorerules
