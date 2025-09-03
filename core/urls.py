@@ -22,5 +22,5 @@ from django.conf import settings
 urlpatterns = [
     path(settings.ADMIN_URL, admin.site.urls, name="admin"),
     path("", include("pages.home.urls")),
-    path("", include("pages.privacy.urls")),
+    path("privacy/", include("pages.privacy.urls"))
 ]
