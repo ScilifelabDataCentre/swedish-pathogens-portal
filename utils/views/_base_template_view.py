@@ -2,10 +2,11 @@ from django.views.generic import TemplateView
 
 
 class BaseTemplateView(TemplateView):
-    """
-    Base template view that can be used for satic page views that only
+    """Base template view class
+
+    This class can be inherited by satic page view classes that only
     renders a template by passing a context. Below defined attributes
-    can be set in the child class to be added to the context.
+    can be set in the child classes to be added to the context.
     """
 
     title = ""
