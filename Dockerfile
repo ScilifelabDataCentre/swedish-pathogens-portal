@@ -76,6 +76,22 @@ RUN --mount=type=cache,target=/root/.cache \
         --no-install-project \
         --group dev
 
+# To use django-extensions 'graph_models' in local dev
+ARG with_pygraphviz
+
+RUN --mount=type=cache,target=/root/.cache \
+    if [ "$with_pygraphviz" = true ]; then \
+        apt-get update --quiet --assume-yes \
+        && apt-get install --quiet --assume-yes --no-install-recommends \
+            build-essential \
+            libgraphviz-dev \
+        && uv sync \
+            --locked \
+            --no-install-project \
+            --group dev \
+            --group extensions; \
+    fi
+
 
 ###############################################################################
 #                                 Build Stage                                 #

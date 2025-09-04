@@ -6,6 +6,8 @@ services:
       context: ./
       dockerfile: Dockerfile
       target: dev
+      args:
+        with_pygraphviz: ${with_pygraphviz:-false}
     image: swedish_pathogens_portal
     pull_policy: never
     container_name: spp_web
