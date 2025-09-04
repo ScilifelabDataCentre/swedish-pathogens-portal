@@ -23,3 +23,9 @@ urlpatterns = [
     path(settings.ADMIN_URL, admin.site.urls, name="admin"),
     path("", include("pages.home.urls")),
 ]
+
+# Auto browser reload addition for local development
+if settings.DEBUG:
+    urlpatterns += [
+        path("__reload__/", include("django_browser_reload.urls")),
+    ]

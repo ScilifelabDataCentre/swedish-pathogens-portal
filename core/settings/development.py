@@ -6,7 +6,6 @@ These settings are intended for local development.
 
 from .base import *  # noqa: F401,F403
 
-
 DEBUG = True
 
 ADMIN_URL = "admin/"
@@ -14,7 +13,17 @@ ADMIN_URL = "admin/"
 
 # DEVELOPMENT APPS
 # ------------------------------------------------------------------------------
-INSTALLED_APPS += ["django_extensions"]  # noqa: F405
+INSTALLED_APPS += [  # noqa: F405
+    "django_extensions",
+    "django_browser_reload",
+]
+
+
+# DEVELOPMENT MIDDLEWARE
+# ------------------------------------------------------------------------------
+MIDDLEWARE += [  # noqa: F405
+    "django_browser_reload.middleware.BrowserReloadMiddleware",
+]
 
 
 # SECURITY
