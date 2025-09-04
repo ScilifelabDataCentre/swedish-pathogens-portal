@@ -88,7 +88,6 @@ RUN --mount=type=cache,target=/root/.cache \
         && uv sync \
             --locked \
             --no-install-project \
-            --group dev \
             --group extensions; \
     fi
 

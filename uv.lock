@@ -185,7 +185,12 @@ dev = [
     { name = "werkzeug", extra = ["watchdog"] },
 ]
 extensions = [
+    { name = "django-browser-reload" },
+    { name = "django-extensions" },
+    { name = "psycopg", extra = ["binary"] },
     { name = "pygraphviz" },
+    { name = "watchdog" },
+    { name = "werkzeug", extra = ["watchdog"] },
 ]
 prod = [
     { name = "gunicorn" },
@@ -206,7 +211,14 @@ dev = [
     { name = "watchdog", specifier = ">=6.0.0" },
     { name = "werkzeug", extras = ["watchdog"], specifier = ">=3.1.3" },
 ]
-extensions = [{ name = "pygraphviz" }]
+extensions = [
+    { name = "django-browser-reload", specifier = ">=1.18.0" },
+    { name = "django-extensions", specifier = ">=4.1" },
+    { name = "psycopg", extras = ["binary"], specifier = ">=3.2.9" },
+    { name = "pygraphviz" },
+    { name = "watchdog", specifier = ">=6.0.0" },
+    { name = "werkzeug", extras = ["watchdog"], specifier = ">=3.1.3" },
+]
 prod = [
     { name = "gunicorn", specifier = ">=22.0.0" },
     { name = "psycopg", extras = ["c"], specifier = ">=3.2.9" },
