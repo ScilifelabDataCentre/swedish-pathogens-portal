@@ -24,3 +24,9 @@ urlpatterns = [
     path("", include("pages.home.urls")),
     path("privacy/", include("pages.privacy.urls"))
 ]
+
+# Auto browser reload addition for local development
+if settings.DEBUG:
+    urlpatterns += [
+        path("__reload__/", include("django_browser_reload.urls")),
+    ]
