@@ -4,10 +4,11 @@
 @import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,200;0,400;0,500;0,700;1,400&display=swap");
 
 /* Tailwind CSS import (without Tailwind's base) */
-@layer theme, base, components, utilities;
+@layer theme, reboot, base, components, tw-utilities, utilities;
 
 @import "tailwindcss/theme.css" layer(theme);
-@import "tailwindcss/utilities.css" layer(utilities);
+@import "tailwindcss/preflight.css" layer(reboot);
+@import "tailwindcss/utilities.css" layer(tw-utilities);
 
 /* Custom variable and styling values */
 @theme {
@@ -19,6 +20,21 @@
     --color-pp-pale-grey: #d8d8d8;
     --color-pp-dark-grey: #55585a;
     --color-pp-almost-black: #1a1c1a;
+}
+
+/* Extra browser resets along with Tailwind's */
+@layer reboot {
+    /* Avoid text overflows for long words and sentences and wrap them nicely */
+    p, h1, h2, h3, h4, h5, h6 {
+        @apply wrap-break-word hyphens-auto text-pretty;
+    }
+
+    /* Enables transition between absolute values and derived ones */
+    @media (prefers-reduced-motion: no-preference) {
+        html {
+            interpolate-size: allow-keywords;
+        }
+    }
 }
 
 /* Site's default element level styling */
@@ -80,7 +96,9 @@
 
 /* Site's custom component styling */
 @layer utilities {
+    /* Max width is 80% until the window size is 96rem,
+       after that max-width is fixed to 80rem */
     .container {
-        @apply mx-auto my-4 xl:max-w-7xl max-sm:px-8 overflow-auto;
+        @apply mx-auto max-w-[80%] 2xl:max-w-7xl;
     }
 }
