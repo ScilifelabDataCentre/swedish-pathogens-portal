@@ -22,23 +22,15 @@
     --color-pp-almost-black: #1a1c1a;
 }
 
-/* Extra browser resets along with Tailwind's */
-@layer reboot {
-    /* Avoid text overflows for long words and sentences and wrap them nicely */
-    p, h1, h2, h3, h4, h5, h6 {
-        @apply wrap-break-word hyphens-auto text-pretty;
-    }
-
+/* Site's default element level styling */
+@layer base {
     /* Enables transition between absolute values and derived ones */
     @media (prefers-reduced-motion: no-preference) {
         html {
             interpolate-size: allow-keywords;
         }
     }
-}
 
-/* Site's default element level styling */
-@layer base {
     /* Default Font, Font size and body element styling  */
     body {
         font-family: "IBM Plex Sans", Helvetica, Arial, sans-serif;
@@ -86,11 +78,11 @@
     }
 
     h1, h2, h3, h4, h5, h6 {
-        @apply mt-7 mb-4 font-medium tracking-tight;
+        @apply mt-7 mb-4 font-medium tracking-tight wrap-break-word hyphens-auto;
     }
 
     p {
-        @apply my-4
+        @apply my-4 wrap-break-word hyphens-auto text-pretty;
     }
 }
 
