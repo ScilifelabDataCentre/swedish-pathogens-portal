@@ -4,10 +4,11 @@
 @import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,200;0,400;0,500;0,700;1,400&display=swap");
 
 /* Tailwind CSS import (without Tailwind's base) */
-@layer theme, base, components, utilities;
+@layer theme, reboot, base, components, tw-utilities, utilities;
 
 @import "tailwindcss/theme.css" layer(theme);
-@import "tailwindcss/utilities.css" layer(utilities);
+@import "tailwindcss/preflight.css" layer(reboot);
+@import "tailwindcss/utilities.css" layer(tw-utilities);
 
 /* Custom variable and styling values */
 @theme {
@@ -23,6 +24,13 @@
 
 /* Site's default element level styling */
 @layer base {
+    /* Enables transition between absolute values and derived ones */
+    @media (prefers-reduced-motion: no-preference) {
+        html {
+            interpolate-size: allow-keywords;
+        }
+    }
+
     /* Default Font, Font size and body element styling  */
     body {
         font-family: "IBM Plex Sans", Helvetica, Arial, sans-serif;
@@ -70,17 +78,19 @@
     }
 
     h1, h2, h3, h4, h5, h6 {
-        @apply mt-7 mb-4 font-medium tracking-tight;
+        @apply mt-7 mb-4 font-medium tracking-tight wrap-break-word hyphens-auto;
     }
 
     p {
-        @apply my-4
+        @apply my-4 wrap-break-word hyphens-auto text-pretty;
     }
 }
 
 /* Site's custom component styling */
 @layer utilities {
+    /* Max width is 80% until the window size is 96rem,
+       after that max-width is fixed to 80rem */
     .container {
-        @apply mx-auto my-4 xl:max-w-7xl max-sm:px-8 overflow-auto;
+        @apply mx-auto max-w-[80%] 2xl:max-w-7xl;
     }
 }
