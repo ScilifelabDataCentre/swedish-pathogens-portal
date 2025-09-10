@@ -1,3 +1,6 @@
-from django.shortcuts import render
+from utils.views import BaseTemplateView
 
-# Create your views here.
+
+class  DataManagement(BaseTemplateView):
+    template_name = "data_management/index.html"
+    title = "Data Management"
