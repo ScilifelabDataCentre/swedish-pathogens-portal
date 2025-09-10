@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ topic.name }} - Swedish Pathogens Portal{% endblock %}
+
+{% block content %}
+<!-- Main Content -->
+<div class="container mx-auto px-4 py-8" id="content">
+    <!-- Alert Message -->
+    {% if topic.alert_message %}
+        <div class="alert alert-info bg-pp-teal/10 border border-pp-teal/20 text-pp-dark-blue p-4 rounded-lg mb-6">
+            <div class="flex items-start">
+                <svg class="w-5 h-5 mr-3 mt-0.5 flex-shrink-0 text-pp-teal" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+                </svg>
+                <span class="text-pp-dark-blue">
+                    <i class="italic">{{ topic.alert_message }}</i>
+                </span>
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- Topic Content -->
+    {% if topic.content %}
+        <section class="mb-12">
+            <div class="prose prose-lg max-w-none">
+                {{ topic.rendered_content|safe }}
+            </div>
+        </section>
+    {% endif %}
+</div>
+{% endblock %}
