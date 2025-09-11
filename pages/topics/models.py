@@ -53,10 +53,8 @@ class Topic(models.Model):
 
     @property
     def display_image(self):
-        """Return thumbnail image URL if available, otherwise return default placeholder"""
-        if self.thumbnail_image:
-            return self.thumbnail_image.url
-        return "/static/images/topic-placeholder.svg"
+        """Return thumbnail image URL"""
+        return self.thumbnail_image.url
 
     @property
     def rendered_content(self):
