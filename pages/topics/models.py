@@ -1,32 +1,36 @@
 from django.db import models
 from django.utils.text import slugify
 from django.utils.safestring import mark_safe
+import markdown
 
 
 class Topic(models.Model):
     """Topic model"""
 
-    name = models.CharField(max_length=100, unique=True, help_text="Name of the topic")
+    name = models.CharField(
+        max_length=100,
+        unique=True,
+        help_text="Name of the topic",
+    )
     slug = models.SlugField(
         max_length=100,
         unique=True,
-        blank=True,
-        help_text="URL-friendly version of the name",
+        help_text="URL-friendly version of the name (auto-generated from name)",
     )
     description = models.TextField(
-        blank=True, null=True, help_text="Description of the topic"
+        help_text="Description of the topic to display in the card"
     )
     content = models.TextField(
-        blank=True, null=True, help_text="Rich text content in markdown format"
+        help_text="Rich text content in markdown format (displayed on topic detail page)"
     )
     thumbnail_image = models.ImageField(
         upload_to="topics/images/",
-        blank=True,
-        null=True,
-        help_text="Thumbnail image for the topic",
+        help_text="Thumbnail image for the topic card display",
     )
     alert_message = models.TextField(
-        blank=True, null=True, help_text="Alert message to display for this topic"
+        blank=True,
+        null=True,
+        help_text="Optional alert message to display prominently on the topic page",
     )
     is_active = models.BooleanField(
         default=True, help_text="Whether this topic is active and visible"
@@ -58,8 +62,6 @@ class Topic(models.Model):
     def rendered_content(self):
         """Return content rendered as HTML from markdown"""
         if self.content:
-            import markdown
-
             return mark_safe(
                 markdown.markdown(self.content, extensions=["extra", "codehilite"])
             )
