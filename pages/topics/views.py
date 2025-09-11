@@ -6,7 +6,7 @@ class TopicListView(BaseListView):
     """Display a list of all active topics"""
 
     model = Topic
-    template_name = "topics/topic_list.html"
+    template_name = "topics/index.html"
     context_object_name = "topics"
     title = "Topics"
     ordering = "name"  # Topics are sorted alphabetically by name
