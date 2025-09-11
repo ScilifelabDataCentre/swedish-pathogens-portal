@@ -9,22 +9,14 @@ class TopicAdmin(admin.ModelAdmin):
     search_fields = ["name", "description"]
     prepopulated_fields = {"slug": ("name",)}
     readonly_fields = ["created_at", "updated_at"]
-    
+
     fieldsets = (
-        ("Basic Information", {
-            "fields": ("name", "slug", "description")
-        }),
-        ("Content", {
-            "fields": ("content", "alert_message")
-        }),
-        ("Visual", {
-            "fields": ("thumbnail_image",)
-        }),
-        ("Status", {
-            "fields": ("is_active",)
-        }),
-        ("Timestamps", {
-            "fields": ("created_at", "updated_at"),
-            "classes": ("collapse",)
-        }),
+        ("Basic Information", {"fields": ("name", "slug", "description")}),
+        ("Content", {"fields": ("content", "alert_message")}),
+        ("Visual", {"fields": ("thumbnail_image",)}),
+        ("Status", {"fields": ("is_active",)}),
+        (
+            "Timestamps",
+            {"fields": ("created_at", "updated_at"), "classes": ("collapse",)},
+        ),
     )

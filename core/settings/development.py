@@ -5,6 +5,7 @@ These settings are intended for local development.
 """
 
 from .base import *  # noqa: F401,F403
+from .base import BASE_DIR  # noqa: F401
 
 DEBUG = True
 
