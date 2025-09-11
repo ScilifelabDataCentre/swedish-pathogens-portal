@@ -131,8 +131,3 @@ AUTH_PASSWORD_VALIDATORS = [
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATIC_URL = "static/"
 STATICFILES_DIRS = [BASE_DIR / "core" / "static"]
-
-# MEDIA FILES (https://docs.djangoproject.com/en/5.2/ref/settings/#media-files)
-# ------------------------------------------------------------------------------
-MEDIA_ROOT = BASE_DIR / "media"
-MEDIA_URL = "media/"
