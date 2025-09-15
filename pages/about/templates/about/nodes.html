@@ -1,0 +1,172 @@
+{% extends "base.html" %} 
+
+{% load static %} 
+
+{% block content %}
+
+<h4 id="introduction">Pathogens Portal Nodes</h4>
+
+<div class="space-y-8 mb-12">
+
+  <!-- Row 1 -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-10 mt-6">
+    <div class="md:col-span-1">
+      <h5 class="text-sm sm:text-xl mb-2 mt-0">
+        <a href="#" target="_blank" rel="noopener noreferrer" class="text-pp-mid-blue hover:text-pp-dark-blue hover:underline transition-colors duration-200">
+          Swedish Pathogens Portal
+        </a>
+      </h5>
+    </div>
+    <div class="md:col-span-2">
+      <!-- Accordion 1 -->
+      <div class="mb-4 border border-pp-pale-grey rounded-lg overflow-hidden">
+        <button 
+          class="w-full text-left p-4 bg-pp-pale-grey hover:bg-gray-200 focus:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-pp-mid-blue focus:ring-inset transition-all duration-200" 
+          onclick="toggleAccordion('accordion1')"
+          aria-expanded="false"
+          aria-controls="accordion1-content"
+        >
+          <div class="flex justify-between items-center">
+            <h6 class="text-sm sm:text-lg font-semibold text-pp-dark-grey">Data Access & Sharing</h6>
+            <svg 
+              class="w-4 h-4 text-pp-mid-blue transform transition-transform duration-200" 
+              id="accordion1-icon"
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+          </div>
+        </button>
+        <div 
+          id="accordion1-content" 
+          class="hidden p-4 bg-white border-t border-pp-pale-grey"
+          role="region"
+          aria-labelledby="accordion1-button"
+        >
+          <p class="text-sm sm:text-base text-pp-dark-grey">
+            The Swedish Pathogens Portal provides secure access to genomic data, epidemiological information, and research datasets. Researchers can upload, share, and analyze pathogen data through our integrated platform.
+          </p>
+        </div>
+      </div>
+
+      <!-- Accordion 2 -->
+      <div class="mb-4 border border-pp-pale-grey rounded-lg overflow-hidden">
+        <button 
+          class="w-full text-left p-4 bg-pp-pale-grey hover:bg-gray-200 focus:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-pp-mid-blue focus:ring-inset transition-all duration-200" 
+          onclick="toggleAccordion('accordion2')"
+          aria-expanded="false"
+          aria-controls="accordion2-content"
+        >
+          <div class="flex justify-between items-center">
+            <h6 class="text-sm sm:text-lg font-semibold text-pp-dark-grey">Analytical Tools</h6>
+            <svg 
+              class="w-4 h-4 text-pp-mid-blue transform transition-transform duration-200" 
+              id="accordion2-icon"
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+          </div>
+        </button>
+        <div 
+          id="accordion2-content" 
+          class="hidden p-4 bg-white border-t border-pp-pale-grey"
+          role="region"
+          aria-labelledby="accordion2-button"
+        >
+          <p class="text-sm sm:text-base text-pp-dark-grey">
+            Our platform includes advanced analytical tools for genomic analysis, phylogenetic studies, and epidemiological modeling. These tools help researchers understand pathogen evolution and transmission patterns.
+          </p>
+        </div>
+      </div>
+
+      <!-- Accordion 3 -->
+      <div class="mb-4 border border-pp-pale-grey rounded-lg overflow-hidden">
+        <button 
+          class="w-full text-left p-4 bg-pp-pale-grey hover:bg-gray-200 focus:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-pp-mid-blue focus:ring-inset transition-all duration-200" 
+          onclick="toggleAccordion('accordion3')"
+          aria-expanded="false"
+          aria-controls="accordion3-content"
+        >
+          <div class="flex justify-between items-center">
+            <h6 class="text-sm sm:text-lg font-semibold text-pp-dark-grey">Collaboration Network</h6>
+            <svg 
+              class="w-4 h-4 text-pp-mid-blue transform transition-transform duration-200" 
+              id="accordion3-icon"
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+            </svg>
+          </div>
+        </button>
+        <div 
+          id="accordion3-content" 
+          class="hidden p-4 bg-white border-t border-pp-pale-grey"
+          role="region"
+          aria-labelledby="accordion3-button"
+        >
+          <p class="text-sm sm:text-base text-pp-dark-grey">
+            Connect with researchers, public health officials, and institutions across Sweden and internationally. Our network facilitates collaborative research and knowledge sharing in pathogen surveillance and pandemic preparedness.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 2 -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-10 mt-6">
+    <div class="md:col-span-1">
+      <h5 class="text-sm sm:text-xl mb-2 mt-0">
+        <a href="#" target="_blank" rel="noopener noreferrer" class="text-pp-mid-blue hover:text-pp-dark-blue hover:underline transition-colors duration-200">
+          European Network Integration
+        </a>
+      </h5>
+    </div>
+    <div class="md:col-span-2">
+      <div class="text-sm sm:text-base text-pp-dark-grey">
+        <p>The Swedish Pathogens Portal serves as the national node for pathogen data sharing and analysis in Sweden, integrated within the broader European network of pathogen surveillance systems. Our platform provides researchers and public health officials with comprehensive access to genomic data, epidemiological information, and analytical tools for infectious disease research and surveillance.</p>
+        
+        <p>Through our integration with European networks, we facilitate cross-border collaboration and data sharing, enabling rapid response to emerging infectious diseases and supporting global pandemic preparedness efforts. The portal serves as a critical infrastructure for Sweden's contribution to international pathogen surveillance and research initiatives.</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  function toggleAccordion(accordionId) {
+    const content = document.getElementById(accordionId + '-content');
+    const icon = document.getElementById(accordionId + '-icon');
+    const button = icon.closest('button');
+    
+    if (!content || !icon || !button) {
+      console.error('Accordion elements not found for:', accordionId);
+      return;
+    }
+    
+    if (content.classList.contains('hidden')) {
+      // Expand accordion
+      content.classList.remove('hidden');
+      icon.style.transform = 'rotate(180deg)';
+      button.setAttribute('aria-expanded', 'true');
+    } else {
+      // Collapse accordion
+      content.classList.add('hidden');
+      icon.style.transform = 'rotate(0deg)';
+      button.setAttribute('aria-expanded', 'false');
+    }
+  }
+  
+  // Make the function globally available
+  window.toggleAccordion = toggleAccordion;
+});
+</script>
+
+{% endblock %}
