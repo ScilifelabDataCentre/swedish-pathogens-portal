@@ -18,12 +18,19 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
+from django.conf.urls.static import static
 
 urlpatterns = [
     path(settings.ADMIN_URL, admin.site.urls, name="admin"),
     path("", include("pages.home.urls")),
-    path("privacy/", include("pages.privacy.urls"))
+    path("privacy/", include("pages.privacy.urls")),
+    path("about/", include("pages.about.urls")),
+    path("news/", include("pages.news.urls")),
 ]
+
+# Serve media files in development
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 # Auto browser reload addition for local development
 if settings.DEBUG:

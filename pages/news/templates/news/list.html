@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+
+<div class="space-y-8 mb-12">
+  {% for news in news_list %}
+    <article class="border-b border-pp-pale-grey pb-8">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {% if news.image %}
+          <div class="md:col-span-1">
+            <img src="{{ news.image.url }}" alt="{{ news.title }}" class="w-full h-48 object-cover rounded-lg">
+          </div>
+        {% endif %}
+        <div class="{% if news.image %}md:col-span-2{% else %}md:col-span-3{% endif %}">
+          <h5 class="text-lg sm:text-xl mb-2">
+            <a href="{{ news.get_absolute_url }}" class="text-pp-mid-blue hover:text-pp-dark-blue hover:underline transition-colors duration-200">
+              {{ news.title }}
+            </a>
+          </h5>
+          <p class="text-sm text-pp-dark-grey mb-2">{{ news.created_at|date:"F d, Y" }}</p>
+          {% if news.excerpt %}
+            <p class="text-sm sm:text-base text-pp-dark-grey">{{ news.excerpt }}</p>
+          {% endif %}
+        </div>
+      </div>
+    </article>
+  {% empty %}
+    <p class="text-center text-pp-dark-grey py-8">No news articles available at the moment.</p>
+  {% endfor %}
+</div>
+
+<!-- Pagination -->
+{% if is_paginated %}
+  <nav class="flex justify-center items-center space-x-2 mt-12">
+    {% if page_obj.has_previous %}
+      <a href="?page=1" class="px-3 py-2 text-sm bg-pp-mid-blue text-white rounded hover:bg-pp-dark-blue transition-colors duration-200">
+        First
+      </a>
+      <a href="?page={{ page_obj.previous_page_number }}" class="px-3 py-2 text-sm bg-pp-mid-blue text-white rounded hover:bg-pp-dark-blue transition-colors duration-200">
+        Previous
+      </a>
+    {% endif %}
+
+    <span class="px-3 py-2 text-sm bg-pp-pale-grey text-pp-dark-grey rounded">
+      Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+    </span>
+
+    {% if page_obj.has_next %}
+      <a href="?page={{ page_obj.next_page_number }}" class="px-3 py-2 text-sm bg-pp-mid-blue text-white rounded hover:bg-pp-dark-blue transition-colors duration-200">
+        Next
+      </a>
+      <a href="?page={{ page_obj.paginator.num_pages }}" class="px-3 py-2 text-sm bg-pp-mid-blue text-white rounded hover:bg-pp-dark-blue transition-colors duration-200">
+        Last
+      </a>
+    {% endif %}
+  </nav>
+{% endif %}
+
+{% endblock %}
