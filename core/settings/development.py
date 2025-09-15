@@ -5,7 +5,6 @@ These settings are intended for local development.
 """
 
 from .base import *  # noqa: F401,F403
-from .base import BASE_DIR  # noqa: F401
 
 DEBUG = True
 
@@ -34,7 +33,7 @@ CSRF_TRUSTED_ORIGINS = ["http://localhost:8000", "http://127.0.0.1:8000"]
 
 # MEDIA FILES (Development)
 # ------------------------------------------------------------------------------
-MEDIA_ROOT = BASE_DIR / "media"
+MEDIA_ROOT = BASE_DIR / "media"  # noqa: F405
 MEDIA_URL = "media/"
 
 
