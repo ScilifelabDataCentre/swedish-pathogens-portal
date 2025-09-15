@@ -53,6 +53,7 @@ LOCAL_APPS = [
     "pages.home",
     "pages.privacy",
     "pages.topics",
+    "pages.about",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
