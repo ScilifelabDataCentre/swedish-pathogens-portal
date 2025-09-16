@@ -11,6 +11,7 @@ class BaseListView(ListView):
     Attributes:
         title (str): Page title to add to context. Defaults to empty string.
         ordering (str): Field name to order results by. Optional.
+        extra_context (dict): Additional context data. Optional.
 
     Example:
         For a Topic model:
@@ -23,11 +24,13 @@ class BaseListView(ListView):
                 context_object_name = "topics"
                 title = "Research Topics"
                 ordering = "name"
+                extra_context = {"show_filters": True, "page_size": 20}
 
         This automatically:
         - Filters to active items (is_active=True)
         - Orders by specified field
         - Adds title to context
+        - Merges extra_context into context
 
     Note:
         Model must have `is_active` boolean field.
@@ -46,8 +49,13 @@ class BaseListView(ListView):
         return queryset
 
     def get_context_data(self, **kwargs):
-        """Add title to context"""
+        """Add title and extra_context to context"""
         context = super().get_context_data(**kwargs)
         if self.title:
             context["title"] = self.title
+
+        # Add extra_context if defined
+        if hasattr(self, "extra_context") and self.extra_context:
+            context.update(self.extra_context)
+
         return context
