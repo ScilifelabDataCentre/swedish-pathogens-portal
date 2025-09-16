@@ -2,10 +2,35 @@ from django.views.generic import ListView
 
 
 class BaseListView(ListView):
-    """Base list view class for active items
+    """Base list view for displaying collections of active items.
 
-    This class provides common functionality for listing active items
-    across all apps. Child classes can override title and ordering.
+    This class provides common functionality for listing model instances that
+    have an `is_active` field. Used by apps with collections like topics,
+    data-highlights, dashboards, etc.
+
+    Attributes:
+        title (str): Page title to add to context. Defaults to empty string.
+        ordering (str): Field name to order results by. Optional.
+
+    Example:
+        For a Topic model:
+
+        .. code-block:: python
+
+            class TopicListView(BaseListView):
+                model = Topic
+                template_name = "topics/index.html"
+                context_object_name = "topics"
+                title = "Research Topics"
+                ordering = "name"
+
+        This automatically:
+        - Filters to active items (is_active=True)
+        - Orders by specified field
+        - Adds title to context
+
+    Note:
+        Model must have `is_active` boolean field.
     """
 
     title = ""
