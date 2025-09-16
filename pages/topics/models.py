@@ -59,8 +59,6 @@ class Topic(models.Model):
     @property
     def rendered_content(self):
         """Return content rendered as HTML from markdown"""
-        if self.content:
-            return mark_safe(
-                markdown.markdown(self.content, extensions=["extra", "codehilite"])
-            )
-        return ""
+        return mark_safe(
+            markdown.markdown(self.content, extensions=["extra", "codehilite"])
+        )
