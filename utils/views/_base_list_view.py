@@ -2,11 +2,11 @@ from django.views.generic import ListView
 
 
 class BaseListView(ListView):
-    """Base list view for displaying collections of filtered items.
+    """Base list view for displaying collections of active items with custom filtering.
 
-    This class provides common functionality for listing model instances with
-    flexible filtering capabilities. Used by apps with collections like topics,
-    data-highlights, dashboards, etc.
+    This class provides common functionality for listing model instances that
+    are always filtered by is_active=True and can have additional custom filters
+    applied. Used by apps with collections like topics, data-highlights, dashboards, etc.
 
     Attributes:
         title (str): Page title to add to context. Defaults to empty string.
@@ -39,19 +39,21 @@ class BaseListView(ListView):
                 ordering = "created_at"
 
         This automatically:
-        - Filters using custom filter_* attributes or defaults to is_active=True
+        - Filters by is_active=True and any custom filter_* attributes
         - Orders by specified field
         - Adds title to context
         - Merges extra_context into context
 
     Note:
-        Model must have `is_active` boolean field for default filtering.
+        Model must have `is_active` boolean field. All queries will filter by is_active=True
+        and can have additional custom filters applied via filter_* attributes.
     """
 
     title = ""
+    extra_context = None
 
     def get_queryset(self):
-        """Return filtered items ordered by specified field"""
+        """Return active items with custom filters applied, ordered by specified field"""
         # Get custom filter arguments from class attributes
         filter_args = {
             k.replace("filter_", ""): v
@@ -59,7 +61,7 @@ class BaseListView(ListView):
             if k.startswith("filter_")
         }
 
-        # Use custom filters or default to is_active
+        # Always filter by is_active=True and apply any custom filters
         queryset = self.model.objects.filter(is_active=True, **filter_args)
 
         # Apply ordering if specified
@@ -75,7 +77,7 @@ class BaseListView(ListView):
             context["title"] = self.title
 
         # Add extra_context if defined
-        if hasattr(self, "extra_context") and self.extra_context:
+        if self.extra_context is not None and isinstance(self.extra_context, dict):
             context.update(self.extra_context)
 
         return context
