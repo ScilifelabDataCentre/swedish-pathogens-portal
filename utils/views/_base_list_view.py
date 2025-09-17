@@ -60,10 +60,7 @@ class BaseListView(ListView):
         }
 
         # Use custom filters or default to is_active
-        if filter_args:
-            queryset = self.model.objects.filter(**filter_args)
-        else:
-            queryset = self.model.objects.filter(is_active=True)
+        queryset = self.model.objects.filter(is_active=True, **filter_args)
 
         # Apply ordering if specified
         if self.ordering:

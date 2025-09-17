@@ -63,10 +63,7 @@ class BaseDetailView(DetailView):
         }
 
         # Use custom filters or default to is_active
-        if filter_args:
-            return self.model.objects.filter(**filter_args)
-        else:
-            return self.model.objects.filter(is_active=True)
+        return self.model.objects.filter(is_active=True, **filter_args)
 
     def get_context_data(self, **kwargs):
         """Add title and extra_context to context"""
