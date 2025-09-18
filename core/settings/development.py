@@ -31,6 +31,12 @@ MIDDLEWARE += [  # noqa: F405
 CSRF_TRUSTED_ORIGINS = ["http://localhost:8000", "http://127.0.0.1:8000"]
 
 
+# MEDIA FILES (Development)
+# ------------------------------------------------------------------------------
+MEDIA_ROOT = BASE_DIR / "media"  # noqa: F405
+MEDIA_URL = "media/"
+
+
 # LOGGING (https://django-extensions.readthedocs.io/en/latest/runserver_plus.html#configuration)
 # ------------------------------------------------------------------------------
 LOGGING = {
