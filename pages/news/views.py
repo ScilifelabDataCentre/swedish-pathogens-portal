@@ -1,5 +1,3 @@
-from django.shortcuts import render, get_object_or_404
-from django.core.paginator import Paginator
 from django.views.generic import ListView, DetailView
 from .models import News
 
@@ -16,10 +14,6 @@ class NewsListView(ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context['title'] = 'News | Swedish Pathogens Portal'
-        context['breadcrumbs'] = [
-            {"title": "Home", "url": "/"},
-            {"title": "News", "url": None}
-        ]
         return context
 
 
@@ -37,9 +31,4 @@ class NewsDetailView(DetailView):
         context = super().get_context_data(**kwargs)
         news = self.get_object()
         context['title'] = f'{news.title} | Swedish Pathogens Portal'
-        context['breadcrumbs'] = [
-            {"title": "Home", "url": "/"},
-            {"title": "News", "url": "/news/"},
-            {"title": news.title, "url": None}
-        ]
         return context
