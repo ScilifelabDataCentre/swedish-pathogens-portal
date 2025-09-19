@@ -1,5 +1,17 @@
 {% extends "base.html" %}
 
 {% block content %}
-    <h3>Dashboards</h3>
+<div class="dashboard-index">
+    <div class="text-center mb-8">
+        <h1 class="text-4xl font-bold text-gray-900 mb-4">{{ title }}</h1>
+        <p class="text-lg text-gray-600 mb-6">Data dashboards that promote data and other research resources developed by projects involving Swedish researchers or institutes. The dashboards provide context for the resource and dynamic data visualisations.</p>
+    </div>
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {% for dashboard in dashboards %}
+            {% include "dashboards/_dashboard_card.html" with dashboard=dashboard %}
+        {% endfor %}
+    </div>
+    
+</div>
 {% endblock %}

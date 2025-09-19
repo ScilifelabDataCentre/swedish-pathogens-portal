@@ -1,0 +1,50 @@
+{% load static %}
+
+<div class="dashboard-card bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition-shadow duration-300 {% if dashboard.status == 'coming_soon' %}opacity-75{% endif %}">
+    <div class="flex items-start justify-between mb-4">
+        <div class="flex items-center">
+            <div class="w-12 h-12 bg-gray-100 rounded-lg flex items-center justify-center mr-4">
+                {% include "dashboards/_icons.html" with icon=dashboard.icon %}
+            </div>
+            <div>
+                <h3 class="text-xl font-semibold text-gray-900">{{ dashboard.title }}</h3>
+                {% if dashboard.status == 'active' and dashboard.last_updated %}
+                    <p class="text-sm text-gray-500">Last updated: {{ dashboard.last_updated|date:"d M Y" }}</p>
+                {% endif %}
+            </div>
+        </div>
+        {% if dashboard.status == 'coming_soon' %}
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                Coming Soon
+            </span>
+        {% endif %}
+    </div>
+    
+    <p class="text-gray-600 mb-4">{{ dashboard.description }}</p>
+    
+    {% if dashboard.topics %}
+        <div class="flex flex-wrap gap-2 mb-4">
+            {% for topic in dashboard.topics %}
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700">
+                    {{ topic }}
+                </span>
+            {% endfor %}
+        </div>
+    {% endif %}
+    
+    {% if dashboard.status == 'active' and dashboard.url %}
+        <a href="{% url dashboard.url %}" class="inline-flex items-center text-blue-600 hover:text-blue-800 font-medium transition-colors duration-200">
+            View Dashboard
+            <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+            </svg>
+        </a>
+    {% else %}
+        <div class="inline-flex items-center text-gray-400 font-medium">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+            </svg>
+            Under Development
+        </div>
+    {% endif %}
+</div>
