@@ -23,7 +23,7 @@ prod = [
 ]
 extensions = [
     {include-group = "dev"},
-    "pygraphviz",
+    "pygraphviz>=1.14",
 ]
 
 # Disable UV default dependency-groups
