@@ -52,7 +52,6 @@ THIRD_PARTY_APPS = []
 LOCAL_APPS = [
     "pages.home",
     "pages.privacy",
-    "pages.about",
     "pages.news",
 ]
 

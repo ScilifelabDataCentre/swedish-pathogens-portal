@@ -24,7 +24,6 @@ urlpatterns = [
     path(settings.ADMIN_URL, admin.site.urls, name="admin"),
     path("", include("pages.home.urls")),
     path("privacy/", include("pages.privacy.urls")),
-    path("about/", include("pages.about.urls")),
     path("news/", include("pages.news.urls")),
 ]
 
