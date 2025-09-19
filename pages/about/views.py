@@ -8,19 +8,19 @@ from utils.views import BaseTemplateView
 
 class About(BaseTemplateView):
     template_name = "about/index.html"
-    title = "About | Swedish Pathogens Portal"
+    title = "About"
 
 
 class Partners(BaseTemplateView):
     template_name = "about/partners.html"
-    title = "Partners | Swedish Pathogens Portal"
+    title = "Partners"
 
 
 class Funding(BaseTemplateView):
     template_name = "about/funding.html"
-    title = "Funding Projects | Swedish Pathogens Portal"
+    title = "Funding Projects"
 
 
 class Nodes(BaseTemplateView):
     template_name = "about/nodes.html"
-    title = "Pathogens Portal Nodes | Swedish Pathogens Portal"
+    title = "Pathogens Portal Nodes"

@@ -4,141 +4,260 @@
 
 {% block content %}
 
-<h4 id="introduction">Pathogens Portal Nodes</h4>
+<div class="space-y-8 mb-12 mt-12">
 
-<div class="space-y-8 mb-12">
-
-  <!-- Row 1 -->
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-10 mt-6">
+  <!-- Row 1: Pathogen Portals by Country -->
+  <div class="grid grid-cols-1 md:grid-cols-6 gap-2 mt-6">
     <div class="md:col-span-1">
       <h5 class="text-sm sm:text-xl mb-2 mt-0">
-        <a href="#" target="_blank" rel="noopener noreferrer" class="text-pp-mid-blue hover:text-pp-dark-blue hover:underline transition-colors duration-200">
-          Swedish Pathogens Portal
-        </a>
+        Pathogens Portal Nodes
       </h5>
     </div>
-    <div class="md:col-span-2">
-      <!-- Accordion 1 -->
-      <div class="mb-4 border border-pp-pale-grey rounded-lg overflow-hidden">
-        <button 
-          class="w-full text-left p-4 bg-pp-pale-grey hover:bg-gray-200 focus:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-pp-mid-blue focus:ring-inset transition-all duration-200" 
-          onclick="toggleAccordion('accordion1')"
-          aria-expanded="false"
-          aria-controls="accordion1-content"
-        >
-          <div class="flex justify-between items-center">
-            <h6 class="text-sm sm:text-lg font-semibold text-pp-dark-grey">Data Access & Sharing</h6>
-            <svg 
-              class="w-4 h-4 text-pp-mid-blue transform transition-transform duration-200" 
-              id="accordion1-icon"
-              fill="none" 
-              stroke="currentColor" 
-              viewBox="0 0 24 24"
-            >
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-            </svg>
+    <div class="md:col-span-5">
+      <div class="space-y-4">
+        <!-- Sweden -->
+        <details class="mb-4 border border-pp-pale-grey rounded-lg overflow-hidden group">
+          <summary class="w-full text-left p-2 bg-pp-pale-grey hover:bg-gray-200 transition-all duration-200 cursor-pointer list-none group-open:bg-gray-200">
+            <div class="flex justify-between items-center">
+              <div class="flex items-center gap-3">
+                <img src="{% static 'images/about/nodes/Flag_of_Sweden.svg' %}" alt="Sweden flag" class="h-8 w-12">
+                <h6 class="text-sm sm:text-lg m-0 font-semibold text-pp-dark-grey">Sweden</h6>
+              </div>
+              <svg 
+                class="w-8 h-8 text-pp-mid-blue transform transition-transform duration-200 group-open:rotate-180" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+              </svg>
+            </div>
+          </summary>
+          <div class="p-4 bg-white border-t border-pp-pale-grey">
+            <div class="grid grid-cols-6 gap-4">
+              <div class="col-span-1 flex items-center justify-center">
+                <img src="{% static 'images/about/nodes/Pathogens-Portal-Logo-Sweden-FINAL.png' %}" alt="Swedish Pathogens Portal Logo" class="w-auto h-16 object-contain">
+              </div>
+              <div class="col-span-5">
+                <p class="text-sm sm:text-base text-pp-dark-grey">
+                  The Swedish Pathogens Portal provides secure access to genomic data, epidemiological information, and research datasets. Researchers can upload, share, and analyze pathogen data through our integrated platform with advanced analytical tools for genomic analysis and phylogenetic studies.
+                </p>
+              </div>
+            </div>
           </div>
-        </button>
-        <div 
-          id="accordion1-content" 
-          class="hidden p-4 bg-white border-t border-pp-pale-grey"
-          role="region"
-          aria-labelledby="accordion1-button"
-        >
-          <p class="text-sm sm:text-base text-pp-dark-grey">
-            The Swedish Pathogens Portal provides secure access to genomic data, epidemiological information, and research datasets. Researchers can upload, share, and analyze pathogen data through our integrated platform.
-          </p>
-        </div>
-      </div>
+        </details>
 
-      <!-- Accordion 2 -->
-      <div class="mb-4 border border-pp-pale-grey rounded-lg overflow-hidden">
-        <button 
-          class="w-full text-left p-4 bg-pp-pale-grey hover:bg-gray-200 focus:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-pp-mid-blue focus:ring-inset transition-all duration-200" 
-          onclick="toggleAccordion('accordion2')"
-          aria-expanded="false"
-          aria-controls="accordion2-content"
-        >
-          <div class="flex justify-between items-center">
-            <h6 class="text-sm sm:text-lg font-semibold text-pp-dark-grey">Analytical Tools</h6>
-            <svg 
-              class="w-4 h-4 text-pp-mid-blue transform transition-transform duration-200" 
-              id="accordion2-icon"
-              fill="none" 
-              stroke="currentColor" 
-              viewBox="0 0 24 24"
-            >
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-            </svg>
+        <!-- Norway -->
+        <details class="mb-4 border border-pp-pale-grey rounded-lg overflow-hidden group">
+          <summary class="w-full text-left p-2 bg-pp-pale-grey hover:bg-gray-200 transition-all duration-200 cursor-pointer list-none group-open:bg-gray-200">
+            <div class="flex justify-between items-center">
+              <div class="flex items-center gap-3">
+                <img src="{% static 'images/about/nodes/Flag_of_Norway.svg' %}" alt="Norway flag" class="h-8 w-12">
+                <h6 class="text-sm sm:text-lg m-0 font-semibold text-pp-dark-grey">Norway</h6>
+              </div>
+              <svg 
+                class="w-8 h-8 text-pp-mid-blue transform transition-transform duration-200 group-open:rotate-180" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+              </svg>
+            </div>
+          </summary>
+          <div class="p-4 bg-white border-t border-pp-pale-grey">
+            <div class="grid grid-cols-6 gap-4">
+              <div class="col-span-1 flex items-center justify-center">
+                <img src="{% static 'images/about/nodes/pathogens_portal_norway_logo_light.png' %}" alt="Norway Pathogens Portal Logo" class="w-auto h-16 object-contain">
+              </div>
+              <div class="col-span-5">
+                <p class="text-sm sm:text-base text-pp-dark-grey">
+                  Norway's pathogen portal emphasizes Arctic and marine pathogen surveillance, providing specialized tools for monitoring infectious diseases in extreme environments. The platform supports research on climate change impacts on pathogen distribution and evolution.
+                </p>
+              </div>
+            </div>
           </div>
-        </button>
-        <div 
-          id="accordion2-content" 
-          class="hidden p-4 bg-white border-t border-pp-pale-grey"
-          role="region"
-          aria-labelledby="accordion2-button"
-        >
-          <p class="text-sm sm:text-base text-pp-dark-grey">
-            Our platform includes advanced analytical tools for genomic analysis, phylogenetic studies, and epidemiological modeling. These tools help researchers understand pathogen evolution and transmission patterns.
-          </p>
-        </div>
-      </div>
+        </details>
 
-      <!-- Accordion 3 -->
-      <div class="mb-4 border border-pp-pale-grey rounded-lg overflow-hidden">
-        <button 
-          class="w-full text-left p-4 bg-pp-pale-grey hover:bg-gray-200 focus:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-pp-mid-blue focus:ring-inset transition-all duration-200" 
-          onclick="toggleAccordion('accordion3')"
-          aria-expanded="false"
-          aria-controls="accordion3-content"
-        >
-          <div class="flex justify-between items-center">
-            <h6 class="text-sm sm:text-lg font-semibold text-pp-dark-grey">Collaboration Network</h6>
-            <svg 
-              class="w-4 h-4 text-pp-mid-blue transform transition-transform duration-200" 
-              id="accordion3-icon"
-              fill="none" 
-              stroke="currentColor" 
-              viewBox="0 0 24 24"
-            >
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-            </svg>
+        <!-- Spain -->
+        <details class="mb-4 border border-pp-pale-grey rounded-lg overflow-hidden group">
+          <summary class="w-full text-left p-2 bg-pp-pale-grey hover:bg-gray-200 transition-all duration-200 cursor-pointer list-none group-open:bg-gray-200">
+            <div class="flex justify-between items-center">
+              <div class="flex items-center gap-3">
+                <img src="{% static 'images/about/nodes/Flag_of_Spain.svg' %}" alt="Spain flag" class="h-8 w-12">
+                <h6 class="text-sm sm:text-lg m-0 font-semibold text-pp-dark-grey">Spain</h6>
+              </div>
+              <svg 
+                class="w-8 h-8 text-pp-mid-blue transform transition-transform duration-200 group-open:rotate-180" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+              </svg>
+            </div>
+          </summary>
+          <div class="p-4 bg-white border-t border-pp-pale-grey">
+            <div class="grid grid-cols-6 gap-4">
+              <div class="col-span-1 flex items-center justify-center">
+                <img src="{% static 'images/about/nodes/Pathogens-Portal-Logo-Spain.png' %}" alt="Spain Pathogens Portal Logo" class="w-auto h-16 object-contain">
+              </div>
+              <div class="col-span-5">
+                <p class="text-sm sm:text-base text-pp-dark-grey">
+                  Spain's pathogen surveillance portal focuses on Mediterranean and tropical disease monitoring, providing comprehensive tools for tracking vector-borne diseases and emerging infectious diseases in the Iberian Peninsula and surrounding regions.
+                </p>
+              </div>
+            </div>
           </div>
-        </button>
-        <div 
-          id="accordion3-content" 
-          class="hidden p-4 bg-white border-t border-pp-pale-grey"
-          role="region"
-          aria-labelledby="accordion3-button"
-        >
-          <p class="text-sm sm:text-base text-pp-dark-grey">
-            Connect with researchers, public health officials, and institutions across Sweden and internationally. Our network facilitates collaborative research and knowledge sharing in pathogen surveillance and pandemic preparedness.
-          </p>
-        </div>
+        </details>
+
+        <!-- Switzerland -->
+        <details class="mb-4 border border-pp-pale-grey rounded-lg overflow-hidden group">
+          <summary class="w-full text-left p-2 bg-pp-pale-grey hover:bg-gray-200 transition-all duration-200 cursor-pointer list-none group-open:bg-gray-200">
+            <div class="flex justify-between items-center">
+              <div class="flex items-center gap-3">
+                <img src="{% static 'images/about/nodes/Flag_of_Switzerland.svg' %}" alt="Switzerland flag" class="h-8 w-12">
+                <h6 class="text-sm sm:text-lg m-0 font-semibold text-pp-dark-grey">Switzerland</h6>
+              </div>
+              <svg 
+                class="w-8 h-8 text-pp-mid-blue transform transition-transform duration-200 group-open:rotate-180" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+              </svg>
+            </div>
+          </summary>
+          <div class="p-4 bg-white border-t border-pp-pale-grey">
+            <div class="grid grid-cols-6 gap-4">
+              <div class="col-span-1 flex items-center justify-center">
+                <img src="{% static 'images/about/nodes/pathogen-logo-Switzerland.png' %}" alt="Switzerland Pathogens Portal Logo" class="w-auto h-16 object-contain">
+              </div>
+              <div class="col-span-5">
+                <p class="text-sm sm:text-base text-pp-dark-grey">
+                  Switzerland's pathogen portal serves as a central European hub for infectious disease surveillance, providing advanced analytical tools for outbreak detection and response coordination across the Alpine region and neighboring countries.
+                </p>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <!-- Netherlands -->
+        <details class="mb-4 border border-pp-pale-grey rounded-lg overflow-hidden group">
+          <summary class="w-full text-left p-2 bg-pp-pale-grey hover:bg-gray-200 transition-all duration-200 cursor-pointer list-none group-open:bg-gray-200">
+            <div class="flex justify-between items-center">
+              <div class="flex items-center gap-3">
+                <img src="{% static 'images/about/nodes/Flag_of_the_Netherlands.svg' %}" alt="Netherlands flag" class="h-8 w-12">
+                <h6 class="text-sm sm:text-lg m-0 font-semibold text-pp-dark-grey">Netherlands</h6>
+              </div>
+              <svg 
+                class="w-8 h-8 text-pp-mid-blue transform transition-transform duration-200 group-open:rotate-180" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+              </svg>
+            </div>
+          </summary>
+          <div class="p-4 bg-white border-t border-pp-pale-grey">
+            <div class="grid grid-cols-6 gap-4">
+              <div class="col-span-1 flex items-center justify-center">
+                <img src="{% static 'images/about/nodes/Pathogens-Portal-Logo-Netherlands-FINAL.png' %}" alt="Netherlands Pathogens Portal Logo" class="w-auto h-16 object-contain">
+              </div>
+              <div class="col-span-5">
+                <p class="text-sm sm:text-base text-pp-dark-grey">
+                  The Netherlands pathogen portal specializes in antimicrobial resistance surveillance and One Health approaches. The platform provides comprehensive tools for tracking resistant pathogens across human, animal, and environmental sectors, supporting evidence-based policy decisions.
+                </p>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <!-- Costa Rica -->
+        <details class="mb-4 border border-pp-pale-grey rounded-lg overflow-hidden group">
+          <summary class="w-full text-left p-2 bg-pp-pale-grey hover:bg-gray-200 transition-all duration-200 cursor-pointer list-none group-open:bg-gray-200">
+            <div class="flex justify-between items-center">
+              <div class="flex items-center gap-3">
+                <img src="{% static 'images/about/nodes/Flag_of_Costa_Rica_(state).svg' %}" alt="Costa Rica flag" class="h-8 w-12">
+                <h6 class="text-sm sm:text-lg m-0 font-semibold text-pp-dark-grey">Costa Rica</h6>
+              </div>
+              <svg 
+                class="w-8 h-8 text-pp-mid-blue transform transition-transform duration-200 group-open:rotate-180" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+              </svg>
+            </div>
+          </summary>
+          <div class="p-4 bg-white border-t border-pp-pale-grey">
+            <div class="grid grid-cols-6 gap-4">
+              <div class="col-span-1 flex items-center justify-center">
+                <img src="{% static 'images/about/nodes/pathogens_logo_costa_rica.svg' %}" alt="Costa Rica Pathogens Portal Logo" class="w-auto h-16 object-contain">
+              </div>
+              <div class="col-span-5">
+                <p class="text-sm sm:text-base text-pp-dark-grey">
+                  Costa Rica's pathogen portal focuses on tropical and emerging infectious diseases, providing specialized surveillance tools for monitoring vector-borne diseases, zoonotic infections, and climate-sensitive pathogens in Central America and the Caribbean region.
+                </p>
+              </div>
+            </div>
+          </div>
+        </details>
       </div>
     </div>
   </div>
 
-  <!-- Row 2 -->
-  <div class="grid grid-cols-1 md:grid-cols-3 gap-10 mt-6">
+  <!-- Row 2: European Network Integration -->
+  <div class="grid grid-cols-1 md:grid-cols-6 gap-2 mt-6">
     <div class="md:col-span-1">
       <h5 class="text-sm sm:text-xl mb-2 mt-0">
-        <a href="#" target="_blank" rel="noopener noreferrer" class="text-pp-mid-blue hover:text-pp-dark-blue hover:underline transition-colors duration-200">
-          European Network Integration
-        </a>
+        European Network Integration
       </h5>
     </div>
-    <div class="md:col-span-2">
+    <div class="md:col-span-5">
       <div class="text-sm sm:text-base text-pp-dark-grey">
-        <p>The Swedish Pathogens Portal serves as the national node for pathogen data sharing and analysis in Sweden, integrated within the broader European network of pathogen surveillance systems. Our platform provides researchers and public health officials with comprehensive access to genomic data, epidemiological information, and analytical tools for infectious disease research and surveillance.</p>
+        <p class="mt-0">The Swedish Pathogens Portal serves as the national node for pathogen data sharing and analysis in Sweden, integrated within the broader European network of pathogen surveillance systems. Our platform provides researchers and public health officials with comprehensive access to genomic data, epidemiological information, and analytical tools for infectious disease research and surveillance.</p>
         
         <p>Through our integration with European networks, we facilitate cross-border collaboration and data sharing, enabling rapid response to emerging infectious diseases and supporting global pandemic preparedness efforts. The portal serves as a critical infrastructure for Sweden's contribution to international pathogen surveillance and research initiatives.</p>
       </div>
     </div>
   </div>
 
-</div>
+  <!-- Row 3: Data Access & Sharing -->
+  <div class="grid grid-cols-1 md:grid-cols-6 gap-2 mt-6">
+    <div class="md:col-span-1">
+      <h5 class="text-sm sm:text-xl mb-2 mt-0">
+        Data Access & Sharing
+      </h5>
+    </div>
+    <div class="md:col-span-5">
+      <div class="text-sm sm:text-base text-pp-dark-grey">
+        <p class="mt-0">Our platform provides secure, controlled access to sensitive pathogen data while maintaining the highest standards of data protection and privacy. Researchers can access curated datasets, upload their own research data, and collaborate with international partners through our integrated sharing mechanisms.</p>
+        
+        <p>The portal supports various data formats and provides standardized APIs for seamless integration with existing research workflows and laboratory information systems. We ensure compliance with international data sharing agreements and facilitate responsible data stewardship across the pathogen research community.</p>
+      </div>
+    </div>
+  </div>
 
-<script src="{% static 'js/accordion.js' %}"></script>
+  <!-- Row 4: Analytical Tools -->
+  <div class="grid grid-cols-1 md:grid-cols-6 gap-2 mt-6">
+    <div class="md:col-span-1">
+      <h5 class="text-sm sm:text-xl mb-2 mt-0">
+        Toolbox for creating Pathogen Portal Nodes
+      </h5>
+    </div>
+    <div class="md:col-span-5">
+      <div class="text-sm sm:text-base text-pp-dark-grey">
+        <p class="mt-0">Our comprehensive suite of analytical tools includes advanced genomic analysis pipelines, phylogenetic reconstruction algorithms, and epidemiological modeling capabilities. These tools are designed to support researchers in understanding pathogen evolution, transmission dynamics, and outbreak patterns.</p>
+        
+        <p>The platform integrates machine learning algorithms for pathogen classification, antimicrobial resistance prediction, and outbreak risk assessment. Users can access cloud-based computational resources and collaborate on complex analyses through our interactive visualization and reporting tools.</p>
+      </div>
+    </div>
+  </div>
+
+</div>
 
 {% endblock %}
