@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-full mx-auto">
+    <div class="mb-4">
+        <h1 class="text-3xl font-bold text-gray-900">{{ title|default:"Wastewater: Methodology (SLU-SEEC)" }}</h1>
+    </div>
+    
+    <div class="aspect-w-16 aspect-h-9 w-full">
+        <iframe
+            src="{{ iframe_src|default:'http://localhost:8088/superset/dashboard/12/?standalone=3' }}"
+            title="{{ title|default:'Wastewater: Method (SLU-SEEC)' }}"
+            width="100%"
+            height="1800"
+            seamless
+            frameborder="0"
+            scrolling="no"
+            loading="lazy"
+        ></iframe>
+    </div>
+
+    <div class="mt-4 text-sm text-gray-500">
+        <p>Data source: SLU-SEEC Research Group | Last updated: {{ "now"|date:"F d, Y" }}</p>
+    </div>
+</div>
+{% endblock %}
+
+

@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="max-w-full mx-auto">
+    <div class="mb-4">
+        <h1 class="text-3xl font-bold text-gray-900">{{ title }}</h1>
+        <p class="text-gray-600 mt-2">Real-time wastewater surveillance data from Swedish municipalities</p>
+    </div>
+    
+    <div class="mb-6 grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <a href="{% url 'seec-virus' 'sars-cov-2' %}"
+           class="group flex items-center justify-between rounded-xl border border-[#37AE94]/30 bg-white px-4 py-3 text-gray-900 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#37AE94]">
+            <span class="inline-flex items-center gap-2">
+                <span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#37AE94]/10 text-[#37AE94]">
+                    <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v3m0 12v3m9-9h-3M6 12H3m14.95 6.364l-2.121-2.121M9.172 8.95 7.05 6.828m10.607 0-2.121 2.121M9.172 15.05l-2.122 2.121" />
+                    </svg>
+                </span>
+                <span class="font-medium">SARS‑CoV‑2</span>
+            </span>
+            <svg class="hidden sm:block h-4 w-4 text-[#37AE94] transition group-hover:translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+        </a>
+
+        <a href="{% url 'seec-virus' 'influenza-a' %}"
+           class="group flex items-center justify-between rounded-xl border border-[#37AE94]/30 bg-white px-4 py-3 text-gray-900 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#37AE94]">
+            <span class="inline-flex items-center gap-2">
+                <span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#37AE94]/10 text-[#37AE94]">
+                    <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v3m0 12v3m9-9h-3M6 12H3m14.95 6.364l-2.121-2.121M9.172 8.95 7.05 6.828m10.607 0-2.121 2.121M9.172 15.05l-2.122 2.121" />
+                    </svg>
+                </span>
+                <span class="font-medium">Influenza A</span>
+            </span>
+            <svg class="hidden sm:block h-4 w-4 text-[#37AE94] transition group-hover:translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+        </a>
+
+        <a href="{% url 'seec-virus' 'influenza-b' %}"
+           class="group flex items-center justify-between rounded-xl border border-[#37AE94]/30 bg-white px-4 py-3 text-gray-900 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#37AE94]">
+            <span class="inline-flex items-center gap-2">
+                <span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#37AE94]/10 text-[#37AE94]">
+                    <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v3m0 12v3m9-9h-3M6 12H3m14.95 6.364l-2.121-2.121M9.172 8.95 7.05 6.828m10.607 0-2.121 2.121M9.172 15.05l-2.122 2.121" />
+                    </svg>
+                </span>
+                <span class="font-medium">Influenza B</span>
+            </span>
+            <svg class="hidden sm:block h-4 w-4 text-[#37AE94] transition group-hover:translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+        </a>
+
+        <a href="{% url 'seec-virus' 'rsv' %}"
+           class="group flex items-center justify-between rounded-xl border border-[#37AE94]/30 bg-white px-4 py-3 text-gray-900 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#37AE94]">
+            <span class="inline-flex items-center gap-2">
+                <span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-[#37AE94]/10 text-[#37AE94]">
+                    <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v3m0 12v3m9-9h-3M6 12H3m14.95 6.364l-2.121-2.121M9.172 8.95 7.05 6.828m10.607 0-2.121 2.121M9.172 15.05l-2.122 2.121" />
+                    </svg>
+                </span>
+                <span class="font-medium">RSV</span>
+            </span>
+            <svg class="hidden sm:block h-4 w-4 text-[#37AE94] transition group-hover:translate-x-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+            </svg>
+        </a>
+    </div>
+
+    <div class="mt-6 rounded-xl p-4 sm:p-5 text-gray-700 bg-[#37AE94]/5 border-l-4 border-[#37AE94] shadow-sm">
+        <h2 class="text-xl font-semibold text-gray-900 mb-2">Notes</h2>
+        <p class="text-m leading-6">
+            The data presented in this dashboard originate from the Swedish University of Agricultural Sciences (SLU) and the
+            <a href="https://www.slu.se/forskning/forskningskatalog/grupper/s/seec/" class="text-[#37AE94] hover:underline" target="_blank" rel="noopener noreferrer">Swedish Environmental Epidemiology Centre (SEEC)</a>.
+            The monitoring includes detection and quantification of generic material from influenza A virus, influenza B virus, respiratory syncytial virus (RSV), and SARS CoV-2 in untreated wastewater.
+            Every week, samples are collected from up to 19 wastewater treatment plants across Sweden and analysed using reverse transcription quantitative polymerase chain reaction (RT-qPCR).
+            We wish to emphasise that the wastewater method is employed for research purposes. The laboratory analysis methods and quantification strategies are continually being developed and are not accredited.
+            Due to minor differences in quantification approaches and quality assurance filtering settings, the data may differ slightly from that previously published on the Pathogens portal.
+            <br>
+            <br>
+            <a href="{% url 'seec-methodology' %}" class="inline-flex items-center gap-1 text-[#37AE94] hover:underline ml-1 font-bold">Read more about the methodology →</a>
+        </p>
+    </div>
+    
+    <div class="aspect-w-16 aspect-h-9 w-full">
+        <iframe
+            src="{{ iframe_src|default:'http://localhost:8088/superset/dashboard/14/?standalone=3' }}"
+            title="SLU-SEEC Wastewater Dashboard"
+            width="100%"
+            height="950"
+            seamless
+            frameborder="0"
+            scrolling="no"
+            loading="lazy"
+        ></iframe>
+    </div>
+
+    <div class="mt-4 text-sm text-gray-500">
+        <p>Data source: SLU-SEEC Research Group | Last updated: {{ "now"|date:"F d, Y" }}</p>
+    </div>
+</div>
+{% endblock %}
