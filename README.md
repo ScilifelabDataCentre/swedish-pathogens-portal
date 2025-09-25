@@ -53,7 +53,7 @@ docker compose down --rmi
 To check and test pages which pull data from the DB, django `migrate` should be run
 
 ```
-docker exec -it spp_web sh -c "python manage.py migrate"
+docker compose exec web python manage.py migrate
 ```
 
 #### Make migrations
@@ -61,7 +61,7 @@ docker exec -it spp_web sh -c "python manage.py migrate"
 For new apps and models, one might have to make the migrations files first
 
 ```
-docker exec -it spp_web sh -c "python manage.py makemigrations"
+docker compose exec web python manage.py makemigrations
 ```
 
 #### Creating new app
@@ -69,13 +69,13 @@ docker exec -it spp_web sh -c "python manage.py makemigrations"
 To create new app (section), first create a directory with the desired app/section name.
 
 ```
-docker exec -it spp_web sh -c "mkdir pages/<app_name>"
+docker compose exec web mkdir pages/<app_name>
 ```
 
 Then use django's utility command to create a app and required files
 
 ```
-docker exec -it spp_web sh -c "python manage.py startapp <app_name> pages/<app_name>"
+docker compose exec web python manage.py startapp <app_name> pages/<app_name>
 ```
 
 After creating the app, following steps should be done
@@ -86,6 +86,20 @@ After creating the app, following steps should be done
 - then include the apps url in `core/urls.py` (like other apps)
 - if needed, create `templates/<app_name>` directory within the app directory for templates
 - if needed, create `static/<app_name>` directory within the app directory for static files
+
+#### Modifying dependenices with UV
+
+While developing, to add or remove dependency run
+
+```
+docker compose exec web uv <add/remove> <package_name>
+```
+
+to add/remove dependency for development
+
+```
+docker compose exec web uv <add/remove> --group dev <package_name>
+```
 
 ## License
 
