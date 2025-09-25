@@ -39,7 +39,6 @@ class BaseTemplateView(TemplateView):
         if self.description:
             context["description"] = self.description
 
-
         if self.extra_context is not None and isinstance(self.extra_context, dict):
             context.update(self.extra_context)
 
