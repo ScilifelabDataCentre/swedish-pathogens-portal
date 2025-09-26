@@ -50,11 +50,13 @@ DJANGO_APPS = [
 THIRD_PARTY_APPS = []
 
 LOCAL_APPS = [
+    "pages.citation",
     "pages.home",
     "pages.privacy",
     "pages.data_management",
+    "pages.topics",
+]
 
-    ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 

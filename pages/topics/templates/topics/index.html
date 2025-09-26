@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+
+<!-- Main Content -->
+<div class="py-8" id="content">
+    <!-- Page Header -->
+    <div class="mb-8">
+        <p class="text-lg text-pp-dark-grey leading-relaxed">
+            The Swedish Pathogens Portal provides information about available datasets, resources, tools, and services related to pandemic preparedness in Sweden. We offer support to all those involved in pandemic preparedness research that are affiliated with a Swedish research institution or university.
+        </p>
+    </div>
+
+    <!-- Topics Grid -->
+    {% if topics %}
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
+            {% for topic in topics %}
+                <div class="bg-white border border-pp-pale-grey rounded-lg shadow-sm hover:shadow-md transition-shadow duration-300">
+                    <!-- Topic Image -->
+                    <div class="relative">
+                        <img 
+                            src="{{ topic.display_image|safe }}" 
+                            alt="{{ topic.name }}"
+                            class="w-full h-48 object-cover rounded-t-lg"
+                        />
+                    </div>
+                    
+                    <!-- Topic Content -->
+                    <div class="p-4">
+                        <h6 class="text-lg font-semibold text-pp-dark-blue mb-3">
+                            <a 
+                                href="{% url 'topics:topic_detail' topic.slug %}" 
+                                class="hover:text-pp-teal transition-colors duration-200"
+                            >
+                                {{ topic.name }}
+                            </a>
+                        </h6>
+                        
+                        <!-- Topic Description -->
+                        <p class="text-pp-dark-grey text-sm leading-relaxed mb-4">
+                            {{ topic.description|truncatewords:25 }}
+                        </p>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% else %}
+        <!-- No Topics Message -->
+        <div class="text-center py-16">
+            <div class="max-w-md mx-auto">
+                <div class="w-20 h-20 bg-pp-pale-grey rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-10 h-10 text-pp-dark-grey" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+                    </svg>
+                </div>
+                <h3 class="text-xl font-semibold text-pp-dark-grey mb-2">No Topics Available</h3>
+                <p class="text-pp-dark-grey">
+                    There are currently no research topics available. Please check back later.
+                </p>
+            </div>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

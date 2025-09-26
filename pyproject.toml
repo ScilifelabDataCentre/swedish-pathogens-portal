@@ -7,6 +7,8 @@ requires-python = ">=3.13"
 dependencies = [
     "django>=5.2.4",
     "django-environ>=0.12.0",
+    "markdown>=3.5.0",
+    "pillow>=10.0.0",
 ]
 
 [dependency-groups]
@@ -14,6 +16,7 @@ dev = [
     "django-browser-reload>=1.18.0",
     "django-extensions>=4.1",
     "psycopg[binary]>=3.2.9",
+    "ruff>=0.13.0",
     "watchdog>=6.0.0",
     "werkzeug[watchdog]>=3.1.3",
 ]

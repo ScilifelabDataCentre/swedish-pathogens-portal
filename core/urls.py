@@ -18,11 +18,15 @@ Including another URLconf
 from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
+from django.conf.urls.static import static
 
 urlpatterns = [
     path(settings.ADMIN_URL, admin.site.urls, name="admin"),
     path("", include("pages.home.urls")),
     path("privacy/", include("pages.privacy.urls")),
+    path("citation/", include("pages.citation.urls")),
+    path("privacy/", include("pages.privacy.urls")),
+    path("topics/", include("pages.topics.urls")),
     path("data_management/", include("pages.data_management.urls"))
 ]
 
@@ -31,3 +35,5 @@ if settings.DEBUG:
     urlpatterns += [
         path("__reload__/", include("django_browser_reload.urls")),
     ]
+    # Serve media files in development
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

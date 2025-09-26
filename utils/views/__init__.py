@@ -8,5 +8,7 @@ imported in this file should also be added to __all__
 """
 
 from ._base_template_view import BaseTemplateView
+from ._base_list_view import BaseListView
+from ._base_detail_view import BaseDetailView
 
-__all__ = ["BaseTemplateView"]
+__all__ = ["BaseTemplateView", "BaseListView", "BaseDetailView"]
