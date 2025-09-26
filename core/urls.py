@@ -23,9 +23,9 @@ from django.conf.urls.static import static
 urlpatterns = [
     path(settings.ADMIN_URL, admin.site.urls, name="admin"),
     path("", include("pages.home.urls")),
+    path("about/", include("pages.about.urls")),
     path("privacy/", include("pages.privacy.urls")),
     path("topics/", include("pages.topics.urls")),
-    path("about/", include("pages.about.urls")),
 ]
 
 # Auto browser reload addition for local development

@@ -51,9 +51,9 @@ THIRD_PARTY_APPS = []
 
 LOCAL_APPS = [
     "pages.home",
+    "pages.about",
     "pages.privacy",
     "pages.topics",
-    "pages.about",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -131,4 +131,7 @@ AUTH_PASSWORD_VALIDATORS = [
 # REVIEW: These will depend on our static file serving strategy
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATIC_URL = "static/"
-STATICFILES_DIRS = [BASE_DIR / "core" / "static"]
+STATICFILES_DIRS = [
+    BASE_DIR / "core" / "static",
+    BASE_DIR / "pages" / "about" / "static",
+]
