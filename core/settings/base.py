@@ -51,9 +51,9 @@ THIRD_PARTY_APPS = []
 
 LOCAL_APPS = [
     "pages.citation",
+    "pages.data_management",
     "pages.home",
     "pages.privacy",
-    "pages.data_management",
     "pages.topics",
 ]
 
