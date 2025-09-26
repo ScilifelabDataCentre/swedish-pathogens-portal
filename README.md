@@ -30,7 +30,7 @@ Open a terminal window, go to the directory where you want to clone the reposito
 git clone git@github.com:ScilifelabDataCentre/swedish-pathogens-portal.git
 ```
 
-**NOTE:** The following instruction assume you are in the project's root
+**NOTE:** The following instructions assume you are in the project's root
 
 #### Create env file
 
