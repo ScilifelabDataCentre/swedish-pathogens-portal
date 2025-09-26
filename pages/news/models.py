@@ -11,7 +11,7 @@ class News(models.Model):
     excerpt = models.TextField(max_length=500, blank=True, help_text="Short summary for news listings")
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
-    published = models.BooleanField(default=True)
+    isactive = models.BooleanField(default=True)
     featured = models.BooleanField(default=False, help_text="Show this news item prominently")
 
     class Meta:

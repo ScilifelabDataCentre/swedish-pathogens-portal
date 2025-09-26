@@ -9,7 +9,7 @@ class NewsListView(ListView):
     paginate_by = 10
     
     def get_queryset(self):
-        return News.objects.filter(published=True)
+        return News.objects.filter(isactive=True)
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -25,7 +25,7 @@ class NewsDetailView(DetailView):
     slug_url_kwarg = 'slug'
     
     def get_queryset(self):
-        return News.objects.filter(published=True)
+        return News.objects.filter(isactive=True)
     
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
