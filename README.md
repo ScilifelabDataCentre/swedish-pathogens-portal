@@ -30,6 +30,14 @@ Open a terminal window, go to the directory where you want to clone the reposito
 git clone git@github.com:ScilifelabDataCentre/swedish-pathogens-portal.git
 ```
 
+#### Create env file
+
+We need a `.env` file for the application, for local development we can just make a copy of `.env.example`
+
+```
+cp .env.example .env
+```
+
 #### Start the application
 
 Go into the cloned repository and run the below command.
