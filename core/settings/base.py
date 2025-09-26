@@ -50,8 +50,8 @@ DJANGO_APPS = [
 THIRD_PARTY_APPS = []
 
 LOCAL_APPS = [
-    "pages.home",
     "pages.about",
+    "pages.home",
     "pages.privacy",
     "pages.topics",
 ]
@@ -133,5 +133,4 @@ STATIC_ROOT = BASE_DIR / "staticfiles"
 STATIC_URL = "static/"
 STATICFILES_DIRS = [
     BASE_DIR / "core" / "static",
-    BASE_DIR / "pages" / "about" / "static",
 ]

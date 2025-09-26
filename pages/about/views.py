@@ -13,7 +13,7 @@ class Partners(BaseTemplateView):
 
 
 class Funding(BaseTemplateView):
-    template_name = "about/funding.html"
+    template_name = "about/funders.html"
     title = "Funding Projects"
 
 
