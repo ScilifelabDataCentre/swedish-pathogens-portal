@@ -12,6 +12,9 @@ jobs:
     if: github.repository == 'scilifelabdatacentre/swedish-pathogens-portal'
     name: Publish Docker image
     runs-on: ubuntu-latest
+    concurrency:
+      group: ${{ github.ref }}-docker-build
+      cancel-in-progress: true 
     permissions:
       contents: read
       packages: write
@@ -31,11 +34,11 @@ jobs:
           images: ghcr.io/scilifelabdatacentre/swedish-pathogens-portal
           tags: |
              type=sha,format=long
+             type=sha,prefix={{branch}}-
              type=ref,event=branch
              type=semver,pattern={{version}}
              type=semver,pattern={{major}}.{{minor}}
              type=semver,pattern={{major}}
-             type=sha,prefix={{branch}}-
       - name: Build and publish backend
         uses: docker/build-push-action@v6
         with:
