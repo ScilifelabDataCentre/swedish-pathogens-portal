@@ -2,11 +2,11 @@ name: Publish Docker image
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-  release:
-    types: [published]
+#  push:
+#    branches:
+#      - main
+#  release:
+#    types: [published]
 jobs:
   push_to_registry:
     if: github.repository == 'scilifelabdatacentre/swedish-pathogens-portal'
