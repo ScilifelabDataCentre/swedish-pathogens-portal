@@ -4,263 +4,133 @@
 
 {% block content %}
 
-<div class="space-y-8 mb-12 mt-16">
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12 mt-16">
 
-  <!-- Funder: Pandemic Laboratory Preparedness (PLP) Program -->
-  <div class="grid grid-cols-1 md:grid-cols-4 gap-10 mt-6">
-    <div class="md:col-span-1 flex justify-center">
-      <img class="h-10 sm:h-30 object-contain object-top mt-2" 
-      src="{% static 'images/funding/plp_default2.png' %}" alt="PLP Logo" />
-    </div>
-    <div class="md:col-span-3">
-      <h5 class="text-sm sm:text-xl mb-2 mt-0">
-        <a href="https://www.scilifelab.se/capabilities/pandemic-laboratory-preparedness/" 
-        target="_blank" rel="noopener noreferrer" 
-        class="text-pp-mid-blue hover:text-pp-dark-blue hover:underline 
-        transition-colors duration-200">
-          Pandemic Laboratory Preparedness (PLP) Program
-        </a>
-      </h5>
-      <div class="text-sm sm:text-base text-pp-dark-grey">
-
-        <p>
-          SciLifeLab (Science for Life Laboratory) was 
-          <a href="https://www.regeringen.se/rattsliga-dokument/proposition/2020/12/forskning-frihet-framtid--kunskap-och-innovation-for-sverige/" 
-          target="_blank" rel="noopener noreferrer">
-            commissioned by the Swedish govenment
-          </a> 
-          to prepare resources and capabilities that can be used to deal with future pandemics. 
-          The assignment broadly involved supporting research related to infectious diseases 
-          (e.g. in diagnostics, analysis of infection, immunity, and the development of 
-          resistance to therapies in pathogens), and building competence and developing 
-          technologies related to pandemic research (e.g. in sequencing, genetic analysis, 
-          immunology, and big data).
-        </p>
-
-        <p>
-          The 
-          <a href="https://www.scilifelab.se/capabilities/pandemic-laboratory-preparedness/" 
-          target="_blank" rel="noopener noreferrer">
-            Pandemic Laboratory Preparedness (PLP) program
-          </a> 
-          was established as a result of the commission from the government in December 2020. 
-          The services, tools, and resources (termed 'capabilities') established through the PLP 
-          program are intended to complement those established elsewhere in society 
-          (e.g. authorities, municipalities and regions) when tackling future pandemics. As such, 
-          the PLP program will work closely with governmental agencies, e.g. 
-          <a href="https://www.folkhalsomyndigheten.se" target="_blank" 
-          rel="noopener noreferrer">
-            Swedish Public Health Agency (FoHM)
-          </a>.
-        </p>
-
-        <p>The first call from the PLP program was released in February 2021. The first eight 
-          capabilities were selected for support in July 2021. The program now supports over 20 
-          capabilities and technology development projects, with more expected in 2023. To see 
-          more about the PLP program and the capabilities resulting from it, see our 
-          <a href="https://www.covid19dataportal.se/resources/" target="_blank" 
-          rel="noopener noreferrer">
-            pandemic preparedness resources page
-          </a>.
-        </p>
-
-      </div>
-    </div>
-  </div>
-
-  <!-- Funder: BY-COVID (BeYond COVID) -->
-  <div class="grid grid-cols-1 md:grid-cols-4 gap-10 mt-6">
-    <div class="md:col-span-1 flex justify-center">
-      <img class="h-10 sm:h-30 object-contain object-top mt-2" 
+<!-- BY-COVID -->
+<a href="https://by-covid.org/" target="_blank" rel="noopener noreferrer" 
+class="block bg-white border border-pp-pale-grey rounded-lg p-6 hover:shadow-lg 
+hover:border-pp-mid-blue transition-all duration-200 group no-underline">
+  <div class="flex flex-col items-center text-center">
+    <div class="mb-4">
+      <img class="h-16 w-auto object-contain" 
       src="{% static 'images/funding/by-covid-logo.svg' %}" alt="BY-COVID Logo" />
     </div>
-    <div class="md:col-span-3">
-      <h5 class="text-sm sm:text-xl mb-2 mt-0">
-        <a href="https://by-covid.org/" target="_blank" rel="noopener noreferrer" 
-        class="text-pp-mid-blue hover:text-pp-dark-blue hover:underline 
-        transition-colors duration-200">
-          BY-COVID (BeYond COVID)
-        </a>
-      </h5>
-      <div class="text-sm sm:text-base text-pp-dark-grey">
-
-        <p>
-          <a href="https://by-covid.org/" target="_blank">BY-COVID</a> 
-          (BeYond COVID) project is a European initiative aiming to enhance pandemic 
-          preparedness and future infectious disease response through the development and 
-          integration of open, interoperable data resources. The project is funded by the 
-          European Union's 
-          <a href="https://by-covid.org/news-events/by-covid-launch/" target="_blank">
-            Horizon Europe programme
-          </a> 
-          and coordinated by ELIXIR, in collaboration with a broad network of European 
-          research infrastructures and public health institutions that brings together 
-          <a href="https://by-covid.org/about" target="_blank">
-            53 partners from 19 countries.
-          </a>
-        </p> 
-        <p>
-          The BeYond-COVID (BY-COVID) project aims to make COVID-19 data accessible to 
-          anyone that can use it, including medical staff in hospitals, researchers in labs, 
-          and government officials. The project will provide a framework for making data from 
-          other infectious diseases open and accessible to everyone. The project will 
-          integrate established national and European infrastructures with ELIXIR, BBMRI, 
-          ECRIN, PHIRI and CESSDA. It will build on existing efforts, such as the 
-          <a href="https://www.covid19dataportal.org/" target="_blank">
-            COVID-19 Data Platform
-          </a> 
-          and the 
-          <a href="https://www.veo-europe.eu/" target="_blank">
-            Versatile Emerging infectious disease Observatory project (VEO)
-          </a>
-          , in order to maximise efficiency. It will also develop synergies with the European 
-          Health Data Space.
-        </p>
-
-        <p>Members of the Portal team are involved in the development of the 
-          <a href="https://www.infectious-diseases-toolkit.org" target="_blank">
-            Infectious Disease Toolkit
-          </a>
-          , a major deliverable of the BY-COVID project. For more information about the 
-          project see the 
-          <a href="https://by-covid.org/" target="_blank">
-            official BY-COVID website
-          </a>
-          . 
-        </p>
-    
-      </div>
-    </div>
+    <h5 class="text-lg font-semibold text-pp-dark-grey mb-2 
+    group-hover:text-pp-mid-blue transition-colors duration-200">
+    BY-COVID (BeYond COVID)
+    </h5>
+    <p class="text-sm text-pp-dark-grey">
+      BY-COVID (BeYond COVID) was a
+          Horizon Europe project aiming to enhance pandemic preparedness and future infectious disease response through the development and 
+        integration of open, interoperable data resources.
+    </p>
   </div>
+</a>
 
-  <!-- Funder: SciLifeLab & Wallenberg National Program -->
-  <div class="grid grid-cols-1 md:grid-cols-4 gap-10 mt-6">
-    <div class="md:col-span-1 flex justify-center">
-      <img class="object-contain object-top" 
+<!-- SciLifeLab & Wallenberg National Program -->
+<a href="https://www.scilifelab.se/data-driven/" target="_blank" rel="noopener noreferrer" 
+class="block bg-white border border-pp-pale-grey rounded-lg p-6 hover:shadow-lg 
+hover:border-pp-mid-blue transition-all duration-200 group no-underline">
+  <div class="flex flex-col items-center text-center">
+    <div class="mb-4">
+      <img class="h-16 w-auto object-contain" 
       src="{% static 'images/funding/scilifelab_kaw_logo.png' %}" 
       alt="SciLifeLab & Wallenberg National Program logo" />
     </div>
-    <div class="md:col-span-3">
-      <h5 class="text-sm sm:text-xl mb-2 mt-0">
-        <a href="https://www.scilifelab.se/data-driven/" 
-        target="_blank" rel="noopener noreferrer" 
-        class="text-pp-mid-blue hover:text-pp-dark-blue hover:underline 
-        transition-colors duration-200">
-          SciLifeLab & Wallenberg National Program for Data-Driven Life Science
-        </a>
-      </h5>
-      <div class="text-sm sm:text-base text-pp-dark-grey">
-
-        <p>Life science research is rapidly becoming more data-driven. As the volume and 
-          complexity of data grows exponentially, the effective management of data throughout 
-          its lifecycle becomes ever more important. To address this, SciLifeLab and The Knut 
-          and Alice Wallenberg Foundation launched the Data-Driven Life Science (DDLS) 
-          program in Sweden. This program focuses on recruiting and training the next 
-          generation of life scientists whilst building data science capabilities that will 
-          position Sweden at the forefront of life sciences globally. Coordinated by 
-          SciLifeLab with ten Swedish universities and the Swedish Museum of Natural History, 
-          the DDLS program benefits from 12 years of funding from the Knut and Alice 
-          Wallenberg Foundation.<br><br>The DDLS program is structured around four 
-          strategically focused research areas: Cell and Molecular Biology (hosted by Chalmers 
-          University of Technology), Evolution and Biodiversity (hosted by Uppsala University), 
-          Precision Medicine and Diagnostics (hosted by Karolinska Institutet), and 
-          Epidemiology and Biology of Infection (hosted by Umeå University). Each research area 
-          is supported by a national Data Science Node (DSN) at these institutions. The DSNs 
-          connect local research communities with the national DDLS program and SciLifeLab's 
-          network. For instance, the Epidemiology and Biology of Infection DSN, hosted at the 
-          <a href="https://www.hpc2n.umu.se/" target="_blank" rel="noopener noreferrer">
-            High-Performance Computing Center North (HPC2N)
-          </a> 
-          at Umeå University, contributes to the 
-          <a href="https://www.pathogens.se/" target="_blank" rel="noopener noreferrer">Swedish Pathogens Portal</a>
-          . The DSN is crucial in reaching out to the Epidemiology and Biology of Infection 
-          research community, and in ensuring that their needs are understood and appropriately 
-          prioritised. You can read more about the DDLS program 
-          <a href="https://www.scilifelab.se/data-driven/" target="_blank" rel="noopener noreferrer">on the SciLifeLab website</a>.
-        </p>
-    
-      </div>
-    </div>
+    <h5 class="text-lg font-semibold text-pp-dark-grey mb-2 
+    group-hover:text-pp-mid-blue transition-colors duration-200">
+    Data-Driven Life Science (DDLS)<br> Program
+    </h5>
+    <p class="text-sm text-pp-dark-grey">
+      Funded by SciLifeLab and The Knut and Alice Wallenberg Foundation in 
+        respose to the increasing volume and complexity of data in life science.
+    </p>
   </div>
+</a>
 
-  <!-- Funder: SciLifeLab -->
-  <div class="grid grid-cols-1 md:grid-cols-4 gap-10 mt-6">
-    <div class="md:col-span-1 flex justify-center">
-      <img class="h-10 sm:h-30 object-contain object-top mt-2" 
+<!-- Pandemic Laboratory Preparedness (PLP) Program -->
+<a href="https://www.scilifelab.se/capabilities/pandemic-laboratory-preparedness/" target="_blank" rel="noopener noreferrer" 
+class="block bg-white border border-pp-pale-grey rounded-lg p-6 hover:shadow-lg 
+hover:border-pp-mid-blue transition-all duration-200 group no-underline">
+  <div class="flex flex-col items-center text-center">
+    <div class="mb-4">
+      <img class="h-16 w-auto object-contain" 
+      src="{% static 'images/funding/plp_default2.png' %}" alt="PLP Logo" />
+    </div>
+    <h5 class="text-lg font-semibold text-pp-dark-grey mb-2 
+    group-hover:text-pp-mid-blue transition-colors duration-200">
+    Pandemic Laboratory Preparedness <br> (PLP) Program
+    </h5>
+    <p class="text-sm text-pp-dark-grey">
+      Funded by SciLifeLab and The Knut and Alice Wallenberg Foundation in 
+        respose to the increasing volume and complexity of data in life science.
+    </p>
+  </div>
+</a>
+
+
+<!-- SciLifeLab -->
+<a href="https://scilifelab.se/" target="_blank" rel="noopener noreferrer" 
+class="block bg-white border border-pp-pale-grey rounded-lg p-6 hover:shadow-lg 
+hover:border-pp-mid-blue transition-all duration-200 group no-underline">
+  <div class="flex flex-col items-center text-center">
+    <div class="mb-4">
+      <img class="h-16 w-auto object-contain" 
       src="{% static 'images/funding/scilifelab-logo.svg' %}" alt="SciLifeLab Logo" />
     </div>
-    <div class="md:col-span-3">
-      <h5 class="text-sm sm:text-xl mb-2 mt-0">
-        <a href="https://scilifelab.se/" target="_blank" rel="noopener noreferrer" 
-        class="text-pp-mid-blue hover:text-pp-dark-blue hover:underline 
-        transition-colors duration-200">
-          SciLifeLab
-        </a>
-      </h5>
-      <div class="text-sm sm:text-base text-pp-dark-grey">
-
-        <p>SciLifeLab (Science for Life Laboratory) is an institution for the advancement 
-          of molecular biosciences in Sweden. We are funded as a national research 
-          infrastructure by the Swedish government. Our organisation leverages the unique 
-          strengths of individual researchers across Sweden into a focused resource for 
-          the life science community. Thousands of researchers rely on us to provide 
-          access to the cutting-edge instrumentation and deep scientific expertise needed 
-          to produce internationally competitive bioscience research. These technologies 
-          are supported and developed by our research community, which includes 
-          internationally recognised experts in life science and technology. Our 
-          facilities and expertise create a unique environment for carrying out health and 
-          environmental research at the highest level.</p>
-
-        <p>
-          SciLifeLab began in 2010 as a joint effort between four Swedish universities 
-          (<a href="https://www.ki.se/" target="_blank" rel="noopener noreferrer">Karolinska Institutet</a>, 
-          <a href="https://www.kth.se/" target="_blank" rel="noopener noreferrer">KTH Royal Institute of Technology</a>, 
-          <a href="https://www.su.se/" target="_blank" rel="noopener noreferrer">Stockholm University</a> and 
-          <a href="https://www.uu.se/" target="_blank" rel="noopener noreferrer">Uppsala University</a>). However, today we have 
-          expanded far beyond this, and support research activities at all major 
-          Swedish universities.
-        </p>
-    
-      </div>
-    </div>
+    <h5 class="text-lg font-semibold text-pp-dark-grey mb-2 
+    group-hover:text-pp-mid-blue transition-colors duration-200">
+    SciLifeLab
+    </h5>
+    <p class="text-sm text-pp-dark-grey">
+      SciLifeLab (Science for Life Laboratory) is funded as a national research 
+        infrastructure by the Swedish government. It brings together the unique 
+        strengths of individual researchers and infrastructure across Sweden to create 
+        state of the art life science resources.
+    </p>
   </div>
+</a>
 
-  <!-- Funder: SciLifeLab Data Centre -->
-  <div class="grid grid-cols-1 md:grid-cols-4 gap-10 mt-6">
-    <div class="md:col-span-1 flex justify-center">
-      <img class="h-10 sm:h-30 object-contain object-top mt-2" 
-      src="{% static 'images/funding/dc_branding_light_bg.svg' %}" 
-      alt="SciLifeLab Data Centre Logo" />
+<!-- Swedish Foundation for Strategic Research (SSF) -->
+<a href="https://strategiska.se/en/" target="_blank" rel="noopener noreferrer" 
+class="block bg-white border border-pp-pale-grey rounded-lg p-6 hover:shadow-lg 
+hover:border-pp-mid-blue transition-all duration-200 group no-underline">
+  <div class="flex flex-col items-center text-center">
+    <div class="mb-4">
+      <img class="h-16 w-auto object-contain" 
+      src="{% static 'images/funding/ssf_emblem_cmyk-1.jpg' %}" 
+      alt="Swedish Foundation for Strategic Research (SSF) Logo" />
     </div>
-    <div class="md:col-span-3">
-      <h5 class="text-sm sm:text-xl mb-2 mt-0">
-        <a href="https://scilifelab.se/data/" target="_blank" rel="noopener noreferrer" 
-        class="text-pp-mid-blue hover:text-pp-dark-blue hover:underline 
-        transition-colors duration-200">
-          SciLifeLab Data Centre
-        </a>
-      </h5>
-      <div class="text-sm sm:text-base text-pp-dark-grey">
-
-        <p>Life science research is increasingly becoming data-driven, rather than 
-          primarily technology-driven. SciLifeLab coordinates and supports activities 
-          throughout the data life cycle, from project planning and data production, 
-          right through to  data publishing and reuse, where researchers are dependent on 
-          advanced data analysis and e-infrastructures.</p>
-        
-        <p>
-          At SciLifeLab, we see data as one of the most valuable and long-lasting 
-          products of our operations. We strive to ensure our data adheres to the 
-          principles of <a href="https://www.force11.org/group/fairgroup/fairprinciples" target="_blank" rel="noopener noreferrer">
-            FAIR</a> and Open Science. We also put considerable effort into maximising 
-            the long-term value of our data to the scientific community.
-          </p>
-    
-      </div>
-    </div>
+    <h5 class="text-lg font-semibold text-pp-dark-grey mb-2 
+    group-hover:text-pp-mid-blue transition-colors duration-200">
+    Swedish Foundation for Strategic<br> Research (SSF)
+    </h5>
+    <p class="text-sm text-pp-dark-grey">
+      This foundation supports science, techology, and medicine in Sweden. 
+          It promotes the development of strong research environments to ensure the future competitiveness of Sweden.
+    </p>
   </div>
+</a>
 
-
-</div>
+<!-- Vetenskapsrådet -->
+<a href="https://www.vr.se" target="_blank" rel="noopener noreferrer" 
+class="block bg-white border border-pp-pale-grey rounded-lg p-6 hover:shadow-lg 
+hover:border-pp-mid-blue transition-all duration-200 group no-underline">
+  <div class="flex flex-col items-center text-center">
+    <div class="mb-4">
+      <img class="h-16 w-auto object-contain" 
+      src="{% static 'images/funding/vetenskapsrådet.png' %}" 
+      alt="Vetenskapsrådet Logo" />
+    </div>
+    <h5 class="text-lg font-semibold text-pp-dark-grey mb-2 
+    group-hover:text-pp-mid-blue transition-colors duration-200">
+    Vetenskapsrådet <br>(Swedish Research Council)
+    </h5>
+    <p class="text-sm text-pp-dark-grey">
+      Sweden's largest governmental research funding agency. It 
+            supports the highest quality research across all scientific fields.
+    </p>
+  </div>
+</a>
 
 {% endblock %}

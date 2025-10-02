@@ -5,6 +5,27 @@
 {% block content %}
 
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12 mt-16">
+
+    <!-- GA4GH -->
+    <a href="https://www.ga4gh.org/" target="_blank" rel="noopener noreferrer" 
+    class="block bg-white border border-pp-pale-grey rounded-lg p-6 hover:shadow-lg 
+    hover:border-pp-mid-blue transition-all duration-200 group no-underline">
+      <div class="flex flex-col items-center text-center">
+        <div class="mb-4">
+          <img class="h-16 w-auto object-contain" 
+          src="{% static 'images/partners/ga4gh_logo.png' %}" alt="GA4GH Logo" />
+        </div>
+        <h5 class="text-lg font-semibold text-pp-dark-grey mb-2 
+        group-hover:text-pp-mid-blue transition-colors duration-200">
+          GA4GH
+        </h5>
+        <p class="text-sm text-pp-dark-grey">
+          Global Alliance for Genomics and Health (GA4GH) establishes standards and frameworks 
+          for responsible genomic data sharing.
+        </p>
+      </div>
+    </a>
+
   <!-- Partner 1: PDN -->
   <a href="https://pathogendatanetwork.org/" target="_blank" rel="noopener noreferrer" 
   class="block bg-white border border-pp-pale-grey rounded-lg p-6 hover:shadow-lg 
@@ -40,31 +61,13 @@
         Pathogens Portal
       </h5>
       <p class="text-sm text-pp-dark-grey">
-        EMBL-EBI's comprehensive platform for pathogen genomic data, providing access to 
+        EMBL-EBI's comprehensive platform for pathogen data. It provides access to 
         curated datasets and analytical tools.
       </p>
     </div>
   </a>
 
-  <!-- Partner 3: GA4GH -->
-  <a href="https://www.ga4gh.org/" target="_blank" rel="noopener noreferrer" 
-  class="block bg-white border border-pp-pale-grey rounded-lg p-6 hover:shadow-lg 
-  hover:border-pp-mid-blue transition-all duration-200 group no-underline">
-    <div class="flex flex-col items-center text-center">
-      <div class="mb-4">
-        <img class="h-16 w-auto object-contain" 
-        src="{% static 'images/partners/ga4gh_logo.png' %}" alt="GA4GH Logo" />
-      </div>
-      <h5 class="text-lg font-semibold text-pp-dark-grey mb-2 
-      group-hover:text-pp-mid-blue transition-colors duration-200">
-        GA4GH
-      </h5>
-      <p class="text-sm text-pp-dark-grey">
-        Global Alliance for Genomics and Health - establishing standards and frameworks 
-        for responsible genomic data sharing.
-      </p>
-    </div>
-  </a>
+
 
   <!-- Partner 4: European COVID-19 Data Portal -->
   <a href="https://www.covid19dataportal.org/" target="_blank" rel="noopener noreferrer" 
@@ -81,7 +84,7 @@
         European COVID-19 Data Portal
       </h5>
       <p class="text-sm text-pp-dark-grey">
-        Centralized European platform for COVID-19 research data, supporting collaborative 
+        Centralised European platform for COVID-19 research data that supports collaborative 
         research and rapid response efforts.
       </p>
     </div>
@@ -105,8 +108,8 @@
         NBIS and ELIXIR Sweden
       </h5>
       <p class="text-sm text-pp-dark-grey">
-        National Bioinformatics Infrastructure Sweden and ELIXIR Sweden providing 
-        computational resources and expertise for life science research.
+        National Bioinformatics Infrastructure Sweden (NBIS) and ELIXIR Sweden provide 
+        resources, support, and expertise for life science research.
       </p>
     </div>
   </a>

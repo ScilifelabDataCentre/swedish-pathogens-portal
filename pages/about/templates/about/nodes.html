@@ -4,17 +4,206 @@
 
 {% block content %}
 
-<div class="space-y-8 mb-12 mt-16">
 
-  <!-- Row 1: Pathogen Portals by Country -->
-  <div class="grid grid-cols-1 md:grid-cols-6 gap-2 mt-6">
-    <div class="md:col-span-1">
-      <h5 class="text-sm sm:text-xl mb-2 mt-0">
-        Pathogens Portal Nodes
-      </h5>
-    </div>
-    <div class="md:col-span-5">
-      <div class="space-y-4">
+    <!-- Row 1: Define PPNs -->
+      <p>Pathogens Portal Nodes (PPNs) provide information, guidelines, 
+        tools, and services to support researchers in creating and sharing research 
+        outputs related infectious disease. The purpose of PPNs is to showcase and 
+        highlight pathogen research data from each of the participating countries or regions. 
+        Similar to the <a href="https://www.pathogensportal.org/" target="_blank">
+          central Pathogens Portal
+        </a>, PPNs rely on the Open and FAIR access of 
+        sequence and other omics data. PPNs are regularly updated with new tools, services and data.</p>
+
+  <!-- Row 2: Pathogen Portals by Country -->
+
+          <!-- Costa Rica -->
+          <details class="mb-4 border border-pp-pale-grey rounded-lg overflow-hidden group">
+            <summary class="w-full text-left p-2 bg-pp-pale-grey hover:bg-gray-200 
+            transition-all duration-200 cursor-pointer list-none group-open:bg-gray-200">
+              <div class="flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                  <img src="{% static 'images/nodes/flag_of_costa_rica_state.svg' %}"
+                  alt="Costa Rica flag" class="h-8 w-12">
+                  <h6 class="text-sm sm:text-lg m-0 font-semibold text-pp-dark-grey">
+                    Costa Rica
+                  </h6>
+                </div>
+                <svg 
+                  class="w-8 h-8 text-pp-mid-blue transform transition-transform 
+                  duration-200 group-open:rotate-180" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  viewBox="0 0 24 24"
+                >
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                  d="M19 9l-7 7-7-7"></path>
+                </svg>
+              </div>
+            </summary>
+            <div class="p-4 bg-white border-t border-pp-pale-grey">
+              <div class="grid grid-cols-6 gap-4">
+                <div class="col-span-1 flex items-center justify-center">
+                  <img src="{% static 'images/nodes/pathogens_logo_costa_rica.svg' %}" 
+                  alt="Costa Rica Pathogens Portal Logo" class="w-auto h-16 object-contain">
+                </div>
+                <div class="col-span-5">
+                  <p class="text-sm sm:text-base text-pp-dark-grey">
+                    The <a href="https://pathogensportal.ucr.ac.cr/" target="_blank">
+                      Costa Rican node
+                    </a>serves as a vital resource for researchers, 
+                    clinicians, and policymakers, providing up-to-date and comprehensive datasets on pathogens. This 
+                    node has been established at the Universidad de Costa Rica with the support of the Swiss Institute 
+                    of Bioinformatics (SIB) to incorporate Costa Rica as a regional node of the Pathogens Portal.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </details>
+
+                  <!-- Netherlands -->
+        <details class="mb-4 border border-pp-pale-grey rounded-lg overflow-hidden group">
+          <summary class="w-full text-left p-2 bg-pp-pale-grey hover:bg-gray-200 
+          transition-all duration-200 cursor-pointer list-none group-open:bg-gray-200">
+            <div class="flex justify-between items-center">
+              <div class="flex items-center gap-3">
+                <img src="{% static 'images/nodes/flag_of_the_netherlands.svg' %}" 
+                alt="Netherlands flag" class="h-8 w-12">
+                <h6 class="text-sm sm:text-lg m-0 font-semibold text-pp-dark-grey">
+                  Netherlands
+                </h6>
+              </div>
+              <svg 
+                class="w-8 h-8 text-pp-mid-blue transform transition-transform 
+                duration-200 group-open:rotate-180" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                d="M19 9l-7 7-7-7"></path>
+              </svg>
+            </div>
+          </summary>
+          <div class="p-4 bg-white border-t border-pp-pale-grey">
+            <div class="grid grid-cols-6 gap-4">
+              <div class="col-span-1 flex items-center justify-center">
+                <img src="{% static 'images/nodes/pathogens_portal_logo_netherlands_final.png' %}"
+                alt="Netherlands Pathogens Portal Logo" class="w-auto h-16 object-contain">
+              </div>
+              <div class="col-span-5">
+                <p class="text-sm sm:text-base text-pp-dark-grey">
+                  The <a href="https://www.pathogensportal.nl/" target="_blank">
+                    Dutch node
+                  </a> provides information about available datasets, resources, 
+                  tools and services related to pathogens research in the Netherlands. It showcases and 
+                  provides quick access to a collection of biomolecular and other pathogens-related data 
+                  for Open Science from Dutch institutions and their collaborators.
+                </p>
+              </div>
+            </div>
+          </div>
+        </details>
+
+                <!-- Norway -->
+                <details class="mb-4 border border-pp-pale-grey rounded-lg overflow-hidden group">
+                  <summary class="w-full text-left p-2 bg-pp-pale-grey hover:bg-gray-200 
+                  transition-all duration-200 cursor-pointer list-none group-open:bg-gray-200">
+                    <div class="flex justify-between items-center">
+                      <div class="flex items-center gap-3">
+                        <img src="{% static 'images/nodes/flag_of_norway.svg' %}" 
+                        alt="Norway flag" class="h-8 w-12">
+                        <h6 class="text-sm sm:text-lg m-0 font-semibold text-pp-dark-grey">
+                          Norway
+                        </h6>
+                      </div>
+                      <svg 
+                        class="w-8 h-8 text-pp-mid-blue transform transition-transform 
+                        duration-200 group-open:rotate-180" 
+                        fill="none" 
+                        stroke="currentColor" 
+                        viewBox="0 0 24 24"
+                      >
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                        d="M19 9l-7 7-7-7"></path>
+                      </svg>
+                    </div>
+                  </summary>
+                  <div class="p-4 bg-white border-t border-pp-pale-grey">
+                    <div class="grid grid-cols-6 gap-4">
+                      <div class="col-span-1 flex items-center justify-center">
+                        <img src="{% static 'images/nodes/pathogens_portal_norway_logo_light.png' %}" 
+                        alt="Norway Pathogens Portal Logo" class="w-auto h-16 object-contain">
+                      </div>
+                      <div class="col-span-5">
+                        <p class="text-sm sm:text-base text-pp-dark-grey">
+                          The <a href="https://pathogens.no/" target="_blank">
+                            Norwegian node
+                          </a> provides information about available datasets, resources, 
+                          tools, and services related to pandemic preparedness in Norway. 
+                          The portal gives researchers, clinicians and policymakers access 
+                          to an extensive collection of biomolecular data about pathogens. 
+                          The portal will also be the main access to the Norwegian Pathogen 
+                          Data Hub which enables sharing pathogen data and their associated 
+                          clinical/epidemiological metadata under controlled access.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </details>
+
+                        <!-- Spain -->
+        <details class="mb-4 border border-pp-pale-grey rounded-lg overflow-hidden group">
+          <summary class="w-full text-left p-2 bg-pp-pale-grey hover:bg-gray-200 
+          transition-all duration-200 cursor-pointer list-none group-open:bg-gray-200">
+            <div class="flex justify-between items-center">
+              <div class="flex items-center gap-3">
+                <img src="{% static 'images/nodes/flag_of_spain.svg' %}" alt="Spain flag" 
+                class="h-8 w-12">
+                <h6 class="text-sm sm:text-lg m-0 font-semibold text-pp-dark-grey">
+                  Spain
+                </h6>
+              </div>
+              <svg 
+                class="w-8 h-8 text-pp-mid-blue transform transition-transform 
+                duration-200 group-open:rotate-180" 
+                fill="none" 
+                stroke="currentColor" 
+                viewBox="0 0 24 24"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
+                d="M19 9l-7 7-7-7"></path>
+              </svg>
+            </div>
+          </summary>
+          <div class="p-4 bg-white border-t border-pp-pale-grey">
+            <div class="grid grid-cols-6 gap-4">
+              <div class="col-span-1 flex items-center justify-center">
+                <img src="{% static 'images/nodes/pathogens_portal_logo_spain.png' %}" 
+                alt="Spainish Pathogens Portal Logo" class="w-auto h-16 object-contain">
+              </div>
+              <div class="col-span-5">
+                <p class="text-sm sm:text-base text-pp-dark-grey">
+                  The <a href="https://pathogensportal.isciii.es/" target="_blank">
+                    Spanish node
+                  </a> is a central access point to resources, 
+                  data, and tools for pathogen surveillance and research in Spain. It features 
+                  dashboards for national and European initiatives such as EU-WISH (wastewater-based 
+                  epidemiology), the MePRAM project on precision medicine against antimicrobial 
+                  resistance, the RELECOV genomic surveillance network for SARS-CoV-2, 
+                  the National Epidemiological Surveillance Network (RENAVE) and the Acute Respiratory 
+                  Infection Surveillance System (SiVIRA). The portal also offers bioinformatics pipelines 
+                  (for bacterial assembly and viral genome reconstruction), training materials on 
+                  bioinformatics for pathogen genomics, access to datasets and publications, and 
+                  highlights such as the national priority pathogens list. It covers key public health 
+                  topics including antimicrobial resistance, genomic surveillance, influenza, RSV, 
+                  SARS-CoV-2, other viral pathogens, and wastewater surveillance.
+                </p>
+              </div>
+            </div>
+          </div>
+        </details>
+
         <!-- Sweden -->
         <details class="mb-4 border border-pp-pale-grey rounded-lg overflow-hidden group">
           <summary class="w-full text-left p-2 bg-pp-pale-grey hover:bg-gray-200 
@@ -47,94 +236,20 @@
               </div>
               <div class="col-span-5">
                 <p class="text-sm sm:text-base text-pp-dark-grey">
-                  The Swedish Pathogens Portal provides secure access to genomic data, epidemiological 
-                  information, and research datasets. Researchers can upload, share, and analyze 
-                  pathogen data through our integrated platform with advanced analytical tools for 
-                  genomic analysis and phylogenetic studies.
-                </p>
-              </div>
-            </div>
-          </div>
-        </details>
-
-        <!-- Norway -->
-        <details class="mb-4 border border-pp-pale-grey rounded-lg overflow-hidden group">
-          <summary class="w-full text-left p-2 bg-pp-pale-grey hover:bg-gray-200 
-          transition-all duration-200 cursor-pointer list-none group-open:bg-gray-200">
-            <div class="flex justify-between items-center">
-              <div class="flex items-center gap-3">
-                <img src="{% static 'images/nodes/flag_of_norway.svg' %}" 
-                alt="Norway flag" class="h-8 w-12">
-                <h6 class="text-sm sm:text-lg m-0 font-semibold text-pp-dark-grey">
-                  Norway
-                </h6>
-              </div>
-              <svg 
-                class="w-8 h-8 text-pp-mid-blue transform transition-transform 
-                duration-200 group-open:rotate-180" 
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
-              >
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                d="M19 9l-7 7-7-7"></path>
-              </svg>
-            </div>
-          </summary>
-          <div class="p-4 bg-white border-t border-pp-pale-grey">
-            <div class="grid grid-cols-6 gap-4">
-              <div class="col-span-1 flex items-center justify-center">
-                <img src="{% static 'images/nodes/pathogens_portal_norway_logo_light.png' %}" 
-                alt="Norway Pathogens Portal Logo" class="w-auto h-16 object-contain">
-              </div>
-              <div class="col-span-5">
-                <p class="text-sm sm:text-base text-pp-dark-grey">
-                  Norway's pathogen portal emphasizes Arctic and marine pathogen surveillance, 
-                  providing specialized tools for monitoring infectious diseases in extreme 
-                  environments. The platform supports research on climate change impacts on 
-                  pathogen distribution and evolution.
-                </p>
-              </div>
-            </div>
-          </div>
-        </details>
-
-        <!-- Spain -->
-        <details class="mb-4 border border-pp-pale-grey rounded-lg overflow-hidden group">
-          <summary class="w-full text-left p-2 bg-pp-pale-grey hover:bg-gray-200 
-          transition-all duration-200 cursor-pointer list-none group-open:bg-gray-200">
-            <div class="flex justify-between items-center">
-              <div class="flex items-center gap-3">
-                <img src="{% static 'images/nodes/flag_of_spain.svg' %}" alt="Spain flag" 
-                class="h-8 w-12">
-                <h6 class="text-sm sm:text-lg m-0 font-semibold text-pp-dark-grey">
-                  Spain
-                </h6>
-              </div>
-              <svg 
-                class="w-8 h-8 text-pp-mid-blue transform transition-transform 
-                duration-200 group-open:rotate-180" 
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
-              >
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                d="M19 9l-7 7-7-7"></path>
-              </svg>
-            </div>
-          </summary>
-          <div class="p-4 bg-white border-t border-pp-pale-grey">
-            <div class="grid grid-cols-6 gap-4">
-              <div class="col-span-1 flex items-center justify-center">
-                <img src="{% static 'images/nodes/pathogens_portal_logo_spain.png' %}" 
-                alt="Spain Pathogens Portal Logo" class="w-auto h-16 object-contain">
-              </div>
-              <div class="col-span-5">
-                <p class="text-sm sm:text-base text-pp-dark-grey">
-                  Spain's pathogen surveillance portal focuses on Mediterranean and 
-                  tropical disease monitoring, providing comprehensive tools for tracking 
-                  vector-borne diseases and emerging infectious diseases in the Iberian 
-                  Peninsula and surrounding regions.
+                  The <a href="https://pathogens.se/" target="_blank">
+                    Swedish node
+                  </a> was initially launched as part of the COVID-19 National Data Portal 
+                  Network in June of 2020. It became part of the wider Swedish Pandemic 
+                  Preparedness effort in 2022, and became a Pathogens Portal node in 
+                  August 2023. The portal provides direct support for researchers to make 
+                  infectious disease and pandemic preparedness data more Open and FAIR.
+                  It also helps to improve the visibility of openly shared data. 
+                  The portal contains data on multiple pathogens and from multiple areas 
+                  of research. This includes, for example, public health data (e.g. 
+                  vaccination data on COVID-19 and the prevalence of post-COVID-19 condition), 
+                  wastewater surveillance data from a large number 
+                  of cities (and multiple viruses, including SARS-CoV-2, enteric viruses, and 
+                  influenza), and serology data.
                 </p>
               </div>
             </div>
@@ -173,177 +288,48 @@
               </div>
               <div class="col-span-5">
                 <p class="text-sm sm:text-base text-pp-dark-grey">
-                  Switzerland's pathogen portal serves as a central European hub for 
-                  infectious disease surveillance, providing advanced analytical tools 
-                  for outbreak detection and response coordination across the Alpine 
-                  region and neighboring countries.
+                  The <a href="https://pathogensportal.ch/" target="_blank">
+                    Swiss node
+                  </a> was developed to support researchers by providing a one-stop 
+                  resource for all Swiss pathogen data and projects, fostering 
+                  collaborations and synergies by creating a forum for discussion, 
+                  providing documentation and training material on FAIR research 
+                  data management, especially for pathogen omics data, and showcasing 
+                  Swiss resources that contribute to pathogen data sharing, access, 
+                  analysis, and interpretation.
                 </p>
               </div>
             </div>
           </div>
         </details>
 
-        <!-- Netherlands -->
-        <details class="mb-4 border border-pp-pale-grey rounded-lg overflow-hidden group">
-          <summary class="w-full text-left p-2 bg-pp-pale-grey hover:bg-gray-200 
-          transition-all duration-200 cursor-pointer list-none group-open:bg-gray-200">
-            <div class="flex justify-between items-center">
-              <div class="flex items-center gap-3">
-                <img src="{% static 'images/nodes/flag_of_the_netherlands.svg' %}" 
-                alt="Netherlands flag" class="h-8 w-12">
-                <h6 class="text-sm sm:text-lg m-0 font-semibold text-pp-dark-grey">
-                  Netherlands
-                </h6>
-              </div>
-              <svg 
-                class="w-8 h-8 text-pp-mid-blue transform transition-transform 
-                duration-200 group-open:rotate-180" 
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
-              >
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                d="M19 9l-7 7-7-7"></path>
-              </svg>
-            </div>
-          </summary>
-          <div class="p-4 bg-white border-t border-pp-pale-grey">
-            <div class="grid grid-cols-6 gap-4">
-              <div class="col-span-1 flex items-center justify-center">
-                <img src="{% static 'images/nodes/pathogens_portal_logo_netherlands_final.png' %}"
-                alt="Netherlands Pathogens Portal Logo" class="w-auto h-16 object-contain">
-              </div>
-              <div class="col-span-5">
-                <p class="text-sm sm:text-base text-pp-dark-grey">
-                  The Netherlands pathogen portal specializes in antimicrobial resistance 
-                  surveillance and One Health approaches. The platform provides 
-                  comprehensive tools for tracking resistant pathogens across human, 
-                  animal, and environmental sectors, supporting evidence-based policy 
-                  decisions.
-                </p>
-              </div>
-            </div>
-          </div>
-        </details>
 
-        <!-- Costa Rica -->
-        <details class="mb-4 border border-pp-pale-grey rounded-lg overflow-hidden group">
-          <summary class="w-full text-left p-2 bg-pp-pale-grey hover:bg-gray-200 
-          transition-all duration-200 cursor-pointer list-none group-open:bg-gray-200">
-            <div class="flex justify-between items-center">
-              <div class="flex items-center gap-3">
-                <img src="{% static 'images/nodes/flag_of_costa_rica_state.svg' %}"
-                alt="Costa Rica flag" class="h-8 w-12">
-                <h6 class="text-sm sm:text-lg m-0 font-semibold text-pp-dark-grey">
-                  Costa Rica
-                </h6>
-              </div>
-              <svg 
-                class="w-8 h-8 text-pp-mid-blue transform transition-transform 
-                duration-200 group-open:rotate-180" 
-                fill="none" 
-                stroke="currentColor" 
-                viewBox="0 0 24 24"
-              >
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" 
-                d="M19 9l-7 7-7-7"></path>
-              </svg>
-            </div>
-          </summary>
-          <div class="p-4 bg-white border-t border-pp-pale-grey">
-            <div class="grid grid-cols-6 gap-4">
-              <div class="col-span-1 flex items-center justify-center">
-                <img src="{% static 'images/nodes/pathogens_logo_costa_rica.svg' %}" 
-                alt="Costa Rica Pathogens Portal Logo" class="w-auto h-16 object-contain">
-              </div>
-              <div class="col-span-5">
-                <p class="text-sm sm:text-base text-pp-dark-grey">
-                  Costa Rica's pathogen portal focuses on tropical and emerging infectious 
-                  diseases, providing specialized surveillance tools for monitoring 
-                  vector-borne diseases, zoonotic infections, and climate-sensitive 
-                  pathogens in Central America and the Caribbean region.
-                </p>
-              </div>
-            </div>
-          </div>
-        </details>
-      </div>
-    </div>
-  </div>
+  <!-- Row 3: Becoming a PPN -->
 
-  <!-- Row 2: European Network Integration -->
-  <div class="grid grid-cols-1 md:grid-cols-6 gap-2 mt-6">
-    <div class="md:col-span-1">
       <h5 class="text-sm sm:text-xl mb-2 mt-0">
-        European Network Integration
+        Becoming part of the Pathogens Portal Network
       </h5>
-    </div>
-    <div class="md:col-span-5">
-      <div class="text-sm sm:text-base text-pp-dark-grey">
-        <p class="mt-0">The Swedish Pathogens Portal serves as the national node 
-          for pathogen data sharing and analysis in Sweden, integrated within the broader 
-          European network of pathogen surveillance systems. Our platform provides 
-          researchers and public health officials with comprehensive access to genomic 
-          data, epidemiological information, and analytical tools for infectious 
-          disease research and surveillance.</p>
+        <p>All PPNs will be integrated into the Pathogens Portal Network,
+           enabling a global ecosystem of linked data and tools to support
+            research and public health response to infectious diseases and
+            epidemics. The network is constantly expanding and becoming more 
+            integrated.</p>
         
-        <p>Through our integration with European networks, we facilitate cross-border 
-          collaboration and data sharing, enabling rapid response to emerging 
-          infectious diseases and supporting global pandemic preparedness efforts. 
-          The portal serves as a critical infrastructure for Sweden's contribution 
-          to international pathogen surveillance and research initiatives.</p>
-      </div>
-    </div>
-  </div>
+        <p>A reusable code base has been established to enable new PPNs 
+          to be set up quickly and easily. Simply go to the <a href="https://github.com/ScilifelabDataCentre/node-pathogens-portal" target="_blank">
+            PPN Toolbox GitHub 
+          Repository
+          </a> to begin setting up a new PPN. A <a href="https://demo-pathogens-portal.serve.scilifelab.se/" target="_blank">
+            demo site
+          </a>  is available to give you some idea on how a basic PPN would look. Contact the </a>, or 
+          <a href="https://www.pathogens.se/contact/" target="_blank">
+            Swedish</a>, <a href="https://pathogensportal.ch/contact-suggestions/" target="_blank">
+            Swiss
+          </a>, or <a href="https://www.ebi.ac.uk/about/contact/support/pathogens-portal" target="_blank">
+            central
+          </a> Pathogens Portals for 
+          more information and support about how to get started.</p>
 
-  <!-- Row 3: Data Access & Sharing -->
-  <div class="grid grid-cols-1 md:grid-cols-6 gap-2 mt-6">
-    <div class="md:col-span-1">
-      <h5 class="text-sm sm:text-xl mb-2 mt-0">
-        Data Access & Sharing
-      </h5>
-    </div>
-    <div class="md:col-span-5">
-      <div class="text-sm sm:text-base text-pp-dark-grey">
-        <p class="mt-0">Our platform provides secure, controlled access to sensitive 
-          pathogen data while maintaining the highest standards of data protection 
-          and privacy. Researchers can access curated datasets, upload their own 
-          research data, and collaborate with international partners through our 
-          integrated sharing mechanisms.</p>
-        
-        <p>The portal supports various data formats and provides standardized APIs 
-          for seamless integration with existing research workflows and laboratory 
-          information systems. We ensure compliance with international data 
-          sharing agreements and facilitate responsible data stewardship across 
-          the pathogen research community.</p>
-      </div>
-    </div>
-  </div>
 
-  <!-- Row 4: Analytical Tools -->
-  <div class="grid grid-cols-1 md:grid-cols-6 gap-2 mt-6">
-    <div class="md:col-span-1">
-      <h5 class="text-sm sm:text-xl mb-2 mt-0">
-        Toolbox for creating Pathogen Portal Nodes
-      </h5>
-    </div>
-    <div class="md:col-span-5">
-      <div class="text-sm sm:text-base text-pp-dark-grey">
-        <p class="mt-0">Our comprehensive suite of analytical tools includes advanced 
-          genomic analysis pipelines, phylogenetic reconstruction algorithms, 
-          and epidemiological modeling capabilities. These tools are designed to 
-          support researchers in understanding pathogen evolution, transmission 
-          dynamics, and outbreak patterns.</p>
-        
-        <p>The platform integrates machine learning algorithms for pathogen 
-          classification, antimicrobial resistance prediction, and outbreak 
-          risk assessment. Users can access cloud-based computational resources 
-          and collaborate on complex analyses through our interactive visualization 
-          and reporting tools.</p>
-      </div>
-    </div>
-  </div>
-
-</div>
 
 {% endblock %}

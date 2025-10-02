@@ -2,6 +2,7 @@ from utils.views import BaseTemplateView
 
 # Create your views here.
 
+
 class About(BaseTemplateView):
     template_name = "about/index.html"
     title = "About"
@@ -14,7 +15,7 @@ class Partners(BaseTemplateView):
 
 class Funding(BaseTemplateView):
     template_name = "about/funders.html"
-    title = "Funding Projects"
+    title = "Funders"
 
 
 class Nodes(BaseTemplateView):
