@@ -179,3 +179,4 @@ RUN chmod +x prod-entrypoint.sh
 # Switch to non-root user, expose port, and set entrypoint
 USER app
 EXPOSE 8000
+ENTRYPOINT ["./prod-entrypoint.sh"]
