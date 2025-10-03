@@ -11,7 +11,7 @@
 # Exit on error and treat unset variables as errors
 set -eu
 # Export database URL environment variable
-#export DATABASE_URL="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}"
+export DATABASE_URL="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}"
 
 # REVIEW: Database connection in production
 #wait-for-it "${POSTGRES_HOST}:${POSTGRES_PORT}" -t 30
