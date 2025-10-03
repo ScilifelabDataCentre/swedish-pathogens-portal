@@ -40,7 +40,9 @@ RUN case "${TARGETARCH}" in \
 COPY --from=ghcr.io/astral-sh/uv:0.8.10 /uv /usr/local/bin/uv
 
 # Set working directory
+COPY . app
 WORKDIR /app
+
 
 # Set `uv` environment variables (https://docs.astral.sh/uv/reference/environment/)
 ENV UV_LINK_MODE=copy \
@@ -178,5 +180,7 @@ RUN chmod +x prod-entrypoint.sh
 
 # Switch to non-root user, expose port, and set entrypoint
 USER app
+RUN chown -R app /code
+
 EXPOSE 8000
 ENTRYPOINT ["./prod-entrypoint.sh"]
