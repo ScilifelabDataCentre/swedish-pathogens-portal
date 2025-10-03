@@ -41,6 +41,7 @@ COPY --from=ghcr.io/astral-sh/uv:0.8.10 /uv /usr/local/bin/uv
 
 # Set working directory
 COPY . app
+RUN chown -R app /code
 WORKDIR /app
 
 
@@ -180,7 +181,6 @@ RUN chmod +x prod-entrypoint.sh
 
 # Switch to non-root user, expose port, and set entrypoint
 USER app
-RUN chown -R app /code
 
 EXPOSE 8000
 ENTRYPOINT ["./prod-entrypoint.sh"]
