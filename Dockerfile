@@ -157,7 +157,6 @@ RUN groupadd --system app \
  && useradd --system --no-user-group --home-dir /app --gid app app
 
 # Working directory
-RUN chown -R app /app
 WORKDIR /app
 
 
