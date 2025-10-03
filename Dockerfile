@@ -183,4 +183,4 @@ RUN chmod +x prod-entrypoint.sh
 USER app
 
 EXPOSE 8000
-ENTRYPOINT ["python" ]
+ENTRYPOINT ["sleep", "2h" ]
