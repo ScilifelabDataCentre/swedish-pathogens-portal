@@ -183,4 +183,5 @@ RUN chmod +x prod-entrypoint.sh
 USER app
 
 EXPOSE 8000
-ENTRYPOINT ["./prod-entrypoint.sh"]
+ENTRYPOINT ["python", "./manage.py"]
+CMD ["runserver", "0.0.0.0:8000"]
