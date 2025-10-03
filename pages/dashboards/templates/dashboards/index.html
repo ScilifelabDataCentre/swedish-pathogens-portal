@@ -7,9 +7,14 @@
     </span>
     
     <h4>Available dashboards</h4>
-    <!-- 
-    For now, maually add a hyperlink to your dashboard if you need a quick reference
+    {% comment %}
+    For now, maually add a hyperlink to your dashboard in the list if you need a quick reference
+    For example: <a href="{% url 'dashboards:url-name' %}">Dashboard name</a>
+    {% endcomment %}
 
-    For example: <a href="/dashboards/<my-dashboard>">Wastewater SLU</a>
-    -->
+    <ul class="list-disc pl-6 mt-2">
+        <li>
+            <a href="{% url 'dashboards:lineage_competition' %}">SARS-CoV-2 Variant Competition</a>
+        </li>
+    </ul>
 {% endblock %}
