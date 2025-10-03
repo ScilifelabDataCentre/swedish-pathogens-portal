@@ -10,8 +10,8 @@
 
 # Exit on error and treat unset variables as errors
 set -eu
-
-source ./.env
+#Source the .env file
+. ./.env
 # Export database URL environment variable
 export DATABASE_URL="postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}"
 
