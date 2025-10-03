@@ -40,7 +40,7 @@ RUN case "${TARGETARCH}" in \
 COPY --from=ghcr.io/astral-sh/uv:0.8.10 /uv /usr/local/bin/uv
 
 # Set working directory
-COPY . app
+#COPY . app
 WORKDIR /app
 
 
@@ -157,8 +157,8 @@ RUN groupadd --system app \
  && useradd --system --no-user-group --home-dir /app --gid app app
 
 # Working directory
-WORKDIR /app
 RUN chown -R app /app
+WORKDIR /app
 
 
 # Copy pre-built virtual environment from build stage
