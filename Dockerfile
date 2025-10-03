@@ -41,7 +41,6 @@ COPY --from=ghcr.io/astral-sh/uv:0.8.10 /uv /usr/local/bin/uv
 
 # Set working directory
 COPY . app
-RUN chown -R app /app
 WORKDIR /app
 
 
@@ -159,6 +158,8 @@ RUN groupadd --system app \
 
 # Working directory
 WORKDIR /app
+RUN chown -R app /app
+
 
 # Copy pre-built virtual environment from build stage
 COPY --from=build --chown=app:app /app/.venv /app/.venv
