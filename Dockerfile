@@ -41,7 +41,7 @@ COPY --from=ghcr.io/astral-sh/uv:0.8.10 /uv /usr/local/bin/uv
 
 # Set working directory
 COPY . app
-RUN chown -R app /code
+RUN chown -R app /app
 WORKDIR /app
 
 
