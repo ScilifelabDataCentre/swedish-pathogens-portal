@@ -1,0 +1,331 @@
+{% extends "base.html" %}
+
+{% block title %}{{ datatype_label }} data
+{% endblock %}
+
+{% block content %}
+<section>
+   <!-- Header / Search -->
+   <header class="mb-6 lg:mb-8">
+       <h1>{{ datatype_label }} data</h1>
+
+<form id="searchForm" method="get" role="search"
+      class="mt-4 flex w-full flex-col gap-3 sm:flex-row sm:items-center">
+    <input
+        type="search"
+        name="q"
+        value="{{ query }}"
+        placeholder="Search studies, accessions, pathogens…"
+        aria-label="Search"
+        class="w-full rounded border border-pp-pale-grey bg-white 
+               px-3 py-2 text-sm text-pp-almost-black placeholder:text-pp-dark-grey shadow-sm focus:outline-none focus:ring-2 focus:ring-pp-mid-blue/30"/>
+    <div class="flex shrink-0 items-center gap-2">
+        <button type="submit"
+            class="inline-flex items-center justify-center rounded bg-pp-mid-blue 
+            px-3 py-2 text-sm font-medium text-white shadow-sm hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-pp-mid-blue/30">
+    Search
+        </button>
+        <a href="?"
+            class="inline-flex items-center justify-center rounded border border-pp-pale-grey bg-white 
+            px-4 py-2 text-sm font-medium text-pp-dark-grey hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-pp-pale-grey/50">
+            Reset
+        </a>
+    </div>
+</form>
+    </header>
+
+    <!-- Main layout -->
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-12">
+    <!-- Facets / Sidebar -->
+    <aside class="lg:col-span-3 space-y-4">
+
+    <!-- Facet groups -->
+    {% if has_facets %}
+        {% for f, buckets in facets.items %}
+            {% if buckets %}
+                <details open
+                   class=" rounded border border-pp-pale-grey bg-white p-4 shadow-sm">
+                <summary class="cursor-pointer text-sm font-semibold capitalize text-pp-almost-black">
+            {{ f }}
+            </summary>
+                {% with facet_id=f|slugify %}
+                    {% if buckets|length > 4 %}
+                        <!-- First 3 visible -->
+                        <ul class="mt-3 space-y-2">
+                        {% for b in buckets|slice:":3" %}
+                            <li class="flex items-center gap-2">
+                            <label class="inline-flex items-center gap-2 text-sm text-pp-almost-black">
+                                <input type="checkbox"
+                                       name="{{ f }}"
+                                       value="{{ b.value }}"
+                                       form="searchForm"
+                                       {% if b.checked %}checked{% endif %}
+                                       onchange="document.getElementById('searchForm').submit()"
+                                       class="h-4 w-4 rounded border-pp-pale-grey text-pp-mid-blue focus:ring-pp-mid-blue/50">
+                                <span>{{ b.value }}</span>
+                                <span class="badge bg-gray-100 text-pp-dark-grey ring-1 ring-inset ring-pp-pale-grey">
+                                  {{ b.count }}
+                                </span>
+                            </label>
+                            </li>
+                        {% endfor %}
+                        </ul>
+
+                        <!-- Rest hidden until expanded -->
+                        <ul id="facet-more-{{ facet_id }}" class="mt-2 space-y-2 hidden">
+                            {% for b in buckets|slice:"3:" %}
+                                <li class="flex items-center gap-2">
+                                <label class="inline-flex items-center gap-2 text-sm text-pp-almost-black">
+                                <input type="checkbox"
+                                    name="{{ f }}"
+                                    value="{{ b.value }}"
+                                    form="searchForm"
+                                    {% if b.checked %}checked{% endif %}
+                                        onchange="document.getElementById('searchForm').submit()"
+                                        class="h-4 w-4 rounded border-pp-pale-grey text-pp-mid-blue focus:ring-pp-mid-blue/50">
+                                <span>{{ b.value }}</span>
+                                <span class="badge bg-gray-100 text-pp-dark-grey ring-1 ring-inset ring-pp-pale-grey">
+                                    {{ b.count }}
+                                </span>
+                                </label>
+                                </li>
+                                {% endfor %}
+                        </ul>
+
+                        <button type="button"
+                            class="mt-2 text-xs font-medium text-pp-mid-blue underline facet-toggle"
+                            data-target="facet-more-{{ facet_id }}"
+                            data-collapsed-text="Show more"
+                            data-expanded-text="Show less"
+                            aria-expanded="false"
+                            aria-controls="facet-more-{{ facet_id }}">
+                        Show more
+                        </button>
+                        {% else %}
+                        <!-- 4 or fewer: show all -->
+                        <ul class="mt-3 space-y-2">
+                        {% for b in buckets %}
+                            <li class="flex items-center gap-2">
+                            <label class="inline-flex items-center gap-2 text-sm text-pp-almost-black">
+                            <input type="checkbox"
+                                name="{{ f }}"
+                                value="{{ b.value }}"
+                                form="searchForm"
+                                {% if b.checked %}checked{% endif %}
+                                onchange="document.getElementById('searchForm').submit()"
+                                class="h-4 w-4 rounded border-pp-pale-grey text-pp-mid-blue focus:ring-pp-mid-blue/50">
+                             <span>{{ b.value }}
+                             </span>
+                              <span class="badge bg-gray-100 text-pp-dark-grey ring-1 ring-inset ring-pp-pale-grey">
+                              {{ b.count }}
+                            </span>
+                            </label>
+                            </li>
+                        {% endfor %}
+                        </ul>
+                    {% endif %}
+                {% endwith %}
+                </details>
+            {% endif %}
+        {% endfor %}
+    {% else %}
+        <div class="rounded border border-pp-pale-grey bg-white p-4 text-sm italic text-pp-dark-grey shadow-sm">
+        No filters remaning for this search
+        </div>
+{% endif %}
+    </aside>
+
+    <!-- Results -->
+    <main class="lg:col-span-9 ">
+      {% if error %}
+        <p class="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+          {{ error }}
+        </p>
+      {% else %}
+          <!-- Cards -->
+           <ul class="space-y-4">
+            {% for it in items %}
+            <li class="rounded border border-pp-pale-grey bg-white p-4 shadow-sm transition hover:shadow-md md:p-5">
+    <div class="flex items-start justify-between gap-3">
+    <h3 class="text-xl text-pp-almost-black">
+      {{ it.title }}
+    </h3>
+
+    </div>
+
+    {#Description with truncation and HTML rendering #}
+    {% if it.description %}
+        <p class="mt-2 text-sm text-pp-dark-grey leading-relaxed">
+        {% comment %}
+          We want to render HTML in descriptions. To avoid counting HTML tags as words
+          when deciding whether to truncate, strip tags for the wordcount check.
+          For the truncated snippet we use truncatewords_html so HTML tags are preserved,
+          then mark output as safe. The full description is also output with |safe.
+        {% endcomment %}
+        {% with it.description|striptags|wordcount as desc_words %}
+            {% if desc_words > 100 %}
+                <span id="desc-short-{{ it.id }}">
+                  {{ it.description|truncatewords_html:50|safe }}
+                </span>
+                <span id="desc-full-{{ it.id }}" class="hidden">
+                  {{ it.description|safe }}
+                </span>
+                <button type="button"
+                        class="ml-1 text-xs font-medium text-pp-mid-blue underline toggle-description"
+                        data-id="{{ it.id }}">
+                  Show more
+                </button>
+            {% else %}
+                {{ it.description|safe }}
+            {% endif %}
+        {% endwith %}
+        </p>
+    {% endif %}
+
+
+
+    <dl class="mt-3 space-y-1 text-xs text-pp-dark-grey">
+    {% if it.public_release_date %}
+        <div class="flex gap-1">
+            <dt class="font-semibold">Public release:</dt>
+            <dd>{{ it.public_release_date }}</dd>
+        </div>
+    {% endif %}
+    
+    {% if it.license %}
+        {% if it.license == "EMBL-EBI Terms of Use" %}
+          <div class="flex gap-1">
+            <dt class="font-semibold">License:</dt>
+            <dd> <a href="https://www.ebi.ac.uk/about/terms-of-use/" target="_blank" rel="noopener noreferrer" >{{ it.license }}</a> </dd>
+           </div>
+        {% else %}
+            <div class="flex gap-1">
+                <dt class="font-semibold">License:</dt>
+                <dd>{{ it.license }}</dd>
+            </div>
+        {% endif %}
+    {% endif %}
+    {% if it.platforms %}
+        <div class="flex gap-1">
+            <dt class="font-semibold">Platform(s):</dt>
+            <dd>{{ it.platforms|join:", " }}</dd>
+        </div>
+    {% endif %}
+    {% if it.factors %}
+        <div class="flex gap-1">
+            <dt class="font-semibold">Factors:</dt>
+            <dd>{{ it.factors|join:", " }}</dd>
+        </div>
+    {% endif %}
+    </dl>
+
+    <div class="mt-3 flex flex-wrap items-center gap-2">
+    {% if it.publication_doi %}
+        <a href="https://doi.org/{{ it.publication_doi|cut:'https://doi.org/' }}"
+             target="_blank" rel="noopener"
+             class="inline-flex items-center justify-center rounded border border-pp-pale-grey bg-white 
+             px-3 py-1.5 text-sm font-medium text-pp-dark-grey hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-pp-pale-grey/50">
+            Publication
+        </a>
+    {% endif %}
+
+    <!-- Local PVC download -->
+    <a href="{% url 'portal_data:data_files' datatype=datatype accession=it.accession %}"
+        class="ml-auto inline-flex items-center justify-center rounded bg-pp-mid-blue 
+        px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-pp-dark-blue/30">
+        Download data
+    </a>
+
+    <!-- Optional: keep a link back to MetaboLights -->
+    <a href="{{ it.repo_url }}" target="_blank" rel="noopener"
+       class="inline-flex items-center justify-center rounded border border-pp-pale-grey bg-pp-teal 
+       px-3 py-1.5 text-sm font-medium text-black hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-pp-pale-grey/50">
+       View in MetaboLights
+    </a>
+    </div>
+    </li>
+
+    {% empty %}
+      <li class="rounded border border-pp-pale-grey bg-white p-4 text-sm text-pp-dark-grey shadow-sm">
+        No datasets found.
+      </li>
+    {% endfor %}
+    </ul>
+    </form>
+    {% endif %}
+    </main>
+    </div>
+</section>
+
+
+<script>
+// Description "Show more / Show less" toggling
+document.addEventListener('click', function (event) {
+  const btn = event.target.closest('.toggle-description');
+  if (!btn) return;
+
+  const id = btn.dataset.id;
+  const shortEl = document.getElementById(`desc-short-${id}`);
+  const fullEl = document.getElementById(`desc-full-${id}`);
+  if (!shortEl || !fullEl) return;
+
+  const isExpanded = !fullEl.classList.contains('hidden');
+
+  if (isExpanded) {
+    // Collapse back to short
+    fullEl.classList.add('hidden');
+    shortEl.classList.remove('hidden');
+    btn.textContent = 'Show more';
+  } else {
+    // Expand to full
+    fullEl.classList.remove('hidden');
+    shortEl.classList.add('hidden');
+    btn.textContent = 'Show less';
+  }
+});
+
+// Facet "Show more / Show less" toggling
+document.addEventListener('click', function (event) {
+  const toggle = event.target.closest('.facet-toggle');
+  if (!toggle) return;
+
+  const targetId = toggle.dataset.target;
+  const targetEl = document.getElementById(targetId);
+  if (!targetEl) return;
+
+  const expanded = toggle.getAttribute('aria-expanded') === 'true';
+  if (expanded) {
+    targetEl.classList.add('hidden');
+    toggle.setAttribute('aria-expanded', 'false');
+    toggle.textContent = toggle.dataset.collapsedText || 'Show more';
+  } else {
+    targetEl.classList.remove('hidden');
+    toggle.setAttribute('aria-expanded', 'true');
+    toggle.textContent = toggle.dataset.expandedText || 'Show less';
+  }
+});
+
+document.addEventListener('DOMContentLoaded', function () {
+  // Auto-expand any facet that has a checked option in the hidden section
+  document.querySelectorAll('[id^="facet-more-"]').forEach(el => {
+    const hasChecked = !!el.querySelector('input[type="checkbox"]:checked');
+    if (hasChecked) {
+      el.classList.remove('hidden');
+      const btn = document.querySelector(`.facet-toggle[data-target="${el.id}"]`);
+      if (btn) {
+        btn.setAttribute('aria-expanded', 'true');
+        btn.textContent = btn.dataset.expandedText || 'Show less';
+      }
+    }
+  });
+
+  // Submit on facet change
+  const searchForm = document.getElementById('searchForm');
+  if (searchForm) {
+    document.querySelectorAll('aside input[type="checkbox"]').forEach(cb => {
+      cb.addEventListener('change', () => searchForm.submit());
+    });
+  }
+});
+</script>
+{% endblock %}

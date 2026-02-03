@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Files for {{ accession }} — {% endblock %}
+
+{% block content %}
+<section class="container px-4 lg:px-6">
+  <header class="mb-6 lg:mb-8">
+    <h1>Files for {{ accession }}</h1>
+    <p class="text-sm text-pp-dark-grey">Browse and download individual files from the PVC.</p>
+    <a href="{% url 'portal_data:data_type_list' datatype=datatype %}" class="text-sm underline">Back to list</a>
+  </header>
+
+  <div class="rounded border border-pp-pale-grey bg-white p-4 shadow-sm">
+    {% if files %}
+      <table class="w-full text-sm">
+        <thead>
+          <tr class="text-left">
+            <th class="pb-2">File</th>
+            <th class="pb-2">Size</th>
+            <th class="pb-2">Modified</th>
+            <th class="pb-2">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for f in files %}
+            <tr class="border-t">
+              <td class="py-2">
+                {{ f.relpath }}
+              </td>
+              <td class="py-2">{{ f.size|filesizeformat }}</td>
+              <td class="py-2">{{ f.mtime|date:"Y-m-d H:i" }}</td>
+              <td class="py-2">
+                <a href="{% url 'portal_data:data_file' datatype=datatype accession=accession relpath=f.relpath %}"
+                   class="inline-flex items-center justify-center rounded border border-pp-pale-grey bg-white px-3 py-1.5 text-xs font-medium text-pp-dark-grey hover:bg-gray-50">
+                  Download
+                </a>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="text-pp-dark-grey">No files found for this study.</p>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}

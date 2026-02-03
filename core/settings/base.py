@@ -86,7 +86,10 @@ THIRD_PARTY_APPS = [
     "django_structlog",
 ]
 
-LOCAL_APPS = ["cms"]
+# NOTE: "pages.portal_data" is the old standalone app from FREYA-2928, kept
+# registered here so it can run side by side with the current "cms"-based
+# portal data page while the two implementations get reconciled.
+LOCAL_APPS = ["cms", "pages.portal_data"]
 
 INSTALLED_APPS = DJANGO_APPS + WAGTAIL_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
