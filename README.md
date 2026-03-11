@@ -1,191 +1,208 @@
-# Swedish Pathogens Portal
+# Swedish Pathogens Portal (Wagtail)
 
-***WIP repository for Swedish Pathogens Portal 2.0***
+The Swedish Pathogens Portal is being rebuilt as a **Django + Wagtail** web application. This repository is the Wagtail-based portal (content management, page tree, StreamField blocks, and public site).
 
-The Swedish Pathogens Portal is being rebuilt as a Django-based web application.
+The live Swedish Pathogens Portal and the legacy codebase are in the [pathogens-portal repository](https://github.com/ScilifelabDataCentre/pathogens-portal).
 
-The source code for the current (live) Swedish Pathogens Portal can be found in the [pathogens-portal repository](https://github.com/ScilifelabDataCentre/pathogens-portal).
+---
 
-## Technology Stack
+## Technology stack
 
-- **Backend**: Django
-- **Database**: PostgreSQL
-- **Template Engine**: Django templates
-- **CSS Framework**: TailwindCSS
-- **JavaScript**: htmx
-- **Package Manager**: uv
-- **Containerization**: Docker & Docker Compose
+- **Backend:** Django
+- **CMS:** Wagtail (page tree, StreamField, snippets, admin)
+- **Database:** PostgreSQL
+- **Package manager:** uv
+- **Containerization:** Docker & Docker Compose
+
+---
+
+## Repository organization
+
+The project uses a **single Wagtail app** (`cms/`) and a **Django project** package (`core/`). All page types, StreamField blocks, snippets, and CMS templates live under `cms/`.
+
+| Folder | Purpose |
+|--------|--------|
+| **core/** | Django project: settings, root URLs, WSGI/ASGI, and overrides for Wagtail admin templates. No page models or CMS logic here. |
+| **cms/** | Wagtail app: page models (`cms/pages/`), StreamField blocks (`cms/blocks/`), snippets (`cms/snippets/`), optional backend helpers (`cms/services/`), and templates/static for the public site. |
+| **doc/** | Documentation and Architecture Decision Records (ADRs). |
+
+**Semantics:**
+
+- **core/** — Project configuration only. `cms/models.py` imports all page classes from `cms.pages` so Wagtail discovers them; you do not register pages in `core/`.
+- **cms/pages/** — One Python file per page type (e.g. `home.py` → `HomePage`, `section_index.py` → `SectionIndexPage`). Each file defines a single `Page` subclass with `parent_page_types`, `subpage_types`, and `content_panels`. Add new page types here and export them in `cms/pages/__init__.py`.
+- **cms/blocks/** — Reusable StreamField blocks; add new block classes here and export in `cms/blocks/__init__.py`. Block templates go under `cms/templates/cms/blocks/`.
+- **cms/snippets/** — Wagtail snippets for reusable list-style content (e.g. notices, events). Use sub-pages for content that is a full page with its own URL.
+
+**Example: adding a new page type**
+
+1. Create `cms/pages/news_index.py` with a class that subclasses `wagtail.models.Page`, sets `template = "cms/pages/news_index.html"`, `parent_page_types = ["cms.HomePage"]`, `subpage_types = ["cms.StandardPage"]`, and defines `content_panels`.
+2. In `cms/pages/__init__.py`, add `from .news_index import NewsIndexPage` and include `NewsIndexPage` in `__all__`.
+3. Add `cms/templates/cms/pages/news_index.html` (extend your base template and override the content block).
+4. Run `python manage.py makemigrations cms` and `python manage.py migrate`, then create the page in the Wagtail admin (Pages). No changes to `core/urls.py` are needed; Wagtail serves pages from the tree.
+
+---
 
 ## Prerequisites
 
 - Docker and Docker Compose
-- Python 3.13+ (for local development)
-- uv (for local development)
+- Python 3.13+ (for local development without Docker)
+- [uv](https://docs.astral.sh/uv/) (for local development)
 - git
+
+---
 
 ## Setup
 
-### 1. Clone the repository
+All commands below assume you are in the project root.
 
-Open a terminal window, go to the directory where you want to clone the repository and run
+### 1. Create a `.env` file
 
-```bash
-git clone git@github.com:ScilifelabDataCentre/swedish-pathogens-portal.git
-```
-
-**NOTE:** The sections below assume you are in the project's root
-
-### 2. Create a `.env` file
-
-For local development, you can copy `.env.example`
+Copy the example and adjust if needed:
 
 ```bash
 cp .env.example .env
 ```
 
-### 3. Enable pre-commit hooks
+### 2. Enable pre-commit hooks (optional but recommended)
 
-This project uses **[pre-commit](https://pre-commit.com/)** to run Ruff linting and formatting before each commit.
-
-> ℹ️ The following commands only need to be run once per developer.
-
-**Install development dependencies (including `pre-commit` and `ruff`):**
+The project uses [pre-commit](https://pre-commit.com/) for Ruff linting and formatting.
 
 ```bash
 uv sync --group dev
-```
-
-**Enable the Git hook:**
-
-```bash
 uv run pre-commit install
 ```
 
-After this, `pre-commit` will always expect a `.pre-commit-config.yaml`. The hooks defined in that config file will be run every time `git commit` is executed. The commit will fail if the hook finds any issues that need to be solved.
-
-> ℹ️ To uninstall / disable the pre-commit hooks, run:
->
-> ```bash
-> uv run pre-commit uninstall
-> ```
-
-**(*Optional*) Manually run pre-commit hooks on all files:**
-
-Pre-commit hooks are automatically run on every commit, but only on changed files in the checked out branch. To run the hooks on all files in the repository:
+To run hooks on all files:
 
 ```bash
 uv run pre-commit run --all-files
 ```
 
-> 💡 Alternative (pip instead of uv):
->
-> ```bash
-> pip install pre-commit      # Install
-> pre-commit install          # Enable 
-> pre-commit run --all-files  # Run checks
-> pre-commit uninstall        # Disable
-> ```
+### 3. Run the application
 
-### 4. Start the application
+**With Docker (recommended)**
 
 ```bash
 docker compose up
 ```
 
-> ℹ️ Alternative to Docker: Devbox config files are available upon request.
+- **Site:** http://localhost:8000  
+- **Wagtail admin:** http://localhost:8000/wagtail/
 
-After the application starts, open `http://localhost:8000` in your browser.
+To run in the background:
 
-## Development / Contributing
+```bash
+docker compose up -d
+```
 
-### Running tests (WIP)
+**Without Docker (local)**
 
-***WIP***
+Ensure PostgreSQL is running (e.g. start only the DB with `docker compose up -d db`) and `.env` has correct `DATABASE_URL`. Then:
 
-### Running migrations
+```bash
+uv sync
+uv run python manage.py migrate
+uv run python manage.py runserver
+```
 
-To apply database changes, run Django migrations:
+Site at http://127.0.0.1:8000, Wagtail admin at http://127.0.0.1:8000/wagtail/.
+
+**First-time login:** Create a superuser to access the Wagtail admin: `docker compose exec web python manage.py createsuperuser` (Docker) or `uv run python manage.py createsuperuser` (local).
+
+---
+
+## Development
+
+### Migrations
+
+Apply migrations:
 
 ```bash
 docker compose exec web python manage.py migrate
 ```
 
-### Making migrations
-
-For new apps and models, you may need to create migration files first.
+Create migrations after changing models:
 
 ```bash
-docker compose exec web python manage.py makemigrations
+docker compose exec web python manage.py makemigrations cms
 ```
 
-### Modifying dependencies (uv)
+### Dependencies (uv)
 
-While developing, you can add or remove a dependency by running:
+Add a runtime dependency:
 
 ```bash
-docker compose exec web uv <add/remove> <package_name>
+docker compose exec web uv add <package_name>
 ```
 
-To add or remove a development dependency:
+Add a dev dependency:
 
 ```bash
-docker compose exec web uv <add/remove> --group dev <package_name>
+docker compose exec web uv add --group dev <package_name>
 ```
 
-### Creating a new app
+### Adding a new page type
 
-To create a new app (section), first create a directory with the desired app/section name.
+1. Add a new module under `cms/pages/` (e.g. `cms/pages/news_index.py`) with your `Page` subclass.
+2. Import and export it in `cms/pages/__init__.py`.
+3. Add a template under `cms/templates/cms/pages/` (e.g. `news_index.html`).
+4. Run `makemigrations cms` and `migrate`.
+5. Create the page in the Wagtail admin (Pages).
 
-```bash
-docker compose exec web mkdir pages/<app_name>
+No changes to `core/urls.py` are required; Wagtail serves pages from the page tree.
+
+### Adding a new StreamField block
+
+1. Define the block in `cms/blocks/` (e.g. in a new file or an existing one).
+2. Export it in `cms/blocks/__init__.py`.
+3. Add the block to the StreamField of the page model(s) that should use it.
+4. Add a template under `cms/templates/cms/blocks/` if the block needs custom markup.
+5. Run `makemigrations cms` and `migrate`.
+
+---
+
+## Project structure (summary)
+
+```text
+spp-wagtail/
+├── core/                     # Django project (settings, urls, wsgi, admin overrides)
+├── cms/                      # Wagtail CMS app
+│   ├── pages/                # Page models (one file per page type)
+│   ├── blocks/               # StreamField blocks
+│   ├── snippets/             # Wagtail snippets
+│   ├── services/             # Optional backend helpers
+│   ├── templates/cms/        # Page and block templates
+│   ├── static/cms/           # CSS, JS, images
+│   └── migrations/
+├── doc/
+│   └── architecture/decisions/        # ADRs
+├── manage.py
+├── compose.yaml
+├── Dockerfile
+├── pyproject.toml
+├── uv.lock
+└── README.md
 ```
 
-Then use Django's utility command to create an app and the required files.
+---
 
-```bash
-docker compose exec web python manage.py startapp <app_name> pages/<app_name>
-```
+## Tests and quality
 
-After creating the app, complete the following steps:
+- **Tests:** (WIP)
+- **Linting/formatting:** Ruff via pre-commit and CI (see `.github/workflows/ruff.yaml`).
 
-- Add `pages.<app_name>` to `core/settings/base.py` *installed_apps* list
-- Rename the app name to `pages.<app_name>` in `pages/<app_name>/app.py`
-- Create a `pages/<app_name>/urls.py` file for the app's URLs
-- Include the app's URLs in `core/urls.py` (like other apps)
-- If needed, create `templates/<app_name>` directory within the app directory for templates
-- If needed, create `static/<app_name>` directory within the app directory for static files
+---
 
-### Clearing old containers/images
+## Clearing Docker environment
 
-If you need to reset your Docker environment and start fresh, you can remove the containers and images:
+To remove containers and images and start fresh:
 
 ```bash
 docker compose down --rmi
 ```
 
-## Project Structure
-
-```text
-swedish-pathogens-portal/
-├── core/                     # Django project configuration (settings, root URLs, WSGI/ASGI, etc.)
-├── pages/                    # Django apps that implement the site’s public-facing pages
-├── utils/                    # Shared helper code used across the project
-├── doc/
-│   └── architecture/
-│       └── decisions/        # Architecture Decision Records (ADRs)
-├── .github/                  # GitHub workflows and repository configuration
-├── .adr-dir                  # ADR tool configuration/metadata
-├── Dockerfile                # Instructions for how the Docker image is built
-├── compose.yaml              # Definition of Docker Compose services for local development
-├── manage.py                 # Django command-line entry point (runserver, migrate, etc.)
-├── pyproject.toml            # Project configuration and dependency declarations (used by uv)
-├── uv.lock                   # Locked, exact dependency versions for reproducible installs
-├── .env.example              # Example environment variables for local development
-├── .python-version           # Python version hint for uv / pyenv / other version managers
-├── prod-entrypoint.sh        # Script run when the app starts in production (migrations, start server)
-└── README.md                 # This file, project documentation
-```
+---
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the MIT License — see the [LICENSE](LICENSE) file for details.
