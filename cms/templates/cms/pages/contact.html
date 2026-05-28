@@ -1,0 +1,113 @@
+{% extends "cms/base.html" %}
+
+{% load wagtailcore_tags %}
+
+{% block content %}
+<div class="py-6">
+
+  {% if page.intro %}
+    <div class="prose max-w-none">
+      {{ page.intro|richtext }}
+    </div>
+  {% endif %}
+
+  {# Success and info messages #}
+  {% if messages %}
+    <div role="status" aria-live="polite" class="mt-4">
+      {% for message in messages %}
+        <div class="mb-3 rounded-md border {% if message.tags == 'error' %}border-red-200 bg-red-50 text-red-800{% else %}border-green-200 bg-green-50 text-green-800{% endif %} p-4">
+          {{ message }}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {# Error summary (non-field errors include the EMAIL_SEND_ERROR generic message) #}
+  {% if form.non_field_errors or form.errors %}
+    <div role="alert" aria-live="assertive" class="mt-4 rounded-md border border-red-200 bg-red-50 p-4 text-red-800">
+      {% if form.non_field_errors %}
+        {{ form.non_field_errors }}
+      {% else %}
+        <p class="font-medium">We couldn't submit the form. Please check the fields below.</p>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  <form method="post" action="" novalidate class="mt-6 space-y-6">
+    {% csrf_token %}
+
+    {# Hidden anti-spam fields #}
+    {{ form.website }}
+    {{ form.contact_ts }}
+    {{ form.contact_dsc }}
+
+    <div>
+      <label for="id_name" class="block text-sm font-medium text-gray-900">Name <span class="text-red-600">*</span></label>
+      <input type="text" name="name" id="id_name" value="{{ form.name.value|default_if_none:'' }}"
+             class="mt-1 block w-full rounded-md border {% if form.name.errors %}border-red-600{% else %}border-gray-300{% endif %} px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+             {% if form.name.errors %}aria-invalid="true" aria-describedby="id_name_error" autofocus{% endif %}
+             minlength="2" maxlength="100" required>
+      {% if form.name.errors %}
+        <p id="id_name_error" class="mt-1 text-sm text-red-600">{{ form.name.errors.0 }}</p>
+      {% endif %}
+      <p class="mt-1 text-sm text-gray-500">Please provide your name in case you would like to receive a response from us. In other cases, name is not required.</p>
+    </div>
+
+    <div>
+      <label for="id_email" class="block text-sm font-medium text-gray-900">Email <span class="text-red-600">*</span></label>
+      <input type="email" name="email" id="id_email" value="{{ form.email.value|default_if_none:'' }}"
+             class="mt-1 block w-full rounded-md border {% if form.email.errors %}border-red-600{% else %}border-gray-300{% endif %} px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+             {% if form.email.errors %}aria-invalid="true" aria-describedby="id_email_error" autofocus{% endif %} required>
+      {% if form.email.errors %}
+        <p id="id_email_error" class="mt-1 text-sm text-red-600">{{ form.email.errors.0 }}</p>
+      {% endif %}
+      <p class="mt-1 text-sm text-gray-500">Please provide your email address in case you would like to receive a response from us. In other cases, the email address is not required.</p>
+    </div>
+
+    <div>
+      <fieldset class="mt-0">
+        <legend class="block text-sm font-medium text-gray-900">What kind of a question or suggestion do you have?
+          <span class="text-red-600">*</span></legend>
+        <div class="mt-2 space-y-1">
+          {% for checkbox in form.category %}
+          <div>
+            <label class="inline-flex items-center gap-2 text-gray-900 cursor-pointer rounded-md px-2 py-1 hover:bg-teal-50 hover:shadow-md focus-within:ring-2 focus-within:ring-teal-500">
+              {{ checkbox.tag }}
+              <span>{{ checkbox.choice_label }}</span>
+            </label>
+          </div>
+          {% endfor %}
+        </div>
+      </fieldset>
+      {% if form.category.errors %}
+        <p class="mt-1 text-sm text-red-600">{{ form.category.errors.0 }}</p>
+      {% endif %}
+      <p class="mt-1 text-sm text-gray-500">You can ask a question or suggest one or more items using this form.</p>
+    </div>
+
+    <div>
+      <label for="id_message" class="block text-sm font-medium text-gray-900">Message <span class="text-red-600">*</span></label>
+      <textarea name="message" id="id_message"
+                class="mt-1 block w-full rounded-md border {% if form.message.errors %}border-red-600{% else %}border-gray-300{% endif %} px-3 py-2 shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 min-h-40"
+                {% if form.message.errors %}aria-invalid="true" aria-describedby="id_message_error" autofocus{% endif %}
+                required minlength="20" maxlength="5000">{{ form.message.value|default_if_none:'' }}</textarea>
+      {% if form.message.errors %}
+        <p id="id_message_error" class="mt-1 text-sm text-red-600">{{ form.message.errors.0 }}</p>
+      {% endif %}
+      <p class="mt-1 text-sm text-gray-500">Please describe what you need help with (e.g., sharing your own dataset) or
+        provide link(s) and/or DOI(s) to your suggested dataset, project, publication, preprint, etc. and anything else
+        that we should know.</p>
+    </div>
+
+    <div>
+      <button type="submit" class="inline-flex items-center rounded-md bg-pp-teal px-4 py-2 text-white hover:bg-pp-dark-blue focus:outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer">Send message</button>
+    </div>
+  </form>
+
+  {% if page.gdpr_notice %}
+    <div class="mt-10 prose max-w-none">
+      {{ page.gdpr_notice|richtext }}
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
