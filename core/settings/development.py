@@ -48,6 +48,28 @@ LIVER_SESSION_ROOT = BASE_DIR / "private" / "liver_resource_sessions"  # noqa: F
 
 # EMAIL (Development defaults, override via .env if needed)
 # ------------------------------------------------------------------------------
+# Two backends are available locally:
+#
+# 1. Console (default) — outgoing mail is printed to the runserver stdout.
+#    Fastest iteration, no external service. Good enough when you only need
+#    to confirm message body and headers.
+#
+# 2. Mailpit — a local SMTP catcher with a web UI at http://127.0.0.1:8025/.
+#    Captures every outbound message so you can inspect the envelope the way
+#    a real MTA would receive it (From, To, Reply-To, multipart parts).
+#
+# To route the dev server through mailpit, add to your local .env:
+#
+#     EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+#     EMAIL_HOST=localhost      # or `mailpit` when running via docker compose
+#     EMAIL_PORT=1025
+#     EMAIL_USE_TLS=False
+#
+# Start mailpit with `docker compose up mailpit`. End-to-end test the contact form:
+# GET /contact/, submit a valid message, then either watch the runserver
+# output (console) or open http://127.0.0.1:8025/ (mailpit) to inspect the
+# delivered message. CONTACT_RECIPIENT_EMAIL stays `dev-null@example.org` by
+# default so a misconfigured backend cannot accidentally reach a real inbox.
 EMAIL_BACKEND = env(
     "EMAIL_BACKEND",
     default="django.core.mail.backends.console.EmailBackend",
@@ -60,4 +82,7 @@ CONTACT_RECIPIENT_EMAIL = env(
     "CONTACT_RECIPIENT_EMAIL",
     default="dev-null@example.org",
 )
+EMAIL_HOST = env("EMAIL_HOST", default="localhost")
+EMAIL_PORT = env.int("EMAIL_PORT", default=25)
+EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=False)
 EMAIL_TIMEOUT = env.int("EMAIL_TIMEOUT", default=10)

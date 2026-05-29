@@ -62,6 +62,21 @@ services:
       timeout: 10s
       retries: 5
       start_period: 30s
+  # Local SMTP catcher for dev — captures outbound mail and shows it at
+  # http://localhost:8025/. Web app stays on console.EmailBackend by default;
+  # override EMAIL_BACKEND/EMAIL_HOST/EMAIL_PORT/EMAIL_USE_TLS in .env to route
+  # SMTP through this service (see .env.example for the exact override block).
+  mailpit:
+    image: axllent/mailpit:v1.30
+    container_name: spp_mailpit
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # Web UI
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8025/"]
+      interval: 5s
+      timeout: 2s
+      retries: 5
   # Tailwind watch
   tailwind:
     image: swedish_pathogens_portal
