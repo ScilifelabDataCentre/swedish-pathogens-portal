@@ -4,7 +4,7 @@ For **Wagtail admin** users editing the Swedish Pathogens Portal.
 
 **Developers:** [developer guide](../developer-guide/README.md)
 
-**Admin (local):** http://localhost:8000/wagtail/
+**Start here:** [Getting started](01-getting-started.md) (log in, admin areas, publish workflow)
 
 ---
 
@@ -12,7 +12,7 @@ For **Wagtail admin** users editing the Swedish Pathogens Portal.
 
 | # | Topic | Files |
 |---|--------|-------|
-| 1 | **Getting started** | Log in, admin areas, draft vs live |
+| 1 | **Getting started** | [01-getting-started.md](01-getting-started.md) |
 | 2 | **Site structure** | Page tree, add/move/delete pages |
 | 3 | **Working with pages** | One guide for page *patterns*, not every page type |
 | 4 | **StreamField blocks** | What blocks do in the editor |
