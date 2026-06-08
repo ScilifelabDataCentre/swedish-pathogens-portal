@@ -2,7 +2,7 @@
 
 For contributors to `spp-wagtail`. Editors: see the [editor guide](../editor-guide/README.md).
 
-**New here?** [Project README](../../README.md) (quick start) → getting started docs below → conventions → how-tos when you build something.
+**New here?** [Getting started](01-getting-started.md) (`.env`) → [Docker](docker-development.md) or [uv](local-development.md) → conventions → how-tos when you build something.
 
 ---
 
@@ -10,7 +10,7 @@ For contributors to `spp-wagtail`. Editors: see the [editor guide](../editor-gui
 
 | # | Topic | Files |
 |---|--------|-------|
-| 1 | **Getting started** | `01-getting-started/` — prerequisites, local (uv), Docker, `.env` |
+| 1 | **Getting started** | [01-getting-started.md](01-getting-started.md), [docker-development.md](docker-development.md), [local-development.md](local-development.md) |
 | 2 | **Repository tour** | `02-repository-tour/` — `core/` vs `cms/`, page tree, Tailwind/htmx |
 | 3 | **Conventions** | `03-conventions/` — style ([ADR-0003](../architecture/decisions/0003-formatting-rules.md)), Wagtail patterns, PR expectations |
 | 4 | **How-tos** | `04-how-to-guides/` — see list below |
