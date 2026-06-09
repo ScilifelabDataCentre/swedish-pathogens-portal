@@ -6,8 +6,8 @@ Choose **one** run path:
 
 | Path | Guide |
 |------|--------|
-| Docker (recommended) | [Docker development](docker-development.md) |
-| Python on host with uv | [Local development (uv)](local-development.md) |
+| Docker (recommended) | [Docker deployment](docker-deployment.md) |
+| Python on host with uv | [Local deployment (uv)](local-deployment.md) |
 
 ---
 
@@ -15,7 +15,7 @@ Choose **one** run path:
 
 - **git**
 - **Docker path:** Docker and Docker Compose
-- **uv path:** Python ≥ 3.14, [uv](https://docs.astral.sh/uv/), and a reachable PostgreSQL instance (see [local guide](local-development.md))
+- **uv path:** Python ≥ 3.14, [uv](https://docs.astral.sh/uv/), and a reachable PostgreSQL instance (see [local deployment](local-deployment.md))
 
 ---
 
@@ -96,7 +96,7 @@ GUNICORN_THREADS=4
 with_pygraphviz=false
 ```
 
-Then follow [Docker development](docker-development.md).
+Then follow [Docker deployment](docker-deployment.md).
 
 ### Final `.env` example — uv on host
 
@@ -131,7 +131,7 @@ GUNICORN_THREADS=4
 with_pygraphviz=false
 ```
 
-Postgres must listen on `localhost:5432`. Default `compose.yaml` does not publish the DB port — see [local development](local-development.md).
+Postgres must listen on `localhost:5432`. Default `compose.yaml` does not publish the DB port — see [local deployment](local-deployment.md).
 
 ### Checklist if something fails
 
@@ -159,6 +159,6 @@ CI uses the same checks — `.github/workflows/ruff.yaml`.
 
 ## Next steps
 
-- [Docker development](docker-development.md)
-- [Local development (uv)](local-development.md)
-- [Developer guide index](README.md)
+- [Docker deployment](docker-deployment.md)
+- [Local deployment (uv)](local-deployment.md)
+- [Developer documentation index](README.md)

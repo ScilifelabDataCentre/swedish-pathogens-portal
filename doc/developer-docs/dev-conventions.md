@@ -1,8 +1,8 @@
-# Developer conventions
+# Conventions
 
 Index of **how we work and write code** in `spp-wagtail`. Each rule links to its source — [team decision](decisions/README.md), merged PR, [architecture ADR](../architecture/decisions/), or guide.
 
-When a convention changes, update this file and add or update a [decision](decisions/template.md) if the team agreed it in a meeting.
+When a convention changes, update this file and add or update a [team decision](decisions/template.md) if agreed in a meeting.
 
 ---
 
@@ -12,9 +12,9 @@ When a convention changes, update this file and add or update a [decision](decis
 |------------|--------|
 | Workflow-impacting changes need team discussion + decision doc | [Decision: workflow change](decisions/workflow-change-discussion.md) |
 | PR title `FREYA-XXXX: …`, link Jira, pass Ruff CI | [PR template](../../.github/pull_request_template.md), [Ruff workflow](../../.github/workflows/ruff.yaml) |
-| Model changes → `makemigrations cms`, commit migration, run tests | [Developer guide — PR expectations](README.md#pr-expectations) |
+| Model changes → `makemigrations cms`, commit migration, run tests | [Developer docs — PR expectations](README.md#pr-expectations) |
 | Migrations append-only after first deploy | [PR #46](https://github.com/ScilifelabDataCentre/spp-wagtail/pull/46) review; navigation PR (FREYA-2213) |
-| One page type per file under `cms/pages/` | [Repository tour](repository-tour.md), [How-to: page type](how-to-guides/add-a-page-type.md) |
+| One page type per file under `cms/pages/` | [PR #38](https://github.com/ScilifelabDataCentre/spp-wagtail/pull/38), [How-to: page type](how-to-guides/add-a-page-type.md) |
 | Prefer sub-pages over snippets when content has its own URL | [How-to: page type](how-to-guides/add-a-page-type.md), [How-to: snippet](how-to-guides/add-a-snippet.md), [ADR-0006](../architecture/decisions/0006-adopt-wagtail-as-cms.md) |
 | Blocks in `cms/blocks/`, snippets in `cms/snippets/`, shared CMS logic in `cms/services/` | [Repository tour](repository-tour.md) |
 | File names: lowercase with underscores | [ADR-0003](../architecture/decisions/0003-formatting-rules.md) |
@@ -26,11 +26,15 @@ When a convention changes, update this file and add or update a [decision](decis
 | Navigation menus as snippets; slug `header` / `footer` matches templates | PR review FREYA-2213/2214 (`senthil/header-navigation-menu`) |
 | Shared `validate_filters` + `@htmx_request_with_url_update()` | [PR #46](https://github.com/ScilifelabDataCentre/spp-wagtail/pull/46) |
 | Tailwind `@source` scans `cms/` and `core/` | [PR #48](https://github.com/ScilifelabDataCentre/spp-wagtail/pull/48), [Repository tour — frontend](repository-tour.md) |
-| Run `cms.tests` with `core.settings.test` | [Developer guide — tests](README.md#run-tests) |
-| `.env` setup (Docker vs uv) | [Getting started](getting-started.md), [Docker](docker-development.md), [Local uv](local-development.md) |
+| Run `cms.tests` with `core.settings.test` | [Developer docs — tests](README.md#run-tests) |
+| `.env` setup (Docker vs uv) | [Getting started](getting-started.md), [Docker deployment](docker-deployment.md), [Local deployment](local-deployment.md) |
 | Responsive test breakpoint (`md` vs `lg`) | [Decision: breakpoint](decisions/responsive-breakpoint-for-testing.md) — *ongoing* |
 | Dashboard slug matches page, snippet, and `VIZ_MODULES` | [How-to: dashboard](how-to-guides/add-a-dashboard.md) |
 | Dashboard `figure_id` keys match `generate_figures` output | [How-to: dashboard](how-to-guides/add-a-dashboard.md) |
+| External rich-text links: new tab + `rel="noopener noreferrer"` | [PR #31](https://github.com/ScilifelabDataCentre/spp-wagtail/pull/31) — `cms/handlers/external_link.py`, `wagtail_hooks.py` |
+| Portal data views in `portal_data/views.py` (not page model) | [PR #50](https://github.com/ScilifelabDataCentre/spp-wagtail/pull/50) |
+| Migrations append-only; CI Ruff | [Operations](operations.md) |
+| Tests: `core.settings.test`, Wagtail page tree helpers | [Testing](testing.md) |
 
 ---
 
@@ -72,6 +76,7 @@ blocks.RichTextBlock(
 - **`help_text`:** on fields, block `Meta`, and panels so admin matches templates.
 - **Child-page listings:** do not assume every `Page` has `thumbnail` or `description`; use `search_description`, page-type fields, or `get_context` fallbacks.
 - **Navigation snippets:** `NavigationMenu.slug` must be `header` or `footer` to match `{% get_menu "header" %}` in templates; document in snippet `help_text`.
+- **External links:** register `ExternalLinkNewTabHandler` via `register_rich_text_features` in `cms/wagtail_hooks.py` — opens in new tab with `noopener` / `noreferrer` ([PR #31](https://github.com/ScilifelabDataCentre/spp-wagtail/pull/31)).
 
 ---
 
@@ -120,6 +125,8 @@ Match key types to stored values (`int` FK ids vs `str`). Prefer precise return 
 
 ## Tests
 
+[Testing](testing.md)
+
 ```bash
 uv run python manage.py test cms.tests --settings core.settings.test
 ```
@@ -167,8 +174,15 @@ Full list: [doc index](../README.md#architecture-decision-records).
 
 ---
 
+## Portal data
+
+[PR #50](https://github.com/ScilifelabDataCentre/spp-wagtail/pull/50) — routable `PortalDataPage` delegates file listing and downloads to `portal_data/views.py`; context building stays in `portal_data/context.py`. Datatypes configured in `portal_data/services.py` (`SUPPORTED_TYPES`).
+
+---
+
 ## Related guides
 
 - [Getting started](getting-started.md) — `.env`, prerequisites
 - [Repository tour](repository-tour.md) — folder layout
 - [How-to guides](how-to-guides/) — page, block, snippet, dashboard
+- [Testing](testing.md) · [Operations](operations.md) · [Troubleshooting](troubleshooting.md)

@@ -48,7 +48,8 @@ Do not add page models or CMS templates here.
 | `cms/services/` | Small CMS helpers (validators, HTMX decorator, data-table logic) — not dashboard/portal pipelines |
 | `cms/snippets/dashboard_data.py` | Upload snippet; calls `dashboard_visualisation.generate_figures` |
 | `cms/pages/dashboard*.py` | Dashboard index/detail pages; read figure JSON from snippet |
-| `cms/pages/portal_data.py` | Wagtail page wrapper; calls `portal_data` package for listings/downloads |
+| `cms/pages/portal_data.py` | Wagtail `RoutablePageMixin` wrapper; delegates to `portal_data` package |
+| `cms/handlers/` | Rich text link handlers (e.g. external links) registered in `wagtail_hooks.py` |
 | `cms/views/` | Non-page views (e.g. data table HTMX) |
 | `cms/templates/cms/` | Page, block, and component templates |
 | `cms/static/cms/` | CSS, JS, images; Tailwind input `css/base.css` → output `css/portal.css` |
@@ -64,7 +65,7 @@ Do not add page models or CMS templates here.
 | Package | Role | Wired from |
 |---------|------|------------|
 | `dashboard_visualisation/` | Registry and per-dashboard scripts: CSV → Plotly JSON (`registry.py`, `utils/`) | `cms/snippets/dashboard_data.py` on upload/save |
-| `portal_data/` | Study metadata, facets, file listing/export (`services.py`, `context.py`) | `cms/pages/portal_data.py` (`PortalDataPage`) |
+| `portal_data/` | Study metadata, facets, listing context (`services.py`, `context.py`); views (`views.py`) | `cms/pages/portal_data.py` (`PortalDataPage`) — [PR #50](https://github.com/ScilifelabDataCentre/spp-wagtail/pull/50) |
 
 Add new dashboard viz modules under `dashboard_visualisation/` and register slugs in `registry.VIZ_MODULES`. See [how-to: add a dashboard](how-to-guides/add-a-dashboard.md). Portal data types are configured in `portal_data/services.py` (`SUPPORTED_TYPES`).
 
@@ -110,7 +111,7 @@ If new styles do not appear, check that templates live under scanned paths and t
 
 | Path | Role |
 |------|------|
-| `doc/developer-guide/` | This guide |
+| `doc/developer-docs/` | This guide |
 | `doc/architecture/decisions/` | ADRs — link from guides; edit only via dedicated ADR PRs |
 
 ---
@@ -118,5 +119,5 @@ If new styles do not appear, check that templates live under scanned paths and t
 ## Related
 
 - [Getting started](getting-started.md)
-- [Developer guide index](README.md)
+- [Developer documentation index](README.md)
 - [Wagtail docs](https://docs.wagtail.org/)

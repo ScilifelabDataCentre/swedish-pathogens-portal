@@ -1,4 +1,4 @@
-# Local development (uv)
+# Local deployment (uv)
 
 Run Django on your machine with **uv**, connecting to PostgreSQL on `localhost`.
 
@@ -83,5 +83,5 @@ Commit new files under `cms/migrations/` after `makemigrations`.
 ## Related
 
 - [Getting started — `.env`](getting-started.md)
-- [Docker development](docker-development.md) — recommended if you want Tailwind watch without extra setup
-- [Developer guide index](README.md)
+- [Docker deployment](docker-deployment.md) — recommended if you want Tailwind watch without extra setup
+- [Developer documentation index](README.md)
