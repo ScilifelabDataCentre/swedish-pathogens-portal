@@ -111,7 +111,6 @@ If new styles do not appear, check that templates live under scanned paths and t
 | Path | Role |
 |------|------|
 | `doc/developer-guide/` | This guide |
-| `doc/editor-guide/` | Wagtail admin for editors |
 | `doc/architecture/decisions/` | ADRs — link from guides; edit only via dedicated ADR PRs |
 
 ---
@@ -120,4 +119,4 @@ If new styles do not appear, check that templates live under scanned paths and t
 
 - [Getting started](01-getting-started.md)
 - [Developer guide index](README.md)
-- [Editor guide — page patterns](../editor-guide/README.md#page-patterns-not-per-type-manuals)
+- [Wagtail docs](https://docs.wagtail.org/)

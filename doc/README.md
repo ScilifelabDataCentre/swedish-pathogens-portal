@@ -1,13 +1,12 @@
 # Documentation
 
-Guides for the `spp-wagtail` codebase and Wagtail admin.
+Developer documentation and architecture decisions for `spp-wagtail`.
 
-| I am… | Start here |
-|-------|------------|
-| Developing (setup, code, tests) | [Developer guide](developer-guide/README.md) |
-| Editing content in Wagtail | [Editor guide](editor-guide/README.md) |
-| Checking a formal decision | [ADRs](architecture/decisions/) |
-| Quick run / clone | [Project README](../README.md) |
+| Start here | |
+|------------|---|
+| **Developing** (setup, layout, contributing) | [Developer guide](developer-guide/README.md) |
+| **Architecture decisions** | [ADRs](architecture/decisions/) |
+| **Quick clone / run** | [Project README](../README.md) |
 
 ---
 
@@ -25,6 +24,8 @@ Guides for the `spp-wagtail` codebase and Wagtail admin.
 | [0008](architecture/decisions/0008-use-django-structlog-for-logging.md) | Logging (structlog) |
 
 Guides explain *how*; ADRs explain *why*. Link to ADRs instead of copying them.
+
+**Wagtail admin (editors):** use the [official Wagtail documentation](https://docs.wagtail.org/).
 
 ---
 

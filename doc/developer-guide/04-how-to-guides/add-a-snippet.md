@@ -107,4 +107,4 @@ Add tests when rules must always hold (see `test_navigation_menu.py`, `test_site
 
 - [Add a page type](add-a-page-type.md)
 - [Add a StreamField block](add-a-streamfield-block.md)
-- [Editor guide — snippets](../../editor-guide/README.md#docs-to-write-in-order)
+- [Wagtail snippets](https://docs.wagtail.org/en/stable/topics/snippets.html)
