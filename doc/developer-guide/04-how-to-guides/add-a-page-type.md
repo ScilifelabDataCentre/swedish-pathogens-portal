@@ -133,5 +133,6 @@ uv run python manage.py test cms.tests.test_news_pages --settings core.settings.
 ## Related
 
 - [Repository tour](../02-repository-tour.md)
-- [Add a StreamField block](add-a-streamfield-block.md) (when planned)
+- [Add a StreamField block](add-a-streamfield-block.md)
+- [Add a snippet](add-a-snippet.md)
 - [ADR-0006 — Wagtail](../../architecture/decisions/0006-adopt-wagtail-as-cms.md)
