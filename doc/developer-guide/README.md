@@ -2,7 +2,7 @@
 
 For contributors to `spp-wagtail`. Editors: see the [editor guide](../editor-guide/README.md).
 
-**New here?** [Getting started](01-getting-started.md) (`.env`) → [Docker](docker-development.md) or [uv](local-development.md) → conventions → how-tos when you build something.
+**New here?** [Getting started](01-getting-started.md) → [Docker](docker-development.md) or [uv](local-development.md) → [repository tour](02-repository-tour.md) → how-tos when you build something.
 
 ---
 
@@ -11,8 +11,8 @@ For contributors to `spp-wagtail`. Editors: see the [editor guide](../editor-gui
 | # | Topic | Files |
 |---|--------|-------|
 | 1 | **Getting started** | [01-getting-started.md](01-getting-started.md), [docker-development.md](docker-development.md), [local-development.md](local-development.md) |
-| 2 | **Repository tour** | `02-repository-tour/` — `core/` vs `cms/`, page tree, Tailwind/htmx |
-| 3 | **Conventions** | `03-conventions/` — style ([ADR-0003](../architecture/decisions/0003-formatting-rules.md)), Wagtail patterns, PR expectations |
+| 2 | **Repository tour** | [02-repository-tour.md](02-repository-tour.md) |
+| 3 | **Conventions** | When needed — style ([ADR-0003](../architecture/decisions/0003-formatting-rules.md)), Wagtail patterns |
 | 4 | **How-tos** | `04-how-to-guides/` — see list below |
 | 5 | **Testing** | `05-testing/` — when and how to run tests |
 
