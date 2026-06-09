@@ -6,7 +6,7 @@ Reusable content units editors add inside a page **StreamField** (e.g. on `Stand
 
 ---
 
-## 1. Define the block
+## Define the block
 
 Add a class in `cms/blocks/` (new file or existing module), usually a `StructBlock`:
 
@@ -32,7 +32,7 @@ class CalloutBlock(blocks.StructBlock):
 
 ---
 
-## 2. Export the block
+## Export the block
 
 In `cms/blocks/__init__.py`:
 
@@ -47,7 +47,7 @@ __all__ = [
 
 ---
 
-## 3. Add a template
+## Add a template
 
 Create `cms/templates/cms/blocks/callout.html`:
 
@@ -62,7 +62,7 @@ Create `cms/templates/cms/blocks/callout.html`:
 
 ---
 
-## 4. Use on a page model
+## Use on a page model
 
 Add the block to a page’s `StreamField` in `cms/pages/`:
 
@@ -80,7 +80,7 @@ Then run `makemigrations cms` and `migrate` (model field changed).
 
 ---
 
-## 5. Verify
+## Verify
 
 - Create or edit a page with that StreamField in Wagtail admin — block appears in the picker.
 - Publish and check the public template renders correctly.

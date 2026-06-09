@@ -2,11 +2,11 @@
 
 Steps to add a new Wagtail page type. Public URLs come from the page tree — you do not register routes in `core/urls.py`.
 
-**Before you start:** Prefer a [sub-page](https://docs.wagtail.org/en/stable/getting_started/creating_pages.html) under an index if the content has its own URL. Use a snippet only for small reusable records without a page (see [repository tour](../02-repository-tour.md)).
+**Before you start:** Prefer a [sub-page](https://docs.wagtail.org/en/stable/getting_started/creating_pages.html) under an index if the content has its own URL. Use a snippet only for small reusable records without a page (see [repository tour](../repository-tour.md)).
 
 ---
 
-## 1. Choose parent and children
+## Choose parent and children
 
 On your page class set:
 
@@ -21,7 +21,7 @@ Optional: `max_count = 1` if only one instance should exist (e.g. `NewsIndexPage
 
 ---
 
-## 2. Create the page model
+## Create the page model
 
 Add **one file** under `cms/pages/`, e.g. `cms/pages/event.py`:
 
@@ -51,7 +51,7 @@ class EventPage(Page):
 
 ---
 
-## 3. Register the model
+## Register the model
 
 In `cms/pages/__init__.py`:
 
@@ -68,7 +68,7 @@ __all__ = [
 
 ---
 
-## 4. Add a template
+## Add a template
 
 Create `cms/templates/cms/pages/event.html`:
 
@@ -85,7 +85,7 @@ Match patterns in `standard_page.html` or `news_index.html` as needed.
 
 ---
 
-## 5. Migrations
+## Migrations
 
 ```bash
 # Docker
@@ -101,7 +101,7 @@ Commit new files under `cms/migrations/`.
 
 ---
 
-## 6. Create the page in admin
+## Create the page in admin
 
 **Pages** → choose parent → **Add child page** → your new type → fill fields → publish.
 
@@ -109,7 +109,7 @@ Wagtail only lists types allowed by `parent_page_types` / `subpage_types`.
 
 ---
 
-## 7. Tests (recommended)
+## Tests (recommended)
 
 Add or extend `cms/tests/test_<area>_pages.py`. Use helpers from `cms/tests/utils.py` to build a page tree, then assert the public URL or context.
 
@@ -132,7 +132,8 @@ uv run python manage.py test cms.tests.test_news_pages --settings core.settings.
 
 ## Related
 
-- [Repository tour](../02-repository-tour.md)
+- [Repository tour](../repository-tour.md)
 - [Add a StreamField block](add-a-streamfield-block.md)
 - [Add a snippet](add-a-snippet.md)
+- [Add a dashboard](add-a-dashboard.md)
 - [ADR-0006 — Wagtail](../../architecture/decisions/0006-adopt-wagtail-as-cms.md)

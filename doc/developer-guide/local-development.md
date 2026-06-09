@@ -2,7 +2,7 @@
 
 Run Django on your machine with **uv**, connecting to PostgreSQL on `localhost`.
 
-**Before starting:** [Configure `.env`](01-getting-started.md#environment-file-env) for the uv example (`POSTGRES_HOST=localhost` and `DATABASE_URL=psql://…@localhost:5432/…`).
+**Before starting:** [Configure `.env`](getting-started.md#environment-file-env) for the uv example (`POSTGRES_HOST=localhost` and `DATABASE_URL=psql://…@localhost:5432/…`).
 
 All commands are from the **repository root**. Settings module defaults to `core.settings.development` (`manage.py`).
 
@@ -82,6 +82,6 @@ Commit new files under `cms/migrations/` after `makemigrations`.
 
 ## Related
 
-- [Getting started — `.env`](01-getting-started.md)
+- [Getting started — `.env`](getting-started.md)
 - [Docker development](docker-development.md) — recommended if you want Tailwind watch without extra setup
 - [Developer guide index](README.md)

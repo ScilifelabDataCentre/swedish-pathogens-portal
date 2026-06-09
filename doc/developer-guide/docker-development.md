@@ -2,7 +2,7 @@
 
 Run the full stack in Docker: web app, PostgreSQL, and Tailwind CSS watch.
 
-**Before starting:** [Configure `.env`](01-getting-started.md#environment-file-env) for the Docker example (`POSTGRES_HOST=db`).
+**Before starting:** [Configure `.env`](getting-started.md#environment-file-env) for the Docker example (`POSTGRES_HOST=db`).
 
 All commands are from the **repository root**.
 
@@ -76,6 +76,6 @@ docker compose down --rmi
 
 ## Related
 
-- [Getting started — `.env`](01-getting-started.md)
+- [Getting started — `.env`](getting-started.md)
 - [Local development (uv)](local-development.md) — alternative path
 - [Developer guide index](README.md)
