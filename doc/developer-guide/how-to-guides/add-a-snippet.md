@@ -8,7 +8,7 @@ Use snippets for site-wide or list-style data (navigation menus, announcements, 
 
 ---
 
-## 1. Create the model
+## Create the model
 
 Add a file under `cms/snippets/`, e.g. `cms/snippets/callout_banner.py`:
 
@@ -50,7 +50,7 @@ This project registers snippets via **`SnippetViewSet`** + `register_snippet(Vie
 
 ---
 
-## 2. Export for discovery
+## Export for discovery
 
 In `cms/snippets/__init__.py`:
 
@@ -67,7 +67,7 @@ __all__ = [
 
 ---
 
-## 3. Use the snippet in the site
+## Use the snippet in the site
 
 Typical patterns:
 
@@ -81,7 +81,7 @@ Wire your snippet where the public site or admin needs the data — snippets are
 
 ---
 
-## 4. Migrations
+## Migrations
 
 Snippet models are Django models — after adding fields:
 
@@ -94,7 +94,7 @@ Commit `cms/migrations/` changes.
 
 ---
 
-## 5. Verify
+## Verify
 
 - **Snippets** in admin shows the new type.
 - Create a record and confirm the public behaviour (banner, menu, etc.) matches your wiring.
@@ -106,5 +106,6 @@ Add tests when rules must always hold (see `test_navigation_menu.py`, `test_site
 ## Related
 
 - [Add a page type](add-a-page-type.md)
+- [Add a dashboard](add-a-dashboard.md) — `DashboardData` upload snippet
 - [Add a StreamField block](add-a-streamfield-block.md)
 - [Wagtail snippets](https://docs.wagtail.org/en/stable/topics/snippets.html)

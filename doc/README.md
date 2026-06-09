@@ -5,7 +5,9 @@ Developer documentation and architecture decisions for `spp-wagtail`.
 | Start here | |
 |------------|---|
 | **Developing** (setup, layout, contributing) | [Developer guide](developer-guide/README.md) |
-| **Architecture decisions** | [ADRs](architecture/decisions/) |
+| **Developer conventions** (rules + sources) | [dev-conventions.md](developer-guide/dev-conventions.md) |
+| **Developer decisions** (team process, coding choices) | [decisions/](developer-guide/decisions/) |
+| **Architecture decisions** (stack, system design) | [ADRs](architecture/decisions/) |
 | **Quick clone / run** | [Project README](../README.md) |
 
 ---
@@ -23,7 +25,7 @@ Developer documentation and architecture decisions for `spp-wagtail`.
 | [0007](architecture/decisions/0007-data-hosting-architecture.md) | Data hosting |
 | [0008](architecture/decisions/0008-use-django-structlog-for-logging.md) | Logging (structlog) |
 
-Guides explain *how*; ADRs explain *why*. Link to ADRs instead of copying them.
+Guides explain *how*; [developer decisions](developer-guide/decisions/) record team choices; [ADRs](architecture/decisions/) record architecture. Link instead of copying bodies.
 
 **Wagtail admin (editors):** use the [official Wagtail documentation](https://docs.wagtail.org/).
 

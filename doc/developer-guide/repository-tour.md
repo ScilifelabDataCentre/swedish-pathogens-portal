@@ -66,7 +66,7 @@ Do not add page models or CMS templates here.
 | `dashboard_visualisation/` | Registry and per-dashboard scripts: CSV → Plotly JSON (`registry.py`, `utils/`) | `cms/snippets/dashboard_data.py` on upload/save |
 | `portal_data/` | Study metadata, facets, file listing/export (`services.py`, `context.py`) | `cms/pages/portal_data.py` (`PortalDataPage`) |
 
-Add new dashboard viz modules under `dashboard_visualisation/` and register slugs in `registry.VIZ_MODULES`. Portal data types are configured in `portal_data/services.py` (`SUPPORTED_TYPES`).
+Add new dashboard viz modules under `dashboard_visualisation/` and register slugs in `registry.VIZ_MODULES`. See [how-to: add a dashboard](how-to-guides/add-a-dashboard.md). Portal data types are configured in `portal_data/services.py` (`SUPPORTED_TYPES`).
 
 See [ADR-0004](../architecture/decisions/0004-visualisation-tool-for-dashboards.md) (Plotly) and [ADR-0007](../architecture/decisions/0007-data-hosting-architecture.md) (data hosting).
 
@@ -117,6 +117,6 @@ If new styles do not appear, check that templates live under scanned paths and t
 
 ## Related
 
-- [Getting started](01-getting-started.md)
+- [Getting started](getting-started.md)
 - [Developer guide index](README.md)
 - [Wagtail docs](https://docs.wagtail.org/)

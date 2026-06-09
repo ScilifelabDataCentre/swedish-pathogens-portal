@@ -15,7 +15,7 @@ Django + Wagtail rebuild of the [Swedish Pathogens Portal](https://github.com/Sc
 
 Wagtail admin help: [docs.wagtail.org](https://docs.wagtail.org/)
 
-Start with [getting started](doc/developer-guide/01-getting-started.md) for `.env`, Docker, or local uv.
+Start with [getting started](doc/developer-guide/getting-started.md) for `.env`, Docker, or local uv.
 
 ---
 
@@ -25,7 +25,7 @@ From the repository root:
 
 ```bash
 cp .env.example .env
-# Set SECRET_KEY in .env — see doc/developer-guide/01-getting-started.md
+# Set SECRET_KEY in .env — see doc/developer-guide/getting-started.md
 
 docker compose up
 ```
