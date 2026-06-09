@@ -1,4 +1,4 @@
-"""Singleton contact page model with anti-spam tokens and an editor-managed intro."""
+"""Singleton contact page model with anti-spam tokens and editor-managed streams."""
 
 from __future__ import annotations
 
@@ -7,10 +7,12 @@ from typing import Any
 
 from django.http import HttpRequest, HttpResponse, HttpResponseNotAllowed
 from django.shortcuts import render
+from wagtail import blocks
 from wagtail.admin.panels import FieldPanel
-from wagtail.fields import RichTextField
+from wagtail.fields import StreamField
 from wagtail.models import Page
 
+from cms.blocks import AlertBlock
 from cms.forms.contact import ContactForm
 from cms.views.contact import generate_tokens, set_dsc_cookie
 
@@ -19,15 +21,19 @@ class ContactPage(Page):
     """Singleton contact page rendering a moderated form under ``HomePage``.
 
     The page is a thin Wagtail wrapper over :class:`cms.forms.contact.ContactForm`.
-    Submissions are never persisted — the (Task 4) POST handler emails one
-    message via the configured email backend and re-renders the bound form on
-    validation or send errors. Editors manage two RichText fields (``intro`` and
-    ``gdpr_notice``) to localise the surrounding copy without touching code.
+    Submissions are never persisted — the POST handler emails one message via
+    the configured email backend and re-renders the bound form on validation or
+    send errors. Editors manage two StreamFields surrounding the form
+    (``before_form`` and ``after_form``); both accept ``text`` (rich text) and
+    ``alert`` (styled callout) blocks. The form's position is fixed in the
+    middle of the template.
 
     Attributes:
-        intro (RichTextField): Editor-managed introduction shown above the form.
-        gdpr_notice (RichTextField): Editor-managed GDPR / privacy notice shown
-            alongside the form.
+        before_form (StreamField): Editor-managed content rendered above the
+            form. Accepts ``text`` and ``alert`` blocks.
+        after_form (StreamField): Editor-managed content rendered below the
+            form. Accepts ``text`` and ``alert`` blocks (e.g. GDPR / privacy
+            notice).
     """
 
     template = "cms/pages/contact.html"
@@ -41,12 +47,24 @@ class ContactPage(Page):
     # contact_submit log.
     allowed_http_methods = [HTTPMethod.GET, HTTPMethod.HEAD, HTTPMethod.POST]
 
-    intro = RichTextField(features=["bold", "italic", "link"], blank=True)
-    gdpr_notice = RichTextField(features=["bold", "italic", "link"], blank=True)
+    before_form = StreamField(
+        [
+            ("text", blocks.RichTextBlock(features=["bold", "italic", "link"])),
+            ("alert", AlertBlock()),
+        ],
+        blank=True,
+    )
+    after_form = StreamField(
+        [
+            ("text", blocks.RichTextBlock(features=["bold", "italic", "link"])),
+            ("alert", AlertBlock()),
+        ],
+        blank=True,
+    )
 
     content_panels = Page.content_panels + [
-        FieldPanel("intro"),
-        FieldPanel("gdpr_notice"),
+        FieldPanel("before_form"),
+        FieldPanel("after_form"),
     ]
 
     def _build_get_context(self, request: HttpRequest) -> dict[str, Any]:
@@ -62,8 +80,9 @@ class ContactPage(Page):
                 its ``clean()`` step can read the ``contact_dsc`` cookie).
 
         Returns:
-            A context dict containing ``form``, ``signed_ts``, ``dsc_token``,
-            ``intro``, and ``gdpr_notice``.
+            A context dict containing ``page``, ``form``, ``signed_ts``, and
+            ``dsc_token``. The two ``StreamField`` streams are reached through
+            ``page.before_form`` / ``page.after_form`` in the template.
         """
         signed_ts, dsc_token = generate_tokens()
         form = ContactForm(request=request)
@@ -74,8 +93,6 @@ class ContactPage(Page):
             "form": form,
             "signed_ts": signed_ts,
             "dsc_token": dsc_token,
-            "intro": self.intro,
-            "gdpr_notice": self.gdpr_notice,
         }
 
     def serve(self, request: HttpRequest, *args, **kwargs) -> HttpResponse:
@@ -135,8 +152,8 @@ class ContactPage(Page):
                 ``PreviewableMixin`` contract).
 
         Returns:
-            A context dict containing ``form``, ``signed_ts``, ``dsc_token``,
-            ``intro``, and ``gdpr_notice``.
+            The dict produced by :meth:`_build_get_context` (see its
+            ``Returns`` for the exact shape).
         """
         del mode_name  # Single-mode preview — kwarg required by Wagtail's API.
         return self._build_get_context(request)

@@ -127,7 +127,10 @@ def _render_with_fresh_tokens(
 
     Resets the ``contact_ts`` / ``contact_dsc`` hidden inputs on the bound form
     so the user can retry without reloading, and attaches a matching
-    ``contact_dsc`` cookie to the response.
+    ``contact_dsc`` cookie to the response. Starts from
+    :meth:`ContactPage._build_get_context` so the GET and POST-redisplay paths
+    share a single context shape — any future StreamField or context key added
+    there flows through here for free.
 
     Args:
         page: The :class:`ContactPage` instance being rendered.
@@ -137,7 +140,9 @@ def _render_with_fresh_tokens(
     Returns:
         An ``HttpResponse`` with HTTP 200 carrying the re-rendered template.
     """
-    signed_ts, dsc_token = generate_tokens()
+    context = page._build_get_context(request)
+    signed_ts = context["signed_ts"]
+    dsc_token = context["dsc_token"]
     form.initial["contact_ts"] = signed_ts
     form.initial["contact_dsc"] = dsc_token
     try:
@@ -147,15 +152,8 @@ def _render_with_fresh_tokens(
         form.data = data
     except AttributeError:
         pass
+    context["form"] = form
 
-    context = {
-        "page": page,
-        "form": form,
-        "signed_ts": signed_ts,
-        "dsc_token": dsc_token,
-        "intro": page.intro,
-        "gdpr_notice": page.gdpr_notice,
-    }
     response = render(request, page.template, context)
     set_dsc_cookie(response, dsc_token, request)
     return response

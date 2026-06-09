@@ -23,8 +23,8 @@ from cms.forms.contact import (
 from cms.pages import ContactPage, HomePage
 from cms.tests.test_navigation_menu import TestCaseWithSite
 
-INTRO_HTML = "<p>Get in touch with the Portal team.</p>"
-GDPR_HTML = "<p>We process your data lawfully under GDPR.</p>"
+BEFORE_FORM_STREAM = [("text", "<p>Get in touch with the Portal team.</p>")]
+AFTER_FORM_STREAM = [("text", "<p>We process your data lawfully under GDPR.</p>")]
 
 NAME_LITERAL = "AliceUniqueAgentLiteral"
 EMAIL_LITERAL = "alice.unique.literal@example.org"
@@ -74,8 +74,8 @@ class ContactPageTests(TestCaseWithSite):
         self.page = ContactPage(
             title="Contact",
             slug="contact",
-            intro=INTRO_HTML,
-            gdpr_notice=GDPR_HTML,
+            before_form=BEFORE_FORM_STREAM,
+            after_form=AFTER_FORM_STREAM,
         )
         self.home.add_child(instance=self.page)
         self.page.save_revision().publish()
@@ -546,19 +546,19 @@ class ContactPageTests(TestCaseWithSite):
     # Editor-content rendering
     # ------------------------------------------------------------------
 
-    def test_admin_editable_intro_and_gdpr_render(self):
-        """The rendered GET body contains both edited RichText strings."""
+    def test_admin_editable_streamfields_render(self):
+        """The rendered GET body contains text-block content from both StreamFields."""
         response = self.client.get(self.page_url)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Get in touch with the Portal team.")
         self.assertContains(response, "We process your data lawfully under GDPR.")
 
-    def test_admin_form_exposes_intro_and_gdpr(self):
-        """The Wagtail edit handler exposes both ``intro`` and ``gdpr_notice`` fields."""
+    def test_admin_form_exposes_before_and_after_form(self):
+        """The Wagtail edit handler exposes ``before_form`` and ``after_form`` fields."""
         edit_handler = ContactPage.get_edit_handler()
         form_class = edit_handler.get_form_class()
-        self.assertIn("intro", form_class.base_fields)
-        self.assertIn("gdpr_notice", form_class.base_fields)
+        self.assertIn("before_form", form_class.base_fields)
+        self.assertIn("after_form", form_class.base_fields)
 
     # ------------------------------------------------------------------
     # Wagtail preview path

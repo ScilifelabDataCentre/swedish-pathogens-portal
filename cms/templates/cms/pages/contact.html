@@ -5,9 +5,9 @@
 {% block content %}
 <div class="py-6">
 
-  {% if page.intro %}
+  {% if page.before_form %}
     <div class="prose max-w-none">
-      {{ page.intro|richtext }}
+      {% include_block page.before_form %}
     </div>
   {% endif %}
 
@@ -50,7 +50,6 @@
       {% if form.name.errors %}
         <p id="id_name_error" class="mt-1 text-sm text-red-600">{{ form.name.errors.0 }}</p>
       {% endif %}
-      <p class="mt-1 text-sm text-gray-500">Please provide your name in case you would like to receive a response from us. In other cases, name is not required.</p>
     </div>
 
     <div>
@@ -61,7 +60,6 @@
       {% if form.email.errors %}
         <p id="id_email_error" class="mt-1 text-sm text-red-600">{{ form.email.errors.0 }}</p>
       {% endif %}
-      <p class="mt-1 text-sm text-gray-500">Please provide your email address in case you would like to receive a response from us. In other cases, the email address is not required.</p>
     </div>
 
     <div>
@@ -104,9 +102,9 @@
     </div>
   </form>
 
-  {% if page.gdpr_notice %}
+  {% if page.after_form %}
     <div class="mt-10 prose max-w-none">
-      {{ page.gdpr_notice|richtext }}
+      {% include_block page.after_form %}
     </div>
   {% endif %}
 </div>
