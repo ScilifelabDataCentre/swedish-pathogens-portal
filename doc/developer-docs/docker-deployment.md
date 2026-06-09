@@ -1,4 +1,4 @@
-# Docker development
+# Docker deployment
 
 Run the full stack in Docker: web app, PostgreSQL, and Tailwind CSS watch.
 
@@ -77,5 +77,5 @@ docker compose down --rmi
 ## Related
 
 - [Getting started — `.env`](getting-started.md)
-- [Local development (uv)](local-development.md) — alternative path
-- [Developer guide index](README.md)
+- [Local deployment (uv)](local-deployment.md) — alternative path
+- [Developer documentation index](README.md)

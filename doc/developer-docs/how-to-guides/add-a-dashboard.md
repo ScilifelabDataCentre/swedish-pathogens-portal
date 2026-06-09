@@ -10,15 +10,43 @@ Add a **new data dashboard** to the portal. Most dashboards reuse the existing `
 
 ## How the pieces connect
 
-```text
-dashboard_visualisation/<module>.py   CSV → Plotly JSON (on upload)
-         ↓ registered by slug
-DashboardData snippet (admin upload)   stores CSV + JSON in `data`
-         ↓ matched by dashboard_slug == page slug
-DashboardPage (Wagtail tree)           StreamField: text, plotly_figure, …
-         ↓
-Public URL under DashboardIndexPage    /dashboards/<slug>/
+```mermaid
+flowchart TB
+    subgraph dev["① Developer (code in repo)"]
+        MOD["dashboard_visualisation/<name>.py<br/><b>generate_figures()</b>"]
+        REG["registry.VIZ_MODULES<br/>slug → module path"]
+        MOD --> REG
+    end
+
+    subgraph slug["② Same slug everywhere"]
+        S["serology-statistics"]
+    end
+
+    subgraph admin["③ Editor (Wagtail admin)"]
+        PAGE["DashboardPage<br/>page slug"]
+        UP["DashboardData snippet<br/>CSV upload → Plotly JSON in <code>data</code>"]
+        BODY["StreamField blocks<br/><code>plotly_figure</code> + <code>figure_id</code>"]
+        PAGE --> BODY
+    end
+
+    subgraph live["④ Public site"]
+        IDX["DashboardIndexPage<br/>/dashboards/"]
+        URL["/dashboards/serology-statistics/"]
+        IDX --> URL
+    end
+
+    REG --> S
+    S --> PAGE
+    S --> UP
+    UP -->|"figures JSON"| PAGE
+    PAGE --> URL
 ```
+
+| Role | What they do |
+|------|----------------|
+| **Developer** | Viz module + `VIZ_MODULES` entry + tests |
+| **Editor** | Create `DashboardPage`, upload CSV snippet, add `plotly_figure` blocks |
+| **Visitor** | Index card → dashboard page with charts and download link |
 
 **Slug contract (critical):** these three must use the **same** slug string (e.g. `serology-statistics`):
 

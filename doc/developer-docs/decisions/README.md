@@ -1,8 +1,8 @@
-# Developer decisions
+# Team decisions
 
-Team decisions about **how we work and write code** in `spp-wagtail`. Use the [template](template.md) for new records.
+Agreed choices about **how we work and write code** in `spp-wagtail`. Use the [template](template.md) for new records.
 
-These are separate from [architecture ADRs](../../architecture/decisions/): ADRs cover stack and system design; developer decisions cover day-to-day conventions and process.
+Separate from [architecture ADRs](../../architecture/decisions/): ADRs cover stack and system design; these records cover developer process and coding choices.
 
 | Decision | Status |
 |----------|--------|

@@ -10,12 +10,12 @@ Django + Wagtail rebuild of the [Swedish Pathogens Portal](https://github.com/Sc
 
 | Guide | |
 |-------|---|
-| **Developers** (setup, layout, contributing) | [doc/developer-guide/](doc/developer-guide/README.md) |
+| **Developer docs** (setup, layout, how-tos) | [doc/developer-docs/](doc/developer-docs/README.md) |
 | **Architecture decisions** | [doc/architecture/decisions/](doc/architecture/decisions/) |
 
 Wagtail admin help: [docs.wagtail.org](https://docs.wagtail.org/)
 
-Start with [getting started](doc/developer-guide/getting-started.md) for `.env`, Docker, or local uv.
+Start with [getting started](doc/developer-docs/getting-started.md) for `.env`, Docker, or local uv.
 
 ---
 
@@ -25,7 +25,7 @@ From the repository root:
 
 ```bash
 cp .env.example .env
-# Set SECRET_KEY in .env — see doc/developer-guide/getting-started.md
+# Set SECRET_KEY in .env — see doc/developer-docs/getting-started.md
 
 docker compose up
 ```
@@ -37,7 +37,7 @@ docker compose up
 
 First admin user: `docker compose exec web python manage.py createsuperuser`
 
-More detail (uv, migrations, tests): [developer guide](doc/developer-guide/README.md).
+More detail (uv, migrations, tests): [developer documentation](doc/developer-docs/README.md).
 
 ---
 
