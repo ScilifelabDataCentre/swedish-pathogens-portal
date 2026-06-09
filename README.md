@@ -8,11 +8,12 @@ Django + Wagtail rebuild of the [Swedish Pathogens Portal](https://github.com/Sc
 
 ## Documentation
 
-| Role | Guide |
-|------|--------|
-| **Developers** (setup, repo layout, contributing) | [doc/developer-guide/](doc/developer-guide/README.md) |
-| **Editors** (Wagtail admin) | [doc/editor-guide/](doc/editor-guide/README.md) |
+| Guide | |
+|-------|---|
+| **Developers** (setup, layout, contributing) | [doc/developer-guide/](doc/developer-guide/README.md) |
 | **Architecture decisions** | [doc/architecture/decisions/](doc/architecture/decisions/) |
+
+Wagtail admin help: [docs.wagtail.org](https://docs.wagtail.org/)
 
 Start with [getting started](doc/developer-guide/01-getting-started.md) for `.env`, Docker, or local uv.
 
