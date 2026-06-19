@@ -1,7 +1,7 @@
 <div id="liver-tln-result">
     {% include "cms/partials/liver_tln_embed.html" with plot_html=plot_html height=height leaf_trace_index=leaf_trace_index cutoff=analysis.cutoff %}
 
-    <p class="text-sm text-pp-dark-grey mt-3 px-2 pb-2">
+    <p id="liver-analysis-stats" class="text-sm text-pp-dark-grey mt-3 px-2 pb-2">
         <span class="font-medium">{{ analysis.filename }}</span>
         · {{ analysis.gene_count|floatformat:0 }} genes
         · {{ analysis.up_count }} up / {{ analysis.down_count }} down

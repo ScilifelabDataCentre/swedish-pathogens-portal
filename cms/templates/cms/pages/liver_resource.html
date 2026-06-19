@@ -1,50 +1,76 @@
 {% extends "cms/base.html" %}
 
-{% load wagtailcore_tags %}
+{% load static wagtailcore_tags %}
 
 {% block content %}
 
-<div class="flex flex-col gap-4 mb-6">
-    <div class="flex flex-wrap items-center gap-3">
-        <h3 class="my-0">{{ page.title }}</h3>
-        <span class="badge badge-ghost badge-lg">{{ page.get_data_status_display }}</span>
+<div
+    id="liver-dashboard"
+    class="liver-dashboard"
+    data-recompute-url="{{ liver_recompute_url }}"
+    data-module-url-pattern="{{ liver_module_detail_url_pattern }}"
+    data-has-session="{% if has_session %}true{% else %}false{% endif %}"
+>
+    <div class="flex flex-col gap-4 mb-6">
+        <div class="flex flex-wrap items-center gap-3">
+            <h3 class="my-0">{{ page.title }}</h3>
+            <span class="badge badge-ghost badge-lg">{{ page.get_data_status_display }}</span>
+        </div>
+
+        {% if page.content %}
+        <div class="prose max-w-none text-pp-dark-grey">
+            {% include_block page.content %}
+        </div>
+        {% endif %}
     </div>
 
-    {% if page.content %}
-    <div class="prose max-w-none text-pp-dark-grey">
-        {% include_block page.content %}
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <div class="lg:col-span-4 xl:col-span-3">
+            {% include "cms/partials/liver_upload_form.html" %}
+        </div>
+
+        <div class="lg:col-span-8 xl:col-span-9 flex flex-col gap-4">
+            <div id="liver-validation-errors" aria-live="polite"></div>
+
+            <section
+                id="tln-container"
+                class="card bg-base-100 border border-base-300 shadow-sm"
+                aria-label="Tree-leaf network plot"
+            >
+                <div class="card-body p-3 sm:p-4 relative min-h-[720px]">
+                    <div
+                        id="liver-tln-loading"
+                        class="htmx-indicator absolute inset-0 bg-base-100/80 flex items-center justify-center z-10 rounded-box"
+                    >
+                        <span class="loading loading-spinner text-accent loading-lg" aria-label="Loading plot"></span>
+                    </div>
+
+                    <div id="liver-tln-panel">
+                        {% include "cms/partials/liver_tln_base.html" %}
+                    </div>
+
+                    {% include "cms/partials/liver_colour_legend.html" %}
+                </div>
+            </section>
+
+            <section
+                id="module-detail"
+                class="card bg-base-100 border border-base-300 shadow-sm min-h-28 relative"
+                aria-label="Module detail"
+                aria-live="polite"
+            >
+                <div
+                    id="module-detail-loading"
+                    class="htmx-indicator absolute inset-0 bg-base-100/80 flex items-center justify-center z-10 rounded-box"
+                >
+                    <span class="loading loading-spinner text-accent loading-md" aria-label="Loading module detail"></span>
+                </div>
+                {% include "cms/partials/liver_module_detail_placeholder.html" %}
+            </section>
+        </div>
     </div>
-    {% endif %}
 </div>
 
-<div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-    <div class="lg:col-span-4 xl:col-span-3">
-        {% include "cms/partials/liver_upload_form.html" %}
-    </div>
-
-    <div class="lg:col-span-8 xl:col-span-9 flex flex-col gap-4">
-        <div id="liver-validation-errors" aria-live="polite"></div>
-
-        <section
-            id="tln-container"
-            class="card bg-base-100 border border-base-300 shadow-sm"
-            aria-label="Tree-leaf network plot"
-        >
-            <div class="card-body p-3 sm:p-4">
-                {% include "cms/partials/liver_tln_base.html" %}
-                {% include "cms/partials/liver_colour_legend.html" %}
-            </div>
-        </section>
-
-        <section
-            id="module-detail"
-            class="card bg-base-100 border border-base-300 shadow-sm min-h-28"
-            aria-label="Module detail"
-            aria-live="polite"
-        >
-            {% include "cms/partials/liver_module_detail_placeholder.html" %}
-        </section>
-    </div>
-</div>
+<script src="{% static 'cms/js/liver_resource.js' %}" defer></script>
 
 {% endblock %}

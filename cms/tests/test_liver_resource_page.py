@@ -136,6 +136,24 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
 
         self.assertEqual(context["page_heading"], "Dashboards")
 
+    def test_get_context_includes_liver_endpoint_urls(self) -> None:
+        """Test that get_context exposes client-side liver endpoint URLs."""
+        request = self.client.get(self.page.url).wsgi_request
+        context = self.page.get_context(request)
+
+        self.assertIn("/cms/liver/upload/", context["liver_upload_url"])
+        self.assertIn("/cms/liver/recompute/", context["liver_recompute_url"])
+        self.assertIn("{module_id}", context["liver_module_detail_url_pattern"])
+
+    def test_page_includes_htmx_and_plotly_wiring(self) -> None:
+        """Test that the page template includes htmx upload wiring and liver JS."""
+        response = self.client.get(self.page.url)
+        self.assertContains(response, 'hx-post="/cms/liver/upload/"')
+        self.assertContains(response, 'hx-target="#liver-tln-panel"')
+        self.assertContains(response, 'hx-target-error="#liver-validation-errors"')
+        self.assertContains(response, 'id="liver-dashboard"')
+        self.assertContains(response, "liver_resource.js")
+
     def test_page_renders_successfully(self) -> None:
         """Test that the liver dashboard page returns HTTP 200."""
         response = self.client.get(self.page.url)

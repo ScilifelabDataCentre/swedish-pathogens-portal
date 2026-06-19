@@ -8,7 +8,21 @@
             </p>
         </div>
 
-        <form id="liver-upload-form" class="flex flex-col gap-4" method="post" enctype="multipart/form-data">
+        <form
+            id="liver-upload-form"
+            class="flex flex-col gap-4"
+            method="post"
+            enctype="multipart/form-data"
+            action="{{ liver_upload_url }}"
+            hx-post="{{ liver_upload_url }}"
+            hx-target="#liver-tln-panel"
+            hx-target-error="#liver-validation-errors"
+            hx-swap="innerHTML"
+            hx-encoding="multipart/form-data"
+            hx-indicator="#liver-tln-loading"
+        >
+            {% csrf_token %}
+
             <label class="form-control w-full">
                 <span class="label-text font-medium">DE file</span>
                 <input
@@ -17,6 +31,7 @@
                     id="liver-de-file"
                     accept=".txt,.tsv,.csv,text/plain,text/tab-separated-values"
                     class="file-input file-input-bordered file-input-sm w-full"
+                    required
                 >
             </label>
 
@@ -50,7 +65,12 @@
                     type="button"
                     class="btn btn-outline btn-sm justify-start liver-example-btn"
                     data-example-slug="{{ example.slug }}"
-                    data-example-url="{% url 'cms:liver_load_example' example.slug %}"
+                    hx-get="{% url 'cms:liver_load_example' example.slug %}"
+                    hx-target="#liver-tln-panel"
+                    hx-target-error="#liver-validation-errors"
+                    hx-include="#liver-cutoff-select"
+                    hx-swap="innerHTML"
+                    hx-indicator="#liver-tln-loading"
                 >
                     {{ example.label }}
                 </button>
@@ -68,25 +88,25 @@
                 Download DE template
             </a>
             <a
+                id="liver-export-modules"
                 href="{% url 'cms:liver_export_modules' %}"
-                class="btn btn-ghost btn-sm justify-start {% if not has_session %}btn-disabled pointer-events-none{% endif %}"
+                class="btn btn-ghost btn-sm justify-start liver-export-link {% if not has_session %}btn-disabled pointer-events-none{% endif %}"
                 {% if not has_session %}aria-disabled="true" tabindex="-1"{% endif %}
             >
                 Export module scores (CSV)
             </a>
             <a
+                id="liver-export-genes"
                 href="{% url 'cms:liver_export_genes' %}"
-                class="btn btn-ghost btn-sm justify-start {% if not has_session %}btn-disabled pointer-events-none{% endif %}"
+                class="btn btn-ghost btn-sm justify-start liver-export-link {% if not has_session %}btn-disabled pointer-events-none{% endif %}"
                 {% if not has_session %}aria-disabled="true" tabindex="-1"{% endif %}
             >
                 Export gene classifications (CSV)
             </a>
         </div>
 
-        {% if not has_session %}
-        <p class="text-xs text-pp-dark-grey">
+        <p id="liver-export-hint" class="text-xs text-pp-dark-grey" {% if has_session %}hidden{% endif %}>
             Upload a file or load an example before exporting results.
         </p>
-        {% endif %}
     </div>
 </aside>

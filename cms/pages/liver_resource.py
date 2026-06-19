@@ -3,6 +3,7 @@
 from typing import Any
 
 from django.http import HttpRequest
+from django.urls import reverse
 
 from cms.pages.dashboard import DashboardPage
 from cms.services.liver_resource.analysis import LEAF_TRACE_INDEX
@@ -54,4 +55,10 @@ class LiverResourceDashboardPage(DashboardPage):
         context["current_cutoff"] = get_session_cutoff(request) if session else DEFAULT_CUTOFF
         context["has_session"] = session is not None
         context["examples"] = list_examples()
+        context["liver_upload_url"] = reverse("cms:liver_upload")
+        context["liver_recompute_url"] = reverse("cms:liver_recompute")
+        context["liver_module_detail_url_pattern"] = reverse(
+            "cms:liver_module_detail",
+            kwargs={"module_id": 0},
+        ).replace("/0/", "/{module_id}/")
         return context
