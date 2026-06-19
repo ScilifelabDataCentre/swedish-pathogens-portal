@@ -15,6 +15,11 @@ from cms.services.liver_resource.analysis import (
 )
 from cms.services.liver_resource.computation import VALID_CUTOFFS, parse_de_file
 from cms.services.liver_resource.examples import get_example_path
+from cms.services.liver_resource.exports import (
+    build_genes_csv,
+    build_module_scores_csv,
+    export_basename,
+)
 from cms.services.liver_resource.module_detail import build_module_detail
 from cms.services.liver_resource.session import (
     DEFAULT_CUTOFF,
@@ -140,6 +145,51 @@ def module_detail(request: HttpRequest, module_id: int) -> HttpResponse:
         "cms/partials/liver_module_detail.html",
         {"detail": detail},
     )
+
+
+@require_GET
+def export_module_scores(request: HttpRequest) -> HttpResponse:
+    """Download module scores CSV for the current session analysis."""
+    session, error_response = _require_session_for_export(request)
+    if error_response is not None:
+        return error_response
+
+    cutoff = _normalise_cutoff(request.GET.get("cutoff", session.get("cutoff", DEFAULT_CUTOFF)))
+    de_data = de_data_from_session(session)
+    content = build_module_scores_csv(de_data, cutoff)
+    filename = f"{export_basename(session['filename'])}_module_scores.csv"
+    return _csv_attachment_response(filename, content)
+
+
+@require_GET
+def export_genes(request: HttpRequest) -> HttpResponse:
+    """Download gene classification CSV for the current session analysis."""
+    session, error_response = _require_session_for_export(request)
+    if error_response is not None:
+        return error_response
+
+    cutoff = _normalise_cutoff(request.GET.get("cutoff", session.get("cutoff", DEFAULT_CUTOFF)))
+    de_data = de_data_from_session(session)
+    content = build_genes_csv(de_data, cutoff)
+    filename = f"{export_basename(session['filename'])}_genes.csv"
+    return _csv_attachment_response(filename, content)
+
+
+def _require_session_for_export(request: HttpRequest) -> tuple[dict | None, HttpResponse | None]:
+    session = get_de_session(request)
+    if session is None:
+        return None, HttpResponse(
+            "Upload a DE file or load an example before downloading results.",
+            status=400,
+            content_type="text/plain; charset=utf-8",
+        )
+    return session, None
+
+
+def _csv_attachment_response(filename: str, content: str) -> HttpResponse:
+    response = HttpResponse(content, content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
 
 
 def _normalise_cutoff(cutoff: str) -> str:

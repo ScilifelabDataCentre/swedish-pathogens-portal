@@ -1,6 +1,9 @@
 """Tests for liver resource HTMX views."""
 
+import csv
+import io
 import json
+from pathlib import Path
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase
@@ -134,4 +137,48 @@ class TestLiverViews(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Module 1")
         self.assertContains(response, "ENSG")
+
+    def test_export_module_scores_requires_session(self) -> None:
+        """Test module scores export without session returns 400."""
+        url = reverse("cms:liver_export_modules")
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 400)
+
+    def test_export_module_scores_matches_reference(self) -> None:
+        """Test module scores download matches R fixture after upload."""
+        self._upload_example_file()
+        url = reverse("cms:liver_export_modules")
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/csv; charset=utf-8")
+        self.assertIn("HCC-Control_module_scores.csv", response["Content-Disposition"])
+
+        rows = list(csv.DictReader(io.StringIO(response.content.decode())))
+        fixture_path = (
+            Path(__file__).resolve().parent
+            / "fixtures"
+            / "liver"
+            / "expected"
+            / "HCC-Control_module_scores.csv"
+        )
+        reference_rows = list(csv.DictReader(fixture_path.open(encoding="utf-8", newline="")))
+        self.assertEqual(len(rows), 105)
+        self.assertAlmostEqual(
+            float(rows[0]["DERatio"]),
+            float(reference_rows[0]["DERatio"]),
+            places=6,
+        )
+
+    def test_export_genes_returns_csv(self) -> None:
+        """Test gene classification export returns a CSV attachment."""
+        self._upload_example_file()
+        url = reverse("cms:liver_export_genes")
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("HCC-Control_genes.csv", response["Content-Disposition"])
+        rows = list(csv.DictReader(io.StringIO(response.content.decode())))
+        self.assertGreater(len(rows), 10_000)
+
 
