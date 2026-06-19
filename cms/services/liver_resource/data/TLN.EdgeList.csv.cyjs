@@ -1,0 +1,6167 @@
+{
+  "format_version" : "1.0",
+  "generated_by" : "cytoscape-3.10.3",
+  "target_cytoscapejs_version" : "~2.1",
+  "data" : {
+    "shared_name" : "TLN.EdgeList.csv",
+    "name" : "TLN.EdgeList.csv",
+    "SUID" : 155,
+    "__Annotations" : [ ],
+    "selected" : true
+  },
+  "elements" : {
+    "nodes" : [ {
+      "data" : {
+        "id" : "1226",
+        "shared_name" : "-104",
+        "SUID" : 1226,
+        "label" : "X0.449",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 28.49748795367654,
+        "y" : 73.92757893624942
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1224",
+        "shared_name" : "94",
+        "name" : "94",
+        "SUID" : 1224,
+        "label" : "94",
+        "size" : 8.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 12.617207999808715,
+        "y" : 57.52820239296389
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1216",
+        "shared_name" : "-103",
+        "SUID" : 1216,
+        "label" : "X0.385",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 28.44735489207619,
+        "y" : 63.71007082320067
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1214",
+        "shared_name" : "75",
+        "name" : "75",
+        "SUID" : 1214,
+        "label" : "75",
+        "size" : 9.38083151964686,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 42.92709854575758,
+        "y" : 48.29782113875466
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1206",
+        "shared_name" : "-102",
+        "SUID" : 1206,
+        "label" : "X0.351",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 26.212579352210284,
+        "y" : 44.43301890934531
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1204",
+        "shared_name" : "104",
+        "name" : "104",
+        "SUID" : 1204,
+        "label" : "104",
+        "size" : 7.34846922834953,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 10.91702127212173,
+        "y" : 30.323015041374173
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1196",
+        "shared_name" : "-101",
+        "SUID" : 1196,
+        "label" : "X0.347",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 28.614438589450263,
+        "y" : 37.183383544600986
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1188",
+        "shared_name" : "-100",
+        "SUID" : 1188,
+        "label" : "X0.342",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 52.13099798472157,
+        "y" : 19.60478031199071
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1186",
+        "shared_name" : "103",
+        "name" : "103",
+        "SUID" : 1186,
+        "label" : "103",
+        "size" : 7.41619848709566,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 65.50898990123619,
+        "y" : 28.790481442520033
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1178",
+        "shared_name" : "-99",
+        "SUID" : 1178,
+        "label" : "X0.335",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 28.28577240648634,
+        "y" : 22.786326226094793
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1176",
+        "shared_name" : "65",
+        "name" : "65",
+        "SUID" : 1176,
+        "label" : "65",
+        "size" : 10.6770782520313,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 39.82890277970768,
+        "y" : 6.558056585092465
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1168",
+        "shared_name" : "-98",
+        "SUID" : 1168,
+        "label" : "X0.33",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 64.16594905714557,
+        "y" : 10.299656427603276
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1160",
+        "shared_name" : "-97",
+        "SUID" : 1160,
+        "label" : "X0.324",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 79.53929634596315,
+        "y" : -10.732801087019958
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1158",
+        "shared_name" : "1",
+        "name" : "1",
+        "SUID" : 1158,
+        "label" : "1",
+        "size" : 27.5499546279118,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 55.55585616111181,
+        "y" : -39.175056752131795
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1150",
+        "shared_name" : "-96",
+        "SUID" : 1150,
+        "label" : "X0.319",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 108.12425446181689,
+        "y" : -30.603725578509124
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1148",
+        "shared_name" : "5",
+        "name" : "5",
+        "SUID" : 1148,
+        "label" : "5",
+        "size" : 24.9799919935936,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 112.08693891341832,
+        "y" : -62.22674497665825
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1143",
+        "shared_name" : "18",
+        "name" : "18",
+        "SUID" : 1143,
+        "label" : "18",
+        "size" : 16.5529453572468,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 163.55101656996814,
+        "y" : -58.25767394865882
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1138",
+        "shared_name" : "-95",
+        "SUID" : 1138,
+        "label" : "X0.314",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 153.5543215927328,
+        "y" : -38.49052531445261
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1136",
+        "shared_name" : "8",
+        "name" : "8",
+        "SUID" : 1136,
+        "label" : "8",
+        "size" : 20.0249843945008,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 195.49771164791795,
+        "y" : -26.27632109759868
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1128",
+        "shared_name" : "-94",
+        "SUID" : 1128,
+        "label" : "X0.308",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 92.3419315136801,
+        "y" : 7.831644609186817
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1120",
+        "shared_name" : "-93",
+        "SUID" : 1120,
+        "label" : "X0.305",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 101.22119766137278,
+        "y" : 29.885829733876903
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1118",
+        "shared_name" : "23",
+        "name" : "23",
+        "SUID" : 1118,
+        "label" : "23",
+        "size" : 15.2643375224737,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 91.93854354678864,
+        "y" : 50.39971453511987
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1110",
+        "shared_name" : "-92",
+        "SUID" : 1110,
+        "label" : "X0.301",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 124.68801140719395,
+        "y" : 38.45097169296366
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1108",
+        "shared_name" : "89",
+        "name" : "89",
+        "SUID" : 1108,
+        "label" : "89",
+        "size" : 8.18535277187245,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 122.55508429622228,
+        "y" : 52.752084194132635
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1100",
+        "shared_name" : "-91",
+        "SUID" : 1100,
+        "label" : "X0.298",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 104.55970745636972,
+        "y" : 2.9799388550871413
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1092",
+        "shared_name" : "-90",
+        "SUID" : 1092,
+        "label" : "X0.296",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 122.70116789741157,
+        "y" : 4.499724922505027
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1090",
+        "shared_name" : "73",
+        "name" : "73",
+        "SUID" : 1090,
+        "label" : "73",
+        "size" : 10.0498756211209,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 122.98071402832295,
+        "y" : 20.286211511988128
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1082",
+        "shared_name" : "-89",
+        "SUID" : 1082,
+        "label" : "X0.291",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 152.84641328681877,
+        "y" : 6.582186426310505
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1080",
+        "shared_name" : "53",
+        "name" : "53",
+        "SUID" : 1080,
+        "label" : "53",
+        "size" : 12.369316876853,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 156.20171139058667,
+        "y" : 23.645769991108683
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1075",
+        "shared_name" : "16",
+        "name" : "16",
+        "SUID" : 1075,
+        "label" : "16",
+        "size" : 16.7032930884901,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 193.0458491242913,
+        "y" : 28.78009936322316
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1070",
+        "shared_name" : "-88",
+        "SUID" : 1070,
+        "label" : "X0.288",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 182.6728733075401,
+        "y" : 8.855207723087124
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1068",
+        "shared_name" : "3",
+        "name" : "3",
+        "SUID" : 1068,
+        "label" : "3",
+        "size" : 25.5538646783613,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 238.99040695443213,
+        "y" : 3.0808540802490265
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1060",
+        "shared_name" : "-87",
+        "SUID" : 1060,
+        "label" : "X0.284",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 16.285956028295644,
+        "y" : 8.306062383840224
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1052",
+        "shared_name" : "-86",
+        "SUID" : 1052,
+        "label" : "X0.284",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 147.26510645425554,
+        "y" : 46.21427792201155
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1050",
+        "shared_name" : "54",
+        "name" : "54",
+        "SUID" : 1050,
+        "label" : "54",
+        "size" : 12.1655250605964,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 149.31915116126441,
+        "y" : 64.55582896968862
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1042",
+        "shared_name" : "-85",
+        "SUID" : 1042,
+        "label" : "X0.282",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 12.658660089087363,
+        "y" : -14.058037896581302
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1034",
+        "shared_name" : "-84",
+        "SUID" : 1034,
+        "label" : "X0.276",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -4.402090215748338,
+        "y" : 14.603181420812392
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1032",
+        "shared_name" : "95",
+        "name" : "95",
+        "SUID" : 1032,
+        "label" : "95",
+        "size" : 8.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -9.997837601350763,
+        "y" : 0.8248726702484293
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1024",
+        "shared_name" : "-83",
+        "SUID" : 1024,
+        "label" : "X0.269",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 17.65416876715807,
+        "y" : -56.068565299910986
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1019",
+        "shared_name" : "98",
+        "name" : "98",
+        "SUID" : 1019,
+        "label" : "98",
+        "size" : 7.74596669241483,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 116.37641167479572,
+        "y" : -16.29264327729604
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1014",
+        "shared_name" : "-82",
+        "SUID" : 1014,
+        "label" : "X0.267",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 114.76458484347657,
+        "y" : -3.073040741390555
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1012",
+        "shared_name" : "67",
+        "name" : "67",
+        "SUID" : 1012,
+        "label" : "67",
+        "size" : 10.5356537528527,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 145.53823463439252,
+        "y" : -11.533362819233801
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1004",
+        "shared_name" : "-81",
+        "SUID" : 1004,
+        "label" : "X0.267",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 44.43851045797558,
+        "y" : -82.90748751825247
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1002",
+        "shared_name" : "79",
+        "name" : "79",
+        "SUID" : 1002,
+        "label" : "79",
+        "size" : 9.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 42.080467833777355,
+        "y" : -99.2144201761007
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "997",
+        "shared_name" : "59",
+        "name" : "59",
+        "SUID" : 997,
+        "label" : "59",
+        "size" : 11.0453610171873,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 179.93635069024862,
+        "y" : 69.53121466040047
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "992",
+        "shared_name" : "-80",
+        "SUID" : 992,
+        "label" : "X0.264",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 174.0903987723472,
+        "y" : 52.46533241799932
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "990",
+        "shared_name" : "58",
+        "name" : "58",
+        "SUID" : 990,
+        "label" : "58",
+        "size" : 11.4891252930761,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 216.76215224049196,
+        "y" : 59.58128231481112
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "982",
+        "shared_name" : "-79",
+        "SUID" : 982,
+        "label" : "X0.262",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -7.130983685517331,
+        "y" : -19.649353771149908
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "980",
+        "shared_name" : "24",
+        "name" : "24",
+        "SUID" : 980,
+        "label" : "24",
+        "size" : 15.0996688705415,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -11.54971753653409,
+        "y" : -41.09630868840407
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "972",
+        "shared_name" : "-78",
+        "SUID" : 972,
+        "label" : "X0.257",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 67.0408714871835,
+        "y" : -95.45729352586238
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "970",
+        "shared_name" : "96",
+        "name" : "96",
+        "SUID" : 970,
+        "label" : "96",
+        "size" : 7.93725393319377,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 67.31471110182932,
+        "y" : -110.21093745747143
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "962",
+        "shared_name" : "-77",
+        "SUID" : 962,
+        "label" : "X0.253",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 13.800046774662224,
+        "y" : -78.82434027821614
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "954",
+        "shared_name" : "-76",
+        "SUID" : 954,
+        "label" : "X0.249",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -3.1879866172282987,
+        "y" : -96.5198745763363
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "946",
+        "shared_name" : "-75",
+        "SUID" : 946,
+        "label" : "X0.24",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -20.833905593797933,
+        "y" : 20.75752797904544
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "944",
+        "shared_name" : "99",
+        "name" : "99",
+        "SUID" : 944,
+        "label" : "99",
+        "size" : 7.68114574786861,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -30.419657510429765,
+        "y" : 11.169750391384126
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "936",
+        "shared_name" : "-74",
+        "SUID" : 936,
+        "label" : "X0.239",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 18.044735021570744,
+        "y" : -106.66543262245172
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "928",
+        "shared_name" : "-73",
+        "SUID" : 928,
+        "label" : "X0.238",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 110.00017772618612,
+        "y" : -110.84508761840556
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "923",
+        "shared_name" : "82",
+        "name" : "82",
+        "SUID" : 923,
+        "label" : "82",
+        "size" : 8.88819441731559,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -13.186999388385797,
+        "y" : -119.10409939418213
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "918",
+        "shared_name" : "-72",
+        "SUID" : 918,
+        "label" : "X0.238",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -7.830324243145725,
+        "y" : -103.72327468290506
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "916",
+        "shared_name" : "78",
+        "name" : "78",
+        "SUID" : 916,
+        "label" : "78",
+        "size" : 9.1104335791443,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -40.70754722632153,
+        "y" : -113.7969386317882
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "908",
+        "shared_name" : "-71",
+        "SUID" : 908,
+        "label" : "X0.235",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -17.839245792880096,
+        "y" : -97.0392781583547
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "906",
+        "shared_name" : "34",
+        "name" : "34",
+        "SUID" : 906,
+        "label" : "34",
+        "size" : 13.6381816969859,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -20.451538008405304,
+        "y" : -77.45674911779918
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "901",
+        "shared_name" : "69",
+        "name" : "69",
+        "SUID" : 901,
+        "label" : "69",
+        "size" : 10.3923048454133,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -48.86404691009103,
+        "y" : 26.980704634749642
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "896",
+        "shared_name" : "-70",
+        "SUID" : 896,
+        "label" : "X0.233",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -33.422438575757766,
+        "y" : 33.84896743936331
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "894",
+        "shared_name" : "45",
+        "name" : "45",
+        "SUID" : 894,
+        "label" : "45",
+        "size" : 12.8840987267251,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -49.046252316007426,
+        "y" : 57.48806165861229
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "889",
+        "shared_name" : "83",
+        "name" : "83",
+        "SUID" : 889,
+        "label" : "83",
+        "size" : 8.88819441731559,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -39.5578514213391,
+        "y" : -27.259049949826803
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "884",
+        "shared_name" : "-69",
+        "SUID" : 884,
+        "label" : "X0.233",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -27.298578757753344,
+        "y" : -15.732473641002326
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "882",
+        "shared_name" : "61",
+        "name" : "61",
+        "SUID" : 882,
+        "label" : "61",
+        "size" : 10.9087121146357,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -53.746723264116795,
+        "y" : -3.535092818032137
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "874",
+        "shared_name" : "-68",
+        "SUID" : 874,
+        "label" : "X0.23",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 150.18103968060254,
+        "y" : -113.17732540131902
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "866",
+        "shared_name" : "-67",
+        "SUID" : 866,
+        "label" : "X0.229",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 8.628813539988554,
+        "y" : -133.6958222264493
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "858",
+        "shared_name" : "-66",
+        "SUID" : 858,
+        "label" : "X0.228",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 128.23641028855386,
+        "y" : -126.06992547958015
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "856",
+        "shared_name" : "56",
+        "name" : "56",
+        "SUID" : 856,
+        "label" : "56",
+        "size" : 11.6189500386223,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 126.15431629111254,
+        "y" : -145.55889606004595
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "848",
+        "shared_name" : "-65",
+        "SUID" : 848,
+        "label" : "X0.224",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -0.11022426954553832,
+        "y" : -153.58864137144764
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "846",
+        "shared_name" : "6",
+        "name" : "6",
+        "SUID" : 846,
+        "label" : "6",
+        "size" : 22.4499443206436,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 5.667208432232296,
+        "y" : -186.90471207819704
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "838",
+        "shared_name" : "-64",
+        "SUID" : 838,
+        "label" : "X0.221",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -41.82332650717209,
+        "y" : -95.03310343389282
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "836",
+        "shared_name" : "44",
+        "name" : "44",
+        "SUID" : 836,
+        "label" : "44",
+        "size" : 13.114877048604,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -55.44626882017606,
+        "y" : -73.51831155480707
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "828",
+        "shared_name" : "-63",
+        "SUID" : 828,
+        "label" : "X0.219",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 175.3975570024469,
+        "y" : -113.113463236696
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "820",
+        "shared_name" : "-62",
+        "SUID" : 820,
+        "label" : "X0.219",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -10.867827358997413,
+        "y" : -156.96385043406792
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "818",
+        "shared_name" : "105",
+        "name" : "105",
+        "SUID" : 818,
+        "label" : "105",
+        "size" : 7.21110255092798,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -22.704382940807392,
+        "y" : -144.538170528112
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "810",
+        "shared_name" : "-61",
+        "SUID" : 810,
+        "label" : "X0.219",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -19.632301998096747,
+        "y" : -171.482803506718
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "808",
+        "shared_name" : "85",
+        "name" : "85",
+        "SUID" : 808,
+        "label" : "85",
+        "size" : 8.60232526704263,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -35.63612814708485,
+        "y" : -167.44395885566973
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "800",
+        "shared_name" : "-60",
+        "SUID" : 800,
+        "label" : "X0.219",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 37.99596784037602,
+        "y" : -173.7770081705005
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "792",
+        "shared_name" : "-59",
+        "SUID" : 792,
+        "label" : "X0.217",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 160.11866910084004,
+        "y" : -107.87397635245208
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "790",
+        "shared_name" : "84",
+        "name" : "84",
+        "SUID" : 790,
+        "label" : "84",
+        "size" : 8.71779788708135,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 156.8905544021903,
+        "y" : -92.65533083869587
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "782",
+        "shared_name" : "-58",
+        "SUID" : 782,
+        "label" : "X0.216",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -69.55535811883601,
+        "y" : -91.6638651423832
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "780",
+        "shared_name" : "48",
+        "name" : "48",
+        "SUID" : 780,
+        "label" : "48",
+        "size" : 12.7671453348037,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -76.44207587609539,
+        "y" : -113.70133217338305
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "772",
+        "shared_name" : "-57",
+        "SUID" : 772,
+        "label" : "X0.215",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -87.27261555880315,
+        "y" : -87.32914743849418
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "770",
+        "shared_name" : "66",
+        "name" : "66",
+        "SUID" : 770,
+        "label" : "66",
+        "size" : 10.6301458127346,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -111.73984753773114,
+        "y" : -101.98797441483916
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "762",
+        "shared_name" : "-56",
+        "SUID" : 762,
+        "label" : "X0.211",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 48.6017828744924,
+        "y" : -180.4753534803823
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "760",
+        "shared_name" : "100",
+        "name" : "100",
+        "SUID" : 760,
+        "label" : "100",
+        "size" : 7.48331477354788,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 60.252786072568355,
+        "y" : -172.899082972346
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "752",
+        "shared_name" : "-55",
+        "SUID" : 752,
+        "label" : "X0.21",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 226.7952111654805,
+        "y" : -90.97044869527987
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "750",
+        "shared_name" : "71",
+        "name" : "71",
+        "SUID" : 750,
+        "label" : "71",
+        "size" : 10.295630140987,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 247.19665441419366,
+        "y" : -103.92014394724663
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "742",
+        "shared_name" : "-54",
+        "SUID" : 742,
+        "label" : "X0.21",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -98.1030173336868,
+        "y" : -70.99358158616472
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "737",
+        "shared_name" : "38",
+        "name" : "38",
+        "SUID" : 737,
+        "label" : "38",
+        "size" : 13.4164078649987,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -83.75210034334589,
+        "y" : -50.78249099340349
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "732",
+        "shared_name" : "-53",
+        "SUID" : 732,
+        "label" : "X0.207",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -101.13955751157344,
+        "y" : -59.28411492570998
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "730",
+        "shared_name" : "14",
+        "name" : "14",
+        "SUID" : 730,
+        "label" : "14",
+        "size" : 18.1107702762748,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -111.28537552594133,
+        "y" : -17.58900602001104
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "722",
+        "shared_name" : "-52",
+        "SUID" : 722,
+        "label" : "X0.206",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 153.76993295569937,
+        "y" : -145.3715024890614
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "720",
+        "shared_name" : "35",
+        "name" : "35",
+        "SUID" : 720,
+        "label" : "35",
+        "size" : 13.490737563232,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 152.8903292983715,
+        "y" : -164.99229951261995
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "712",
+        "shared_name" : "-51",
+        "SUID" : 712,
+        "label" : "X0.205",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -112.8627538008783,
+        "y" : -61.848927945141426
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "710",
+        "shared_name" : "25",
+        "name" : "25",
+        "SUID" : 710,
+        "label" : "25",
+        "size" : 14.6969384566991,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -128.8287456372002,
+        "y" : -74.02624235082887
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "702",
+        "shared_name" : "-50",
+        "SUID" : 702,
+        "label" : "X0.202",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -29.266324560720165,
+        "y" : -190.59567882162267
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "694",
+        "shared_name" : "-49",
+        "SUID" : 694,
+        "label" : "X0.202",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 173.86703177225573,
+        "y" : -155.37533413138905
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "686",
+        "shared_name" : "-48",
+        "SUID" : 686,
+        "label" : "X0.202",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 74.4018058097946,
+        "y" : -216.06765238429767
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "684",
+        "shared_name" : "4",
+        "name" : "4",
+        "SUID" : 684,
+        "label" : "4",
+        "size" : 25.3377189186399,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 97.26157665273794,
+        "y" : -192.01577056719455
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "679",
+        "shared_name" : "41",
+        "name" : "41",
+        "SUID" : 679,
+        "label" : "41",
+        "size" : 13.2664991614216,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 181.2068625496025,
+        "y" : -136.07043530059514
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "674",
+        "shared_name" : "-47",
+        "SUID" : 674,
+        "label" : "X0.202",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 184.001621061397,
+        "y" : -117.09986657992914
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "672",
+        "shared_name" : "15",
+        "name" : "15",
+        "SUID" : 672,
+        "label" : "15",
+        "size" : 17.3205080756888,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 218.0041815970247,
+        "y" : -120.97387874027692
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "664",
+        "shared_name" : "-46",
+        "SUID" : 664,
+        "label" : "X0.2",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 232.8601023821063,
+        "y" : -85.88155340120782
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "662",
+        "shared_name" : "92",
+        "name" : "92",
+        "SUID" : 662,
+        "label" : "92",
+        "size" : 8.06225774829855,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 232.76124007875066,
+        "y" : -69.46342002930862
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "654",
+        "shared_name" : "-45",
+        "SUID" : 654,
+        "label" : "X0.197",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -26.263010157915318,
+        "y" : -210.55473424802938
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "646",
+        "shared_name" : "-44",
+        "SUID" : 646,
+        "label" : "X0.197",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -134.0316761821032,
+        "y" : -37.38081757425207
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "644",
+        "shared_name" : "43",
+        "name" : "43",
+        "SUID" : 644,
+        "label" : "43",
+        "size" : 13.228756555323,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -151.73653843504337,
+        "y" : -44.53563866630569
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "636",
+        "shared_name" : "-43",
+        "SUID" : 636,
+        "label" : "X0.197",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 59.10198538159973,
+        "y" : -221.1991455761206
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "634",
+        "shared_name" : "51",
+        "name" : "51",
+        "SUID" : 634,
+        "label" : "51",
+        "size" : 12.6095202129185,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 50.39159154770831,
+        "y" : -241.5109754062403
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "626",
+        "shared_name" : "-42",
+        "SUID" : 626,
+        "label" : "X0.196",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 111.03387497032244,
+        "y" : -231.00291903248478
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "621",
+        "shared_name" : "91",
+        "name" : "91",
+        "SUID" : 621,
+        "label" : "91",
+        "size" : 8.06225774829855,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -17.644743425558588,
+        "y" : -235.87862077212253
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "616",
+        "shared_name" : "-41",
+        "SUID" : 616,
+        "label" : "X0.194",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -15.902897003105295,
+        "y" : -219.87760051106662
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "614",
+        "shared_name" : "30",
+        "name" : "30",
+        "SUID" : 614,
+        "label" : "30",
+        "size" : 13.9642400437689,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 11.397249298772763,
+        "y" : -232.50632004186127
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "606",
+        "shared_name" : "-40",
+        "SUID" : 606,
+        "label" : "X0.193",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 204.24643269456465,
+        "y" : -158.465099719111
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "604",
+        "shared_name" : "2",
+        "name" : "2",
+        "SUID" : 604,
+        "label" : "2",
+        "size" : 26.8514431641951,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 227.34354736812298,
+        "y" : -197.96583531476074
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "596",
+        "shared_name" : "-39",
+        "SUID" : 596,
+        "label" : "X0.191",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -57.720248766777715,
+        "y" : -176.6068409091152
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "588",
+        "shared_name" : "-38",
+        "SUID" : 588,
+        "label" : "X0.191",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 123.14792522378406,
+        "y" : -227.50863736715004
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "586",
+        "shared_name" : "27",
+        "name" : "27",
+        "SUID" : 586,
+        "label" : "27",
+        "size" : 14.456832294801,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 139.63755897466967,
+        "y" : -212.3036641960931
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "581",
+        "shared_name" : "101",
+        "name" : "101",
+        "SUID" : 581,
+        "label" : "101",
+        "size" : 7.48331477354788,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 179.51806823177418,
+        "y" : -86.96124716090804
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "576",
+        "shared_name" : "-37",
+        "SUID" : 576,
+        "label" : "X0.189",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 180.44115785857963,
+        "y" : -100.7301931586781
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "574",
+        "shared_name" : "63",
+        "name" : "63",
+        "SUID" : 574,
+        "label" : "63",
+        "size" : 10.8627804912002,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 207.43407773996657,
+        "y" : -80.26637238588494
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "566",
+        "shared_name" : "-36",
+        "SUID" : 566,
+        "label" : "X0.189",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 133.6874718224571,
+        "y" : -241.2035928390457
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "564",
+        "shared_name" : "28",
+        "name" : "28",
+        "SUID" : 564,
+        "label" : "28",
+        "size" : 14.0712472794703,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 134.80538382027584,
+        "y" : -263.10820743204215
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "559",
+        "shared_name" : "76",
+        "name" : "76",
+        "SUID" : 559,
+        "label" : "76",
+        "size" : 9.16515138991168,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -157.30796147962207,
+        "y" : -14.837739200069484
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "554",
+        "shared_name" : "-35",
+        "SUID" : 554,
+        "label" : "X0.188",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -141.55037867000732,
+        "y" : -15.188284308798798
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "552",
+        "shared_name" : "9",
+        "name" : "9",
+        "SUID" : 552,
+        "label" : "9",
+        "size" : 19.6977156035922,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -153.80784950668024,
+        "y" : 25.886804874794432
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "544",
+        "shared_name" : "-34",
+        "SUID" : 544,
+        "label" : "X0.188",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -38.67897489311178,
+        "y" : -229.74613629074577
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "536",
+        "shared_name" : "-33",
+        "SUID" : 536,
+        "label" : "X0.187",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -65.48931055225177,
+        "y" : -178.38162871124663
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "528",
+        "shared_name" : "-32",
+        "SUID" : 528,
+        "label" : "X0.186",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 35.95794154985594,
+        "y" : -115.12462322316253
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "526",
+        "shared_name" : "46",
+        "name" : "46",
+        "SUID" : 526,
+        "label" : "46",
+        "size" : 12.8452325786651,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 35.900837764174014,
+        "y" : -135.02094779227662
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "521",
+        "shared_name" : "87",
+        "name" : "87",
+        "SUID" : 521,
+        "label" : "87",
+        "size" : 8.36660026534076,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 190.73741210785786,
+        "y" : -171.4073080441326
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "516",
+        "shared_name" : "-31",
+        "SUID" : 516,
+        "label" : "X0.185",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 177.17640751167508,
+        "y" : -169.3346993049933
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "514",
+        "shared_name" : "64",
+        "name" : "64",
+        "SUID" : 514,
+        "label" : "64",
+        "size" : 10.7238052947636,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 174.3753145431489,
+        "y" : -191.16264060126665
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "509",
+        "shared_name" : "60",
+        "name" : "60",
+        "SUID" : 509,
+        "label" : "60",
+        "size" : 11.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 170.1895133862489,
+        "y" : -224.5643323658504
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "504",
+        "shared_name" : "-30",
+        "SUID" : 504,
+        "label" : "X0.183",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 159.88604014037685,
+        "y" : -239.51458223719192
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "502",
+        "shared_name" : "31",
+        "name" : "31",
+        "SUID" : 502,
+        "label" : "31",
+        "size" : 13.856406460551,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 194.00036737652204,
+        "y" : -245.87291995693602
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "494",
+        "shared_name" : "-29",
+        "SUID" : 494,
+        "label" : "X0.182",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -85.68776760307867,
+        "y" : -184.2753845137202
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "492",
+        "shared_name" : "90",
+        "name" : "90",
+        "SUID" : 492,
+        "label" : "90",
+        "size" : 8.12403840463596,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -93.64226795628294,
+        "y" : -196.8845093316556
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "484",
+        "shared_name" : "-28",
+        "SUID" : 484,
+        "label" : "X0.181",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -73.1764321015023,
+        "y" : -262.7325235751889
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "482",
+        "shared_name" : "22",
+        "name" : "22",
+        "SUID" : 482,
+        "label" : "22",
+        "size" : 15.3948043183407,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -64.30255866498705,
+        "y" : -285.4543427286498
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "474",
+        "shared_name" : "-27",
+        "SUID" : 474,
+        "label" : "X0.179",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -68.02096947984896,
+        "y" : -185.3683119728887
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "472",
+        "shared_name" : "72",
+        "name" : "72",
+        "SUID" : 472,
+        "label" : "72",
+        "size" : 10.1488915650922,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -56.8061859282309,
+        "y" : -200.20026686167444
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "467",
+        "shared_name" : "68",
+        "name" : "68",
+        "SUID" : 467,
+        "label" : "68",
+        "size" : 10.3923048454133,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -41.9825569575655,
+        "y" : -261.44827391355165
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "462",
+        "shared_name" : "-26",
+        "SUID" : 462,
+        "label" : "X0.179",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -34.788960140699444,
+        "y" : -246.61596953198318
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "460",
+        "shared_name" : "11",
+        "name" : "11",
+        "SUID" : 460,
+        "label" : "11",
+        "size" : 19.0262975904404,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -5.961282009555752,
+        "y" : -273.9575972599383
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "455",
+        "shared_name" : "52",
+        "name" : "52",
+        "SUID" : 455,
+        "label" : "52",
+        "size" : 12.4096736459909,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 274.7801384255471,
+        "y" : -94.66209036934909
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "450",
+        "shared_name" : "-25",
+        "SUID" : 450,
+        "label" : "X0.178",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 252.6908820539596,
+        "y" : -83.23951653915447
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "448",
+        "shared_name" : "10",
+        "name" : "10",
+        "SUID" : 448,
+        "label" : "10",
+        "size" : 19.2613602842582,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 289.44079869202443,
+        "y" : -55.5074558219835
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "440",
+        "shared_name" : "-24",
+        "SUID" : 440,
+        "label" : "X0.178",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 155.76953821157798,
+        "y" : -253.54279569658524
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "432",
+        "shared_name" : "-23",
+        "SUID" : 432,
+        "label" : "X0.176",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 72.171648774067,
+        "y" : -241.26321615084888
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "427",
+        "shared_name" : "97",
+        "name" : "97",
+        "SUID" : 427,
+        "label" : "97",
+        "size" : 7.74596669241483,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 164.88509032042927,
+        "y" : -281.1968491409335
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "422",
+        "shared_name" : "-22",
+        "SUID" : 422,
+        "label" : "X0.174",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 179.50353198066998,
+        "y" : -274.4382545296304
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "420",
+        "shared_name" : "7",
+        "name" : "7",
+        "SUID" : 420,
+        "label" : "7",
+        "size" : 22.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 192.95399914352248,
+        "y" : -306.27113436915363
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "415",
+        "shared_name" : "47",
+        "name" : "47",
+        "SUID" : 415,
+        "label" : "47",
+        "size" : 12.8062484748657,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 257.89583116968345,
+        "y" : -162.81407636646608
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "410",
+        "shared_name" : "-21",
+        "SUID" : 410,
+        "label" : "X0.173",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 243.7255970954708,
+        "y" : -148.25351837958024
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "408",
+        "shared_name" : "19",
+        "name" : "19",
+        "SUID" : 408,
+        "label" : "19",
+        "size" : 16.2788205960997,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 284.524021188727,
+        "y" : -134.28810456015012
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "400",
+        "shared_name" : "-20",
+        "SUID" : 400,
+        "label" : "X0.173",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 200.18711158048163,
+        "y" : -270.3503822513504
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "398",
+        "shared_name" : "74",
+        "name" : "74",
+        "SUID" : 398,
+        "label" : "74",
+        "size" : 9.4339811320566,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 217.54218010031673,
+        "y" : -267.57038993039725
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "393",
+        "shared_name" : "80",
+        "name" : "80",
+        "SUID" : 393,
+        "label" : "80",
+        "size" : 8.94427190999916,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 66.03785727855234,
+        "y" : -146.88735988391892
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "388",
+        "shared_name" : "-19",
+        "SUID" : 388,
+        "label" : "X0.173",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 64.76213128204083,
+        "y" : -131.92046661590183
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "386",
+        "shared_name" : "39",
+        "name" : "39",
+        "SUID" : 386,
+        "label" : "39",
+        "size" : 13.3790881602597,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 93.70568326657276,
+        "y" : -130.1916746654478
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "378",
+        "shared_name" : "-18",
+        "SUID" : 378,
+        "label" : "X0.169",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -101.23783041571421,
+        "y" : -179.3760808832547
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "373",
+        "shared_name" : "32",
+        "name" : "32",
+        "SUID" : 373,
+        "label" : "32",
+        "size" : 13.7840487520902,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -72.30651317839035,
+        "y" : -228.46650942165272
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "368",
+        "shared_name" : "-17",
+        "SUID" : 368,
+        "label" : "X0.168",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -76.119438684416,
+        "y" : -200.20534485872724
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "366",
+        "shared_name" : "29",
+        "name" : "29",
+        "SUID" : 366,
+        "label" : "29",
+        "size" : 14.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -105.41750093922691,
+        "y" : -245.1780911892001
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "358",
+        "shared_name" : "-16",
+        "SUID" : 358,
+        "label" : "X0.167",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 75.2892415367061,
+        "y" : -260.9515993499847
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "356",
+        "shared_name" : "36",
+        "name" : "36",
+        "SUID" : 356,
+        "label" : "36",
+        "size" : 13.4536240470737,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 62.72371604134617,
+        "y" : -277.70589027327173
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "348",
+        "shared_name" : "-15",
+        "SUID" : 348,
+        "label" : "X0.166",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 87.7298481308209,
+        "y" : -288.5441766756305
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "346",
+        "shared_name" : "50",
+        "name" : "50",
+        "SUID" : 346,
+        "label" : "50",
+        "size" : 12.6885775404495,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 79.7220116934806,
+        "y" : -308.7677441317394
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "338",
+        "shared_name" : "-14",
+        "SUID" : 338,
+        "label" : "X0.165",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -120.4535775252089,
+        "y" : -201.76319231268283
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "336",
+        "shared_name" : "102",
+        "name" : "102",
+        "SUID" : 336,
+        "label" : "102",
+        "size" : 7.41619848709566,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -121.40510738523844,
+        "y" : -215.45338979448766
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "331",
+        "shared_name" : "57",
+        "name" : "57",
+        "SUID" : 331,
+        "label" : "57",
+        "size" : 11.5758369027902,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 236.65540189576035,
+        "y" : -288.8246706938063
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "326",
+        "shared_name" : "-13",
+        "SUID" : 326,
+        "label" : "X0.162",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 217.17611956696692,
+        "y" : -290.9025293681972
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "324",
+        "shared_name" : "21",
+        "name" : "21",
+        "SUID" : 324,
+        "label" : "21",
+        "size" : 15.4272486205415,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 240.98021895780292,
+        "y" : -323.40786996673535
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "316",
+        "shared_name" : "-12",
+        "SUID" : 316,
+        "label" : "X0.161",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -110.31642947332716,
+        "y" : -174.00880972384292
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "314",
+        "shared_name" : "33",
+        "name" : "33",
+        "SUID" : 314,
+        "label" : "33",
+        "size" : 13.7477270848675,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -129.13154399280486,
+        "y" : -180.72657283001806
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "306",
+        "shared_name" : "-11",
+        "SUID" : 306,
+        "label" : "X0.16",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -98.04712848122381,
+        "y" : -281.268496962645
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "304",
+        "shared_name" : "13",
+        "name" : "13",
+        "SUID" : 304,
+        "label" : "13",
+        "size" : 18.5202591774521,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -98.0833058396012,
+        "y" : -308.9039599105784
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "296",
+        "shared_name" : "-10",
+        "SUID" : 296,
+        "label" : "X0.16",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -139.64110398421826,
+        "y" : -204.66665784840637
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "294",
+        "shared_name" : "20",
+        "name" : "20",
+        "SUID" : 294,
+        "label" : "20",
+        "size" : 15.6204993518133,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -150.30127328222673,
+        "y" : -226.2098078007013
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "286",
+        "shared_name" : "-9",
+        "SUID" : 286,
+        "label" : "X0.159",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 99.87480978241015,
+        "y" : -307.7641083823439
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "284",
+        "shared_name" : "62",
+        "name" : "62",
+        "SUID" : 284,
+        "label" : "62",
+        "size" : 10.8627804912002,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 118.26287679549947,
+        "y" : -302.4061523077437
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "276",
+        "shared_name" : "-8",
+        "SUID" : 276,
+        "label" : "X0.158",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -129.85267505760658,
+        "y" : -290.98177811532815
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "274",
+        "shared_name" : "49",
+        "name" : "49",
+        "SUID" : 274,
+        "label" : "49",
+        "size" : 12.6885775404495,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -135.68071185482057,
+        "y" : -309.60477800624665
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "269",
+        "shared_name" : "93",
+        "name" : "93",
+        "SUID" : 269,
+        "label" : "93",
+        "size" : 8.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 106.8661097337646,
+        "y" : -332.83070908316245
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "264",
+        "shared_name" : "-7",
+        "SUID" : 264,
+        "label" : "X0.157",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 109.59154123752901,
+        "y" : -318.0838401374606
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "262",
+        "shared_name" : "37",
+        "name" : "37",
+        "SUID" : 262,
+        "label" : "37",
+        "size" : 13.4164078649987,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 134.98981807228498,
+        "y" : -335.9336822467051
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "257",
+        "shared_name" : "55",
+        "name" : "55",
+        "SUID" : 257,
+        "label" : "55",
+        "size" : 11.8743420870379,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -60.8145261207359,
+        "y" : -152.49872762057257
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "252",
+        "shared_name" : "-6",
+        "SUID" : 252,
+        "label" : "X0.156",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -64.12047444672405,
+        "y" : -170.26742382972782
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "250",
+        "shared_name" : "42",
+        "name" : "42",
+        "SUID" : 250,
+        "label" : "42",
+        "size" : 13.228756555323,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -92.00361775944009,
+        "y" : -158.6790889948308
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "242",
+        "shared_name" : "-5",
+        "SUID" : 242,
+        "label" : "X0.155",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -157.0664135366272,
+        "y" : -189.92220191568637
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "240",
+        "shared_name" : "17",
+        "name" : "17",
+        "SUID" : 240,
+        "label" : "17",
+        "size" : 16.6733320005331,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -180.06651698292058,
+        "y" : -200.09420689175172
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "235",
+        "shared_name" : "77",
+        "name" : "77",
+        "SUID" : 235,
+        "label" : "77",
+        "size" : 9.1104335791443,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -164.89170201404065,
+        "y" : -300.5254089264062
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "230",
+        "shared_name" : "-4",
+        "SUID" : 230,
+        "label" : "X0.154",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -153.83374188160133,
+        "y" : -290.76730913649067
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "228",
+        "shared_name" : "40",
+        "name" : "40",
+        "SUID" : 228,
+        "label" : "40",
+        "size" : 13.3416640641263,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -181.20872640127055,
+        "y" : -270.71295576883
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "223",
+        "shared_name" : "88",
+        "name" : "88",
+        "SUID" : 223,
+        "label" : "88",
+        "size" : 8.18535277187245,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 94.98252241639071,
+        "y" : -245.71601747842635
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "218",
+        "shared_name" : "-3",
+        "SUID" : 218,
+        "label" : "X0.145",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 82.05117147278011,
+        "y" : -253.58264453828122
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "216",
+        "shared_name" : "70",
+        "name" : "70",
+        "SUID" : 216,
+        "label" : "70",
+        "size" : 10.3440804327886,
+        "selected" : false
+      },
+      "position" : {
+        "x" : 103.21806388225028,
+        "y" : -273.09981860319044
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "211",
+        "shared_name" : "86",
+        "name" : "86",
+        "SUID" : 211,
+        "label" : "86",
+        "size" : 8.48528137423857,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -131.68075145301674,
+        "y" : -151.15196151957772
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "206",
+        "shared_name" : "-2",
+        "SUID" : 206,
+        "label" : "X0.145",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -117.11138295504523,
+        "y" : -153.52824041430029
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "204",
+        "shared_name" : "81",
+        "name" : "81",
+        "SUID" : 204,
+        "label" : "81",
+        "size" : 8.94427190999916,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -118.90990483968791,
+        "y" : -129.25109937682188
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "199",
+        "shared_name" : "26",
+        "name" : "26",
+        "SUID" : 199,
+        "label" : "26",
+        "size" : 14.456832294801,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -183.8205204435621,
+        "y" : -160.86105957387676
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "185",
+        "shared_name" : "-1",
+        "SUID" : 185,
+        "label" : "X0.142",
+        "size" : 0.0,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -163.69619078876676,
+        "y" : -167.78553486619285
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "183",
+        "shared_name" : "12",
+        "name" : "12",
+        "SUID" : 183,
+        "label" : "12",
+        "size" : 18.8414436814168,
+        "selected" : false
+      },
+      "position" : {
+        "x" : -169.77815900040238,
+        "y" : -120.58354081306746
+      },
+      "selected" : false
+    } ],
+    "edges" : [ {
+      "data" : {
+        "id" : "1228",
+        "source" : "1224",
+        "target" : "1226",
+        "shared_name" : "94 (interacts with) -104",
+        "shared_interaction" : "interacts with",
+        "color" : "grey95",
+        "name" : "94 (interacts with) -104",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1228,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1231",
+        "source" : "1216",
+        "target" : "1226",
+        "shared_name" : "-103 (interacts with) -104",
+        "shared_interaction" : "interacts with",
+        "color" : "grey95",
+        "name" : "-103 (interacts with) -104",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1231,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1218",
+        "source" : "1214",
+        "target" : "1216",
+        "shared_name" : "75 (interacts with) -103",
+        "shared_interaction" : "interacts with",
+        "color" : "grey83",
+        "name" : "75 (interacts with) -103",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1218,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1221",
+        "source" : "1206",
+        "target" : "1216",
+        "shared_name" : "-102 (interacts with) -103",
+        "shared_interaction" : "interacts with",
+        "color" : "grey83",
+        "name" : "-102 (interacts with) -103",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1221,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1208",
+        "source" : "1204",
+        "target" : "1206",
+        "shared_name" : "104 (interacts with) -102",
+        "shared_interaction" : "interacts with",
+        "color" : "grey77",
+        "name" : "104 (interacts with) -102",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1208,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1211",
+        "source" : "1196",
+        "target" : "1206",
+        "shared_name" : "-101 (interacts with) -102",
+        "shared_interaction" : "interacts with",
+        "color" : "grey77",
+        "name" : "-101 (interacts with) -102",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1211,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1201",
+        "source" : "1188",
+        "target" : "1196",
+        "shared_name" : "-100 (interacts with) -101",
+        "shared_interaction" : "interacts with",
+        "color" : "grey76",
+        "name" : "-100 (interacts with) -101",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1201,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1190",
+        "source" : "1186",
+        "target" : "1188",
+        "shared_name" : "103 (interacts with) -100",
+        "shared_interaction" : "interacts with",
+        "color" : "grey75",
+        "name" : "103 (interacts with) -100",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1190,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1198",
+        "source" : "1178",
+        "target" : "1196",
+        "shared_name" : "-99 (interacts with) -101",
+        "shared_interaction" : "interacts with",
+        "color" : "grey76",
+        "name" : "-99 (interacts with) -101",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1198,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1180",
+        "source" : "1176",
+        "target" : "1178",
+        "shared_name" : "65 (interacts with) -99",
+        "shared_interaction" : "interacts with",
+        "color" : "grey74",
+        "name" : "65 (interacts with) -99",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1180,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1193",
+        "source" : "1168",
+        "target" : "1188",
+        "shared_name" : "-98 (interacts with) -100",
+        "shared_interaction" : "interacts with",
+        "color" : "grey75",
+        "name" : "-98 (interacts with) -100",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1193,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1173",
+        "source" : "1160",
+        "target" : "1168",
+        "shared_name" : "-97 (interacts with) -98",
+        "shared_interaction" : "interacts with",
+        "color" : "grey73",
+        "name" : "-97 (interacts with) -98",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1173,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1162",
+        "source" : "1158",
+        "target" : "1160",
+        "shared_name" : "1 (interacts with) -97",
+        "shared_interaction" : "interacts with",
+        "color" : "grey72",
+        "name" : "1 (interacts with) -97",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1162,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1165",
+        "source" : "1150",
+        "target" : "1160",
+        "shared_name" : "-96 (interacts with) -97",
+        "shared_interaction" : "interacts with",
+        "color" : "grey72",
+        "name" : "-96 (interacts with) -97",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1165,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1152",
+        "source" : "1148",
+        "target" : "1150",
+        "shared_name" : "5 (interacts with) -96",
+        "shared_interaction" : "interacts with",
+        "color" : "grey71",
+        "name" : "5 (interacts with) -96",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1152,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1145",
+        "source" : "1143",
+        "target" : "1138",
+        "shared_name" : "18 (interacts with) -95",
+        "shared_interaction" : "interacts with",
+        "color" : "grey70",
+        "name" : "18 (interacts with) -95",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1145,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1155",
+        "source" : "1138",
+        "target" : "1150",
+        "shared_name" : "-95 (interacts with) -96",
+        "shared_interaction" : "interacts with",
+        "color" : "grey71",
+        "name" : "-95 (interacts with) -96",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1155,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1140",
+        "source" : "1136",
+        "target" : "1138",
+        "shared_name" : "8 (interacts with) -95",
+        "shared_interaction" : "interacts with",
+        "color" : "grey70",
+        "name" : "8 (interacts with) -95",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1140,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1170",
+        "source" : "1128",
+        "target" : "1168",
+        "shared_name" : "-94 (interacts with) -98",
+        "shared_interaction" : "interacts with",
+        "color" : "grey73",
+        "name" : "-94 (interacts with) -98",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1170,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1133",
+        "source" : "1120",
+        "target" : "1128",
+        "shared_name" : "-93 (interacts with) -94",
+        "shared_interaction" : "interacts with",
+        "color" : "grey69",
+        "name" : "-93 (interacts with) -94",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1133,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1122",
+        "source" : "1118",
+        "target" : "1120",
+        "shared_name" : "23 (interacts with) -93",
+        "shared_interaction" : "interacts with",
+        "color" : "grey69",
+        "name" : "23 (interacts with) -93",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1122,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1125",
+        "source" : "1110",
+        "target" : "1120",
+        "shared_name" : "-92 (interacts with) -93",
+        "shared_interaction" : "interacts with",
+        "color" : "grey69",
+        "name" : "-92 (interacts with) -93",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1125,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1112",
+        "source" : "1108",
+        "target" : "1110",
+        "shared_name" : "89 (interacts with) -92",
+        "shared_interaction" : "interacts with",
+        "color" : "grey68",
+        "name" : "89 (interacts with) -92",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1112,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1130",
+        "source" : "1100",
+        "target" : "1128",
+        "shared_name" : "-91 (interacts with) -94",
+        "shared_interaction" : "interacts with",
+        "color" : "grey69",
+        "name" : "-91 (interacts with) -94",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1130,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1105",
+        "source" : "1092",
+        "target" : "1100",
+        "shared_name" : "-90 (interacts with) -91",
+        "shared_interaction" : "interacts with",
+        "color" : "grey67",
+        "name" : "-90 (interacts with) -91",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1105,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1094",
+        "source" : "1090",
+        "target" : "1092",
+        "shared_name" : "73 (interacts with) -90",
+        "shared_interaction" : "interacts with",
+        "color" : "grey67",
+        "name" : "73 (interacts with) -90",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1094,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1097",
+        "source" : "1082",
+        "target" : "1092",
+        "shared_name" : "-89 (interacts with) -90",
+        "shared_interaction" : "interacts with",
+        "color" : "grey67",
+        "name" : "-89 (interacts with) -90",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1097,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1084",
+        "source" : "1080",
+        "target" : "1082",
+        "shared_name" : "53 (interacts with) -89",
+        "shared_interaction" : "interacts with",
+        "color" : "grey66",
+        "name" : "53 (interacts with) -89",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1084,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1077",
+        "source" : "1075",
+        "target" : "1070",
+        "shared_name" : "16 (interacts with) -88",
+        "shared_interaction" : "interacts with",
+        "color" : "grey66",
+        "name" : "16 (interacts with) -88",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1077,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1087",
+        "source" : "1070",
+        "target" : "1082",
+        "shared_name" : "-88 (interacts with) -89",
+        "shared_interaction" : "interacts with",
+        "color" : "grey66",
+        "name" : "-88 (interacts with) -89",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1087,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1072",
+        "source" : "1068",
+        "target" : "1070",
+        "shared_name" : "3 (interacts with) -88",
+        "shared_interaction" : "interacts with",
+        "color" : "grey66",
+        "name" : "3 (interacts with) -88",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1072,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1183",
+        "source" : "1060",
+        "target" : "1178",
+        "shared_name" : "-87 (interacts with) -99",
+        "shared_interaction" : "interacts with",
+        "color" : "grey74",
+        "name" : "-87 (interacts with) -99",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1183,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1115",
+        "source" : "1052",
+        "target" : "1110",
+        "shared_name" : "-86 (interacts with) -92",
+        "shared_interaction" : "interacts with",
+        "color" : "grey68",
+        "name" : "-86 (interacts with) -92",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1115,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1054",
+        "source" : "1050",
+        "target" : "1052",
+        "shared_name" : "54 (interacts with) -86",
+        "shared_interaction" : "interacts with",
+        "color" : "grey65",
+        "name" : "54 (interacts with) -86",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1054,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1065",
+        "source" : "1042",
+        "target" : "1060",
+        "shared_name" : "-85 (interacts with) -87",
+        "shared_interaction" : "interacts with",
+        "color" : "grey65",
+        "name" : "-85 (interacts with) -87",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1065,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1062",
+        "source" : "1034",
+        "target" : "1060",
+        "shared_name" : "-84 (interacts with) -87",
+        "shared_interaction" : "interacts with",
+        "color" : "grey65",
+        "name" : "-84 (interacts with) -87",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1062,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1036",
+        "source" : "1032",
+        "target" : "1034",
+        "shared_name" : "95 (interacts with) -84",
+        "shared_interaction" : "interacts with",
+        "color" : "grey63",
+        "name" : "95 (interacts with) -84",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1036,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1047",
+        "source" : "1024",
+        "target" : "1042",
+        "shared_name" : "-83 (interacts with) -85",
+        "shared_interaction" : "interacts with",
+        "color" : "grey64",
+        "name" : "-83 (interacts with) -85",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1047,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1021",
+        "source" : "1019",
+        "target" : "1014",
+        "shared_name" : "98 (interacts with) -82",
+        "shared_interaction" : "interacts with",
+        "color" : "grey62",
+        "name" : "98 (interacts with) -82",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1021,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1102",
+        "source" : "1014",
+        "target" : "1100",
+        "shared_name" : "-82 (interacts with) -91",
+        "shared_interaction" : "interacts with",
+        "color" : "grey67",
+        "name" : "-82 (interacts with) -91",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1102,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1016",
+        "source" : "1012",
+        "target" : "1014",
+        "shared_name" : "67 (interacts with) -82",
+        "shared_interaction" : "interacts with",
+        "color" : "grey62",
+        "name" : "67 (interacts with) -82",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1016,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1029",
+        "source" : "1004",
+        "target" : "1024",
+        "shared_name" : "-81 (interacts with) -83",
+        "shared_interaction" : "interacts with",
+        "color" : "grey62",
+        "name" : "-81 (interacts with) -83",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1029,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1006",
+        "source" : "1002",
+        "target" : "1004",
+        "shared_name" : "79 (interacts with) -81",
+        "shared_interaction" : "interacts with",
+        "color" : "grey62",
+        "name" : "79 (interacts with) -81",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1006,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "999",
+        "source" : "997",
+        "target" : "992",
+        "shared_name" : "59 (interacts with) -80",
+        "shared_interaction" : "interacts with",
+        "color" : "grey61",
+        "name" : "59 (interacts with) -80",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 999,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1057",
+        "source" : "992",
+        "target" : "1052",
+        "shared_name" : "-80 (interacts with) -86",
+        "shared_interaction" : "interacts with",
+        "color" : "grey65",
+        "name" : "-80 (interacts with) -86",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1057,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "994",
+        "source" : "990",
+        "target" : "992",
+        "shared_name" : "58 (interacts with) -80",
+        "shared_interaction" : "interacts with",
+        "color" : "grey61",
+        "name" : "58 (interacts with) -80",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 994,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1044",
+        "source" : "982",
+        "target" : "1042",
+        "shared_name" : "-79 (interacts with) -85",
+        "shared_interaction" : "interacts with",
+        "color" : "grey64",
+        "name" : "-79 (interacts with) -85",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1044,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "984",
+        "source" : "980",
+        "target" : "982",
+        "shared_name" : "24 (interacts with) -79",
+        "shared_interaction" : "interacts with",
+        "color" : "grey61",
+        "name" : "24 (interacts with) -79",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 984,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1009",
+        "source" : "972",
+        "target" : "1004",
+        "shared_name" : "-78 (interacts with) -81",
+        "shared_interaction" : "interacts with",
+        "color" : "grey62",
+        "name" : "-78 (interacts with) -81",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1009,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "974",
+        "source" : "970",
+        "target" : "972",
+        "shared_name" : "96 (interacts with) -78",
+        "shared_interaction" : "interacts with",
+        "color" : "grey60",
+        "name" : "96 (interacts with) -78",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 974,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1026",
+        "source" : "962",
+        "target" : "1024",
+        "shared_name" : "-77 (interacts with) -83",
+        "shared_interaction" : "interacts with",
+        "color" : "grey62",
+        "name" : "-77 (interacts with) -83",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1026,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "967",
+        "source" : "954",
+        "target" : "962",
+        "shared_name" : "-76 (interacts with) -77",
+        "shared_interaction" : "interacts with",
+        "color" : "grey59",
+        "name" : "-76 (interacts with) -77",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 967,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "1039",
+        "source" : "946",
+        "target" : "1034",
+        "shared_name" : "-75 (interacts with) -84",
+        "shared_interaction" : "interacts with",
+        "color" : "grey63",
+        "name" : "-75 (interacts with) -84",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 1039,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "948",
+        "source" : "944",
+        "target" : "946",
+        "shared_name" : "99 (interacts with) -75",
+        "shared_interaction" : "interacts with",
+        "color" : "grey57",
+        "name" : "99 (interacts with) -75",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 948,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "964",
+        "source" : "936",
+        "target" : "962",
+        "shared_name" : "-74 (interacts with) -77",
+        "shared_interaction" : "interacts with",
+        "color" : "grey59",
+        "name" : "-74 (interacts with) -77",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 964,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "977",
+        "source" : "928",
+        "target" : "972",
+        "shared_name" : "-73 (interacts with) -78",
+        "shared_interaction" : "interacts with",
+        "color" : "grey60",
+        "name" : "-73 (interacts with) -78",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 977,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "925",
+        "source" : "923",
+        "target" : "918",
+        "shared_name" : "82 (interacts with) -72",
+        "shared_interaction" : "interacts with",
+        "color" : "grey57",
+        "name" : "82 (interacts with) -72",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 925,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "959",
+        "source" : "918",
+        "target" : "954",
+        "shared_name" : "-72 (interacts with) -76",
+        "shared_interaction" : "interacts with",
+        "color" : "grey59",
+        "name" : "-72 (interacts with) -76",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 959,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "920",
+        "source" : "916",
+        "target" : "918",
+        "shared_name" : "78 (interacts with) -72",
+        "shared_interaction" : "interacts with",
+        "color" : "grey57",
+        "name" : "78 (interacts with) -72",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 920,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "956",
+        "source" : "908",
+        "target" : "954",
+        "shared_name" : "-71 (interacts with) -76",
+        "shared_interaction" : "interacts with",
+        "color" : "grey59",
+        "name" : "-71 (interacts with) -76",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 956,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "910",
+        "source" : "906",
+        "target" : "908",
+        "shared_name" : "34 (interacts with) -71",
+        "shared_interaction" : "interacts with",
+        "color" : "grey56",
+        "name" : "34 (interacts with) -71",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 910,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "903",
+        "source" : "901",
+        "target" : "896",
+        "shared_name" : "69 (interacts with) -70",
+        "shared_interaction" : "interacts with",
+        "color" : "grey56",
+        "name" : "69 (interacts with) -70",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 903,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "951",
+        "source" : "896",
+        "target" : "946",
+        "shared_name" : "-70 (interacts with) -75",
+        "shared_interaction" : "interacts with",
+        "color" : "grey57",
+        "name" : "-70 (interacts with) -75",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 951,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "898",
+        "source" : "894",
+        "target" : "896",
+        "shared_name" : "45 (interacts with) -70",
+        "shared_interaction" : "interacts with",
+        "color" : "grey56",
+        "name" : "45 (interacts with) -70",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 898,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "891",
+        "source" : "889",
+        "target" : "884",
+        "shared_name" : "83 (interacts with) -69",
+        "shared_interaction" : "interacts with",
+        "color" : "grey56",
+        "name" : "83 (interacts with) -69",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 891,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "987",
+        "source" : "884",
+        "target" : "982",
+        "shared_name" : "-69 (interacts with) -79",
+        "shared_interaction" : "interacts with",
+        "color" : "grey61",
+        "name" : "-69 (interacts with) -79",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 987,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "886",
+        "source" : "882",
+        "target" : "884",
+        "shared_name" : "61 (interacts with) -69",
+        "shared_interaction" : "interacts with",
+        "color" : "grey56",
+        "name" : "61 (interacts with) -69",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 886,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "933",
+        "source" : "874",
+        "target" : "928",
+        "shared_name" : "-68 (interacts with) -73",
+        "shared_interaction" : "interacts with",
+        "color" : "grey57",
+        "name" : "-68 (interacts with) -73",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 933,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "941",
+        "source" : "866",
+        "target" : "936",
+        "shared_name" : "-67 (interacts with) -74",
+        "shared_interaction" : "interacts with",
+        "color" : "grey57",
+        "name" : "-67 (interacts with) -74",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 941,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "930",
+        "source" : "858",
+        "target" : "928",
+        "shared_name" : "-66 (interacts with) -73",
+        "shared_interaction" : "interacts with",
+        "color" : "grey57",
+        "name" : "-66 (interacts with) -73",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 930,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "860",
+        "source" : "856",
+        "target" : "858",
+        "shared_name" : "56 (interacts with) -66",
+        "shared_interaction" : "interacts with",
+        "color" : "grey55",
+        "name" : "56 (interacts with) -66",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 860,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "871",
+        "source" : "848",
+        "target" : "866",
+        "shared_name" : "-65 (interacts with) -67",
+        "shared_interaction" : "interacts with",
+        "color" : "grey55",
+        "name" : "-65 (interacts with) -67",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 871,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "850",
+        "source" : "846",
+        "target" : "848",
+        "shared_name" : "6 (interacts with) -65",
+        "shared_interaction" : "interacts with",
+        "color" : "grey54",
+        "name" : "6 (interacts with) -65",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 850,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "913",
+        "source" : "838",
+        "target" : "908",
+        "shared_name" : "-64 (interacts with) -71",
+        "shared_interaction" : "interacts with",
+        "color" : "grey56",
+        "name" : "-64 (interacts with) -71",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 913,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "840",
+        "source" : "836",
+        "target" : "838",
+        "shared_name" : "44 (interacts with) -64",
+        "shared_interaction" : "interacts with",
+        "color" : "grey54",
+        "name" : "44 (interacts with) -64",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 840,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "879",
+        "source" : "828",
+        "target" : "874",
+        "shared_name" : "-63 (interacts with) -68",
+        "shared_interaction" : "interacts with",
+        "color" : "grey55",
+        "name" : "-63 (interacts with) -68",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 879,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "853",
+        "source" : "820",
+        "target" : "848",
+        "shared_name" : "-62 (interacts with) -65",
+        "shared_interaction" : "interacts with",
+        "color" : "grey54",
+        "name" : "-62 (interacts with) -65",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 853,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "822",
+        "source" : "818",
+        "target" : "820",
+        "shared_name" : "105 (interacts with) -62",
+        "shared_interaction" : "interacts with",
+        "color" : "grey53",
+        "name" : "105 (interacts with) -62",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 822,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "825",
+        "source" : "810",
+        "target" : "820",
+        "shared_name" : "-61 (interacts with) -62",
+        "shared_interaction" : "interacts with",
+        "color" : "grey53",
+        "name" : "-61 (interacts with) -62",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 825,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "812",
+        "source" : "808",
+        "target" : "810",
+        "shared_name" : "85 (interacts with) -61",
+        "shared_interaction" : "interacts with",
+        "color" : "grey53",
+        "name" : "85 (interacts with) -61",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 812,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "868",
+        "source" : "800",
+        "target" : "866",
+        "shared_name" : "-60 (interacts with) -67",
+        "shared_interaction" : "interacts with",
+        "color" : "grey55",
+        "name" : "-60 (interacts with) -67",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 868,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "876",
+        "source" : "792",
+        "target" : "874",
+        "shared_name" : "-59 (interacts with) -68",
+        "shared_interaction" : "interacts with",
+        "color" : "grey55",
+        "name" : "-59 (interacts with) -68",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 876,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "794",
+        "source" : "790",
+        "target" : "792",
+        "shared_name" : "84 (interacts with) -59",
+        "shared_interaction" : "interacts with",
+        "color" : "grey53",
+        "name" : "84 (interacts with) -59",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 794,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "843",
+        "source" : "782",
+        "target" : "838",
+        "shared_name" : "-58 (interacts with) -64",
+        "shared_interaction" : "interacts with",
+        "color" : "grey54",
+        "name" : "-58 (interacts with) -64",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 843,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "784",
+        "source" : "780",
+        "target" : "782",
+        "shared_name" : "48 (interacts with) -58",
+        "shared_interaction" : "interacts with",
+        "color" : "grey53",
+        "name" : "48 (interacts with) -58",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 784,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "787",
+        "source" : "772",
+        "target" : "782",
+        "shared_name" : "-57 (interacts with) -58",
+        "shared_interaction" : "interacts with",
+        "color" : "grey53",
+        "name" : "-57 (interacts with) -58",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 787,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "774",
+        "source" : "770",
+        "target" : "772",
+        "shared_name" : "66 (interacts with) -57",
+        "shared_interaction" : "interacts with",
+        "color" : "grey53",
+        "name" : "66 (interacts with) -57",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 774,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "805",
+        "source" : "762",
+        "target" : "800",
+        "shared_name" : "-56 (interacts with) -60",
+        "shared_interaction" : "interacts with",
+        "color" : "grey53",
+        "name" : "-56 (interacts with) -60",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 805,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "764",
+        "source" : "760",
+        "target" : "762",
+        "shared_name" : "100 (interacts with) -56",
+        "shared_interaction" : "interacts with",
+        "color" : "grey52",
+        "name" : "100 (interacts with) -56",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 764,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "833",
+        "source" : "752",
+        "target" : "828",
+        "shared_name" : "-55 (interacts with) -63",
+        "shared_interaction" : "interacts with",
+        "color" : "grey53",
+        "name" : "-55 (interacts with) -63",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 833,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "754",
+        "source" : "750",
+        "target" : "752",
+        "shared_name" : "71 (interacts with) -55",
+        "shared_interaction" : "interacts with",
+        "color" : "grey52",
+        "name" : "71 (interacts with) -55",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 754,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "777",
+        "source" : "742",
+        "target" : "772",
+        "shared_name" : "-54 (interacts with) -57",
+        "shared_interaction" : "interacts with",
+        "color" : "grey53",
+        "name" : "-54 (interacts with) -57",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 777,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "739",
+        "source" : "737",
+        "target" : "732",
+        "shared_name" : "38 (interacts with) -53",
+        "shared_interaction" : "interacts with",
+        "color" : "grey51",
+        "name" : "38 (interacts with) -53",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 739,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "747",
+        "source" : "732",
+        "target" : "742",
+        "shared_name" : "-53 (interacts with) -54",
+        "shared_interaction" : "interacts with",
+        "color" : "grey52",
+        "name" : "-53 (interacts with) -54",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 747,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "734",
+        "source" : "730",
+        "target" : "732",
+        "shared_name" : "14 (interacts with) -53",
+        "shared_interaction" : "interacts with",
+        "color" : "grey51",
+        "name" : "14 (interacts with) -53",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 734,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "863",
+        "source" : "722",
+        "target" : "858",
+        "shared_name" : "-52 (interacts with) -66",
+        "shared_interaction" : "interacts with",
+        "color" : "grey55",
+        "name" : "-52 (interacts with) -66",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 863,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "724",
+        "source" : "720",
+        "target" : "722",
+        "shared_name" : "35 (interacts with) -52",
+        "shared_interaction" : "interacts with",
+        "color" : "grey51",
+        "name" : "35 (interacts with) -52",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 724,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "744",
+        "source" : "712",
+        "target" : "742",
+        "shared_name" : "-51 (interacts with) -54",
+        "shared_interaction" : "interacts with",
+        "color" : "grey52",
+        "name" : "-51 (interacts with) -54",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 744,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "714",
+        "source" : "710",
+        "target" : "712",
+        "shared_name" : "25 (interacts with) -51",
+        "shared_interaction" : "interacts with",
+        "color" : "grey51",
+        "name" : "25 (interacts with) -51",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 714,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "815",
+        "source" : "702",
+        "target" : "810",
+        "shared_name" : "-50 (interacts with) -61",
+        "shared_interaction" : "interacts with",
+        "color" : "grey53",
+        "name" : "-50 (interacts with) -61",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 815,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "727",
+        "source" : "694",
+        "target" : "722",
+        "shared_name" : "-49 (interacts with) -52",
+        "shared_interaction" : "interacts with",
+        "color" : "grey51",
+        "name" : "-49 (interacts with) -52",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 727,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "767",
+        "source" : "686",
+        "target" : "762",
+        "shared_name" : "-48 (interacts with) -56",
+        "shared_interaction" : "interacts with",
+        "color" : "grey52",
+        "name" : "-48 (interacts with) -56",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 767,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "688",
+        "source" : "684",
+        "target" : "686",
+        "shared_name" : "4 (interacts with) -48",
+        "shared_interaction" : "interacts with",
+        "color" : "grey50",
+        "name" : "4 (interacts with) -48",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 688,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "681",
+        "source" : "679",
+        "target" : "674",
+        "shared_name" : "41 (interacts with) -47",
+        "shared_interaction" : "interacts with",
+        "color" : "grey50",
+        "name" : "41 (interacts with) -47",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 681,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "830",
+        "source" : "674",
+        "target" : "828",
+        "shared_name" : "-47 (interacts with) -63",
+        "shared_interaction" : "interacts with",
+        "color" : "grey53",
+        "name" : "-47 (interacts with) -63",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 830,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "676",
+        "source" : "672",
+        "target" : "674",
+        "shared_name" : "15 (interacts with) -47",
+        "shared_interaction" : "interacts with",
+        "color" : "grey50",
+        "name" : "15 (interacts with) -47",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 676,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "757",
+        "source" : "664",
+        "target" : "752",
+        "shared_name" : "-46 (interacts with) -55",
+        "shared_interaction" : "interacts with",
+        "color" : "grey52",
+        "name" : "-46 (interacts with) -55",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 757,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "666",
+        "source" : "662",
+        "target" : "664",
+        "shared_name" : "92 (interacts with) -46",
+        "shared_interaction" : "interacts with",
+        "color" : "grey50",
+        "name" : "92 (interacts with) -46",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 666,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "707",
+        "source" : "654",
+        "target" : "702",
+        "shared_name" : "-45 (interacts with) -50",
+        "shared_interaction" : "interacts with",
+        "color" : "grey50",
+        "name" : "-45 (interacts with) -50",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 707,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "717",
+        "source" : "646",
+        "target" : "712",
+        "shared_name" : "-44 (interacts with) -51",
+        "shared_interaction" : "interacts with",
+        "color" : "grey51",
+        "name" : "-44 (interacts with) -51",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 717,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "648",
+        "source" : "644",
+        "target" : "646",
+        "shared_name" : "43 (interacts with) -44",
+        "shared_interaction" : "interacts with",
+        "color" : "grey49",
+        "name" : "43 (interacts with) -44",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 648,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "802",
+        "source" : "636",
+        "target" : "800",
+        "shared_name" : "-43 (interacts with) -60",
+        "shared_interaction" : "interacts with",
+        "color" : "grey53",
+        "name" : "-43 (interacts with) -60",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 802,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "638",
+        "source" : "634",
+        "target" : "636",
+        "shared_name" : "51 (interacts with) -43",
+        "shared_interaction" : "interacts with",
+        "color" : "grey49",
+        "name" : "51 (interacts with) -43",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 638,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "691",
+        "source" : "626",
+        "target" : "686",
+        "shared_name" : "-42 (interacts with) -48",
+        "shared_interaction" : "interacts with",
+        "color" : "grey50",
+        "name" : "-42 (interacts with) -48",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 691,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "623",
+        "source" : "621",
+        "target" : "616",
+        "shared_name" : "91 (interacts with) -41",
+        "shared_interaction" : "interacts with",
+        "color" : "grey49",
+        "name" : "91 (interacts with) -41",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 623,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "659",
+        "source" : "616",
+        "target" : "654",
+        "shared_name" : "-41 (interacts with) -45",
+        "shared_interaction" : "interacts with",
+        "color" : "grey49",
+        "name" : "-41 (interacts with) -45",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 659,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "618",
+        "source" : "614",
+        "target" : "616",
+        "shared_name" : "30 (interacts with) -41",
+        "shared_interaction" : "interacts with",
+        "color" : "grey49",
+        "name" : "30 (interacts with) -41",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 618,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "699",
+        "source" : "606",
+        "target" : "694",
+        "shared_name" : "-40 (interacts with) -49",
+        "shared_interaction" : "interacts with",
+        "color" : "grey50",
+        "name" : "-40 (interacts with) -49",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 699,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "608",
+        "source" : "604",
+        "target" : "606",
+        "shared_name" : "2 (interacts with) -40",
+        "shared_interaction" : "interacts with",
+        "color" : "grey49",
+        "name" : "2 (interacts with) -40",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 608,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "704",
+        "source" : "596",
+        "target" : "702",
+        "shared_name" : "-39 (interacts with) -50",
+        "shared_interaction" : "interacts with",
+        "color" : "grey50",
+        "name" : "-39 (interacts with) -50",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 704,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "631",
+        "source" : "588",
+        "target" : "626",
+        "shared_name" : "-38 (interacts with) -42",
+        "shared_interaction" : "interacts with",
+        "color" : "grey49",
+        "name" : "-38 (interacts with) -42",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 631,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "590",
+        "source" : "586",
+        "target" : "588",
+        "shared_name" : "27 (interacts with) -38",
+        "shared_interaction" : "interacts with",
+        "color" : "grey48",
+        "name" : "27 (interacts with) -38",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 590,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "583",
+        "source" : "581",
+        "target" : "576",
+        "shared_name" : "101 (interacts with) -37",
+        "shared_interaction" : "interacts with",
+        "color" : "grey48",
+        "name" : "101 (interacts with) -37",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 583,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "797",
+        "source" : "576",
+        "target" : "792",
+        "shared_name" : "-37 (interacts with) -59",
+        "shared_interaction" : "interacts with",
+        "color" : "grey53",
+        "name" : "-37 (interacts with) -59",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 797,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "578",
+        "source" : "574",
+        "target" : "576",
+        "shared_name" : "63 (interacts with) -37",
+        "shared_interaction" : "interacts with",
+        "color" : "grey48",
+        "name" : "63 (interacts with) -37",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 578,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "628",
+        "source" : "566",
+        "target" : "626",
+        "shared_name" : "-36 (interacts with) -42",
+        "shared_interaction" : "interacts with",
+        "color" : "grey49",
+        "name" : "-36 (interacts with) -42",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 628,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "568",
+        "source" : "564",
+        "target" : "566",
+        "shared_name" : "28 (interacts with) -36",
+        "shared_interaction" : "interacts with",
+        "color" : "grey48",
+        "name" : "28 (interacts with) -36",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 568,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "561",
+        "source" : "559",
+        "target" : "554",
+        "shared_name" : "76 (interacts with) -35",
+        "shared_interaction" : "interacts with",
+        "color" : "grey48",
+        "name" : "76 (interacts with) -35",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 561,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "651",
+        "source" : "554",
+        "target" : "646",
+        "shared_name" : "-35 (interacts with) -44",
+        "shared_interaction" : "interacts with",
+        "color" : "grey49",
+        "name" : "-35 (interacts with) -44",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 651,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "556",
+        "source" : "552",
+        "target" : "554",
+        "shared_name" : "9 (interacts with) -35",
+        "shared_interaction" : "interacts with",
+        "color" : "grey48",
+        "name" : "9 (interacts with) -35",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 556,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "656",
+        "source" : "544",
+        "target" : "654",
+        "shared_name" : "-34 (interacts with) -45",
+        "shared_interaction" : "interacts with",
+        "color" : "grey49",
+        "name" : "-34 (interacts with) -45",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 656,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "601",
+        "source" : "536",
+        "target" : "596",
+        "shared_name" : "-33 (interacts with) -39",
+        "shared_interaction" : "interacts with",
+        "color" : "grey48",
+        "name" : "-33 (interacts with) -39",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 601,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "938",
+        "source" : "528",
+        "target" : "936",
+        "shared_name" : "-32 (interacts with) -74",
+        "shared_interaction" : "interacts with",
+        "color" : "grey57",
+        "name" : "-32 (interacts with) -74",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 938,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "530",
+        "source" : "526",
+        "target" : "528",
+        "shared_name" : "46 (interacts with) -32",
+        "shared_interaction" : "interacts with",
+        "color" : "grey47",
+        "name" : "46 (interacts with) -32",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 530,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "523",
+        "source" : "521",
+        "target" : "516",
+        "shared_name" : "87 (interacts with) -31",
+        "shared_interaction" : "interacts with",
+        "color" : "grey47",
+        "name" : "87 (interacts with) -31",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 523,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "696",
+        "source" : "516",
+        "target" : "694",
+        "shared_name" : "-31 (interacts with) -49",
+        "shared_interaction" : "interacts with",
+        "color" : "grey50",
+        "name" : "-31 (interacts with) -49",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 696,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "518",
+        "source" : "514",
+        "target" : "516",
+        "shared_name" : "64 (interacts with) -31",
+        "shared_interaction" : "interacts with",
+        "color" : "grey47",
+        "name" : "64 (interacts with) -31",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 518,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "511",
+        "source" : "509",
+        "target" : "504",
+        "shared_name" : "60 (interacts with) -30",
+        "shared_interaction" : "interacts with",
+        "color" : "grey47",
+        "name" : "60 (interacts with) -30",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 511,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "593",
+        "source" : "504",
+        "target" : "588",
+        "shared_name" : "-30 (interacts with) -38",
+        "shared_interaction" : "interacts with",
+        "color" : "grey48",
+        "name" : "-30 (interacts with) -38",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 593,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "506",
+        "source" : "502",
+        "target" : "504",
+        "shared_name" : "31 (interacts with) -30",
+        "shared_interaction" : "interacts with",
+        "color" : "grey47",
+        "name" : "31 (interacts with) -30",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 506,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "541",
+        "source" : "494",
+        "target" : "536",
+        "shared_name" : "-29 (interacts with) -33",
+        "shared_interaction" : "interacts with",
+        "color" : "grey48",
+        "name" : "-29 (interacts with) -33",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 541,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "496",
+        "source" : "492",
+        "target" : "494",
+        "shared_name" : "90 (interacts with) -29",
+        "shared_interaction" : "interacts with",
+        "color" : "grey47",
+        "name" : "90 (interacts with) -29",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 496,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "549",
+        "source" : "484",
+        "target" : "544",
+        "shared_name" : "-28 (interacts with) -34",
+        "shared_interaction" : "interacts with",
+        "color" : "grey48",
+        "name" : "-28 (interacts with) -34",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 549,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "486",
+        "source" : "482",
+        "target" : "484",
+        "shared_name" : "22 (interacts with) -28",
+        "shared_interaction" : "interacts with",
+        "color" : "grey46",
+        "name" : "22 (interacts with) -28",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 486,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "538",
+        "source" : "474",
+        "target" : "536",
+        "shared_name" : "-27 (interacts with) -33",
+        "shared_interaction" : "interacts with",
+        "color" : "grey48",
+        "name" : "-27 (interacts with) -33",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 538,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "476",
+        "source" : "472",
+        "target" : "474",
+        "shared_name" : "72 (interacts with) -27",
+        "shared_interaction" : "interacts with",
+        "color" : "grey46",
+        "name" : "72 (interacts with) -27",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 476,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "469",
+        "source" : "467",
+        "target" : "462",
+        "shared_name" : "68 (interacts with) -26",
+        "shared_interaction" : "interacts with",
+        "color" : "grey46",
+        "name" : "68 (interacts with) -26",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 469,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "546",
+        "source" : "462",
+        "target" : "544",
+        "shared_name" : "-26 (interacts with) -34",
+        "shared_interaction" : "interacts with",
+        "color" : "grey48",
+        "name" : "-26 (interacts with) -34",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 546,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "464",
+        "source" : "460",
+        "target" : "462",
+        "shared_name" : "11 (interacts with) -26",
+        "shared_interaction" : "interacts with",
+        "color" : "grey46",
+        "name" : "11 (interacts with) -26",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 464,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "457",
+        "source" : "455",
+        "target" : "450",
+        "shared_name" : "52 (interacts with) -25",
+        "shared_interaction" : "interacts with",
+        "color" : "grey46",
+        "name" : "52 (interacts with) -25",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 457,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "669",
+        "source" : "450",
+        "target" : "664",
+        "shared_name" : "-25 (interacts with) -46",
+        "shared_interaction" : "interacts with",
+        "color" : "grey50",
+        "name" : "-25 (interacts with) -46",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 669,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "452",
+        "source" : "448",
+        "target" : "450",
+        "shared_name" : "10 (interacts with) -25",
+        "shared_interaction" : "interacts with",
+        "color" : "grey46",
+        "name" : "10 (interacts with) -25",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 452,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "571",
+        "source" : "440",
+        "target" : "566",
+        "shared_name" : "-24 (interacts with) -36",
+        "shared_interaction" : "interacts with",
+        "color" : "grey48",
+        "name" : "-24 (interacts with) -36",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 571,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "641",
+        "source" : "432",
+        "target" : "636",
+        "shared_name" : "-23 (interacts with) -43",
+        "shared_interaction" : "interacts with",
+        "color" : "grey49",
+        "name" : "-23 (interacts with) -43",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 641,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "429",
+        "source" : "427",
+        "target" : "422",
+        "shared_name" : "97 (interacts with) -22",
+        "shared_interaction" : "interacts with",
+        "color" : "grey45",
+        "name" : "97 (interacts with) -22",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 429,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "445",
+        "source" : "422",
+        "target" : "440",
+        "shared_name" : "-22 (interacts with) -24",
+        "shared_interaction" : "interacts with",
+        "color" : "grey46",
+        "name" : "-22 (interacts with) -24",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 445,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "424",
+        "source" : "420",
+        "target" : "422",
+        "shared_name" : "7 (interacts with) -22",
+        "shared_interaction" : "interacts with",
+        "color" : "grey45",
+        "name" : "7 (interacts with) -22",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 424,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "417",
+        "source" : "415",
+        "target" : "410",
+        "shared_name" : "47 (interacts with) -21",
+        "shared_interaction" : "interacts with",
+        "color" : "grey45",
+        "name" : "47 (interacts with) -21",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 417,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "611",
+        "source" : "410",
+        "target" : "606",
+        "shared_name" : "-21 (interacts with) -40",
+        "shared_interaction" : "interacts with",
+        "color" : "grey49",
+        "name" : "-21 (interacts with) -40",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 611,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "412",
+        "source" : "408",
+        "target" : "410",
+        "shared_name" : "19 (interacts with) -21",
+        "shared_interaction" : "interacts with",
+        "color" : "grey45",
+        "name" : "19 (interacts with) -21",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 412,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "442",
+        "source" : "400",
+        "target" : "440",
+        "shared_name" : "-20 (interacts with) -24",
+        "shared_interaction" : "interacts with",
+        "color" : "grey46",
+        "name" : "-20 (interacts with) -24",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 442,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "402",
+        "source" : "398",
+        "target" : "400",
+        "shared_name" : "74 (interacts with) -20",
+        "shared_interaction" : "interacts with",
+        "color" : "grey45",
+        "name" : "74 (interacts with) -20",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 402,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "395",
+        "source" : "393",
+        "target" : "388",
+        "shared_name" : "80 (interacts with) -19",
+        "shared_interaction" : "interacts with",
+        "color" : "grey45",
+        "name" : "80 (interacts with) -19",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 395,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "533",
+        "source" : "388",
+        "target" : "528",
+        "shared_name" : "-19 (interacts with) -32",
+        "shared_interaction" : "interacts with",
+        "color" : "grey47",
+        "name" : "-19 (interacts with) -32",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 533,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "390",
+        "source" : "386",
+        "target" : "388",
+        "shared_name" : "39 (interacts with) -19",
+        "shared_interaction" : "interacts with",
+        "color" : "grey45",
+        "name" : "39 (interacts with) -19",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 390,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "499",
+        "source" : "378",
+        "target" : "494",
+        "shared_name" : "-18 (interacts with) -29",
+        "shared_interaction" : "interacts with",
+        "color" : "grey47",
+        "name" : "-18 (interacts with) -29",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 499,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "375",
+        "source" : "373",
+        "target" : "368",
+        "shared_name" : "32 (interacts with) -17",
+        "shared_interaction" : "interacts with",
+        "color" : "grey44",
+        "name" : "32 (interacts with) -17",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 375,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "479",
+        "source" : "368",
+        "target" : "474",
+        "shared_name" : "-17 (interacts with) -27",
+        "shared_interaction" : "interacts with",
+        "color" : "grey46",
+        "name" : "-17 (interacts with) -27",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 479,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "370",
+        "source" : "366",
+        "target" : "368",
+        "shared_name" : "29 (interacts with) -17",
+        "shared_interaction" : "interacts with",
+        "color" : "grey44",
+        "name" : "29 (interacts with) -17",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 370,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "437",
+        "source" : "358",
+        "target" : "432",
+        "shared_name" : "-16 (interacts with) -23",
+        "shared_interaction" : "interacts with",
+        "color" : "grey46",
+        "name" : "-16 (interacts with) -23",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 437,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "360",
+        "source" : "356",
+        "target" : "358",
+        "shared_name" : "36 (interacts with) -16",
+        "shared_interaction" : "interacts with",
+        "color" : "grey44",
+        "name" : "36 (interacts with) -16",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 360,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "363",
+        "source" : "348",
+        "target" : "358",
+        "shared_name" : "-15 (interacts with) -16",
+        "shared_interaction" : "interacts with",
+        "color" : "grey44",
+        "name" : "-15 (interacts with) -16",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 363,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "350",
+        "source" : "346",
+        "target" : "348",
+        "shared_name" : "50 (interacts with) -15",
+        "shared_interaction" : "interacts with",
+        "color" : "grey44",
+        "name" : "50 (interacts with) -15",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 350,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "383",
+        "source" : "338",
+        "target" : "378",
+        "shared_name" : "-14 (interacts with) -18",
+        "shared_interaction" : "interacts with",
+        "color" : "grey44",
+        "name" : "-14 (interacts with) -18",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 383,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "340",
+        "source" : "336",
+        "target" : "338",
+        "shared_name" : "102 (interacts with) -14",
+        "shared_interaction" : "interacts with",
+        "color" : "grey44",
+        "name" : "102 (interacts with) -14",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 340,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "333",
+        "source" : "331",
+        "target" : "326",
+        "shared_name" : "57 (interacts with) -13",
+        "shared_interaction" : "interacts with",
+        "color" : "grey43",
+        "name" : "57 (interacts with) -13",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 333,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "405",
+        "source" : "326",
+        "target" : "400",
+        "shared_name" : "-13 (interacts with) -20",
+        "shared_interaction" : "interacts with",
+        "color" : "grey45",
+        "name" : "-13 (interacts with) -20",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 405,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "328",
+        "source" : "324",
+        "target" : "326",
+        "shared_name" : "21 (interacts with) -13",
+        "shared_interaction" : "interacts with",
+        "color" : "grey43",
+        "name" : "21 (interacts with) -13",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 328,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "380",
+        "source" : "316",
+        "target" : "378",
+        "shared_name" : "-12 (interacts with) -18",
+        "shared_interaction" : "interacts with",
+        "color" : "grey44",
+        "name" : "-12 (interacts with) -18",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 380,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "318",
+        "source" : "314",
+        "target" : "316",
+        "shared_name" : "33 (interacts with) -12",
+        "shared_interaction" : "interacts with",
+        "color" : "grey43",
+        "name" : "33 (interacts with) -12",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 318,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "489",
+        "source" : "306",
+        "target" : "484",
+        "shared_name" : "-11 (interacts with) -28",
+        "shared_interaction" : "interacts with",
+        "color" : "grey46",
+        "name" : "-11 (interacts with) -28",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 489,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "308",
+        "source" : "304",
+        "target" : "306",
+        "shared_name" : "13 (interacts with) -11",
+        "shared_interaction" : "interacts with",
+        "color" : "grey43",
+        "name" : "13 (interacts with) -11",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 308,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "343",
+        "source" : "296",
+        "target" : "338",
+        "shared_name" : "-10 (interacts with) -14",
+        "shared_interaction" : "interacts with",
+        "color" : "grey44",
+        "name" : "-10 (interacts with) -14",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 343,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "298",
+        "source" : "294",
+        "target" : "296",
+        "shared_name" : "20 (interacts with) -10",
+        "shared_interaction" : "interacts with",
+        "color" : "grey43",
+        "name" : "20 (interacts with) -10",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 298,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "353",
+        "source" : "286",
+        "target" : "348",
+        "shared_name" : "-9 (interacts with) -15",
+        "shared_interaction" : "interacts with",
+        "color" : "grey44",
+        "name" : "-9 (interacts with) -15",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 353,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "288",
+        "source" : "284",
+        "target" : "286",
+        "shared_name" : "62 (interacts with) -9",
+        "shared_interaction" : "interacts with",
+        "color" : "grey43",
+        "name" : "62 (interacts with) -9",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 288,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "311",
+        "source" : "276",
+        "target" : "306",
+        "shared_name" : "-8 (interacts with) -11",
+        "shared_interaction" : "interacts with",
+        "color" : "grey43",
+        "name" : "-8 (interacts with) -11",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 311,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "278",
+        "source" : "274",
+        "target" : "276",
+        "shared_name" : "49 (interacts with) -8",
+        "shared_interaction" : "interacts with",
+        "color" : "grey42",
+        "name" : "49 (interacts with) -8",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 278,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "271",
+        "source" : "269",
+        "target" : "264",
+        "shared_name" : "93 (interacts with) -7",
+        "shared_interaction" : "interacts with",
+        "color" : "grey42",
+        "name" : "93 (interacts with) -7",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 271,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "291",
+        "source" : "264",
+        "target" : "286",
+        "shared_name" : "-7 (interacts with) -9",
+        "shared_interaction" : "interacts with",
+        "color" : "grey43",
+        "name" : "-7 (interacts with) -9",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 291,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "266",
+        "source" : "262",
+        "target" : "264",
+        "shared_name" : "37 (interacts with) -7",
+        "shared_interaction" : "interacts with",
+        "color" : "grey42",
+        "name" : "37 (interacts with) -7",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 266,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "259",
+        "source" : "257",
+        "target" : "252",
+        "shared_name" : "55 (interacts with) -6",
+        "shared_interaction" : "interacts with",
+        "color" : "grey42",
+        "name" : "55 (interacts with) -6",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 259,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "598",
+        "source" : "252",
+        "target" : "596",
+        "shared_name" : "-6 (interacts with) -39",
+        "shared_interaction" : "interacts with",
+        "color" : "grey48",
+        "name" : "-6 (interacts with) -39",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 598,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "254",
+        "source" : "250",
+        "target" : "252",
+        "shared_name" : "42 (interacts with) -6",
+        "shared_interaction" : "interacts with",
+        "color" : "grey42",
+        "name" : "42 (interacts with) -6",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 254,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "301",
+        "source" : "242",
+        "target" : "296",
+        "shared_name" : "-5 (interacts with) -10",
+        "shared_interaction" : "interacts with",
+        "color" : "grey43",
+        "name" : "-5 (interacts with) -10",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 301,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "244",
+        "source" : "240",
+        "target" : "242",
+        "shared_name" : "17 (interacts with) -5",
+        "shared_interaction" : "interacts with",
+        "color" : "grey42",
+        "name" : "17 (interacts with) -5",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 244,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "237",
+        "source" : "235",
+        "target" : "230",
+        "shared_name" : "77 (interacts with) -4",
+        "shared_interaction" : "interacts with",
+        "color" : "grey42",
+        "name" : "77 (interacts with) -4",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 237,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "281",
+        "source" : "230",
+        "target" : "276",
+        "shared_name" : "-4 (interacts with) -8",
+        "shared_interaction" : "interacts with",
+        "color" : "grey42",
+        "name" : "-4 (interacts with) -8",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 281,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "232",
+        "source" : "228",
+        "target" : "230",
+        "shared_name" : "40 (interacts with) -4",
+        "shared_interaction" : "interacts with",
+        "color" : "grey42",
+        "name" : "40 (interacts with) -4",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 232,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "225",
+        "source" : "223",
+        "target" : "218",
+        "shared_name" : "88 (interacts with) -3",
+        "shared_interaction" : "interacts with",
+        "color" : "grey40",
+        "name" : "88 (interacts with) -3",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 225,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "434",
+        "source" : "218",
+        "target" : "432",
+        "shared_name" : "-3 (interacts with) -23",
+        "shared_interaction" : "interacts with",
+        "color" : "grey46",
+        "name" : "-3 (interacts with) -23",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 434,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "220",
+        "source" : "216",
+        "target" : "218",
+        "shared_name" : "70 (interacts with) -3",
+        "shared_interaction" : "interacts with",
+        "color" : "grey40",
+        "name" : "70 (interacts with) -3",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 220,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "213",
+        "source" : "211",
+        "target" : "206",
+        "shared_name" : "86 (interacts with) -2",
+        "shared_interaction" : "interacts with",
+        "color" : "grey40",
+        "name" : "86 (interacts with) -2",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 213,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "321",
+        "source" : "206",
+        "target" : "316",
+        "shared_name" : "-2 (interacts with) -12",
+        "shared_interaction" : "interacts with",
+        "color" : "grey43",
+        "name" : "-2 (interacts with) -12",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 321,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "208",
+        "source" : "204",
+        "target" : "206",
+        "shared_name" : "81 (interacts with) -2",
+        "shared_interaction" : "interacts with",
+        "color" : "grey40",
+        "name" : "81 (interacts with) -2",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 208,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "201",
+        "source" : "199",
+        "target" : "185",
+        "shared_name" : "26 (interacts with) -1",
+        "shared_interaction" : "interacts with",
+        "color" : "grey40",
+        "name" : "26 (interacts with) -1",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 201,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "247",
+        "source" : "185",
+        "target" : "242",
+        "shared_name" : "-1 (interacts with) -5",
+        "shared_interaction" : "interacts with",
+        "color" : "grey42",
+        "name" : "-1 (interacts with) -5",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 247,
+        "selected" : false
+      },
+      "selected" : false
+    }, {
+      "data" : {
+        "id" : "187",
+        "source" : "183",
+        "target" : "185",
+        "shared_name" : "12 (interacts with) -1",
+        "shared_interaction" : "interacts with",
+        "color" : "grey40",
+        "name" : "12 (interacts with) -1",
+        "interaction" : "interacts with",
+        "width" : 2,
+        "SUID" : 187,
+        "selected" : false
+      },
+      "selected" : false
+    } ]
+  }
+}

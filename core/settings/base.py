@@ -132,6 +132,14 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # DATASETS ROOT variable used for portal data storage
 DATASETS_ROOT = env("DATASETS_ROOT", default="/datasets")
 
+# Bundled reference data for the DINA Liver Resource dashboard
+LIVER_RESOURCE_DATA_ROOT = Path(
+    env(
+        "LIVER_RESOURCE_DATA_ROOT",
+        default=str(BASE_DIR / "cms" / "services" / "liver_resource" / "data"),
+    )
+).resolve()
+
 
 # PASSWORDS (https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators)
 # ------------------------------------------------------------------------------
