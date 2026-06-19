@@ -138,6 +138,16 @@ class TestLiverViews(TestCase):
         self.assertContains(response, "Module 1")
         self.assertContains(response, "ENSG")
 
+    def test_download_template_returns_file(self) -> None:
+        """Test template download returns the bundled DE template."""
+        url = reverse("cms:liver_download_template")
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("DE_upload_template.txt", response["Content-Disposition"])
+        self.assertIn(b"logFC", response.content)
+        self.assertIn(b"adj.P.Val", response.content)
+
     def test_export_module_scores_requires_session(self) -> None:
         """Test module scores export without session returns 400."""
         url = reverse("cms:liver_export_modules")

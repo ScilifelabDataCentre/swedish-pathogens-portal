@@ -5,9 +5,19 @@ from typing import Any
 from django.http import HttpRequest
 
 from cms.pages.dashboard import DashboardPage
+from cms.services.liver_resource.analysis import LEAF_TRACE_INDEX
 from cms.services.liver_resource.computation import VALID_CUTOFFS
-from cms.services.liver_resource.examples import list_example_slugs
-from cms.services.liver_resource.plotly_tln import build_base_figure_json
+from cms.services.liver_resource.examples import list_examples
+from cms.services.liver_resource.plotly_tln import (
+    DEFAULT_PLOT_HEIGHT_PX,
+    build_base_figure_json,
+)
+from cms.services.liver_resource.session import (
+    DEFAULT_CUTOFF,
+    get_de_session,
+    get_session_cutoff,
+)
+from dashboard_visualisation.utils.plotly import plot_html_from_json
 
 
 class LiverResourceDashboardPage(DashboardPage):
@@ -28,7 +38,20 @@ class LiverResourceDashboardPage(DashboardPage):
     def get_context(self, request: HttpRequest) -> dict[str, Any]:
         """Add liver-specific TLN and control metadata to template context."""
         context = super().get_context(request)
-        context["base_tln_figure_json"] = build_base_figure_json()
+        base_figure_json = build_base_figure_json()
+        session = get_de_session(request)
+
+        context["base_tln_figure_json"] = base_figure_json
+        context["base_plot_html"] = plot_html_from_json(
+            base_figure_json,
+            height=f"{DEFAULT_PLOT_HEIGHT_PX}px",
+            include_plotlyjs=False,
+        )
+        context["plot_height"] = DEFAULT_PLOT_HEIGHT_PX
+        context["leaf_trace_index"] = LEAF_TRACE_INDEX
         context["cutoff_choices"] = VALID_CUTOFFS
-        context["example_slugs"] = list_example_slugs()
+        context["default_cutoff"] = DEFAULT_CUTOFF
+        context["current_cutoff"] = get_session_cutoff(request) if session else DEFAULT_CUTOFF
+        context["has_session"] = session is not None
+        context["examples"] = list_examples()
         return context

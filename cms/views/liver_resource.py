@@ -28,11 +28,11 @@ from cms.services.liver_resource.session import (
     store_de_session,
     update_session_cutoff,
 )
+from cms.services.liver_resource.plotly_tln import DEFAULT_PLOT_HEIGHT_PX
 from cms.services.liver_resource.validators import validate_de_upload
 from dashboard_visualisation.utils.plotly import plot_html_from_json
 
 LOGGER = structlog.get_logger(__name__)
-DEFAULT_PLOT_HEIGHT_PX = 700
 
 
 @require_POST
@@ -145,6 +145,23 @@ def module_detail(request: HttpRequest, module_id: int) -> HttpResponse:
         "cms/partials/liver_module_detail.html",
         {"detail": detail},
     )
+
+
+@require_GET
+def download_template(request: HttpRequest) -> HttpResponse:
+    """Download the bundled DE upload template file."""
+    from cms.services.liver_resource.reference_data import get_template_path
+
+    template_path = get_template_path()
+    if not template_path.is_file():
+        return HttpResponse("Template file not found.", status=404, content_type="text/plain")
+
+    response = HttpResponse(
+        template_path.read_text(encoding="utf-8"),
+        content_type="text/tab-separated-values; charset=utf-8",
+    )
+    response["Content-Disposition"] = 'attachment; filename="DE_upload_template.txt"'
+    return response
 
 
 @require_GET

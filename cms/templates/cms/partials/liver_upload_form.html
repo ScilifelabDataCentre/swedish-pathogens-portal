@@ -1,0 +1,92 @@
+<aside class="card bg-base-100 border border-base-300 shadow-sm">
+    <div class="card-body gap-5 p-5">
+        <div>
+            <h4 class="card-title text-base mb-1">Upload DE file</h4>
+            <p class="text-sm text-pp-dark-grey">
+                Tab-separated limma-style table with Ensembl gene IDs and columns
+                <code class="text-xs">logFC</code> and <code class="text-xs">adj.P.Val</code>.
+            </p>
+        </div>
+
+        <form id="liver-upload-form" class="flex flex-col gap-4" method="post" enctype="multipart/form-data">
+            <label class="form-control w-full">
+                <span class="label-text font-medium">DE file</span>
+                <input
+                    type="file"
+                    name="de_file"
+                    id="liver-de-file"
+                    accept=".txt,.tsv,.csv,text/plain,text/tab-separated-values"
+                    class="file-input file-input-bordered file-input-sm w-full"
+                >
+            </label>
+
+            <label class="form-control w-full">
+                <span class="label-text font-medium">DEcutoff</span>
+                <select
+                    name="cutoff"
+                    id="liver-cutoff-select"
+                    class="select select-bordered select-sm w-full"
+                >
+                    {% for cutoff in cutoff_choices %}
+                    <option value="{{ cutoff }}" {% if cutoff == current_cutoff %}selected{% endif %}>
+                        {{ cutoff }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </label>
+
+            <button type="submit" class="btn btn-primary btn-sm w-full" id="liver-upload-submit">
+                Upload and plot
+            </button>
+        </form>
+
+        <div class="divider my-0"></div>
+
+        <div>
+            <h5 class="font-medium text-sm mb-2">Example datasets</h5>
+            <div class="flex flex-col gap-2">
+                {% for example in examples %}
+                <button
+                    type="button"
+                    class="btn btn-outline btn-sm justify-start liver-example-btn"
+                    data-example-slug="{{ example.slug }}"
+                    data-example-url="{% url 'cms:liver_load_example' example.slug %}"
+                >
+                    {{ example.label }}
+                </button>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="divider my-0"></div>
+
+        <div class="flex flex-col gap-2">
+            <a
+                href="{% url 'cms:liver_download_template' %}"
+                class="btn btn-ghost btn-sm justify-start"
+            >
+                Download DE template
+            </a>
+            <a
+                href="{% url 'cms:liver_export_modules' %}"
+                class="btn btn-ghost btn-sm justify-start {% if not has_session %}btn-disabled pointer-events-none{% endif %}"
+                {% if not has_session %}aria-disabled="true" tabindex="-1"{% endif %}
+            >
+                Export module scores (CSV)
+            </a>
+            <a
+                href="{% url 'cms:liver_export_genes' %}"
+                class="btn btn-ghost btn-sm justify-start {% if not has_session %}btn-disabled pointer-events-none{% endif %}"
+                {% if not has_session %}aria-disabled="true" tabindex="-1"{% endif %}
+            >
+                Export gene classifications (CSV)
+            </a>
+        </div>
+
+        {% if not has_session %}
+        <p class="text-xs text-pp-dark-grey">
+            Upload a file or load an example before exporting results.
+        </p>
+        {% endif %}
+    </div>
+</aside>

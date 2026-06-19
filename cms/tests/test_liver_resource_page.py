@@ -9,7 +9,7 @@ from cms.pages.dashboard_index import DashboardIndexPage
 from cms.pages.home import HomePage
 from cms.pages.liver_resource import LiverResourceDashboardPage
 from cms.services.liver_resource.computation import VALID_CUTOFFS
-from cms.services.liver_resource.examples import list_example_slugs
+from cms.services.liver_resource.examples import list_example_slugs, list_examples
 from cms.services.liver_resource.reference_data import clear_reference_data_cache
 from cms.tests.utils import create_test_image
 
@@ -87,7 +87,7 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
 
     def test_get_context_includes_base_tln_figure_json(self) -> None:
         """Test that get_context exposes the neutral base TLN figure."""
-        request = RequestFactory().get(self.page.url)
+        request = self.client.get(self.page.url).wsgi_request
         context = self.page.get_context(request)
 
         figure = context["base_tln_figure_json"]
@@ -97,21 +97,41 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
 
     def test_get_context_includes_cutoff_choices(self) -> None:
         """Test that get_context exposes all valid DEcutoff modes."""
-        request = RequestFactory().get(self.page.url)
+        request = self.client.get(self.page.url).wsgi_request
         context = self.page.get_context(request)
 
         self.assertEqual(context["cutoff_choices"], VALID_CUTOFFS)
 
-    def test_get_context_includes_example_slugs(self) -> None:
-        """Test that get_context exposes bundled example dataset slugs."""
-        request = RequestFactory().get(self.page.url)
+    def test_get_context_includes_base_plot_html(self) -> None:
+        """Test that get_context exposes server-rendered base Plotly HTML."""
+        request = self.client.get(self.page.url).wsgi_request
         context = self.page.get_context(request)
 
-        self.assertEqual(context["example_slugs"], list_example_slugs())
+        self.assertIn("plotly-graph-div", context["base_plot_html"])
+        self.assertEqual(context["plot_height"], 700)
+        self.assertEqual(context["leaf_trace_index"], 2)
+
+    def test_get_context_includes_examples(self) -> None:
+        """Test that get_context exposes bundled example dataset metadata."""
+        request = self.client.get(self.page.url).wsgi_request
+        context = self.page.get_context(request)
+
+        self.assertEqual(context["examples"], list_examples())
+        slugs = [example["slug"] for example in context["examples"]]
+        self.assertEqual(slugs, list_example_slugs())
+
+    def test_get_context_includes_session_flags(self) -> None:
+        """Test that get_context exposes session state for export controls."""
+        request = self.client.get(self.page.url).wsgi_request
+        context = self.page.get_context(request)
+
+        self.assertFalse(context["has_session"])
+        self.assertEqual(context["current_cutoff"], "standard")
+        self.assertEqual(context["default_cutoff"], "standard")
 
     def test_get_context_includes_parent_heading(self) -> None:
         """Test that liver pages inherit the dashboard index heading."""
-        request = RequestFactory().get(self.page.url)
+        request = self.client.get(self.page.url).wsgi_request
         context = self.page.get_context(request)
 
         self.assertEqual(context["page_heading"], "Dashboards")
@@ -121,6 +141,12 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
         response = self.client.get(self.page.url)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Liver Resource")
+        self.assertContains(response, "liver-tln-plot")
+        self.assertContains(response, "plotly-graph-div")
+        self.assertContains(response, "tln-container")
+        self.assertContains(response, "liver-upload-form")
+        self.assertContains(response, "module-detail")
+        self.assertContains(response, "Neutral base network")
 
 
 class TestLiverResourceDashboardIndexListing(LiverResourcePageTestCase):

@@ -18,6 +18,7 @@ from dashboard_visualisation.utils.plotly import figure_to_json
 BASE_LEAF_COLOUR = "lightskyblue"
 DEFAULT_FIGURE_HEIGHT = 800
 DEFAULT_FIGURE_WIDTH = 900
+DEFAULT_PLOT_HEIGHT_PX = 700
 
 
 @lru_cache(maxsize=1)

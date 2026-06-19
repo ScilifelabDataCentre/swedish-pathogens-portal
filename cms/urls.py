@@ -4,6 +4,7 @@ from django.urls import path
 
 from cms.views.data_table import table_partial
 from cms.views.liver_resource import (
+    download_template,
     export_genes,
     export_module_scores,
     load_example,
@@ -39,6 +40,11 @@ urlpatterns = [
         "liver/example/<slug:example_slug>/",
         load_example,
         name="liver_load_example",
+    ),
+    path(
+        "liver/template/",
+        download_template,
+        name="liver_download_template",
     ),
     path(
         "liver/export/modules/",

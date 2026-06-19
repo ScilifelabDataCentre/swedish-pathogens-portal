@@ -1,0 +1,18 @@
+{% load plotly_js %}
+
+{% plotlyjs_once %}
+<div
+    id="liver-tln-plot"
+    class="plotly-figure w-full"
+    style="height: {{ height }}px;"
+    data-leaf-trace-index="{{ leaf_trace_index }}"
+    data-cutoff="{{ cutoff|default:'standard' }}"
+    role="img"
+    aria-label="DINA Liver tree-leaf network"
+>
+    {% if plot_html %}
+        {{ plot_html|safe }}
+    {% else %}
+        <p class="text-sm text-gray-500 p-4">Chart could not be rendered.</p>
+    {% endif %}
+</div>

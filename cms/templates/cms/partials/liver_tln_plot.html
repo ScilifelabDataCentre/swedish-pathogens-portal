@@ -1,25 +1,10 @@
-{% load plotly_js %}
-
 <div id="liver-tln-result">
-    {% if plot_html %}
-    {% plotlyjs_once %}
-    <div
-        id="liver-tln-plot"
-        class="plotly-figure w-full"
-        style="height: {{ height }}px;"
-        data-leaf-trace-index="{{ leaf_trace_index }}"
-        data-cutoff="{{ analysis.cutoff }}"
-    >
-        {{ plot_html|safe }}
-    </div>
+    {% include "cms/partials/liver_tln_embed.html" with plot_html=plot_html height=height leaf_trace_index=leaf_trace_index cutoff=analysis.cutoff %}
 
-    <p class="text-sm text-pp-dark-grey mt-3">
+    <p class="text-sm text-pp-dark-grey mt-3 px-2 pb-2">
         <span class="font-medium">{{ analysis.filename }}</span>
         · {{ analysis.gene_count|floatformat:0 }} genes
         · {{ analysis.up_count }} up / {{ analysis.down_count }} down
         · cutoff: {{ analysis.cutoff }}
     </p>
-    {% else %}
-    <p class="text-sm text-gray-500">Chart could not be rendered.</p>
-    {% endif %}
 </div>
