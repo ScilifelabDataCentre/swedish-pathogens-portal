@@ -3,7 +3,7 @@
 from django.urls import path
 
 from cms.views.data_table import table_partial
-from cms.views.liver_resource import upload_de
+from cms.views.liver_resource import load_example, module_detail, recompute, upload_de
 
 app_name = "cms"
 
@@ -17,5 +17,20 @@ urlpatterns = [
         "liver/upload/",
         upload_de,
         name="liver_upload",
+    ),
+    path(
+        "liver/recompute/",
+        recompute,
+        name="liver_recompute",
+    ),
+    path(
+        "liver/module/<int:module_id>/",
+        module_detail,
+        name="liver_module_detail",
+    ),
+    path(
+        "liver/example/<slug:example_slug>/",
+        load_example,
+        name="liver_load_example",
     ),
 ]

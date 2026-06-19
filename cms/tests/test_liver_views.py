@@ -1,4 +1,6 @@
-"""Tests for liver resource upload view."""
+"""Tests for liver resource HTMX views."""
+
+import json
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase
@@ -8,23 +10,42 @@ from cms.services.liver_resource.reference_data import get_data_root
 from cms.services.liver_resource.session import SESSION_KEY
 
 
-class TestLiverUploadView(TestCase):
-    """Verify POST /cms/liver/upload/ behaviour."""
+class TestLiverViews(TestCase):
+    """Verify liver dashboard HTMX endpoints."""
 
     def setUp(self) -> None:
         """Prepare client and example DE file path."""
         self.client = Client()
-        self.url = reverse("cms:liver_upload")
+        self.upload_url = reverse("cms:liver_upload")
+        self.recompute_url = reverse("cms:liver_recompute")
         self.example_path = get_data_root() / "examples" / "HCC-Control.txt"
 
-    def test_upload_valid_file_returns_plot(self) -> None:
-        """Test a valid DE file returns the TLN plot partial."""
+    def _upload_example_file(self) -> None:
         upload = SimpleUploadedFile(
             name="HCC-Control.txt",
             content=self.example_path.read_bytes(),
             content_type="text/plain",
         )
-        response = self.client.post(self.url, {"de_file": upload, "cutoff": "standard"})
+        response = self.client.post(
+            self.upload_url,
+            {"de_file": upload, "cutoff": "standard"},
+        )
+        self.assertEqual(response.status_code, 200)
+
+    def test_upload_valid_file_returns_plot(self) -> None:
+        """Test a valid DE file returns the TLN plot partial."""
+        self._upload_example_file()
+        response = self.client.post(
+            self.upload_url,
+            {
+                "de_file": SimpleUploadedFile(
+                    name="HCC-Control.txt",
+                    content=self.example_path.read_bytes(),
+                    content_type="text/plain",
+                ),
+                "cutoff": "standard",
+            },
+        )
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "liver-tln-result")
@@ -39,7 +60,7 @@ class TestLiverUploadView(TestCase):
 
     def test_upload_missing_file_returns_error(self) -> None:
         """Test missing file field returns validation errors."""
-        response = self.client.post(self.url, {})
+        response = self.client.post(self.upload_url, {})
         self.assertEqual(response.status_code, 400)
         self.assertContains(response, "Choose a DE file to upload.", status_code=400)
         self.assertIsNone(self.client.session.get(SESSION_KEY))
@@ -51,13 +72,66 @@ class TestLiverUploadView(TestCase):
             content=b"not\ta\tvalid\tfile\n",
             content_type="text/plain",
         )
-        response = self.client.post(self.url, {"de_file": upload})
+        response = self.client.post(self.upload_url, {"de_file": upload})
 
         self.assertEqual(response.status_code, 400)
         self.assertContains(response, "Could not use this DE file", status_code=400)
         self.assertIsNone(self.client.session.get(SESSION_KEY))
 
-    def test_get_method_not_allowed(self) -> None:
+    def test_upload_rejects_get(self) -> None:
         """Test upload endpoint rejects GET requests."""
-        response = self.client.get(self.url)
+        response = self.client.get(self.upload_url)
         self.assertEqual(response.status_code, 405)
+
+    def test_load_example_returns_plot(self) -> None:
+        """Test bundled example endpoint stores session and returns plot."""
+        url = reverse("cms:liver_load_example", kwargs={"example_slug": "hcc-control"})
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "liver-tln-result")
+        self.assertContains(response, "HCC-Control.txt")
+        self.assertEqual(self.client.session[SESSION_KEY]["filename"], "HCC-Control.txt")
+
+    def test_load_unknown_example_returns_error(self) -> None:
+        """Test unknown example slug returns validation error."""
+        url = reverse("cms:liver_load_example", kwargs={"example_slug": "missing-example"})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 400)
+        self.assertContains(response, "Unknown example dataset", status_code=400)
+
+    def test_recompute_requires_session(self) -> None:
+        """Test recompute without upload returns JSON error."""
+        response = self.client.get(self.recompute_url, {"cutoff": "top500"})
+        self.assertEqual(response.status_code, 400)
+        payload = json.loads(response.content)
+        self.assertIn("error", payload)
+
+    def test_recompute_returns_colours_array(self) -> None:
+        """Test recompute returns updated colours for all modules."""
+        self._upload_example_file()
+        response = self.client.get(self.recompute_url, {"cutoff": "top500"})
+        self.assertEqual(response.status_code, 200)
+
+        payload = json.loads(response.content)
+        self.assertEqual(len(payload["colours_array"]), 105)
+        self.assertEqual(payload["stats"]["cutoff"], "top500")
+        self.assertEqual(self.client.session[SESSION_KEY]["cutoff"], "top500")
+
+    def test_module_detail_requires_session(self) -> None:
+        """Test module detail without upload returns helpful message."""
+        url = reverse("cms:liver_module_detail", kwargs={"module_id": 1})
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 400)
+        self.assertContains(response, "Upload a DE file", status_code=400)
+
+    def test_module_detail_returns_gene_table(self) -> None:
+        """Test module detail returns summary and gene rows after upload."""
+        self._upload_example_file()
+        url = reverse("cms:liver_module_detail", kwargs={"module_id": 1})
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Module 1")
+        self.assertContains(response, "ENSG")
+

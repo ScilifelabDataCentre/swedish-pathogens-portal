@@ -1,0 +1,54 @@
+<div class="p-4">
+    <h3 class="text-lg font-semibold mb-2">Module {{ detail.module_id }}</h3>
+    <p class="text-sm text-pp-dark-grey mb-3">
+        Genes in module: <span class="font-medium">{{ detail.module_gene_count }}</span>
+        · Overlap with file: <span class="font-medium">{{ detail.overlap_count }}</span>
+        · Up: <span class="font-medium text-error">{{ detail.up_count }}</span>
+        · Down: <span class="font-medium text-info">{{ detail.down_count }}</span>
+        · DE ratio: <span class="font-medium">{{ detail.de_ratio|floatformat:4 }}</span>
+        · Cutoff: {{ detail.cutoff }}
+    </p>
+
+    {% if detail.genes %}
+    <div class="overflow-x-auto">
+        <table class="table table-sm table-zebra w-full">
+            <thead>
+                <tr>
+                    <th>Ensembl ID</th>
+                    <th>Symbol</th>
+                    <th>logFC</th>
+                    <th>adj.P.Val</th>
+                    <th>Direction</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for gene in detail.genes %}
+                <tr>
+                    <td class="font-mono text-xs">{{ gene.ensembl }}</td>
+                    <td>{{ gene.symbol }}</td>
+                    <td>{{ gene.log_fc }}</td>
+                    <td>{{ gene.adj_pval }}</td>
+                    <td>
+                        {% if gene.direction == "up" %}
+                        <span class="text-error font-medium">up</span>
+                        {% elif gene.direction == "down" %}
+                        <span class="text-info font-medium">down</span>
+                        {% else %}
+                        <span class="text-pp-dark-grey">ns</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% if detail.hidden_gene_count %}
+    <p class="text-sm text-pp-dark-grey mt-2">
+        Showing {{ detail.genes|length }} of {{ detail.overlap_count }} genes.
+        {{ detail.hidden_gene_count }} more not shown.
+    </p>
+    {% endif %}
+    {% else %}
+    <p class="text-sm text-pp-dark-grey">No overlapping genes in this module for the current file.</p>
+    {% endif %}
+</div>
