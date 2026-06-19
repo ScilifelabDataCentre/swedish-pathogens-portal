@@ -147,11 +147,15 @@ class TestDashboardIndexPageModel(DashboardPageTestCase):
         """Test that only HomePage can be a parent."""
         self.assertEqual(DashboardIndexPage.parent_page_types, ["cms.HomePage"])
 
-    def test_subpage_types_allows_dashboard_page(self) -> None:
-        """Test that DashboardPage and DrrDatasetPage are the allowed children."""
+    def test_subpage_types_allows_dashboard_page_types(self) -> None:
+        """Test that standard, DRR, and liver dashboard pages are allowed children."""
         self.assertEqual(
             DashboardIndexPage.subpage_types,
-            ["cms.DashboardPage", "cms.DrrDatasetPage"],
+            [
+                "cms.DashboardPage",
+                "cms.DrrDatasetPage",
+                "cms.LiverResourceDashboardPage",
+            ],
         )
 
     @patch("cms.pages.dashboard_index.validate_filters")
