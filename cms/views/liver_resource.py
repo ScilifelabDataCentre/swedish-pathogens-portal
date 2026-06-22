@@ -7,29 +7,29 @@ from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_GET, require_POST
 
-from cms.services.liver_resource.analysis import (
+from dashboard_visualisation.liver_resource.analysis import (
     LEAF_TRACE_INDEX,
     LiverAnalysisResult,
     analyse_de_data,
     colours_for_plotly_restyle,
 )
-from cms.services.liver_resource.computation import VALID_CUTOFFS, parse_de_file
-from cms.services.liver_resource.examples import get_example_path
-from cms.services.liver_resource.exports import (
+from dashboard_visualisation.liver_resource.computation import VALID_CUTOFFS, parse_de_file
+from dashboard_visualisation.liver_resource.examples import get_example_path
+from dashboard_visualisation.liver_resource.exports import (
     build_genes_csv,
     build_module_scores_csv,
     export_basename,
 )
-from cms.services.liver_resource.module_detail import build_module_detail
-from cms.services.liver_resource.session import (
+from dashboard_visualisation.liver_resource.module_detail import build_module_detail
+from dashboard_visualisation.liver_resource.session import (
     DEFAULT_CUTOFF,
     de_data_from_session,
     get_de_session,
     store_de_session,
     update_session_cutoff,
 )
-from cms.services.liver_resource.plotly_tln import DEFAULT_PLOT_HEIGHT_PX
-from cms.services.liver_resource.validators import validate_de_upload
+from dashboard_visualisation.liver_resource.plotly_tln import DEFAULT_PLOT_HEIGHT_PX
+from dashboard_visualisation.liver_resource.validators import validate_de_upload
 from dashboard_visualisation.utils.plotly import plot_html_from_json
 
 LOGGER = structlog.get_logger(__name__)
@@ -119,7 +119,7 @@ def module_detail(request: HttpRequest, module_id: int) -> HttpResponse:
     if session is None:
         return render(
             request,
-            "cms/partials/liver_session_required.html",
+            "cms/pages/liver_resource/partials/session_required.html",
             {
                 "message": "Upload a DE file or load an example to inspect module genes.",
             },
@@ -135,14 +135,14 @@ def module_detail(request: HttpRequest, module_id: int) -> HttpResponse:
     if detail is None:
         return render(
             request,
-            "cms/partials/liver_session_required.html",
+            "cms/pages/liver_resource/partials/session_required.html",
             {"message": f"Module {module_id} was not found."},
             status=404,
         )
 
     return render(
         request,
-        "cms/partials/liver_module_detail.html",
+        "cms/pages/liver_resource/partials/module_detail.html",
         {"detail": detail},
     )
 
@@ -150,7 +150,7 @@ def module_detail(request: HttpRequest, module_id: int) -> HttpResponse:
 @require_GET
 def download_template(request: HttpRequest) -> HttpResponse:
     """Download the bundled DE upload template file."""
-    from cms.services.liver_resource.reference_data import get_template_path
+    from dashboard_visualisation.liver_resource.reference_data import get_template_path
 
     template_path = get_template_path()
     if not template_path.is_file():
@@ -245,7 +245,7 @@ def _render_validation_errors(
 ) -> HttpResponse:
     return render(
         request,
-        "cms/partials/liver_validation_errors.html",
+        "cms/pages/liver_resource/partials/validation_errors.html",
         {"errors": errors},
         status=400,
     )
@@ -259,7 +259,7 @@ def _render_plot_response(request: HttpRequest, analysis: LiverAnalysisResult) -
     )
     return render(
         request,
-        "cms/partials/liver_tln_plot.html",
+        "cms/pages/liver_resource/partials/tln_plot.html",
         {
             "plot_html": plot_html,
             "height": DEFAULT_PLOT_HEIGHT_PX,

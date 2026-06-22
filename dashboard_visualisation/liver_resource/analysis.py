@@ -5,13 +5,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from cms.services.liver_resource.computation import (
+from dashboard_visualisation.liver_resource.computation import (
     classify_genes,
     compute_module_ratios,
     get_module_gene_sets,
     map_ratios_to_colours,
 )
-from cms.services.liver_resource.plotly_tln import build_coloured_figure_json
+from dashboard_visualisation.liver_resource.plotly_tln import build_coloured_figure_json
 
 LEAF_TRACE_INDEX = 2
 

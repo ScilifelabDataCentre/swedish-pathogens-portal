@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from cms.services.liver_resource.reference_data import get_data_root
+from dashboard_visualisation.liver_resource.reference_data import get_data_root
 
 EXAMPLE_SLUGS: dict[str, str] = {
     "hcc-control": "HCC-Control.txt",

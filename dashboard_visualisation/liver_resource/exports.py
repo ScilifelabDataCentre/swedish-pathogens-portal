@@ -6,8 +6,8 @@ import csv
 import io
 from typing import Any
 
-from cms.services.liver_resource.computation import classify_genes, compute_module_ratios
-from cms.services.liver_resource.reference_data import load_modules, load_symbol_map
+from dashboard_visualisation.liver_resource.computation import classify_genes, compute_module_ratios
+from dashboard_visualisation.liver_resource.reference_data import load_modules, load_symbol_map
 
 
 def build_module_scores_csv(de_data: dict[str, Any], cutoff: str) -> str:

@@ -3,7 +3,7 @@
 from django.contrib.sessions.backends.cache import SessionStore
 from django.test import RequestFactory, SimpleTestCase
 
-from cms.services.liver_resource.session import (
+from dashboard_visualisation.liver_resource.session import (
     SESSION_KEY,
     clear_de_session,
     de_data_from_session,

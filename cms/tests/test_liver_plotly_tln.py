@@ -2,13 +2,13 @@
 
 from django.test import SimpleTestCase
 
-from cms.services.liver_resource.computation import (
+from dashboard_visualisation.liver_resource.computation import (
     classify_genes,
     compute_module_ratios,
     get_module_gene_sets,
     parse_de_file,
 )
-from cms.services.liver_resource.plotly_tln import (
+from dashboard_visualisation.liver_resource.plotly_tln import (
     build_base_figure,
     build_base_figure_json,
     build_coloured_figure,
@@ -16,7 +16,7 @@ from cms.services.liver_resource.plotly_tln import (
     clear_plotly_layout_cache,
     count_leaf_markers,
 )
-from cms.services.liver_resource.reference_data import (
+from dashboard_visualisation.liver_resource.reference_data import (
     EXPECTED_LEAF_COUNT,
     clear_reference_data_cache,
     get_data_root,

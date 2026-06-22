@@ -4,8 +4,8 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase
 from django.urls import reverse
 
-from cms.services.liver_resource.reference_data import get_data_root
-from cms.services.liver_resource.session import SESSION_KEY
+from dashboard_visualisation.liver_resource.reference_data import get_data_root
+from dashboard_visualisation.liver_resource.session import SESSION_KEY
 
 
 class TestLiverDashboardHtmxFlow(TestCase):

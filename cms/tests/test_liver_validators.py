@@ -6,8 +6,8 @@ from pathlib import Path
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase
 
-from cms.services.liver_resource.reference_data import get_data_root
-from cms.services.liver_resource.validators import (
+from dashboard_visualisation.liver_resource.reference_data import get_data_root
+from dashboard_visualisation.liver_resource.validators import (
     MAX_UPLOAD_BYTES,
     validate_de_data,
     validate_de_upload,

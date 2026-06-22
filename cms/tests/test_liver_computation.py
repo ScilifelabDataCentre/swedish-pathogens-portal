@@ -5,14 +5,14 @@ from pathlib import Path
 
 from django.test import SimpleTestCase
 
-from cms.services.liver_resource.computation import (
+from dashboard_visualisation.liver_resource.computation import (
     classify_genes,
     compute_module_ratios,
     get_module_gene_sets,
     map_ratios_to_colours,
     parse_de_file,
 )
-from cms.services.liver_resource.reference_data import clear_reference_data_cache, get_data_root
+from dashboard_visualisation.liver_resource.reference_data import clear_reference_data_cache, get_data_root
 
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures" / "liver"
 EXPECTED_DIR = FIXTURES_DIR / "expected"

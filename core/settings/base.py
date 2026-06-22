@@ -136,7 +136,7 @@ DATASETS_ROOT = env("DATASETS_ROOT", default="/datasets")
 LIVER_RESOURCE_DATA_ROOT = Path(
     env(
         "LIVER_RESOURCE_DATA_ROOT",
-        default=str(BASE_DIR / "cms" / "services" / "liver_resource" / "data"),
+        default=str(BASE_DIR / "dashboard_visualisation" / "liver_resource" / "data"),
     )
 ).resolve()
 

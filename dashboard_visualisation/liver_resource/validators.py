@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import BinaryIO
 
-from cms.services.liver_resource.computation import parse_de_file
+from dashboard_visualisation.liver_resource.computation import parse_de_file
 
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 MIN_GENE_ROWS = 100

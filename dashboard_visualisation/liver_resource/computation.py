@@ -6,7 +6,7 @@ import math
 from pathlib import Path
 from typing import BinaryIO
 
-from cms.services.liver_resource.reference_data import load_modules as _load_module_lists
+from dashboard_visualisation.liver_resource.reference_data import load_modules as _load_module_lists
 
 type DeFileSource = str | Path | BinaryIO
 

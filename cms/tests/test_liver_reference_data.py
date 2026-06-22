@@ -4,7 +4,7 @@ from pathlib import Path
 
 from django.test import SimpleTestCase, override_settings
 
-from cms.services.liver_resource.reference_data import (
+from dashboard_visualisation.liver_resource.reference_data import (
     EXPECTED_LEAF_COUNT,
     EXPECTED_MODULE_COUNT,
     EXPECTED_VERTEX_COUNT,

@@ -8,8 +8,8 @@ from typing import Any
 
 import plotly.graph_objects as go
 
-from cms.services.liver_resource.computation import R_PALETTE, map_ratios_to_colours
-from cms.services.liver_resource.reference_data import (
+from dashboard_visualisation.liver_resource.computation import R_PALETTE, map_ratios_to_colours
+from dashboard_visualisation.liver_resource.reference_data import (
     load_cyjs_layout,
     load_tln_graph,
 )

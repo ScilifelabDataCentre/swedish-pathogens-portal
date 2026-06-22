@@ -6,14 +6,14 @@ from django.http import HttpRequest
 from django.urls import reverse
 
 from cms.pages.dashboard import DashboardPage
-from cms.services.liver_resource.analysis import LEAF_TRACE_INDEX
-from cms.services.liver_resource.computation import VALID_CUTOFFS
-from cms.services.liver_resource.examples import list_examples
-from cms.services.liver_resource.plotly_tln import (
+from dashboard_visualisation.liver_resource.analysis import LEAF_TRACE_INDEX
+from dashboard_visualisation.liver_resource.computation import VALID_CUTOFFS
+from dashboard_visualisation.liver_resource.examples import list_examples
+from dashboard_visualisation.liver_resource.plotly_tln import (
     DEFAULT_PLOT_HEIGHT_PX,
     build_base_figure_json,
 )
-from cms.services.liver_resource.session import (
+from dashboard_visualisation.liver_resource.session import (
     DEFAULT_CUTOFF,
     get_de_session,
     get_session_cutoff,

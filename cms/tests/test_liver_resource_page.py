@@ -8,9 +8,9 @@ from cms.pages.dashboard import DashboardPage
 from cms.pages.dashboard_index import DashboardIndexPage
 from cms.pages.home import HomePage
 from cms.pages.liver_resource import LiverResourceDashboardPage
-from cms.services.liver_resource.computation import VALID_CUTOFFS
-from cms.services.liver_resource.examples import list_example_slugs, list_examples
-from cms.services.liver_resource.reference_data import clear_reference_data_cache
+from dashboard_visualisation.liver_resource.computation import VALID_CUTOFFS
+from dashboard_visualisation.liver_resource.examples import list_example_slugs, list_examples
+from dashboard_visualisation.liver_resource.reference_data import clear_reference_data_cache
 from cms.tests.utils import create_test_image
 
 
