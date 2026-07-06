@@ -1,6 +1,7 @@
 """Tests for liver resource computation parity with R reference output."""
 
 import csv
+from io import StringIO
 from pathlib import Path
 
 from django.test import SimpleTestCase
@@ -52,6 +53,24 @@ class TestLiverComputation(SimpleTestCase):
                 msg=f"Module {module_id}: Python={python_value}, R={r_value}",
             )
         return max_diff
+
+    def test_csv_parse_matches_tab_for_hcc_control(self) -> None:
+        """Test comma-separated DE files parse the same as tab-separated."""
+        example_path = get_data_root() / "examples" / "HCC-Control.txt"
+        tab_data = parse_de_file(example_path)
+
+        buffer = StringIO()
+        writer = csv.writer(buffer)
+        with example_path.open(encoding="utf-8") as handle:
+            for line in handle:
+                if line.strip():
+                    writer.writerow(line.rstrip("\n").split("\t"))
+        csv_data = parse_de_file(buffer.getvalue())
+
+        self.assertEqual(tab_data["header"], csv_data["header"])
+        self.assertEqual(tab_data["genes"][:20], csv_data["genes"][:20])
+        sample_gene = tab_data["genes"][0]
+        self.assertEqual(tab_data["data"][sample_gene], csv_data["data"][sample_gene])
 
     def test_hcc_control_standard_matches_r(self) -> None:
         """Test HCC-Control ratios with standard cutoff match R output."""

@@ -13,6 +13,7 @@ from dashboard_visualisation.liver_resource.plotly_tln import (
     build_base_figure_json,
     build_coloured_figure,
     build_coloured_figure_json,
+    build_multi_coloured_figure_json,
     clear_plotly_layout_cache,
     count_leaf_markers,
 )
@@ -69,6 +70,25 @@ class TestLiverPlotlyTln(SimpleTestCase):
         self.assertEqual(len(colours), EXPECTED_LEAF_COUNT)
         for colour in colours:
             self.assertRegex(colour, r"^#[0-9a-f]{6}$")
+
+    def test_multi_coloured_figure_json_includes_pie_shapes(self) -> None:
+        """Test multi-comparison figure adds pie wedge shapes and click targets."""
+        example_path = get_data_root() / "examples" / "HCC-Control.txt"
+        de_data = parse_de_file(example_path)
+        classified = classify_genes(de_data, "standard")
+        ratios = compute_module_ratios(de_data["genes"], classified, get_module_gene_sets())
+        colours = {module_id: "#ffffff" for module_id in ratios}
+        figure_json = build_multi_coloured_figure_json(
+            [
+                ("file-a.txt", ratios, colours),
+                ("file-b.txt", ratios, colours),
+            ],
+            cutoff="standard",
+        )
+
+        self.assertGreater(len(figure_json["layout"]["shapes"]), EXPECTED_LEAF_COUNT)
+        leaf_trace = next(trace for trace in figure_json["data"] if trace.get("customdata"))
+        self.assertEqual(len(leaf_trace["customdata"]), EXPECTED_LEAF_COUNT)
 
     def test_figure_json_is_postgres_safe(self) -> None:
         """Test figure JSON contains no NaN or Infinity values."""

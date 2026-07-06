@@ -1,10 +1,11 @@
 <aside class="card bg-base-100 border border-base-300 shadow-sm">
     <div class="card-body gap-5 p-5">
         <div>
-            <h4 class="card-title text-base mb-1">Upload DE file</h4>
+            <h4 class="card-title text-base mb-1">Upload DE file(s)</h4>
             <p class="text-sm text-pp-dark-grey">
-                Tab-separated limma-style table with Ensembl gene IDs and columns
-                <code class="text-xs">logFC</code> and <code class="text-xs">adj.P.Val</code>.
+                Upload one or more tab- or comma-separated limma-style tables with Ensembl gene IDs
+                and columns <code class="text-xs">logFC</code> and <code class="text-xs">adj.P.Val</code>.
+                Multiple files are shown as pie slices on each module leaf.
             </p>
         </div>
 
@@ -24,13 +25,14 @@
             {% csrf_token %}
 
             <label class="form-control w-full">
-                <span class="label-text font-medium">DE file</span>
+                <span class="label-text font-medium">DE file(s)</span>
                 <input
                     type="file"
-                    name="de_file"
-                    id="liver-de-file"
+                    name="de_files"
+                    id="liver-de-files"
                     accept=".txt,.tsv,.csv,text/plain,text/tab-separated-values"
                     class="file-input file-input-bordered file-input-sm w-full"
+                    multiple
                     required
                 >
             </label>

@@ -31,7 +31,7 @@ class TestLiverViews(TestCase):
         )
         response = self.client.post(
             self.upload_url,
-            {"de_file": upload, "cutoff": "standard"},
+            {"de_files": upload, "cutoff": "standard"},
         )
         self.assertEqual(response.status_code, 200)
 
@@ -41,7 +41,7 @@ class TestLiverViews(TestCase):
         response = self.client.post(
             self.upload_url,
             {
-                "de_file": SimpleUploadedFile(
+                "de_files": SimpleUploadedFile(
                     name="HCC-Control.txt",
                     content=self.example_path.read_bytes(),
                     content_type="text/plain",
@@ -57,15 +57,15 @@ class TestLiverViews(TestCase):
 
         session = self.client.session.get(SESSION_KEY)
         self.assertIsNotNone(session)
-        self.assertEqual(session["filename"], "HCC-Control.txt")
+        self.assertEqual(session["files"][0]["filename"], "HCC-Control.txt")
         self.assertEqual(session["cutoff"], "standard")
-        self.assertGreater(len(session["genes"]), 10_000)
+        self.assertGreater(len(session["files"][0]["genes"]), 10_000)
 
     def test_upload_missing_file_returns_error(self) -> None:
         """Test missing file field returns validation errors."""
         response = self.client.post(self.upload_url, {})
         self.assertEqual(response.status_code, 400)
-        self.assertContains(response, "Choose a DE file to upload.", status_code=400)
+        self.assertContains(response, "Choose one or more DE files to upload.", status_code=400)
         self.assertIsNone(self.client.session.get(SESSION_KEY))
 
     def test_upload_invalid_file_returns_error(self) -> None:
@@ -75,7 +75,7 @@ class TestLiverViews(TestCase):
             content=b"not\ta\tvalid\tfile\n",
             content_type="text/plain",
         )
-        response = self.client.post(self.upload_url, {"de_file": upload})
+        response = self.client.post(self.upload_url, {"de_files": upload})
 
         self.assertEqual(response.status_code, 400)
         self.assertContains(response, "Could not use this DE file", status_code=400)
@@ -94,7 +94,19 @@ class TestLiverViews(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "liver-tln-result")
         self.assertContains(response, "HCC-Control.txt")
-        self.assertEqual(self.client.session[SESSION_KEY]["filename"], "HCC-Control.txt")
+        self.assertEqual(self.client.session[SESSION_KEY]["files"][0]["filename"], "HCC-Control.txt")
+
+    def test_load_multi_example_returns_pie_plot(self) -> None:
+        """Test multi-file bundled example stores both files and returns pie plot."""
+        url = reverse("cms:liver_load_example", kwargs={"example_slug": "two-comparisons"})
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-plot-mode="pie"')
+        session_files = self.client.session[SESSION_KEY]["files"]
+        self.assertEqual(len(session_files), 2)
+        self.assertEqual(session_files[0]["filename"], "HCC-Control.txt")
+        self.assertEqual(session_files[1]["filename"], "sleep.deprived.AK-control.AK.txt")
 
     def test_load_unknown_example_returns_error(self) -> None:
         """Test unknown example slug returns validation error."""
@@ -126,7 +138,7 @@ class TestLiverViews(TestCase):
         url = reverse("cms:liver_module_detail", kwargs={"module_id": 1})
         response = self.client.get(url)
         self.assertEqual(response.status_code, 400)
-        self.assertContains(response, "Upload a DE file", status_code=400)
+        self.assertContains(response, "Upload DE file(s)", status_code=400)
 
     def test_module_detail_returns_gene_table(self) -> None:
         """Test module detail returns summary and gene rows after upload."""
@@ -190,5 +202,34 @@ class TestLiverViews(TestCase):
         self.assertIn("HCC-Control_genes.csv", response["Content-Disposition"])
         rows = list(csv.DictReader(io.StringIO(response.content.decode())))
         self.assertGreater(len(rows), 10_000)
+
+    def test_upload_multiple_files_returns_pie_plot(self) -> None:
+        """Test uploading multiple DE files stores all files and renders pie mode."""
+        example_bytes = self.example_path.read_bytes()
+        response = self.client.post(
+            self.upload_url,
+            {
+                "de_files": [
+                    SimpleUploadedFile(
+                        name="HCC-Control-a.txt",
+                        content=example_bytes,
+                        content_type="text/plain",
+                    ),
+                    SimpleUploadedFile(
+                        name="HCC-Control-b.txt",
+                        content=example_bytes,
+                        content_type="text/plain",
+                    ),
+                ],
+                "cutoff": "standard",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-plot-mode="pie"')
+        self.assertContains(response, "2 comparisons")
+        session = self.client.session.get(SESSION_KEY)
+        self.assertIsNotNone(session)
+        self.assertEqual(len(session["files"]), 2)
 
 

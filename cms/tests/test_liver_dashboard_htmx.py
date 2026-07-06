@@ -26,7 +26,7 @@ class TestLiverDashboardHtmxFlow(TestCase):
         )
         response = self.client.post(
             self.upload_url,
-            {"de_file": upload, "cutoff": "standard"},
+            {"de_files": upload, "cutoff": "standard"},
             **self.htmx_headers,
         )
 
@@ -45,7 +45,7 @@ class TestLiverDashboardHtmxFlow(TestCase):
         )
         response = self.client.post(
             self.upload_url,
-            {"de_file": upload},
+            {"de_files": upload},
             **self.htmx_headers,
         )
 

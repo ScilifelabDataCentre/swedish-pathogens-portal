@@ -7,9 +7,11 @@ from dashboard_visualisation.liver_resource.session import (
     SESSION_KEY,
     clear_de_session,
     de_data_from_session,
+    de_uploads_from_session,
     get_de_session,
     get_session_cutoff,
     store_de_session,
+    store_de_uploads,
     update_session_cutoff,
 )
 
@@ -37,9 +39,36 @@ class TestLiverSession(SimpleTestCase):
         session = get_de_session(self.request)
         if session is None:
             self.fail("Expected session data after store_de_session")
-        self.assertEqual(session["filename"], "example.txt")
+        self.assertEqual(session["files"][0]["filename"], "example.txt")
         self.assertEqual(session["cutoff"], "standard")
         self.assertEqual(de_data_from_session(session), de_data)
+
+    def test_store_multiple_uploads(self) -> None:
+        """Test multiple parsed DE files round-trip through the session."""
+        uploads = [
+            (
+                "a.txt",
+                {
+                    "header": ["logFC", "adj.P.Val"],
+                    "genes": ["ENSG00000000003"],
+                    "data": {"ENSG00000000003": {"logFC": 1.0, "adj.P.Val": 0.01}},
+                },
+            ),
+            (
+                "b.txt",
+                {
+                    "header": ["logFC", "adj.P.Val"],
+                    "genes": ["ENSG00000000003"],
+                    "data": {"ENSG00000000003": {"logFC": -1.0, "adj.P.Val": 0.01}},
+                },
+            ),
+        ]
+        store_de_uploads(self.request, uploads=uploads, cutoff="top500")
+        session = get_de_session(self.request)
+        if session is None:
+            self.fail("Expected session data after store_de_uploads")
+        self.assertEqual(len(session["files"]), 2)
+        self.assertEqual(de_uploads_from_session(session)[1][0], "b.txt")
 
     def test_update_session_cutoff(self) -> None:
         """Test cutoff can be changed without re-uploading."""

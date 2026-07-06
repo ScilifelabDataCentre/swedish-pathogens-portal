@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import csv
 import math
+from io import StringIO
 from pathlib import Path
 from typing import BinaryIO
 
@@ -31,21 +33,24 @@ LOG2_0_5 = math.log2(0.5)
 LOG2_2 = math.log2(2)
 LOG2_5 = math.log2(5)
 
+# Researcher default (TLN_Analyses_DataCenter.R f.TLNplot)
 R_PALETTE = (
-    "#2066a8",
-    "#8ec1da",
-    "#cde1ec",
+    "#00008b",  # darkblue
+    "#0000cd",  # mediumblue
+    "#1e90ff",  # dodgerblue
     "#ffffff",
-    "#f6d6c2",
-    "#d47264",
-    "#ae282c",
+    "#ffa500",  # orange
+    "#ff0000",  # red
+    "#8b0000",  # darkred
 )
+# Legacy 2025 hex palette:
+# R_PALETTE = ("#2066a8", "#8ec1da", "#cde1ec", "#ffffff", "#f6d6c2", "#d47264", "#ae282c")
 
 _COLOR_SCALE = None
 
 
 def parse_de_file(source: DeFileSource) -> dict:
-    """Parse a tab-separated DE results file."""
+    """Parse a tab- or comma-separated DE results file."""
     if isinstance(source, (str, Path)):
         with Path(source).open(encoding="utf-8") as handle:
             return _parse_de_lines(handle.readlines())
@@ -58,8 +63,30 @@ def parse_de_file(source: DeFileSource) -> dict:
     raise TypeError(msg)
 
 
+def _detect_delimiter(line: str) -> str:
+    """Return tab or comma delimiter based on the header row."""
+    tab_count = line.count("\t")
+    comma_count = line.count(",")
+    if tab_count > comma_count:
+        return "\t"
+    if comma_count > 0:
+        return ","
+    return "\t"
+
+
+def _parse_de_rows(lines: list[str]) -> list[list[str]]:
+    """Split DE file lines into rows, supporting tab- or comma-separated values."""
+    non_empty = [line for line in lines if line.strip()]
+    if not non_empty:
+        return []
+
+    delimiter = _detect_delimiter(non_empty[0])
+    reader = csv.reader(StringIO("".join(non_empty)), delimiter=delimiter)
+    return [row for row in reader if row and any(cell.strip() for cell in row)]
+
+
 def _parse_de_lines(lines: list[str]) -> dict:
-    parts = [line.rstrip("\n").split("\t") for line in lines if line.strip()]
+    parts = _parse_de_rows(lines)
     if not parts:
         return {"header": [], "genes": [], "data": {}}
 

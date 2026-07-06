@@ -1,5 +1,7 @@
 """Tests for LiverResourceDashboardPage."""
 
+from datetime import date
+
 from django.test import RequestFactory
 from wagtail.models import Page, Site
 from wagtail.test.utils import WagtailPageTestCase
@@ -43,6 +45,7 @@ class LiverResourcePageTestCase(WagtailPageTestCase):
             description="DINA Liver Resource dashboard",
             image=cls.image,
             data_status="active",
+            reference_data_updated_at=date(2026, 4, 20),
             content=[("text", "<p>Upload a limma-style DE file to colour the TLN.</p>")],
         )
         cls.index.add_child(instance=cls.page)
@@ -159,6 +162,8 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
         response = self.client.get(self.page.url)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Liver Resource")
+        self.assertContains(response, "Data last updated")
+        self.assertContains(response, "April 20, 2026")
         self.assertContains(response, "liver-tln-plot")
         self.assertContains(response, "plotly-graph-div")
         self.assertContains(response, "tln-container")
@@ -169,6 +174,10 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
 
 class TestLiverResourceDashboardIndexListing(LiverResourcePageTestCase):
     """Tests for liver dashboard visibility on the index page."""
+
+    def test_dashboard_data_updated_at_uses_reference_data_date(self) -> None:
+        """Test index card date comes from reference_data_updated_at, not DashboardData."""
+        self.assertEqual(self.page.dashboard_data_updated_at, date(2026, 4, 20))
 
     def test_liver_page_appears_in_dashboard_index(self) -> None:
         """Test that liver dashboards are listed alongside standard dashboards."""

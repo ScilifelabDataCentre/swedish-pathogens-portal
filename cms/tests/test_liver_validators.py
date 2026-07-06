@@ -1,6 +1,7 @@
 """Tests for liver resource DE file validation."""
 
-from io import BytesIO
+import csv
+from io import BytesIO, StringIO
 from pathlib import Path
 
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -24,6 +25,25 @@ class TestLiverValidators(SimpleTestCase):
         self.assertTrue(result.is_valid)
         self.assertEqual(result.errors, ())
         self.assertIsNotNone(result.de_data)
+        self.assertGreater(result.gene_count, 10_000)
+
+    def test_valid_csv_upload_passes(self) -> None:
+        """Test comma-separated DE uploads pass validation."""
+        path = get_data_root() / "examples" / "HCC-Control.txt"
+        buffer = StringIO()
+        writer = csv.writer(buffer)
+        with path.open(encoding="utf-8") as handle:
+            for line in handle:
+                if line.strip():
+                    writer.writerow(line.rstrip("\n").split("\t"))
+
+        uploaded = SimpleUploadedFile(
+            "HCC-Control.csv",
+            buffer.getvalue().encode("utf-8"),
+            content_type="text/csv",
+        )
+        result = validate_de_upload(uploaded)
+        self.assertTrue(result.is_valid)
         self.assertGreater(result.gene_count, 10_000)
 
     def test_missing_required_columns(self) -> None:

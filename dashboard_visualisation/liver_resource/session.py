@@ -10,14 +10,20 @@ SESSION_KEY = "liver_resource_de"
 DEFAULT_CUTOFF = "standard"
 
 
-class LiverDeSession(TypedDict):
-    """Serialisable DE upload stored in the visitor session."""
+class DeFileEntry(TypedDict):
+    """One parsed DE upload stored in the visitor session."""
 
     filename: str
-    cutoff: str
     header: list[str]
     genes: list[str]
     data: dict[str, dict[str, float | None]]
+
+
+class LiverDeSession(TypedDict):
+    """Serialisable DE upload(s) stored in the visitor session."""
+
+    cutoff: str
+    files: list[DeFileEntry]
 
 
 def store_de_session(
@@ -27,13 +33,28 @@ def store_de_session(
     filename: str,
     cutoff: str = DEFAULT_CUTOFF,
 ) -> None:
-    """Persist parsed DE data in the visitor session."""
+    """Persist one parsed DE file in the visitor session."""
+    store_de_uploads(request, uploads=[(filename, de_data)], cutoff=cutoff)
+
+
+def store_de_uploads(
+    request: HttpRequest,
+    *,
+    uploads: list[tuple[str, dict[str, Any]]],
+    cutoff: str = DEFAULT_CUTOFF,
+) -> None:
+    """Persist one or more parsed DE files in the visitor session."""
     request.session[SESSION_KEY] = {
-        "filename": filename,
         "cutoff": cutoff,
-        "header": de_data["header"],
-        "genes": de_data["genes"],
-        "data": de_data["data"],
+        "files": [
+            {
+                "filename": filename,
+                "header": de_data["header"],
+                "genes": de_data["genes"],
+                "data": de_data["data"],
+            }
+            for filename, de_data in uploads
+        ],
     }
     request.session.modified = True
 
@@ -43,6 +64,23 @@ def get_de_session(request: HttpRequest) -> LiverDeSession | None:
     payload = request.session.get(SESSION_KEY)
     if not isinstance(payload, dict):
         return None
+
+    if "files" not in payload and "filename" in payload:
+        payload = {
+            "cutoff": payload.get("cutoff", DEFAULT_CUTOFF),
+            "files": [
+                {
+                    "filename": payload["filename"],
+                    "header": payload["header"],
+                    "genes": payload["genes"],
+                    "data": payload["data"],
+                }
+            ],
+        }
+
+    if not payload.get("files"):
+        return None
+
     return payload  # type: ignore[return-value]
 
 
@@ -72,9 +110,24 @@ def clear_de_session(request: HttpRequest) -> None:
 
 
 def de_data_from_session(session: LiverDeSession) -> dict[str, Any]:
+    """Rebuild the parsed DE dict for the first uploaded file."""
+    return de_entry_to_data(session["files"][0])
+
+
+def de_uploads_from_session(session: LiverDeSession) -> list[tuple[str, dict[str, Any]]]:
+    """Rebuild all parsed DE uploads stored in the session."""
+    return [(entry["filename"], de_entry_to_data(entry)) for entry in session["files"]]
+
+
+def session_filenames(session: LiverDeSession) -> list[str]:
+    """Return uploaded filenames in session order."""
+    return [entry["filename"] for entry in session["files"]]
+
+
+def de_entry_to_data(entry: DeFileEntry) -> dict[str, Any]:
     """Rebuild the parsed DE dict used by computation services."""
     return {
-        "header": session["header"],
-        "genes": session["genes"],
-        "data": session["data"],
+        "header": entry["header"],
+        "genes": entry["genes"],
+        "data": entry["data"],
     }

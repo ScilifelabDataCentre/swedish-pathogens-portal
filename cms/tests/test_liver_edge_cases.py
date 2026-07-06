@@ -97,7 +97,7 @@ class TestLiverViewEdgeCases(TestCase):
         )
         return self.client.post(
             self.upload_url,
-            {"de_file": upload, "cutoff": cutoff},
+            {"de_files": upload, "cutoff": cutoff},
             **self.htmx_headers,
         )
 
@@ -143,7 +143,7 @@ class TestLiverViewEdgeCases(TestCase):
         url = reverse("cms:liver_module_detail", kwargs={"module_id": 1})
         response = self.client.get(url)
         self.assertEqual(response.status_code, 400)
-        self.assertContains(response, "Upload a DE file", status_code=400)
+        self.assertContains(response, "Upload DE file(s)", status_code=400)
 
     def test_module_detail_unknown_module_returns_not_found(self) -> None:
         """Test requesting a non-existent module returns 404."""
@@ -158,7 +158,7 @@ class TestLiverViewEdgeCases(TestCase):
         url = reverse("cms:liver_export_genes")
         response = self.client.get(url)
         self.assertEqual(response.status_code, 400)
-        self.assertIn(b"Upload a DE file", response.content)
+        self.assertIn(b"Upload DE file(s)", response.content)
 
     def test_recompute_invalid_cutoff_falls_back_to_standard(self) -> None:
         """Test invalid cutoff query values fall back to the default cutoff."""

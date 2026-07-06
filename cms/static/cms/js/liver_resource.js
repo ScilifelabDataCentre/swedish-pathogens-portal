@@ -1,3 +1,15 @@
+/**
+ * DINA Liver Resource dashboard — client-side behaviour for the TLN plot.
+ *
+ * Responsibilities:
+ * - Plotly leaf click → htmx GET module detail into #module-detail
+ * - DEcutoff change → recompute colours (Plotly.restyle for solid leaves,
+ *   full htmx plot swap for pie leaves when data-plot-mode="pie")
+ * - Enable CSV export links after a successful upload or example load
+ *
+ * Expects #liver-dashboard with data-recompute-url and data-module-url-pattern,
+ * and a Plotly figure with leaf trace index in #liver-tln-plot data attributes.
+ */
 (function () {
     "use strict";
 
@@ -64,11 +76,28 @@
         }
     }
 
+    function getPlotMode() {
+        const wrapper = getPlotWrapper();
+        return wrapper?.dataset.plotMode || "solid";
+    }
+
     function updateAnalysisStats(stats) {
         const statsEl = document.getElementById("liver-analysis-stats");
         if (!statsEl || !stats) {
             return;
         }
+
+        if (stats.plot_mode === "pie" && Array.isArray(stats.filenames)) {
+            const comparisonSummary = stats.filenames
+                .map((filename) => `<span class="inline-block mr-3">${filename}</span>`)
+                .join("");
+            statsEl.innerHTML =
+                `<span class="font-medium">${stats.file_count} comparisons</span>` +
+                ` · pie mode · cutoff: ${stats.cutoff}` +
+                `<span class="block mt-1 text-xs">${comparisonSummary}</span>`;
+            return;
+        }
+
         statsEl.innerHTML =
             `<span class="font-medium">${stats.filename}</span>` +
             ` · ${stats.gene_count.toLocaleString()} genes` +
@@ -76,42 +105,28 @@
             ` · cutoff: ${stats.cutoff}`;
     }
 
-    function moduleDetailUrl(moduleId) {
-        const baseUrl = moduleUrlPattern.replace("{module_id}", String(moduleId));
-        const separator = baseUrl.includes("?") ? "&" : "?";
-        return `${baseUrl}${separator}cutoff=${encodeURIComponent(getCurrentCutoff())}`;
-    }
-
-    function bindPlotClick() {
-        const plotDiv = getPlotGraphDiv();
-        if (!plotDiv || typeof Plotly === "undefined" || plotDiv.dataset.liverClickBound === "true") {
+    async function recomputeCutoff() {
+        if (!hasActiveSession() || !recomputeUrl) {
             return;
         }
 
-        plotDiv.dataset.liverClickBound = "true";
-        plotDiv.on("plotly_click", (eventData) => {
-            const point = eventData.points?.[0];
-            if (!point || point.curveNumber !== getLeafTraceIndex()) {
-                return;
-            }
-
-            const moduleId = point.customdata;
-            if (!moduleId) {
-                return;
-            }
-
+        if (getPlotMode() === "pie") {
             if (typeof htmx !== "undefined") {
-                htmx.ajax("GET", moduleDetailUrl(moduleId), {
-                    target: "#module-detail",
-                    swap: "innerHTML",
-                    indicator: "#module-detail-loading",
+                dashboard.classList.add("liver-recomputing");
+                htmx.ajax(
+                    "GET",
+                    `${recomputeUrl}?cutoff=${encodeURIComponent(getCurrentCutoff())}`,
+                    {
+                        target: "#liver-tln-panel",
+                        swap: "innerHTML",
+                        headers: {
+                            Accept: "text/html",
+                        },
+                    },
+                ).finally(() => {
+                    dashboard.classList.remove("liver-recomputing");
                 });
             }
-        });
-    }
-
-    async function recomputeCutoff() {
-        if (!hasActiveSession() || !recomputeUrl) {
             return;
         }
 
@@ -152,6 +167,40 @@
         } finally {
             dashboard.classList.remove("liver-recomputing");
         }
+    }
+
+    function moduleDetailUrl(moduleId) {
+        const baseUrl = moduleUrlPattern.replace("{module_id}", String(moduleId));
+        const separator = baseUrl.includes("?") ? "&" : "?";
+        return `${baseUrl}${separator}cutoff=${encodeURIComponent(getCurrentCutoff())}`;
+    }
+
+    function bindPlotClick() {
+        const plotDiv = getPlotGraphDiv();
+        if (!plotDiv || typeof Plotly === "undefined" || plotDiv.dataset.liverClickBound === "true") {
+            return;
+        }
+
+        plotDiv.dataset.liverClickBound = "true";
+        plotDiv.on("plotly_click", (eventData) => {
+            const point = eventData.points?.[0];
+            if (!point || point.curveNumber !== getLeafTraceIndex()) {
+                return;
+            }
+
+            const moduleId = point.customdata;
+            if (!moduleId) {
+                return;
+            }
+
+            if (typeof htmx !== "undefined") {
+                htmx.ajax("GET", moduleDetailUrl(moduleId), {
+                    target: "#module-detail",
+                    swap: "innerHTML",
+                    indicator: "#module-detail-loading",
+                });
+            }
+        });
     }
 
     function handlePlotPanelSettled() {
