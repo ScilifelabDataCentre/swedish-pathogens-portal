@@ -27,6 +27,7 @@ from dashboard_visualisation.drr import (
     build_summary,
     load_feature_table,
     load_metadata,
+    reconciliation_report,
 )
 from dashboard_visualisation.utils.uploads import calculate_file_hash
 
@@ -79,6 +80,7 @@ class Command(BaseCommand):
 
         compound_index = build_compound_index(table, metadata)
         compound_index.write_parquet(output_dir / "compounds.parquet")
+        reconciliation = reconciliation_report(compound_index)
 
         table.frame.write_csv(output_dir / "features.csv")
         table.frame.write_parquet(output_dir / "features.parquet")
@@ -98,6 +100,7 @@ class Command(BaseCommand):
             source_hash=feature_hash,
             generated_at=generated_at.isoformat(),
         )
+        summary["compound_reconciliation"] = reconciliation
         (output_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
 
         data_updated_at = self._resolve_updated_date(slug, source_hash, options["data_updated_at"])
@@ -117,11 +120,18 @@ class Command(BaseCommand):
             figures=sorted(figures),
             compounds=compound_index.height,
             profiles=summary["n_profiles"],
+            matched=reconciliation["n_annotated"],
+            unmatched=reconciliation["n_unannotated"],
+            controls=reconciliation["n_control_ids"],
         )
         self.stdout.write(
             self.style.SUCCESS(
                 f"Precomputed DRR dataset '{slug}': {summary['n_compounds']} compounds, "
-                f"{summary['n_profiles']} profiles, {len(figures)} figures -> {output_dir}"
+                f"{summary['n_profiles']} profiles, {len(figures)} figures -> {output_dir}\n"
+                f"  cbkid join: {reconciliation['n_annotated']} annotated "
+                f"({reconciliation['n_recovered']} via normalization), "
+                f"{reconciliation['n_unannotated']} unannotated, "
+                f"{reconciliation['n_control_ids']} controls"
             )
         )
 

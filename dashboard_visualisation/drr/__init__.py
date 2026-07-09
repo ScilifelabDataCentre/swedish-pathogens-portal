@@ -7,7 +7,7 @@ driven offline by the ``drr_precompute`` management command (FREYA-2556), never
 at request time, and mirrors the ``liver_resource`` viz-subpackage layout.
 """
 
-from .compounds import build_compound_index
+from .compounds import build_compound_index, normalize_cbkid, reconciliation_report
 from .figures import build_all_figures
 from .loader import FeatureTable, load_feature_table, load_metadata
 from .summary import build_summary
@@ -19,4 +19,6 @@ __all__ = [
     "build_summary",
     "load_feature_table",
     "load_metadata",
+    "normalize_cbkid",
+    "reconciliation_report",
 ]

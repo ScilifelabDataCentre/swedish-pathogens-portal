@@ -113,6 +113,37 @@ class DrrPrecomputeTests(TestCase):
         unmatched = compounds.filter(pl.col("name").is_null())
         self.assertEqual(unmatched["cbkid"].to_list(), ["CBK3"])
 
+    def test_compound_index_has_reconciliation_columns(self) -> None:
+        """The index carries the normalized join key and the compound/control kind."""
+        self._run()
+        compounds = pl.read_parquet(self.out_dir / "compounds.parquet")
+        self.assertEqual(
+            compounds.columns,
+            [
+                "cbkid",
+                "cbkid_normalized",
+                "kind",
+                "n_profiles",
+                "name",
+                "broad_moa",
+                "broad_target",
+            ],
+        )
+        self.assertEqual(compounds["cbkid_normalized"].to_list(), ["CBK1", "CBK2", "CBK3"])
+        self.assertEqual(compounds["kind"].unique().to_list(), ["compound"])
+
+    def test_summary_has_reconciliation_block(self) -> None:
+        """The summary carries the cbkid reconciliation report for editors."""
+        self._run()
+        summary = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))
+        recon = summary["compound_reconciliation"]
+        self.assertEqual(recon["n_compound_ids"], 3)
+        self.assertEqual(recon["n_control_ids"], 0)
+        self.assertEqual(recon["n_annotated"], 2)
+        self.assertEqual(recon["n_recovered"], 0)
+        self.assertEqual(recon["n_unannotated"], 1)
+        self.assertEqual(recon["unmatched_cbkids"], ["CBK3"])
+
     def test_features_parquet_is_cbkid_anchored(self) -> None:
         """The features parquet retains cbkid so per-compound slicing is possible."""
         self._run()
@@ -193,3 +224,27 @@ class DrrPrecomputeTests(TestCase):
 
         self.assertNotEqual(second.source_file_hash, first_hash)
         self.assertNotEqual(json.dumps(second.data["umap"], sort_keys=True), first_umap)
+
+    def test_metadata_change_busts_snippet_hash_only(self) -> None:
+        """A metadata-only change folds into the snippet hash; summary keeps the feature digest."""
+        self._run()
+        first = DrrDatasetData.get_data(SLUG)
+        first_summary_sha = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))[
+            "source"
+        ]["sha256"]
+
+        # Annotate the previously-unmatched CBK3; the feature CSV is untouched.
+        self.metadata_path.write_text(
+            METADATA_TSV + "CBK3\tcompoundC\tnull\tnull\tcovid-repurpose/c.ome.zarr.zip\n",
+            encoding="utf-8",
+        )
+        self._run()
+        second = DrrDatasetData.get_data(SLUG)
+        second_summary = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))
+
+        # The metadata input is folded into the snippet hash (busts the render cache)...
+        self.assertNotEqual(second.source_file_hash, first.source_file_hash)
+        # ...while summary.source.sha256 stays the feature-file digest.
+        self.assertEqual(second_summary["source"]["sha256"], first_summary_sha)
+        # And the reconciliation reflects the new annotation (CBK3 now matched).
+        self.assertEqual(second_summary["compound_reconciliation"]["unmatched_cbkids"], [])
