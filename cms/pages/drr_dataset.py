@@ -36,8 +36,7 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
         upstream_bia_url: Upstream raw-image study URL; target of the 302 link-out.
     """
 
-    # Base dashboard template until the dedicated DRR template lands (FREYA-2558).
-    template = "cms/pages/dashboard.html"
+    template = "cms/pages/drr_dataset.html"
     parent_page_types = ["cms.DashboardIndexPage"]
     subpage_types: list[str] = []
 

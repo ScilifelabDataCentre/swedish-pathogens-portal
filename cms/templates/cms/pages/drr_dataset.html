@@ -1,0 +1,185 @@
+{% extends "cms/base.html" %}
+
+{% load toc wagtailcore_tags humanize %}
+
+{% block content %}
+
+<h3>{{ page.title }}</h3>
+
+{# Status badge + data-updated date (mirrors cms/pages/dashboard.html). #}
+<p class="text-pp-dark-grey mb-6 flex items-center gap-2 flex-wrap">
+    <span class="badge badge-ghost badge-lg">{{ page.get_data_status_display }}</span>
+    {% if page.dashboard_data_updated_at %}
+        <span>
+            Data last updated:
+            <time datetime="{{ page.dashboard_data_updated_at|date:"Y-m-d" }}">
+                {{ page.dashboard_data_updated_at|date:"F j, Y" }}
+            </time>
+        </span>
+    {% endif %}
+</p>
+
+{# Dataset metadata (editorial fields on DrrDatasetPage). #}
+{% if page.organism or page.cell_line or page.screen_type or page.upstream_accession %}
+    <dl class="mb-8 grid grid-cols-1 gap-x-8 gap-y-2 sm:grid-cols-2 lg:grid-cols-4">
+        {% if page.organism %}
+            <div>
+                <dt class="text-sm text-pp-dark-grey">Organism</dt>
+                <dd class="font-medium text-pp-almost-black">{{ page.organism }}</dd>
+            </div>
+        {% endif %}
+        {% if page.cell_line %}
+            <div>
+                <dt class="text-sm text-pp-dark-grey">Cell line</dt>
+                <dd class="font-medium text-pp-almost-black">{{ page.cell_line }}</dd>
+            </div>
+        {% endif %}
+        {% if page.screen_type %}
+            <div>
+                <dt class="text-sm text-pp-dark-grey">Screen type</dt>
+                <dd class="font-medium text-pp-almost-black">{{ page.screen_type }}</dd>
+            </div>
+        {% endif %}
+        {% if page.upstream_accession %}
+            <div>
+                <dt class="text-sm text-pp-dark-grey">Upstream accession</dt>
+                <dd class="font-medium text-pp-almost-black">{{ page.upstream_accession }}</dd>
+            </div>
+        {% endif %}
+    </dl>
+{% endif %}
+
+{# Summary-statistics panel (DrrDatasetData.summary; spec section 7). #}
+{% if summary %}
+    <section aria-labelledby="drr-summary-heading" class="mb-8">
+        <h4 id="drr-summary-heading">Summary statistics</h4>
+
+        <div class="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+            <div class="rounded border border-pp-pale-grey bg-white p-4 shadow-sm">
+                <div class="text-2xl font-bold text-pp-almost-black">{{ summary.n_compounds|default:0|intcomma }}</div>
+                <div class="text-sm text-pp-dark-grey">Compounds</div>
+            </div>
+            <div class="rounded border border-pp-pale-grey bg-white p-4 shadow-sm">
+                <div class="text-2xl font-bold text-pp-almost-black">{{ summary.n_plates|default:0|intcomma }}</div>
+                <div class="text-sm text-pp-dark-grey">Plates</div>
+            </div>
+            <div class="rounded border border-pp-pale-grey bg-white p-4 shadow-sm">
+                <div class="text-2xl font-bold text-pp-almost-black">{{ summary.n_wells|default:0|intcomma }}</div>
+                <div class="text-sm text-pp-dark-grey">Wells</div>
+            </div>
+            <div class="rounded border border-pp-pale-grey bg-white p-4 shadow-sm">
+                <div class="text-2xl font-bold text-pp-almost-black">{{ summary.n_profiles|default:0|intcomma }}</div>
+                <div class="text-sm text-pp-dark-grey">Profiles</div>
+            </div>
+            <div class="rounded border border-pp-pale-grey bg-white p-4 shadow-sm">
+                <div class="text-2xl font-bold text-pp-almost-black">{{ summary.n_features|default:0|intcomma }}</div>
+                <div class="text-sm text-pp-dark-grey">Features</div>
+            </div>
+        </div>
+
+        <div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+            {% if summary.pert_type_counts %}
+                <div>
+                    <h5 class="text-sm font-semibold text-pp-almost-black">Perturbation types</h5>
+                    <ul class="mt-2 flex flex-wrap gap-2">
+                        {% for label, count in summary.pert_type_counts.items %}
+                            <li class="badge badge-outline">{{ label }}: {{ count|intcomma }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endif %}
+
+            {% if summary.compartments or summary.channels %}
+                <div>
+                    {% if summary.compartments %}
+                        <h5 class="text-sm font-semibold text-pp-almost-black">Compartments</h5>
+                        <p class="mt-1 text-pp-dark-grey">{{ summary.compartments|join:", " }}</p>
+                    {% endif %}
+                    {% if summary.channels %}
+                        <h5 class="mt-3 text-sm font-semibold text-pp-almost-black">Channels</h5>
+                        <p class="mt-1 text-pp-dark-grey">{{ summary.channels|join:", " }}</p>
+                    {% endif %}
+                </div>
+            {% endif %}
+        </div>
+
+        {# Compound-metadata reconciliation (FREYA-2557; keys from reconciliation_report). #}
+        {% with recon=summary.compound_reconciliation %}
+            {% if recon %}
+                <div class="mt-6 rounded border border-pp-pale-grey bg-white p-4 shadow-sm">
+                    <h5 class="text-sm font-semibold text-pp-almost-black">Compound metadata reconciliation</h5>
+                    <ul class="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm text-pp-dark-grey">
+                        <li>Compounds: <span class="font-medium text-pp-almost-black">{{ recon.n_compound_ids|default:0|intcomma }}</span></li>
+                        <li>Controls: <span class="font-medium text-pp-almost-black">{{ recon.n_control_ids|default:0|intcomma }}</span></li>
+                        <li>Annotated: <span class="font-medium text-pp-almost-black">{{ recon.n_annotated|default:0|intcomma }}</span></li>
+                        <li>Recovered: <span class="font-medium text-pp-almost-black">{{ recon.n_recovered|default:0|intcomma }}</span></li>
+                        <li>Unannotated: <span class="font-medium text-pp-almost-black">{{ recon.n_unannotated|default:0|intcomma }}</span></li>
+                    </ul>
+                    {% if recon.unmatched_cbkids %}
+                        <details class="mt-3">
+                            <summary class="cursor-pointer text-sm text-pp-dark-grey">
+                                Unannotated compound IDs ({{ recon.unmatched_cbkids|length|intcomma }})
+                            </summary>
+                            <p class="mt-2 break-all text-xs text-pp-dark-grey">
+                                {{ recon.unmatched_cbkids|join:", " }}
+                            </p>
+                        </details>
+                    {% endif %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        {# Source provenance. #}
+        {% if summary.source %}
+            <p class="mt-4 text-xs text-pp-dark-grey">
+                Source:
+                {% if summary.source.filename %}<span class="text-pp-almost-black">{{ summary.source.filename }}</span>{% endif %}
+                {% if summary.source.generated_at %} &middot; generated {{ summary.source.generated_at }}{% endif %}
+                {% if summary.source.sha256 %} &middot; sha256 <code class="break-all">{{ summary.source.sha256 }}</code>{% endif %}
+            </p>
+        {% endif %}
+    </section>
+{% endif %}
+
+{# Figures: server-side PlotlyFigureBlocks render via the inherited context
+   (figures + source_file_hash set by DashboardPage.get_context). #}
+{% if page.show_toc %}
+    {% content_with_toc page.content %}
+{% else %}
+    {% include_block page.content %}
+{% endif %}
+
+{# Downloads: markup is ready but inert until the download / raw-image routes and
+   download_urls context land (FREYA-2537 downloads, FREYA-2539 raw-image link-out). #}
+{% if download_urls %}
+    <section aria-labelledby="drr-downloads-heading" class="mt-10">
+        <h4 id="drr-downloads-heading">Downloads</h4>
+        <div class="mt-4 flex flex-wrap items-center gap-3">
+            {% if download_urls.csv %}
+                <a href="{{ download_urls.csv }}" class="btn btn-primary btn-sm">Download features (CSV)</a>
+            {% endif %}
+            {% if download_urls.parquet %}
+                <a href="{{ download_urls.parquet }}" class="btn btn-outline btn-sm">Download features (Parquet)</a>
+            {% endif %}
+            {% if download_urls.raw_images %}
+                <a href="{{ download_urls.raw_images }}" class="btn btn-outline btn-sm" rel="noopener">Download raw images</a>
+            {% endif %}
+        </div>
+
+        {# Per-compound slice: compound picker populated from compounds.parquet
+           when the download route lands (FREYA-2537). #}
+        {% if compounds %}
+            <form method="get" action="{{ download_urls.compound_base }}" class="mt-4 flex w-full flex-col gap-3 sm:flex-row sm:items-center">
+                <label for="drr-compound" class="sr-only">Compound</label>
+                <select id="drr-compound" name="cbkid" class="input input-bordered w-full sm:w-auto">
+                    {% for compound in compounds %}
+                        <option value="{{ compound.cbkid }}">{{ compound.label|default:compound.cbkid }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="btn btn-primary btn-sm">Download compound (CSV)</button>
+            </form>
+        {% endif %}
+    </section>
+{% endif %}
+
+{% endblock %}
