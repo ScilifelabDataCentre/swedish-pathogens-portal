@@ -65,7 +65,7 @@ class TestLiverComputation(SimpleTestCase):
             for line in handle:
                 if line.strip():
                     writer.writerow(line.rstrip("\n").split("\t"))
-        csv_data = parse_de_file(buffer.getvalue())
+        csv_data = parse_de_file(StringIO(buffer.getvalue()))
 
         self.assertEqual(tab_data["header"], csv_data["header"])
         self.assertEqual(tab_data["genes"][:20], csv_data["genes"][:20])

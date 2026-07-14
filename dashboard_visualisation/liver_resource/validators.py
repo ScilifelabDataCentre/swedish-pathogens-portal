@@ -12,7 +12,6 @@ from dashboard_visualisation.liver_resource.computation import parse_de_file
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 MIN_GENE_ROWS = 100
 REQUIRED_COLUMNS = ("logFC", "adj.P.Val")
-OPTIONAL_COLUMNS = ("AveExpr", "t", "P.Value", "B")
 ENSEMBL_ID_PATTERN = re.compile(r"^ENSG\d+$")
 
 type UploadSource = str | Path | BinaryIO

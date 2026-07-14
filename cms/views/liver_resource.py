@@ -25,6 +25,7 @@ from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.views.decorators.http import require_GET, require_POST
 
+from cms.snippets.dashboard_data import DashboardData
 from dashboard_visualisation.liver_resource.analysis import (
     LEAF_TRACE_INDEX,
     LiverAnalysisResult,
@@ -32,6 +33,11 @@ from dashboard_visualisation.liver_resource.analysis import (
     colours_for_plotly_restyle,
 )
 from dashboard_visualisation.liver_resource.computation import VALID_CUTOFFS, parse_de_file
+from dashboard_visualisation.liver_resource.dashboard_figures import (
+    LIVER_DASHBOARD_SLUG,
+    get_figure_data,
+    get_stored_example,
+)
 from dashboard_visualisation.liver_resource.examples import get_example_uploads
 from dashboard_visualisation.liver_resource.exports import (
     build_genes_csv,
@@ -94,9 +100,11 @@ def upload_de(request: HttpRequest) -> HttpResponse:
 
 @require_GET
 def load_example(request: HttpRequest, example_slug: str) -> HttpResponse:
-    """Load a bundled single- or multi-file example into session and return the TLN plot.
+    """Load the bundled sidebar example into session and return the TLN plot.
 
-    Sidebar exposes two examples: ``hcc-control`` (solid) and ``two-comparisons`` (pie).
+    When ``DashboardData`` holds a pre-computed figure for this slug and cutoff,
+    the plot is rendered from stored JSON (session still receives parsed DE data
+    for module detail and exports).
     """
     example_uploads = get_example_uploads(example_slug)
     if example_uploads is None:
@@ -104,13 +112,38 @@ def load_example(request: HttpRequest, example_slug: str) -> HttpResponse:
 
     cutoff = _normalise_cutoff(request.GET.get("cutoff", DEFAULT_CUTOFF))
     parsed_uploads = [(filename, parse_de_file(path)) for filename, path in example_uploads]
-    return _store_and_render_analysis(
-        request,
-        uploads=parsed_uploads,
+    store_de_uploads(request, uploads=parsed_uploads, cutoff=cutoff)
+
+    dashboard_row = DashboardData.get_data(LIVER_DASHBOARD_SLUG)
+    stored = get_stored_example(
+        get_figure_data(dashboard_row),
+        slug=example_slug,
         cutoff=cutoff,
-        log_event="liver_resource.example_loaded",
-        example_slug=example_slug,
     )
+    if stored is not None:
+        analysis = stored.to_analysis_result()
+        LOGGER.info(
+            "liver_resource.example_loaded",
+            example_slug=example_slug,
+            cutoff=cutoff,
+            from_dashboard_data=True,
+            filenames=[filename for filename, _ in parsed_uploads],
+        )
+        return _render_plot_response(request, analysis)
+
+    analysis = analyse_de_uploads(parsed_uploads, cutoff=cutoff)
+    LOGGER.info(
+        "liver_resource.example_loaded",
+        example_slug=example_slug,
+        cutoff=cutoff,
+        from_dashboard_data=False,
+        filenames=[filename for filename, _ in parsed_uploads],
+        plot_mode=analysis.plot_mode,
+        gene_count=analysis.gene_count,
+        up_count=analysis.up_count,
+        down_count=analysis.down_count,
+    )
+    return _render_plot_response(request, analysis)
 
 
 @require_GET

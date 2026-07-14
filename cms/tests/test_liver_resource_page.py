@@ -1,6 +1,7 @@
 """Tests for LiverResourceDashboardPage."""
 
 from datetime import date
+from unittest.mock import patch
 
 from django.test import RequestFactory
 from wagtail.models import Page, Site
@@ -10,9 +11,10 @@ from cms.pages.dashboard import DashboardPage
 from cms.pages.dashboard_index import DashboardIndexPage
 from cms.pages.home import HomePage
 from cms.pages.liver_resource import LiverResourceDashboardPage
+from cms.snippets.dashboard_data import DashboardData
 from dashboard_visualisation.liver_resource.computation import VALID_CUTOFFS
 from dashboard_visualisation.liver_resource.examples import list_example_slugs, list_examples
-from dashboard_visualisation.liver_resource.reference_data import clear_reference_data_cache
+from dashboard_visualisation.liver_resource.reference_data import clear_reference_data_cache, get_data_root
 from cms.tests.utils import create_test_image
 
 
@@ -170,6 +172,57 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
         self.assertContains(response, "liver-upload-form")
         self.assertContains(response, "module-detail")
         self.assertContains(response, "Neutral base network")
+
+
+class TestLiverResourceDashboardDataIntegration(LiverResourcePageTestCase):
+    """Tests for liver page integration with DashboardData figures."""
+
+    def test_get_context_uses_dashboard_data_base_tln(self) -> None:
+        """Test page load reads base_tln from DashboardData when row exists."""
+        example_path = get_data_root() / "examples" / "HCC-Control.txt"
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        upload = SimpleUploadedFile(
+            name="HCC-Control.txt",
+            content=example_path.read_bytes(),
+            content_type="text/plain",
+        )
+        DashboardData.objects.create(
+            dashboard_title="DINA Liver Resource",
+            dashboard_slug="liver-resource",
+            source_file=upload,
+            data_updated_at=date(2026, 4, 20),
+        )
+
+        with patch(
+            "dashboard_visualisation.liver_resource.dashboard_figures.build_base_figure_json"
+        ) as mock_build:
+            request = self.client.get(self.page.url).wsgi_request
+            context = self.page.get_context(request)
+            mock_build.assert_not_called()
+
+        self.assertIn("data", context["base_tln_figure_json"])
+
+    def test_dashboard_data_updated_at_prefers_snippet_date(self) -> None:
+        """Test index card date uses DashboardData when snippet row exists."""
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        example_path = get_data_root() / "examples" / "HCC-Control.txt"
+        upload = SimpleUploadedFile(
+            name="HCC-Control.txt",
+            content=example_path.read_bytes(),
+            content_type="text/plain",
+        )
+        row = DashboardData.objects.create(
+            dashboard_title="DINA Liver Resource",
+            dashboard_slug="liver-resource",
+            source_file=upload,
+            data_updated_at=date(2026, 5, 1),
+        )
+        DashboardData.objects.filter(pk=row.pk).update(data_updated_at=date(2026, 5, 1))
+        self.page.__dict__.pop("dashboard_data", None)
+
+        self.assertEqual(self.page.dashboard_data_updated_at, date(2026, 5, 1))
 
 
 class TestLiverResourceDashboardIndexListing(LiverResourcePageTestCase):

@@ -7,7 +7,11 @@ import io
 from typing import Any
 
 from dashboard_visualisation.liver_resource.computation import classify_genes, compute_module_ratios
-from dashboard_visualisation.liver_resource.reference_data import load_modules, load_symbol_map
+from dashboard_visualisation.liver_resource.reference_data import (
+    EXPECTED_MODULE_COUNT,
+    load_modules,
+    load_symbol_map,
+)
 
 
 def build_module_scores_csv(de_data: dict[str, Any], cutoff: str) -> str:
@@ -21,7 +25,7 @@ def build_module_scores_csv(de_data: dict[str, Any], cutoff: str) -> str:
     writer = csv.writer(buffer, quoting=csv.QUOTE_MINIMAL)
     writer.writerow(["Module", "GeneCount", "DERatio", "DEcutoff"])
 
-    for module_id in range(1, 106):
+    for module_id in range(1, EXPECTED_MODULE_COUNT + 1):
         ratio = ratios.get(module_id)
         ratio_value = 0.0 if ratio is None else round(ratio, 6)
         writer.writerow(
@@ -85,7 +89,7 @@ def _build_gene_module_map(genes: list[str]) -> dict[str, int | None]:
     gene_set = set(genes)
     assignment: dict[str, int | None] = dict.fromkeys(genes, None)
 
-    for module_id in range(1, 106):
+    for module_id in range(1, EXPECTED_MODULE_COUNT + 1):
         for gene_id in modules[module_id]:
             if gene_id in gene_set:
                 assignment[gene_id] = module_id

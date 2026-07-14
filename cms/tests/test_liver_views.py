@@ -4,6 +4,7 @@ import csv
 import io
 import json
 from pathlib import Path
+from unittest.mock import patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase
@@ -95,18 +96,6 @@ class TestLiverViews(TestCase):
         self.assertContains(response, "liver-tln-result")
         self.assertContains(response, "HCC-Control.txt")
         self.assertEqual(self.client.session[SESSION_KEY]["files"][0]["filename"], "HCC-Control.txt")
-
-    def test_load_multi_example_returns_pie_plot(self) -> None:
-        """Test multi-file bundled example stores both files and returns pie plot."""
-        url = reverse("cms:liver_load_example", kwargs={"example_slug": "two-comparisons"})
-        response = self.client.get(url)
-
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'data-plot-mode="pie"')
-        session_files = self.client.session[SESSION_KEY]["files"]
-        self.assertEqual(len(session_files), 2)
-        self.assertEqual(session_files[0]["filename"], "HCC-Control.txt")
-        self.assertEqual(session_files[1]["filename"], "sleep.deprived.AK-control.AK.txt")
 
     def test_load_unknown_example_returns_error(self) -> None:
         """Test unknown example slug returns validation error."""
@@ -231,5 +220,42 @@ class TestLiverViews(TestCase):
         session = self.client.session.get(SESSION_KEY)
         self.assertIsNotNone(session)
         self.assertEqual(len(session["files"]), 2)
+
+
+class TestLiverViewsWithDashboardData(TestCase):
+    """Verify example load uses pre-stored DashboardData figures when present."""
+
+    def setUp(self) -> None:
+        """Create liver DashboardData row from bundled DE file."""
+        from datetime import date
+
+        from cms.snippets.dashboard_data import DashboardData
+
+        self.client = Client()
+        self.example_path = get_data_root() / "examples" / "HCC-Control.txt"
+        upload = SimpleUploadedFile(
+            name="HCC-Control.txt",
+            content=self.example_path.read_bytes(),
+            content_type="text/plain",
+        )
+        DashboardData.objects.create(
+            dashboard_title="DINA Liver Resource",
+            dashboard_slug="liver-resource",
+            source_file=upload,
+            data_updated_at=date(2026, 4, 20),
+        )
+
+    def test_load_example_uses_dashboard_data_without_analyse(self) -> None:
+        """Test example button renders stored figure and keeps session for exports."""
+        url = reverse("cms:liver_load_example", kwargs={"example_slug": "hcc-control"})
+        with patch(
+            "cms.views.liver_resource.analyse_de_uploads",
+            side_effect=AssertionError("analyse_de_uploads should not run"),
+        ):
+            response = self.client.get(url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "HCC-Control.txt")
+        self.assertIsNotNone(self.client.session.get(SESSION_KEY))
 
 

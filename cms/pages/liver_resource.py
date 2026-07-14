@@ -11,11 +11,12 @@ from wagtail.admin.panels import FieldPanel
 from cms.pages.dashboard import DashboardPage
 from dashboard_visualisation.liver_resource.analysis import LEAF_TRACE_INDEX
 from dashboard_visualisation.liver_resource.computation import VALID_CUTOFFS
-from dashboard_visualisation.liver_resource.examples import list_examples
-from dashboard_visualisation.liver_resource.plotly_tln import (
-    DEFAULT_PLOT_HEIGHT_PX,
-    build_base_figure_json,
+from dashboard_visualisation.liver_resource.dashboard_figures import (
+    get_figure_data,
+    resolve_base_tln_figure,
 )
+from dashboard_visualisation.liver_resource.examples import list_examples
+from dashboard_visualisation.liver_resource.plotly_tln import DEFAULT_PLOT_HEIGHT_PX
 from dashboard_visualisation.liver_resource.session import (
     DEFAULT_CUTOFF,
     get_de_session,
@@ -58,13 +59,17 @@ class LiverResourceDashboardPage(DashboardPage):
 
     @property
     def dashboard_data_updated_at(self) -> date | None:
-        """Return the reference model date for index cards and page header."""
+        """Return snippet freshness date, falling back to the page reference date."""
+        snippet_date = super().dashboard_data_updated_at
+        if snippet_date is not None:
+            return snippet_date
         return self.reference_data_updated_at
 
     def get_context(self, request: HttpRequest) -> dict[str, Any]:
         """Add liver-specific TLN and control metadata to template context."""
         context = super().get_context(request)
-        base_figure_json = build_base_figure_json()
+        figure_data = get_figure_data(self.dashboard_data)
+        base_figure_json = resolve_base_tln_figure(figure_data)
         session = get_de_session(request)
 
         context["base_tln_figure_json"] = base_figure_json
