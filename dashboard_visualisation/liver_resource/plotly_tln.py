@@ -56,8 +56,7 @@ def build_coloured_figure(
     colours = map_ratios_to_colours(ratios, max_abs=max_abs)
     leaf_colours = {str(module_id): colour for module_id, colour in colours.items()}
     leaf_ratios = {
-        str(module_id): (ratio if ratio is not None else 0.0)
-        for module_id, ratio in ratios.items()
+        str(module_id): (ratio if ratio is not None else 0.0) for module_id, ratio in ratios.items()
     }
     display_title = f"{title} ({cutoff} cutoff)" if cutoff else title
     if max_abs is None:
@@ -351,9 +350,7 @@ def _build_leaf_trace(
                 "<i>Upload DE file to see ratios</i>"
             )
         else:
-            hovers.append(
-                f"<b>Module {name}</b><br>Genes: {gene_count}<br>DE ratio: {ratio:+.4f}"
-            )
+            hovers.append(f"<b>Module {name}</b><br>Genes: {gene_count}<br>DE ratio: {ratio:+.4f}")
 
     return go.Scatter(
         x=leaf_x,
@@ -525,10 +522,7 @@ def _marker_radius_data(gene_count: int, *, x_span: float = 2.0) -> float:
 
 def _max_abs_from_comparisons(comparisons: list[ComparisonRow]) -> float:
     valid = [
-        value
-        for _, ratios, _ in comparisons
-        for value in ratios.values()
-        if value is not None
+        value for _, ratios, _ in comparisons for value in ratios.values() if value is not None
     ]
     if not valid:
         return 1.0

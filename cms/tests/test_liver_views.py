@@ -258,5 +258,3 @@ class TestLiverViewsWithDashboardData(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "HCC-Control.txt")
         self.assertIsNotNone(self.client.session.get(SESSION_KEY))
-
-

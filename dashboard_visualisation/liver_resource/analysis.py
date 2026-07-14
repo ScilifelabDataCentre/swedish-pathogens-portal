@@ -161,12 +161,7 @@ def colours_for_plotly_restyle(colours: dict[int, str]) -> list[str]:
 
 
 def _shared_max_abs(ratio_rows: list[dict[int, float | None]]) -> float:
-    valid = [
-        value
-        for ratios in ratio_rows
-        for value in ratios.values()
-        if value is not None
-    ]
+    valid = [value for ratios in ratio_rows for value in ratios.values() if value is not None]
     if not valid:
         return 1.0
     return max(abs(value) for value in valid) or 1.0

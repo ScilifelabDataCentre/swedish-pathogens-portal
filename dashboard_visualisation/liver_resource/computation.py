@@ -101,7 +101,7 @@ def _parse_de_lines(lines: list[str]) -> dict:
         for index, column in enumerate(header):
             try:
                 values[column] = float(row[index + 1])
-            except (ValueError, IndexError):
+            except ValueError, IndexError:
                 values[column] = None
         data[gene_id] = values
 
@@ -185,9 +185,7 @@ def classify_genes(de_data: dict, cutoff: str) -> dict[str, set[str]]:
     elif cutoff.startswith("top"):
         top_n = int(cutoff[3:])
         valid = [
-            (gene_id, data[gene_id]["t"])
-            for gene_id in genes
-            if data[gene_id].get("t") is not None
+            (gene_id, data[gene_id]["t"]) for gene_id in genes if data[gene_id].get("t") is not None
         ]
         sorted_desc = sorted(valid, key=lambda item: item[1], reverse=True)
         up = {gene_id for gene_id, _ in sorted_desc[:top_n]}

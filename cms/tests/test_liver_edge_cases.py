@@ -52,8 +52,7 @@ class TestLiverValidationEdgeCases(SimpleTestCase):
         """Test non-numeric logFC values are rejected."""
         header = "logFC\tadj.P.Val\n"
         rows = "\n".join(
-            f"ENSG{900_000_000_000 + index:011d}\tnot_a_number\t0.05"
-            for index in range(150)
+            f"ENSG{900_000_000_000 + index:011d}\tnot_a_number\t0.05" for index in range(150)
         )
         result = validate_de_upload(BytesIO((header + rows).encode()))
         self.assertFalse(result.is_valid)
