@@ -1,7 +1,6 @@
 """Tests for liver DashboardData upload and figure generation."""
 
 from datetime import date
-from pathlib import Path
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase

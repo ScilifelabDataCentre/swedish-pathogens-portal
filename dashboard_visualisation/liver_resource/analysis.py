@@ -44,28 +44,34 @@ class LiverAnalysisResult:
 
     @property
     def filename(self) -> str:
+        """Return the primary filename or a comma-separated list for multi-file runs."""
         if len(self.comparisons) == 1:
             return self.comparisons[0].filename
         return ", ".join(comparison.filename for comparison in self.comparisons)
 
     @property
     def gene_count(self) -> int:
+        """Return the gene count from the first comparison."""
         return self.comparisons[0].gene_count
 
     @property
     def up_count(self) -> int:
+        """Return the up-regulated gene count from the first comparison."""
         return self.comparisons[0].up_count
 
     @property
     def down_count(self) -> int:
+        """Return the down-regulated gene count from the first comparison."""
         return self.comparisons[0].down_count
 
     @property
     def ratios(self) -> dict[int, float | None]:
+        """Return module ratios from the first comparison."""
         return self.comparisons[0].ratios
 
     @property
     def colours(self) -> dict[int, str]:
+        """Return module colours from the first comparison."""
         return self.comparisons[0].colours
 
 

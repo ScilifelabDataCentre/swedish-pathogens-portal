@@ -13,7 +13,10 @@ from dashboard_visualisation.liver_resource.computation import (
     map_ratios_to_colours,
     parse_de_file,
 )
-from dashboard_visualisation.liver_resource.reference_data import clear_reference_data_cache, get_data_root
+from dashboard_visualisation.liver_resource.reference_data import (
+    clear_reference_data_cache,
+    get_data_root,
+)
 
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures" / "liver"
 EXPECTED_DIR = FIXTURES_DIR / "expected"

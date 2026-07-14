@@ -8,7 +8,10 @@ from django.test import SimpleTestCase
 
 from dashboard_visualisation.liver_resource.computation import parse_de_file
 from dashboard_visualisation.liver_resource.exports import build_genes_csv, build_module_scores_csv
-from dashboard_visualisation.liver_resource.reference_data import clear_reference_data_cache, get_data_root
+from dashboard_visualisation.liver_resource.reference_data import (
+    clear_reference_data_cache,
+    get_data_root,
+)
 
 FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures" / "liver" / "expected"
 

@@ -12,10 +12,13 @@ from cms.pages.dashboard_index import DashboardIndexPage
 from cms.pages.home import HomePage
 from cms.pages.liver_resource import LiverResourceDashboardPage
 from cms.snippets.dashboard_data import DashboardData
+from cms.tests.utils import create_test_image
 from dashboard_visualisation.liver_resource.computation import VALID_CUTOFFS
 from dashboard_visualisation.liver_resource.examples import list_example_slugs, list_examples
-from dashboard_visualisation.liver_resource.reference_data import clear_reference_data_cache, get_data_root
-from cms.tests.utils import create_test_image
+from dashboard_visualisation.liver_resource.reference_data import (
+    clear_reference_data_cache,
+    get_data_root,
+)
 
 
 class LiverResourcePageTestCase(WagtailPageTestCase):

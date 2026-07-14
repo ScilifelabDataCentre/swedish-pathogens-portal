@@ -77,7 +77,7 @@ class TestLiverPlotlyTln(SimpleTestCase):
         de_data = parse_de_file(example_path)
         classified = classify_genes(de_data, "standard")
         ratios = compute_module_ratios(de_data["genes"], classified, get_module_gene_sets())
-        colours = {module_id: "#ffffff" for module_id in ratios}
+        colours = dict.fromkeys(ratios, "#ffffff")
         figure_json = build_multi_coloured_figure_json(
             [
                 ("file-a.txt", ratios, colours),

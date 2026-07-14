@@ -95,7 +95,8 @@ class TestLiverViews(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "liver-tln-result")
         self.assertContains(response, "HCC-Control.txt")
-        self.assertEqual(self.client.session[SESSION_KEY]["files"][0]["filename"], "HCC-Control.txt")
+        session_filename = self.client.session[SESSION_KEY]["files"][0]["filename"]
+        self.assertEqual(session_filename, "HCC-Control.txt")
 
     def test_load_unknown_example_returns_error(self) -> None:
         """Test unknown example slug returns validation error."""

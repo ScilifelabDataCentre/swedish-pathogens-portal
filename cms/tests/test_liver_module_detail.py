@@ -4,7 +4,10 @@ from django.test import SimpleTestCase
 
 from dashboard_visualisation.liver_resource.computation import parse_de_file
 from dashboard_visualisation.liver_resource.module_detail import build_module_detail
-from dashboard_visualisation.liver_resource.reference_data import clear_reference_data_cache, get_data_root
+from dashboard_visualisation.liver_resource.reference_data import (
+    clear_reference_data_cache,
+    get_data_root,
+)
 
 
 class TestLiverModuleDetail(SimpleTestCase):

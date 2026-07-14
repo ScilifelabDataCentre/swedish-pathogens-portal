@@ -16,8 +16,8 @@ from wagtail.models import RevisionMixin
 from wagtail.snippets.models import register_snippet
 from wagtail.snippets.views.snippets import CreateView, EditView, SnippetViewSet
 
-from dashboard_visualisation.registry import validate_source_columns
 from dashboard_visualisation.liver_resource.dashboard_figures import LIVER_DASHBOARD_SLUG
+from dashboard_visualisation.registry import validate_source_columns
 from dashboard_visualisation.utils.uploads import (
     calculate_file_hash,
     rewind_source_file,

@@ -12,6 +12,7 @@ class TestLiverDashboardHtmxFlow(TestCase):
     """Verify end-to-end htmx flows used by the liver dashboard page."""
 
     def setUp(self) -> None:
+        """Prepare client and bundled example path for htmx flow tests."""
         self.client = Client()
         self.upload_url = reverse("cms:liver_upload")
         self.example_path = get_data_root() / "examples" / "HCC-Control.txt"

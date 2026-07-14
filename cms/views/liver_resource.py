@@ -45,6 +45,7 @@ from dashboard_visualisation.liver_resource.exports import (
     export_basename,
 )
 from dashboard_visualisation.liver_resource.module_detail import build_module_detail
+from dashboard_visualisation.liver_resource.plotly_tln import DEFAULT_PLOT_HEIGHT_PX
 from dashboard_visualisation.liver_resource.session import (
     DEFAULT_CUTOFF,
     de_data_from_session,
@@ -54,7 +55,6 @@ from dashboard_visualisation.liver_resource.session import (
     store_de_uploads,
     update_session_cutoff,
 )
-from dashboard_visualisation.liver_resource.plotly_tln import DEFAULT_PLOT_HEIGHT_PX
 from dashboard_visualisation.liver_resource.validators import validate_de_upload
 from dashboard_visualisation.utils.plotly import plot_html_from_json
 
@@ -346,7 +346,7 @@ def _render_plot_response(request: HttpRequest, analysis: LiverAnalysisResult) -
 
 
 def _wants_html_plot(request: HttpRequest) -> bool:
-    """True when the client requests a full plot HTML partial (pie-mode cutoff recompute)."""
+    """Return whether the client requests a full plot HTML partial (pie-mode cutoff recompute)."""
     accept = request.headers.get("Accept", "")
     return "text/html" in accept and "application/json" not in accept.split(",")[0]
 

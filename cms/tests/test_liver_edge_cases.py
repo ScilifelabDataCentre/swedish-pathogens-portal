@@ -6,6 +6,7 @@ import json
 from io import BytesIO
 
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.http import HttpResponse
 from django.test import Client, SimpleTestCase, TestCase
 from django.urls import reverse
 
@@ -84,12 +85,20 @@ class TestLiverViewEdgeCases(TestCase):
     """HTTP edge cases for liver dashboard endpoints."""
 
     def setUp(self) -> None:
+        """Prepare client and endpoint URLs for edge-case requests."""
         self.client = Client()
         self.upload_url = reverse("cms:liver_upload")
         self.recompute_url = reverse("cms:liver_recompute")
         self.htmx_headers = {"HTTP_HX_REQUEST": "true"}
 
-    def _post_de_file(self, content: bytes, *, filename: str = "test.txt", cutoff: str = "standard"):
+    def _post_de_file(
+        self,
+        content: bytes,
+        *,
+        filename: str = "test.txt",
+        cutoff: str = "standard",
+    ) -> HttpResponse:
+        """POST a DE upload and return the response."""
         upload = SimpleUploadedFile(
             name=filename,
             content=content,

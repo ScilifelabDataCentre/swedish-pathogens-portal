@@ -442,7 +442,7 @@ def _build_pie_leaf_layers(
         labels.append(str(name))
 
         hover_lines = [f"<b>Module {name}</b>", f"Genes: {gene_count}"]
-        for filename, ratios, colours in comparisons:
+        for filename, ratios, _colours in comparisons:
             ratio = ratios.get(module_id)
             ratio_text = "—" if ratio is None else f"{ratio:+.4f}"
             hover_lines.append(f"{filename}: {ratio_text}")

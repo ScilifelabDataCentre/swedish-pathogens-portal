@@ -54,7 +54,8 @@ class TestLiverDashboardFigures(SimpleTestCase):
 
         stored = get_stored_example(payload, slug=EXAMPLE_SLUG, cutoff=DEFAULT_CUTOFF)
         self.assertIsNotNone(stored)
-        assert stored is not None
+        if stored is None:
+            self.fail("Expected stored example figure")
         self.assertEqual(stored.plot_mode, "solid")
         self.assertEqual(stored.comparisons[0].filename, EXAMPLE_FILENAME)
         self.assertIn("data", stored.figure_json)
