@@ -22,9 +22,6 @@ db.sqlite3-journal
 media/
 staticfiles/
 
-# TEMP EXCLUSION
-cms/migrations/
-
 # Tailwind CSS (ignore the locally generated CSS, it will be at build time)
 tailwindcss*
 portal.css
