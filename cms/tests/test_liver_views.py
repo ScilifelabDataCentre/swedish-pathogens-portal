@@ -11,7 +11,11 @@ from django.test import Client, RequestFactory, TestCase
 from django.urls import reverse
 
 from dashboard_visualisation.liver_resource.reference_data import get_data_root
-from dashboard_visualisation.liver_resource.session import SESSION_KEY, get_de_session
+from dashboard_visualisation.liver_resource.session import (
+    SESSION_KEY,
+    LiverDeSession,
+    get_de_session,
+)
 
 
 class TestLiverViews(TestCase):
@@ -24,7 +28,7 @@ class TestLiverViews(TestCase):
         self.recompute_url = reverse("cms:liver_recompute")
         self.example_path = get_data_root() / "examples" / "HCC-Control.txt"
 
-    def _hydrated_session(self):
+    def _hydrated_session(self) -> LiverDeSession | None:
         """Return hydrated DE session data for the current test client."""
         request = RequestFactory().get("/")
         request.session = self.client.session
