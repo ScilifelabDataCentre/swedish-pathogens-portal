@@ -9,9 +9,12 @@ from django.test import SimpleTestCase
 
 from dashboard_visualisation.liver_resource.reference_data import get_data_root
 from dashboard_visualisation.liver_resource.validators import (
+    MAX_TOTAL_UPLOAD_BYTES,
     MAX_UPLOAD_BYTES,
+    MAX_UPLOAD_FILE_COUNT,
     validate_de_data,
     validate_de_upload,
+    validate_upload_batch,
 )
 
 
@@ -66,6 +69,22 @@ class TestLiverValidators(SimpleTestCase):
         result = validate_de_upload(BytesIO(b""), size_bytes=MAX_UPLOAD_BYTES + 1)
         self.assertFalse(result.is_valid)
         self.assertTrue(any("too large" in error for error in result.errors))
+
+    def test_batch_rejects_too_many_files(self) -> None:
+        """Test multi-file upload count limit is enforced."""
+        errors = validate_upload_batch(
+            file_count=MAX_UPLOAD_FILE_COUNT + 1,
+            total_size_bytes=1024,
+        )
+        self.assertTrue(any("Too many files" in error for error in errors))
+
+    def test_batch_rejects_total_size(self) -> None:
+        """Test combined upload size limit is enforced."""
+        errors = validate_upload_batch(
+            file_count=2,
+            total_size_bytes=MAX_TOTAL_UPLOAD_BYTES + 1,
+        )
+        self.assertTrue(any("Combined upload size" in error for error in errors))
 
     def test_duplicate_gene_ids(self) -> None:
         """Test duplicate gene IDs are rejected."""

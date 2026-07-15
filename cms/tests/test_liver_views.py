@@ -7,11 +7,11 @@ from pathlib import Path
 from unittest.mock import patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import Client, TestCase
+from django.test import Client, RequestFactory, TestCase
 from django.urls import reverse
 
 from dashboard_visualisation.liver_resource.reference_data import get_data_root
-from dashboard_visualisation.liver_resource.session import SESSION_KEY
+from dashboard_visualisation.liver_resource.session import SESSION_KEY, get_de_session
 
 
 class TestLiverViews(TestCase):
@@ -23,6 +23,12 @@ class TestLiverViews(TestCase):
         self.upload_url = reverse("cms:liver_upload")
         self.recompute_url = reverse("cms:liver_recompute")
         self.example_path = get_data_root() / "examples" / "HCC-Control.txt"
+
+    def _hydrated_session(self):
+        """Return hydrated DE session data for the current test client."""
+        request = RequestFactory().get("/")
+        request.session = self.client.session
+        return get_de_session(request)
 
     def _upload_example_file(self) -> None:
         upload = SimpleUploadedFile(
@@ -60,7 +66,11 @@ class TestLiverViews(TestCase):
         self.assertIsNotNone(session)
         self.assertEqual(session["files"][0]["filename"], "HCC-Control.txt")
         self.assertEqual(session["cutoff"], "standard")
-        self.assertGreater(len(session["files"][0]["genes"]), 10_000)
+        self.assertIn("storage_id", session)
+
+        hydrated = self._hydrated_session()
+        self.assertIsNotNone(hydrated)
+        self.assertGreater(len(hydrated["files"][0]["genes"]), 10_000)
 
     def test_upload_missing_file_returns_error(self) -> None:
         """Test missing file field returns validation errors."""

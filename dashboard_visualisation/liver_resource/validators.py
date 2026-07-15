@@ -10,6 +10,8 @@ from typing import BinaryIO
 from dashboard_visualisation.liver_resource.computation import parse_de_file
 
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
+MAX_TOTAL_UPLOAD_BYTES = 50 * 1024 * 1024
+MAX_UPLOAD_FILE_COUNT = 10
 MIN_GENE_ROWS = 100
 REQUIRED_COLUMNS = ("logFC", "adj.P.Val")
 ENSEMBL_ID_PATTERN = re.compile(r"^ENSG\d+$")
@@ -25,6 +27,22 @@ class DeValidationResult:
     errors: tuple[str, ...] = field(default_factory=tuple)
     de_data: dict | None = None
     gene_count: int = 0
+
+
+def validate_upload_batch(*, file_count: int, total_size_bytes: int) -> tuple[str, ...]:
+    """Validate multi-file upload limits before parsing individual DE files."""
+    errors: list[str] = []
+    if file_count > MAX_UPLOAD_FILE_COUNT:
+        errors.append(
+            f"Too many files ({file_count}). "
+            f"Upload at most {MAX_UPLOAD_FILE_COUNT} DE files at once."
+        )
+    if total_size_bytes > MAX_TOTAL_UPLOAD_BYTES:
+        errors.append(
+            f"Combined upload size is too large ({total_size_bytes // (1024 * 1024)} MB). "
+            f"Maximum allowed total is {MAX_TOTAL_UPLOAD_BYTES // (1024 * 1024)} MB."
+        )
+    return tuple(errors)
 
 
 def validate_de_upload(

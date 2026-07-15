@@ -27,6 +27,10 @@ WAGTAILADMIN_BASE_URL = env("WAGTAILADMIN_BASE_URL").rstrip("/")
 MEDIA_ROOT = env("MEDIA_ROOT")
 MEDIA_URL = env("MEDIA_URL", default="media").rstrip("/") + "/"
 
+# Large DE uploads may exceed Django's in-memory default (2.5 MB) before spooling to disk.
+DATA_UPLOAD_MAX_MEMORY_SIZE = 12 * 1024 * 1024
+FILE_UPLOAD_MAX_MEMORY_SIZE = 12 * 1024 * 1024
+
 
 # PRODUCTION STATIC FILE SETTINGS
 # ------------------------------------------------------------------------------

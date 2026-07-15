@@ -55,7 +55,10 @@ from dashboard_visualisation.liver_resource.session import (
     store_de_uploads,
     update_session_cutoff,
 )
-from dashboard_visualisation.liver_resource.validators import validate_de_upload
+from dashboard_visualisation.liver_resource.validators import (
+    validate_de_upload,
+    validate_upload_batch,
+)
 from dashboard_visualisation.utils.plotly import plot_html_from_json
 
 LOGGER = structlog.get_logger(__name__)
@@ -76,6 +79,13 @@ def upload_de(request: HttpRequest) -> HttpResponse:
 
     if not uploaded_files:
         return _render_validation_errors(request, ("Choose one or more DE files to upload.",))
+
+    batch_errors = validate_upload_batch(
+        file_count=len(uploaded_files),
+        total_size_bytes=sum(uploaded.size for uploaded in uploaded_files),
+    )
+    if batch_errors:
+        return _render_validation_errors(request, batch_errors)
 
     cutoff = _normalise_cutoff(request.POST.get("cutoff", DEFAULT_CUTOFF))
     validated_uploads: list[tuple[str, dict]] = []

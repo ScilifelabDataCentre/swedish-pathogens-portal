@@ -6,12 +6,19 @@ from typing import Any, TypedDict
 
 from django.http import HttpRequest
 
+from dashboard_visualisation.liver_resource.session_storage import (
+    delete_storage,
+    new_storage_id,
+    read_uploads,
+    write_uploads,
+)
+
 SESSION_KEY = "liver_resource_de"
 DEFAULT_CUTOFF = "standard"
 
 
 class DeFileEntry(TypedDict):
-    """One parsed DE upload stored in the visitor session."""
+    """One parsed DE upload for the current visitor session."""
 
     filename: str
     header: list[str]
@@ -20,7 +27,7 @@ class DeFileEntry(TypedDict):
 
 
 class LiverDeSession(TypedDict):
-    """Serialisable DE upload(s) stored in the visitor session."""
+    """Hydrated DE upload(s) for the current visitor."""
 
     cutoff: str
     files: list[DeFileEntry]
@@ -33,7 +40,7 @@ def store_de_session(
     filename: str,
     cutoff: str = DEFAULT_CUTOFF,
 ) -> None:
-    """Persist one parsed DE file in the visitor session."""
+    """Persist one parsed DE file for the visitor session."""
     store_de_uploads(request, uploads=[(filename, de_data)], cutoff=cutoff)
 
 
@@ -43,18 +50,15 @@ def store_de_uploads(
     uploads: list[tuple[str, dict[str, Any]]],
     cutoff: str = DEFAULT_CUTOFF,
 ) -> None:
-    """Persist one or more parsed DE files in the visitor session."""
+    """Persist parsed DE file(s): metadata in Django session, payloads on disk."""
+    _clear_stored_payload(request)
+
+    storage_id = new_storage_id()
+    write_uploads(storage_id, uploads)
     request.session[SESSION_KEY] = {
+        "storage_id": storage_id,
         "cutoff": cutoff,
-        "files": [
-            {
-                "filename": filename,
-                "header": de_data["header"],
-                "genes": de_data["genes"],
-                "data": de_data["data"],
-            }
-            for filename, de_data in uploads
-        ],
+        "files": [{"filename": filename} for filename, _ in uploads],
     }
     request.session.modified = True
 
@@ -65,9 +69,30 @@ def get_de_session(request: HttpRequest) -> LiverDeSession | None:
     if not isinstance(payload, dict):
         return None
 
+    cutoff = payload.get("cutoff", DEFAULT_CUTOFF)
+    storage_id = payload.get("storage_id")
+
+    if storage_id:
+        try:
+            uploads = read_uploads(storage_id)
+        except FileNotFoundError:
+            return None
+        return {
+            "cutoff": cutoff,
+            "files": [
+                {
+                    "filename": filename,
+                    "header": de_data["header"],
+                    "genes": de_data["genes"],
+                    "data": de_data["data"],
+                }
+                for filename, de_data in uploads
+            ],
+        }
+
     if "files" not in payload and "filename" in payload:
         payload = {
-            "cutoff": payload.get("cutoff", DEFAULT_CUTOFF),
+            "cutoff": cutoff,
             "files": [
                 {
                     "filename": payload["filename"],
@@ -81,29 +106,30 @@ def get_de_session(request: HttpRequest) -> LiverDeSession | None:
     if not payload.get("files"):
         return None
 
-    return payload  # type: ignore[return-value]
+    return {"cutoff": cutoff, "files": payload["files"]}  # type: ignore[return-value]
 
 
 def get_session_cutoff(request: HttpRequest) -> str:
     """Return the active DEcutoff mode from session, or the default."""
-    session = get_de_session(request)
-    if session is None:
+    payload = request.session.get(SESSION_KEY)
+    if not isinstance(payload, dict):
         return DEFAULT_CUTOFF
-    return session.get("cutoff", DEFAULT_CUTOFF)
+    return payload.get("cutoff", DEFAULT_CUTOFF)
 
 
 def update_session_cutoff(request: HttpRequest, cutoff: str) -> None:
     """Update the stored cutoff without re-uploading the DE file."""
-    session = get_de_session(request)
-    if session is None:
+    payload = request.session.get(SESSION_KEY)
+    if not isinstance(payload, dict):
         return
-    session["cutoff"] = cutoff
-    request.session[SESSION_KEY] = session
+    payload["cutoff"] = cutoff
+    request.session[SESSION_KEY] = payload
     request.session.modified = True
 
 
 def clear_de_session(request: HttpRequest) -> None:
-    """Remove uploaded DE data from the visitor session."""
+    """Remove uploaded DE data from the visitor session and disk."""
+    _clear_stored_payload(request)
     if SESSION_KEY in request.session:
         del request.session[SESSION_KEY]
         request.session.modified = True
@@ -131,3 +157,13 @@ def de_entry_to_data(entry: DeFileEntry) -> dict[str, Any]:
         "genes": entry["genes"],
         "data": entry["data"],
     }
+
+
+def _clear_stored_payload(request: HttpRequest) -> None:
+    """Delete any on-disk payloads referenced by the current Django session."""
+    payload = request.session.get(SESSION_KEY)
+    if not isinstance(payload, dict):
+        return
+    storage_id = payload.get("storage_id")
+    if isinstance(storage_id, str) and storage_id:
+        delete_storage(storage_id)
