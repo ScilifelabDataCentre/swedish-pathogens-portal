@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from dashboard_visualisation.liver_resource.reference_data import get_data_root
 
 EXAMPLE_SLUG = "hcc-control"
 EXAMPLE_FILENAME = "HCC-Control.txt"
+
+# Django FileSystemStorage may append ``_<7 alphanum>`` before the extension.
+_STORAGE_SUFFIX_RE = re.compile(r"_([A-Za-z0-9]{7})(\.[^.]+)$")
 
 
 def list_example_slugs() -> list[str]:
@@ -31,9 +35,16 @@ def get_example_uploads(slug: str) -> list[tuple[str, Path]] | None:
     return [(path.name, path)]
 
 
+def storage_display_filename(filename: str) -> str:
+    """Return a human-facing filename, stripping Django storage collision suffixes."""
+    name = Path(filename).name
+    return _STORAGE_SUFFIX_RE.sub(r"\2", name)
+
+
 def example_label_from_filename(filename: str) -> str:
     """Build a readable sidebar label from an uploaded DE filename."""
-    stem = Path(filename).stem.replace("_", " ").replace("-", " ")
+    stem = Path(storage_display_filename(filename)).stem
+    stem = stem.replace("_", " ").replace("-", " ")
     return stem or "Example dataset"
 
 
@@ -54,7 +65,7 @@ def list_examples(dashboard_data: object | None = None) -> list[dict[str, str]]:
     filename = EXAMPLE_FILENAME
     source_file = getattr(dashboard_data, "source_file", None)
     if source_file is not None and getattr(source_file, "name", ""):
-        filename = Path(source_file.name).name
+        filename = storage_display_filename(source_file.name)
 
     return [
         {

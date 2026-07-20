@@ -193,12 +193,15 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
             content=example_path.read_bytes(),
             content_type="text/plain",
         )
-        DashboardData.objects.create(
+        row = DashboardData.objects.create(
             dashboard_title="DINA Liver Resource",
             dashboard_slug="liver-resource",
             source_file=upload,
             data_updated_at=date(2026, 4, 20),
         )
+        # create() regenerates figures and sets data_updated_at to today; pin the display date.
+        DashboardData.objects.filter(pk=row.pk).update(data_updated_at=date(2026, 4, 20))
+        self.page.__dict__.pop("dashboard_data", None)
 
         response = self.client.get(self.page.url)
         self.assertEqual(response.status_code, 200)
@@ -211,6 +214,7 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
         self.assertContains(response, "liver-upload-form")
         self.assertNotContains(response, "module-detail")
         self.assertContains(response, "Neutral base network")
+        self.assertContains(response, "HCC Control")
 
 
 class TestLiverResourceDashboardDataIntegration(LiverResourcePageTestCase):

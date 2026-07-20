@@ -10,7 +10,10 @@ from dashboard_visualisation.liver_resource.computation import parse_de_file
 from dashboard_visualisation.liver_resource.dashboard_figures import (
     stored_example_entry_from_analysis,
 )
-from dashboard_visualisation.liver_resource.examples import EXAMPLE_SLUG
+from dashboard_visualisation.liver_resource.examples import (
+    EXAMPLE_SLUG,
+    storage_display_filename,
+)
 from dashboard_visualisation.liver_resource.plotly_tln import build_base_figure_json
 from dashboard_visualisation.liver_resource.session import DEFAULT_CUTOFF
 from dashboard_visualisation.liver_resource.validators import REQUIRED_COLUMNS
@@ -27,7 +30,7 @@ def validate_source_columns(columns: list[str]) -> str | None:
 
 def generate_figures(source_file: SourceFile) -> dict[str, Any]:
     """Build neutral base TLN and one sidebar example from the uploaded DE file."""
-    filename = Path(source_file.name).name
+    filename = storage_display_filename(Path(source_file.name).name)
     de_data = parse_de_file(source_file)
     analysis = analyse_de_uploads([(filename, de_data)], cutoff=DEFAULT_CUTOFF)
 

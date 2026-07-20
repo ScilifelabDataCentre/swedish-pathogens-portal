@@ -47,3 +47,13 @@ class TestLiverDashboardDataSnippet(TestCase):
         stats = figures["examples"][EXAMPLE_SLUG][DEFAULT_CUTOFF]["stats"]
         self.assertEqual(stats["filename"], "HCC-Control.txt")
         self.assertGreater(stats["gene_count"], 10_000)
+
+    def test_storage_display_filename_strips_django_suffix(self) -> None:
+        """Test Wagtail/Django collision suffixes are stripped for display names."""
+        from dashboard_visualisation.liver_resource.examples import storage_display_filename
+
+        self.assertEqual(
+            storage_display_filename("dashboard_data/HCC-Control_JrTauWx.txt"),
+            "HCC-Control.txt",
+        )
+        self.assertEqual(storage_display_filename("HCC-Control.txt"), "HCC-Control.txt")
