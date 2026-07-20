@@ -20,6 +20,9 @@ DEBUG = False
 MEDIA_ROOT = BASE_DIR / "media" / "test"  # noqa: F405
 MEDIA_URL = "/media/test/"
 
+# Private visitor DE session payloads (must stay outside MEDIA_ROOT).
+LIVER_SESSION_ROOT = BASE_DIR / "private" / "test" / "liver_resource_sessions"  # noqa: F405
+
 ADMIN_URL = "admin/"
 # Wagtail admin URL settings: used when tests or code build absolute admin links.
 WAGTAIL_SITE_NAME = "Test Portal"

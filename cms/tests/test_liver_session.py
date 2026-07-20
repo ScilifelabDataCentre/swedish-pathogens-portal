@@ -18,7 +18,10 @@ from dashboard_visualisation.liver_resource.session import (
     store_de_uploads,
     update_session_cutoff,
 )
-from dashboard_visualisation.liver_resource.session_storage import SESSIONS_SUBDIR
+from dashboard_visualisation.liver_resource.session_storage import (
+    get_sessions_root,
+    write_uploads,
+)
 
 
 class TestLiverSession(TestCase):
@@ -34,7 +37,7 @@ class TestLiverSession(TestCase):
 
     def tearDown(self) -> None:
         """Remove on-disk liver session payloads created during tests."""
-        sessions_root = Path(settings.MEDIA_ROOT) / SESSIONS_SUBDIR
+        sessions_root = get_sessions_root()
         if sessions_root.is_dir():
             shutil.rmtree(sessions_root, ignore_errors=True)
 
@@ -125,4 +128,25 @@ class TestLiverSession(TestCase):
         clear_de_session(self.request)
         self.assertIsNone(get_de_session(self.request))
         self.assertNotIn(SESSION_KEY, self.request.session)
-        self.assertFalse((Path(settings.MEDIA_ROOT) / SESSIONS_SUBDIR / storage_id).exists())
+        self.assertFalse((get_sessions_root() / storage_id).exists())
+
+    def test_session_files_outside_media_root(self) -> None:
+        """Visitor DE JSON must not be written under the public media tree."""
+        de_data = {
+            "header": ["logFC", "adj.P.Val"],
+            "genes": ["ENSG00000000003"],
+            "data": {"ENSG00000000003": {"logFC": 1.0, "adj.P.Val": 0.01}},
+        }
+        store_de_session(self.request, de_data=de_data, filename="example.txt")
+        storage_id = self.request.session[SESSION_KEY]["storage_id"]
+        dest = get_sessions_root() / storage_id
+        media_root = Path(settings.MEDIA_ROOT).resolve()
+        self.assertTrue(dest.is_dir())
+        self.assertFalse(dest.resolve().is_relative_to(media_root))
+        legacy_media_path = media_root / "liver_resource_sessions" / storage_id
+        self.assertFalse(legacy_media_path.exists())
+
+    def test_write_uploads_rejects_non_hex_storage_id(self) -> None:
+        """Path joins must reject traversal-style storage ids."""
+        with self.assertRaises(ValueError):
+            write_uploads("../escape", [("a.txt", {"header": [], "genes": [], "data": {}})])

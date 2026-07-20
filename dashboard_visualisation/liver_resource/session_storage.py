@@ -1,8 +1,13 @@
-"""Disk-backed storage for parsed liver DE uploads (keeps Django session small)."""
+"""Disk-backed storage for parsed liver DE uploads (keeps Django session small).
+
+Visitor DE payloads live under ``settings.LIVER_SESSION_ROOT``, which must be
+outside the publicly served ``MEDIA_ROOT`` tree (R1 Option A).
+"""
 
 from __future__ import annotations
 
 import json
+import re
 import shutil
 from pathlib import Path
 from typing import Any
@@ -10,12 +15,15 @@ from uuid import uuid4
 
 from django.conf import settings
 
+# Directory leaf name (used only in docs / legacy references). Actual root is
+# ``settings.LIVER_SESSION_ROOT`` and must not sit under ``MEDIA_ROOT``.
 SESSIONS_SUBDIR = "liver_resource_sessions"
+_STORAGE_ID_RE = re.compile(r"^[0-9a-f]{32}$")
 
 
 def get_sessions_root() -> Path:
-    """Return the root directory for visitor DE session payloads."""
-    root = Path(settings.MEDIA_ROOT) / SESSIONS_SUBDIR
+    """Return the private root directory for visitor DE session payloads."""
+    root = Path(settings.LIVER_SESSION_ROOT)
     root.mkdir(parents=True, exist_ok=True)
     return root
 
@@ -25,9 +33,21 @@ def new_storage_id() -> str:
     return uuid4().hex
 
 
+def _validated_storage_id(storage_id: str) -> str:
+    """Reject non-hex ids so path joins cannot escape the sessions root."""
+    if not _STORAGE_ID_RE.fullmatch(storage_id):
+        msg = f"Invalid liver DE storage id {storage_id!r}."
+        raise ValueError(msg)
+    return storage_id
+
+
+def _storage_dir(storage_id: str) -> Path:
+    return get_sessions_root() / _validated_storage_id(storage_id)
+
+
 def write_uploads(storage_id: str, uploads: list[tuple[str, dict[str, Any]]]) -> None:
-    """Persist parsed DE uploads under ``MEDIA_ROOT/liver_resource_sessions/<id>/``."""
-    dest = get_sessions_root() / storage_id
+    """Persist parsed DE uploads under ``LIVER_SESSION_ROOT/<id>/``."""
+    dest = _storage_dir(storage_id)
     if dest.exists():
         shutil.rmtree(dest)
     dest.mkdir(parents=True, exist_ok=True)
@@ -47,7 +67,7 @@ def write_uploads(storage_id: str, uploads: list[tuple[str, dict[str, Any]]]) ->
 
 def read_uploads(storage_id: str) -> list[tuple[str, dict[str, Any]]]:
     """Load parsed DE uploads previously stored for ``storage_id``."""
-    dest = get_sessions_root() / storage_id
+    dest = _storage_dir(storage_id)
     manifest_path = dest / "manifest.json"
     if not manifest_path.is_file():
         msg = f"Liver DE session data not found for id {storage_id!r}."
@@ -69,4 +89,8 @@ def read_uploads(storage_id: str) -> list[tuple[str, dict[str, Any]]]:
 
 def delete_storage(storage_id: str) -> None:
     """Remove on-disk DE data for a visitor session."""
-    shutil.rmtree(get_sessions_root() / storage_id, ignore_errors=True)
+    try:
+        dest = _storage_dir(storage_id)
+    except ValueError:
+        return
+    shutil.rmtree(dest, ignore_errors=True)
