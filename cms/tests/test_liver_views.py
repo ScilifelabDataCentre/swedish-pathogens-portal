@@ -137,23 +137,6 @@ class TestLiverViews(TestCase):
         self.assertEqual(payload["stats"]["cutoff"], "top500")
         self.assertEqual(self.client.session[SESSION_KEY]["cutoff"], "top500")
 
-    def test_module_detail_requires_session(self) -> None:
-        """Test module detail without upload returns helpful message."""
-        url = reverse("cms:liver_module_detail", kwargs={"module_id": 1})
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 400)
-        self.assertContains(response, "Upload DE file(s)", status_code=400)
-
-    def test_module_detail_returns_gene_table(self) -> None:
-        """Test module detail returns summary and gene rows after upload."""
-        self._upload_example_file()
-        url = reverse("cms:liver_module_detail", kwargs={"module_id": 1})
-        response = self.client.get(url)
-
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Module 1")
-        self.assertContains(response, "ENSG")
-
     def test_download_template_returns_file(self) -> None:
         """Test template download returns the bundled DE template."""
         url = reverse("cms:liver_download_template")

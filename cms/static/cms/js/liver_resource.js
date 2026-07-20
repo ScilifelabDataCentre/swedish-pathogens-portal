@@ -2,13 +2,12 @@
  * DINA Liver Resource dashboard — client-side behaviour for the TLN plot.
  *
  * Responsibilities:
- * - Plotly leaf click → htmx GET module detail into #module-detail
  * - DEcutoff change → recompute colours (Plotly.restyle for solid leaves,
  *   full htmx plot swap for pie leaves when data-plot-mode="pie")
  * - Enable CSV export links after a successful upload or example load
  *
- * Expects #liver-dashboard with data-recompute-url and data-module-url-pattern,
- * and a Plotly figure with leaf trace index in #liver-tln-plot data attributes.
+ * Expects #liver-dashboard with data-recompute-url, and a Plotly figure with
+ * leaf trace index in #liver-tln-plot data attributes.
  */
 (function () {
     "use strict";
@@ -19,10 +18,8 @@
     }
 
     const recomputeUrl = dashboard.dataset.recomputeUrl;
-    const moduleUrlPattern = dashboard.dataset.moduleUrlPattern;
     const cutoffSelect = document.getElementById("liver-cutoff-select");
     const validationErrors = document.getElementById("liver-validation-errors");
-    const DEFAULT_LEAF_TRACE_INDEX = 2;
 
     function getPlotWrapper() {
         return document.getElementById("liver-tln-plot");
@@ -31,15 +28,6 @@
     function getPlotGraphDiv() {
         const wrapper = getPlotWrapper();
         return wrapper ? wrapper.querySelector(".plotly-graph-div") : null;
-    }
-
-    function getLeafTraceIndex() {
-        const wrapper = getPlotWrapper();
-        if (!wrapper) {
-            return DEFAULT_LEAF_TRACE_INDEX;
-        }
-        const value = Number.parseInt(wrapper.dataset.leafTraceIndex, 10);
-        return Number.isNaN(value) ? DEFAULT_LEAF_TRACE_INDEX : value;
     }
 
     function getCurrentCutoff() {
@@ -169,66 +157,17 @@
         }
     }
 
-    function moduleDetailUrl(moduleId) {
-        const baseUrl = moduleUrlPattern.replace("{module_id}", String(moduleId));
-        const separator = baseUrl.includes("?") ? "&" : "?";
-        return `${baseUrl}${separator}cutoff=${encodeURIComponent(getCurrentCutoff())}`;
-    }
-
-    function bindPlotClick() {
-        const plotDiv = getPlotGraphDiv();
-        if (!plotDiv || typeof Plotly === "undefined" || plotDiv.dataset.liverClickBound === "true") {
-            return;
-        }
-
-        plotDiv.dataset.liverClickBound = "true";
-        plotDiv.on("plotly_click", (eventData) => {
-            const point = eventData.points?.[0];
-            if (!point || point.curveNumber !== getLeafTraceIndex()) {
-                return;
-            }
-
-            const moduleId = point.customdata;
-            if (!moduleId) {
-                return;
-            }
-
-            if (typeof htmx !== "undefined") {
-                htmx.ajax("GET", moduleDetailUrl(moduleId), {
-                    target: "#module-detail",
-                    swap: "innerHTML",
-                    indicator: "#module-detail-loading",
-                });
-            }
-        });
-    }
-
     function handlePlotPanelSettled() {
         setHasSession(true);
         clearValidationErrors();
         enableExportLinks();
-        bindPlotClick();
     }
 
     cutoffSelect?.addEventListener("change", recomputeCutoff);
-
-    document.body.addEventListener("htmx:beforeSwap", (event) => {
-        if (event.detail.target?.id !== "module-detail") {
-            return;
-        }
-        if (event.detail.xhr.status >= 400) {
-            event.detail.shouldSwap = true;
-        }
-    });
 
     document.body.addEventListener("htmx:afterSettle", (event) => {
         if (event.detail.target?.id === "liver-tln-panel") {
             handlePlotPanelSettled();
         }
-        if (event.detail.target?.id === "liver-tln-panel" || event.detail.target?.id === "module-detail") {
-            bindPlotClick();
-        }
     });
-
-    bindPlotClick();
 })();

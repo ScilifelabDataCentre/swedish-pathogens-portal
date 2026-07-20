@@ -139,28 +139,6 @@ class TestLiverViewEdgeCases(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertContains(response, "Could not use this DE file", status_code=400)
 
-    def test_module_detail_after_session_cleared_returns_helpful_message(self) -> None:
-        """Test module detail without session data returns a helpful message."""
-        self._post_de_file(build_de_file_bytes())
-        self.assertIsNotNone(self.client.session.get(SESSION_KEY))
-
-        session = self.client.session
-        del session[SESSION_KEY]
-        session.save()
-
-        url = reverse("cms:liver_module_detail", kwargs={"module_id": 1})
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 400)
-        self.assertContains(response, "Upload DE file(s)", status_code=400)
-
-    def test_module_detail_unknown_module_returns_not_found(self) -> None:
-        """Test requesting a non-existent module returns 404."""
-        self._post_de_file(build_de_file_bytes())
-        url = reverse("cms:liver_module_detail", kwargs={"module_id": 99999})
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 404)
-        self.assertContains(response, "Module 99999 was not found", status_code=404)
-
     def test_export_genes_without_session_returns_400(self) -> None:
         """Test gene export without upload returns plain-text error."""
         url = reverse("cms:liver_export_genes")

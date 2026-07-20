@@ -50,7 +50,6 @@ class LiverResourcePageTestCase(WagtailPageTestCase):
             description="DINA Liver Resource dashboard",
             image=cls.image,
             data_status="active",
-            reference_data_updated_at=date(2026, 4, 20),
             content=[("text", "<p>Upload a limma-style DE file to colour the TLN.</p>")],
         )
         cls.index.add_child(instance=cls.page)
@@ -120,11 +119,11 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
         self.assertEqual(context["leaf_trace_index"], 2)
 
     def test_get_context_includes_examples(self) -> None:
-        """Test that get_context exposes bundled example dataset metadata."""
+        """Test that get_context exposes example dataset metadata."""
         request = self.client.get(self.page.url).wsgi_request
         context = self.page.get_context(request)
 
-        self.assertEqual(context["examples"], list_examples())
+        self.assertEqual(context["examples"], list_examples(self.page.dashboard_data))
         slugs = [example["slug"] for example in context["examples"]]
         self.assertEqual(slugs, list_example_slugs())
 
@@ -151,7 +150,29 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
 
         self.assertIn("/cms/liver/upload/", context["liver_upload_url"])
         self.assertIn("/cms/liver/recompute/", context["liver_recompute_url"])
-        self.assertIn("{module_id}", context["liver_module_detail_url_pattern"])
+
+    def test_get_context_example_label_uses_dashboard_data_filename(self) -> None:
+        """Test example button label comes from the DashboardData source file name."""
+        example_path = get_data_root() / "examples" / "HCC-Control.txt"
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        upload = SimpleUploadedFile(
+            name="HCC-Control.txt",
+            content=example_path.read_bytes(),
+            content_type="text/plain",
+        )
+        DashboardData.objects.create(
+            dashboard_title="DINA Liver Resource",
+            dashboard_slug="liver-resource",
+            source_file=upload,
+            data_updated_at=date(2026, 4, 20),
+        )
+        self.page.__dict__.pop("dashboard_data", None)
+
+        request = self.client.get(self.page.url).wsgi_request
+        context = self.page.get_context(request)
+
+        self.assertEqual(context["examples"][0]["label"], "HCC Control")
 
     def test_page_includes_htmx_and_plotly_wiring(self) -> None:
         """Test that the page template includes htmx upload wiring and liver JS."""
@@ -164,6 +185,21 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
 
     def test_page_renders_successfully(self) -> None:
         """Test that the liver dashboard page returns HTTP 200."""
+        example_path = get_data_root() / "examples" / "HCC-Control.txt"
+        from django.core.files.uploadedfile import SimpleUploadedFile
+
+        upload = SimpleUploadedFile(
+            name="HCC-Control.txt",
+            content=example_path.read_bytes(),
+            content_type="text/plain",
+        )
+        DashboardData.objects.create(
+            dashboard_title="DINA Liver Resource",
+            dashboard_slug="liver-resource",
+            source_file=upload,
+            data_updated_at=date(2026, 4, 20),
+        )
+
         response = self.client.get(self.page.url)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Liver Resource")
@@ -173,7 +209,7 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
         self.assertContains(response, "plotly-graph-div")
         self.assertContains(response, "tln-container")
         self.assertContains(response, "liver-upload-form")
-        self.assertContains(response, "module-detail")
+        self.assertNotContains(response, "module-detail")
         self.assertContains(response, "Neutral base network")
 
 
@@ -231,9 +267,9 @@ class TestLiverResourceDashboardDataIntegration(LiverResourcePageTestCase):
 class TestLiverResourceDashboardIndexListing(LiverResourcePageTestCase):
     """Tests for liver dashboard visibility on the index page."""
 
-    def test_dashboard_data_updated_at_uses_reference_data_date(self) -> None:
-        """Test index card date comes from reference_data_updated_at, not DashboardData."""
-        self.assertEqual(self.page.dashboard_data_updated_at, date(2026, 4, 20))
+    def test_dashboard_data_updated_at_without_snippet_is_none(self) -> None:
+        """Test index card date is absent until DashboardData exists."""
+        self.assertIsNone(self.page.dashboard_data_updated_at)
 
     def test_liver_page_appears_in_dashboard_index(self) -> None:
         """Test that liver dashboards are listed alongside standard dashboards."""

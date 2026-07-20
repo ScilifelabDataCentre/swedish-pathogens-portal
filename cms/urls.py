@@ -8,7 +8,6 @@ from cms.views.liver_resource import (
     export_genes,
     export_module_scores,
     load_example,
-    module_detail,
     recompute,
     upload_de,
 )
@@ -30,11 +29,6 @@ urlpatterns = [
         "liver/recompute/",
         recompute,
         name="liver_recompute",
-    ),
-    path(
-        "liver/module/<int:module_id>/",
-        module_detail,
-        name="liver_module_detail",
     ),
     path(
         "liver/example/<slug:example_slug>/",

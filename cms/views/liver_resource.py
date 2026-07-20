@@ -12,7 +12,6 @@ MVP endpoint map (all required unless noted):
 | ``upload_de`` | POST | Yes | FR-1 — upload and plot |
 | ``load_example`` | GET | Yes | FR-9 — bundled examples |
 | ``recompute`` | GET | Yes | FR-3 — change DEcutoff |
-| ``module_detail`` | GET | Yes | FR-6 — module gene table |
 | ``download_template`` | GET | Yes | FR-10 — DE template |
 | ``export_module_scores`` | GET | Yes | FR-7 — module scores CSV |
 | ``export_genes`` | GET | Yes | FR-7 — gene classification CSV |
@@ -44,7 +43,6 @@ from dashboard_visualisation.liver_resource.exports import (
     build_module_scores_csv,
     export_basename,
 )
-from dashboard_visualisation.liver_resource.module_detail import build_module_detail
 from dashboard_visualisation.liver_resource.plotly_tln import DEFAULT_PLOT_HEIGHT_PX
 from dashboard_visualisation.liver_resource.session import (
     DEFAULT_CUTOFF,
@@ -114,7 +112,7 @@ def load_example(request: HttpRequest, example_slug: str) -> HttpResponse:
 
     When ``DashboardData`` holds a pre-computed figure for this slug and cutoff,
     the plot is rendered from stored JSON (session still receives parsed DE data
-    for module detail and exports).
+    for exports).
     """
     example_uploads = get_example_uploads(example_slug)
     if example_uploads is None:
@@ -178,45 +176,6 @@ def recompute(request: HttpRequest) -> HttpResponse:
         return _render_plot_response(request, analysis)
 
     return JsonResponse(_analysis_payload(analysis))
-
-
-@require_GET
-def module_detail(request: HttpRequest, module_id: int) -> HttpResponse:
-    """Return an HTML fragment listing genes overlapping a TLN module (htmx target).
-
-    Uses the first uploaded file when multiple comparisons are in session (follow-up:
-    per-file module detail).
-    """
-    session = get_de_session(request)
-    if session is None:
-        return render(
-            request,
-            "cms/pages/liver_resource/partials/session_required.html",
-            {
-                "message": "Upload DE file(s) or load an example to inspect module genes.",
-            },
-            status=400,
-        )
-
-    cutoff = _normalise_cutoff(request.GET.get("cutoff", session.get("cutoff", DEFAULT_CUTOFF)))
-    detail = build_module_detail(
-        de_data_from_session(session),
-        module_id=module_id,
-        cutoff=cutoff,
-    )
-    if detail is None:
-        return render(
-            request,
-            "cms/pages/liver_resource/partials/session_required.html",
-            {"message": f"Module {module_id} was not found."},
-            status=404,
-        )
-
-    return render(
-        request,
-        "cms/pages/liver_resource/partials/module_detail.html",
-        {"detail": detail, "source_filename": session_filenames(session)[0]},
-    )
 
 
 @require_GET

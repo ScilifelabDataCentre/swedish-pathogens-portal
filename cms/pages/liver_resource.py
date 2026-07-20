@@ -1,12 +1,9 @@
 """CMS page for the DINA Liver Resource interactive dashboard."""
 
-from datetime import date
 from typing import Any
 
-from django.db import models
 from django.http import HttpRequest
 from django.urls import reverse
-from wagtail.admin.panels import FieldPanel
 
 from cms.pages.dashboard import DashboardPage
 from dashboard_visualisation.liver_resource.analysis import LEAF_TRACE_INDEX
@@ -35,35 +32,10 @@ class LiverResourceDashboardPage(DashboardPage):
 
     template = "cms/pages/liver_resource.html"
 
-    reference_data_updated_at = models.DateField(
-        null=True,
-        blank=True,
-        verbose_name="Reference data last updated",
-        help_text=(
-            "Shown on the dashboard and index card when the DINA liver reference "
-            "model (TLN, modules) was last updated. Set when bundled reference "
-            "data is replaced — not when visitors upload DE files."
-        ),
-    )
-
-    content_panels = [
-        *DashboardPage.content_panels[:-1],
-        FieldPanel("reference_data_updated_at"),
-        DashboardPage.content_panels[-1],
-    ]
-
     class Meta:
         """Meta options for the LiverResourceDashboardPage model."""
 
         verbose_name = "Liver Resource Dashboard"
-
-    @property
-    def dashboard_data_updated_at(self) -> date | None:
-        """Return snippet freshness date, falling back to the page reference date."""
-        snippet_date = super().dashboard_data_updated_at
-        if snippet_date is not None:
-            return snippet_date
-        return self.reference_data_updated_at
 
     def get_context(self, request: HttpRequest) -> dict[str, Any]:
         """Add liver-specific TLN and control metadata to template context."""
@@ -84,11 +56,7 @@ class LiverResourceDashboardPage(DashboardPage):
         context["default_cutoff"] = DEFAULT_CUTOFF
         context["current_cutoff"] = get_session_cutoff(request) if session else DEFAULT_CUTOFF
         context["has_session"] = session is not None
-        context["examples"] = list_examples()
+        context["examples"] = list_examples(self.dashboard_data)
         context["liver_upload_url"] = reverse("cms:liver_upload")
         context["liver_recompute_url"] = reverse("cms:liver_recompute")
-        context["liver_module_detail_url_pattern"] = reverse(
-            "cms:liver_module_detail",
-            kwargs={"module_id": 0},
-        ).replace("/0/", "/{module_id}/")
         return context

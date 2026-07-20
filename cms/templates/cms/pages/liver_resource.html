@@ -8,7 +8,6 @@
     id="liver-dashboard"
     class="liver-dashboard"
     data-recompute-url="{{ liver_recompute_url }}"
-    data-module-url-pattern="{{ liver_module_detail_url_pattern }}"
     data-has-session="{% if has_session %}true{% else %}false{% endif %}"
 >
     <div class="flex flex-col gap-4 mb-6">
@@ -63,23 +62,6 @@
                         <span><span class="inline-block w-3 h-3 rounded-sm align-middle mr-1" style="background:#00008b;"></span> Down</span>
                         <span><span class="inline-block w-3 h-3 rounded-sm align-middle mr-1 bg-sky-200;"></span> Neutral / no data</span>
                     </div>
-                </div>
-            </section>
-
-            <section
-                id="module-detail"
-                class="card bg-base-100 border border-base-300 shadow-sm min-h-28 relative"
-                aria-label="Module detail"
-                aria-live="polite"
-            >
-                <div
-                    id="module-detail-loading"
-                    class="htmx-indicator absolute inset-0 bg-base-100/80 flex items-center justify-center z-10 rounded-box"
-                >
-                    <span class="loading loading-spinner text-accent loading-md" aria-label="Loading module detail"></span>
-                </div>
-                <div class="p-6 text-sm text-pp-dark-grey text-center">
-                    Click a module in the tree-leaf network to inspect overlapping genes.
                 </div>
             </section>
         </div>
