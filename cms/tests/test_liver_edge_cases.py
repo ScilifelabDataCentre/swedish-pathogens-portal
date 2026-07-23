@@ -12,6 +12,7 @@ from django.urls import reverse
 
 from dashboard_visualisation.liver_resource.analysis import analyse_de_data
 from dashboard_visualisation.liver_resource.computation import parse_de_file
+from dashboard_visualisation.liver_resource.reference_data import EXPECTED_MODULE_COUNT
 from dashboard_visualisation.liver_resource.session import SESSION_KEY
 from dashboard_visualisation.liver_resource.validators import validate_de_upload
 
@@ -76,7 +77,7 @@ class TestLiverComputationEdgeCases(SimpleTestCase):
         self.assertEqual(analysis.up_count, 0)
         self.assertEqual(analysis.down_count, 0)
         self.assertIn("data", analysis.figure_json)
-        self.assertEqual(len(analysis.ratios), 105)
+        self.assertEqual(len(analysis.ratios), EXPECTED_MODULE_COUNT)
         self.assertTrue(all(colour == "#ffffff" for colour in analysis.colours.values()))
 
 

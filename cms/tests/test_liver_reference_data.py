@@ -48,7 +48,7 @@ class TestLiverReferenceData(SimpleTestCase):
         self.assertEqual(leaf_count, EXPECTED_LEAF_COUNT)
 
     def test_load_modules(self) -> None:
-        """Test all 105 module gene lists load."""
+        """Test all module gene lists load."""
         modules = load_modules()
         self.assertEqual(len(modules), EXPECTED_MODULE_COUNT)
         module_ids = range(1, EXPECTED_MODULE_COUNT + 1)

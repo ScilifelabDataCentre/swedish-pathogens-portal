@@ -10,9 +10,9 @@ from typing import Any
 
 from django.conf import settings
 
-EXPECTED_LEAF_COUNT = 105
-EXPECTED_MODULE_COUNT = 105
-EXPECTED_VERTEX_COUNT = 209
+EXPECTED_LEAF_COUNT = 102
+EXPECTED_MODULE_COUNT = 102
+EXPECTED_VERTEX_COUNT = 203
 
 
 def get_data_root() -> Path:

@@ -10,7 +10,10 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, RequestFactory, TestCase
 from django.urls import reverse
 
-from dashboard_visualisation.liver_resource.reference_data import get_data_root
+from dashboard_visualisation.liver_resource.reference_data import (
+    EXPECTED_MODULE_COUNT,
+    get_data_root,
+)
 from dashboard_visualisation.liver_resource.session import (
     SESSION_KEY,
     LiverDeSession,
@@ -133,7 +136,7 @@ class TestLiverViews(TestCase):
         self.assertEqual(response.status_code, 200)
 
         payload = json.loads(response.content)
-        self.assertEqual(len(payload["colours_array"]), 105)
+        self.assertEqual(len(payload["colours_array"]), EXPECTED_MODULE_COUNT)
         self.assertEqual(payload["stats"]["cutoff"], "top500")
         self.assertEqual(self.client.session[SESSION_KEY]["cutoff"], "top500")
 
@@ -172,7 +175,7 @@ class TestLiverViews(TestCase):
             / "HCC-Control_module_scores.csv"
         )
         reference_rows = list(csv.DictReader(fixture_path.open(encoding="utf-8", newline="")))
-        self.assertEqual(len(rows), 105)
+        self.assertEqual(len(rows), EXPECTED_MODULE_COUNT)
         self.assertAlmostEqual(
             float(rows[0]["DERatio"]),
             float(reference_rows[0]["DERatio"]),

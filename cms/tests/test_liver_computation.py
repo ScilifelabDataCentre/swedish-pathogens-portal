@@ -14,6 +14,7 @@ from dashboard_visualisation.liver_resource.computation import (
     parse_de_file,
 )
 from dashboard_visualisation.liver_resource.reference_data import (
+    EXPECTED_MODULE_COUNT,
     clear_reference_data_cache,
     get_data_root,
 )
@@ -84,7 +85,7 @@ class TestLiverComputation(SimpleTestCase):
         ratios = compute_module_ratios(de_data["genes"], classified, modules)
         r_ratios = self._load_r_reference("HCC-Control_module_scores.csv")
 
-        self.assertEqual(len(r_ratios), 105)
+        self.assertEqual(len(r_ratios), EXPECTED_MODULE_COUNT)
         self._compare_ratios(ratios, r_ratios)
 
     def test_sleep_deprived_top500_matches_r(self) -> None:
@@ -96,7 +97,7 @@ class TestLiverComputation(SimpleTestCase):
         ratios = compute_module_ratios(de_data["genes"], classified, modules)
         r_ratios = self._load_r_reference("sleep.deprived.AK-control.AK_module_scores.csv")
 
-        self.assertEqual(len(r_ratios), 105)
+        self.assertEqual(len(r_ratios), EXPECTED_MODULE_COUNT)
         self._compare_ratios(ratios, r_ratios)
 
     def test_map_ratios_to_colours_returns_hex_for_all_modules(self) -> None:
@@ -108,6 +109,6 @@ class TestLiverComputation(SimpleTestCase):
         ratios = compute_module_ratios(de_data["genes"], classified, modules)
         colours = map_ratios_to_colours(ratios)
 
-        self.assertEqual(len(colours), 105)
+        self.assertEqual(len(colours), EXPECTED_MODULE_COUNT)
         for colour in colours.values():
             self.assertRegex(colour, r"^#[0-9a-f]{6}$")

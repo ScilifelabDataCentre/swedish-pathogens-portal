@@ -333,7 +333,7 @@ def _build_leaf_trace(
             continue
         vertex = vertex_by_name[name]
         x_value, y_value = layout[name]
-        gene_count = vertex["size"]
+        gene_count = int(vertex.get("Ngenes", vertex["size"]))
         ratio = leaf_ratios.get(name, 0.0)
         colour = leaf_colours.get(name, BASE_LEAF_COLOUR)
 
@@ -426,7 +426,7 @@ def _build_pie_leaf_layers(
 
         vertex = vertex_by_name[name]
         x_value, y_value = layout[name]
-        gene_count = vertex["size"]
+        gene_count = int(vertex.get("Ngenes", vertex["size"]))
         module_id = int(name)
         radius = _marker_radius_data(gene_count)
 

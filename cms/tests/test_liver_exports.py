@@ -9,6 +9,7 @@ from django.test import SimpleTestCase
 from dashboard_visualisation.liver_resource.computation import parse_de_file
 from dashboard_visualisation.liver_resource.exports import build_genes_csv, build_module_scores_csv
 from dashboard_visualisation.liver_resource.reference_data import (
+    EXPECTED_MODULE_COUNT,
     clear_reference_data_cache,
     get_data_root,
 )
@@ -38,8 +39,8 @@ class TestLiverExports(SimpleTestCase):
         generated = self._parse_csv(build_module_scores_csv(de_data, "standard"))
         reference = self._load_reference_rows("HCC-Control_module_scores.csv")
 
-        self.assertEqual(len(generated), 105)
-        self.assertEqual(len(reference), 105)
+        self.assertEqual(len(generated), EXPECTED_MODULE_COUNT)
+        self.assertEqual(len(reference), EXPECTED_MODULE_COUNT)
 
         for generated_row, reference_row in zip(generated, reference, strict=True):
             self.assertEqual(generated_row["Module"], reference_row["Module"])
