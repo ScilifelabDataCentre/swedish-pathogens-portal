@@ -81,7 +81,7 @@ spp-wagtail/
 `cms` is the only entry in `LOCAL_APPS` (see `core/settings/base.py`). It is divided into single-responsibility subpackages:
 
 - **`pages/`** — Wagtail `Page` subclasses (e.g. `home`, `standard_page`, `section_index`, the index/detail pairs for topics, news, outbreaks, PLP, and highlights & editorials, plus `dashboard`, `catalogue`, `portal_data`). Canonical example: `cms/pages/standard_page.py`.
-- **`snippets/`** — reusable, non-page content registered with `@register_snippet` (e.g. `navigation_menu`, `plp_category`, `site_announcement`, `dashboard_data`). Canonical example: `cms/snippets/navigation_menu.py`.
+- **`snippets/`** — reusable, non-page content registered as Wagtail snippets. Simple snippets use the `@register_snippet` decorator (e.g. `navigation_menu`); snippets that need a customised admin listing or behaviour subclass `SnippetViewSet` and register it with `register_snippet(...)` (e.g. `plp_category`, `site_announcement`, `dashboard_data`). Canonical examples: `cms/snippets/navigation_menu.py` (decorator) and `cms/snippets/dashboard_data.py` (`SnippetViewSet`).
 - **`blocks/`** — `StreamField` `StructBlock`, each with a `Meta.template` (e.g. `cards`, `alerts`, `collapsible`, `data_table`, `plotly_figure`, `static_figure`, `last_updated`). Canonical example: `cms/blocks/cards.py`.
 - **`forms/`** — Django / Wagtail form classes used by pages and views.
 - **`views/`** — plain Django views for endpoints that Wagtail does not serve, primarily htmx partials (e.g. `data_table`).
@@ -108,7 +108,10 @@ from cms.snippets import *  # noqa: F403
 
 ### Supporting packages
 
-`dashboard_visualisation/` and `portal_data/` are plain Python packages, **not** Django apps — they are absent from `INSTALLED_APPS`. They hold domain logic that backs specific page types (dashboard rendering and portal-data handling respectively) but is not itself Wagtail content. Keeping them outside `cms` separates CMS content models from data/visualisation concerns.
+`dashboard_visualisation/` and `portal_data/` are plain Python packages, **not** Django apps — they are absent from `INSTALLED_APPS`.
+They hold domain logic that backs specific page types (dashboard rendering and portal-data handling respectively) but is not itself Wagtail content.
+Although they are not Django apps, they may still use Django and Wagtail APIs: for example, `portal_data/views.py` holds the Django view functions that serve the dataset file browser and downloads, while `cms/pages/portal_data.py` is a thin `RoutablePageMixin` page whose `@path` routes delegate to them.
+Keeping these packages outside `cms` separates CMS content models from data/visualisation concerns and keeps request/response logic next to the domain logic it uses.
 
 ### `core` and URL ownership
 
@@ -145,3 +148,4 @@ Content pages are routed by Wagtail's page tree, not by hand-written URL pattern
 - Keep `cms/models.py` as a thin star-import shim so registration stays centralised and predictable.
 - Update `README.md` to reference this ADR and remove its stale structure description.
 - Treat this ADR as living documentation and revise it as the structure evolves.
+- Consider a unit test that walks each package with `pkgutil.iter_modules` and asserts every concrete (non-abstract) `Page` / block subclass is listed in the package's `__all__`, turning the export convention into a tooling-enforced check (as a follow-up).
