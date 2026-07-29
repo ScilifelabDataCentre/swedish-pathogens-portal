@@ -1,0 +1,63 @@
+{% extends "cms/base.html" %}
+
+{% block page_heading %}
+<div class="bg-linear-to-r from-pp-dark-blue via-pp-mid-blue to-pp-teal text-white py-1 shadow-sm">
+    <div class="container">
+        <h2 class="my-4">{{ page_heading }}</h2>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div role="search">
+    <form method="get" action="{% url 'search' %}" class="mb-6">
+        <label for="search-q" class="sr-only">Search the portal</label>
+        <input id="search-q" type="search" name="q" value="{{ query }}"
+            class="input input-bordered input-accent w-full max-w-xl"
+            placeholder="Search the portal" maxlength="100" aria-label="Search the portal">
+    </form>
+
+    {% if query %}
+        <p class="text-pp-dark-grey mb-4" aria-live="polite">
+            {{ total }} result{{ total|pluralize }} for &ldquo;<strong>{{ query }}</strong>&rdquo;
+        </p>
+
+        {% if facets %}
+        <nav class="flex flex-wrap gap-2 mb-6" aria-label="Filter results by type">
+            <a href="?q={{ query|urlencode }}"
+                class="badge badge-lg {% if not selected %}badge-primary{% else %}badge-ghost{% endif %}"
+                {% if not selected %}aria-current="true"{% endif %}>All ({{ total }})</a>
+            {% for f in facets %}
+            <a href="?q={{ query|urlencode }}&type={{ f.key }}"
+                class="badge badge-lg {% if selected == f.key %}badge-primary{% else %}badge-ghost{% endif %}"
+                {% if selected == f.key %}aria-current="true"{% endif %}>{{ f.label }} ({{ f.count }})</a>
+            {% endfor %}
+        </nav>
+        {% endif %}
+
+        {% if items %}
+        <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {% for item in items %}
+                {% include "cms/components/content_card.html#content_card" with url=item.url title=item.title description=item.excerpt badge_text=item.label image="" %}
+            {% endfor %}
+        </div>
+
+        {% if page_obj.has_other_pages %}
+        <nav class="flex justify-center gap-2 mt-8" aria-label="Search results pages">
+            {% if page_obj.has_previous %}
+            <a class="btn btn-sm" href="?q={{ query|urlencode }}{% if selected %}&type={{ selected }}{% endif %}&page={{ page_obj.previous_page_number }}">Previous</a>
+            {% endif %}
+            <span class="btn btn-sm btn-disabled">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+            {% if page_obj.has_next %}
+            <a class="btn btn-sm" href="?q={{ query|urlencode }}{% if selected %}&type={{ selected }}{% endif %}&page={{ page_obj.next_page_number }}">Next</a>
+            {% endif %}
+        </nav>
+        {% endif %}
+        {% else %}
+        <p class="text-pp-dark-grey">No results found. Try a different or broader search term.</p>
+        {% endif %}
+    {% else %}
+        <p class="text-pp-dark-grey">Enter a search term above to search the portal.</p>
+    {% endif %}
+</div>
+{% endblock %}

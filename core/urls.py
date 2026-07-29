@@ -27,6 +27,7 @@ from wagtail.contrib.sitemaps.views import sitemap
 from wagtail.documents import urls as wagtaildocs_urls
 
 # Local imports
+from cms.views.search import search
 from core.views import ebi_index, healthz
 
 urlpatterns = []
@@ -58,6 +59,7 @@ urlpatterns += [
     path(settings.WAGTAILADMIN_URL, include(wagtailadmin_urls)),
     path("documents/", include(wagtaildocs_urls)),
     # Our own URLs
+    path("search/", search, name="search"),
     path("cms/", include("cms.urls")),
     # Any URL that was not matched by an explicit URL above are tried and handled by Wagtail.
     # Wagtail raises 404, if it couldn't find a Page or Route handler for the URL

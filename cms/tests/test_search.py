@@ -45,3 +45,41 @@ class SearchTestCase(WagtailPageTestCase):
         """A distinctive term in a page's description field is findable."""
         results = Page.objects.live().public().search("zuluwidget")
         self.assertTrue(any(r.pk == self.article.pk for r in results))
+
+    def test_search_page_returns_matches(self) -> None:
+        """The results page lists a page whose text matches the query."""
+        resp = self.client.get("/search/", {"q": "zuluwidget"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Influenza surveillance update")
+
+    def test_blank_query_renders_prompt(self) -> None:
+        """No query renders the empty prompt, not a zero-results message."""
+        resp = self.client.get("/search/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Enter a search term")
+
+    def test_no_results_message(self) -> None:
+        """A non-matching query renders a friendly empty state."""
+        resp = self.client.get("/search/", {"q": "notarealtermxyz"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "No results")
+
+    def test_draft_pages_excluded(self) -> None:
+        """Unpublished pages never appear in results."""
+        draft = NewsPage(
+            title="Zuluwidget draft",
+            slug="zuluwidget-draft",
+            description="zuluwidget secret draft",
+            image=create_test_image(),
+            live=False,
+        )
+        self.news_index.add_child(instance=draft)
+        call_command("update_index", stdout=StringIO())
+        resp = self.client.get("/search/", {"q": "zuluwidget"})
+        self.assertNotContains(resp, "Zuluwidget draft")
+
+    def test_facet_filter_narrows_to_type(self) -> None:
+        """Selecting a type facet restricts results to that page type."""
+        resp = self.client.get("/search/", {"q": "influenza", "type": "news"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Influenza surveillance update")
