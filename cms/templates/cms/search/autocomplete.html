@@ -1,11 +1,8 @@
-{% if results %}
+{% if query %}
 <ul class="menu bg-white rounded-box shadow border border-pp-pale-grey w-full p-1" role="listbox">
     {% for page in results %}
     <li role="option"><a href="{{ page.url }}">{{ page.title }}</a></li>
     {% endfor %}
+    <li><a href="{% url 'search' %}?q={{ query|urlencode }}" class="font-medium text-pp-teal">Search for &ldquo;{{ query }}&rdquo;</a></li>
 </ul>
-{% elif query %}
-<div class="bg-white rounded-box shadow border border-pp-pale-grey p-3 text-sm text-pp-dark-grey">
-    No matches
-</div>
 {% endif %}

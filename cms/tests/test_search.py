@@ -6,7 +6,7 @@ from django.core.management import call_command
 from wagtail.models import Page, Site
 from wagtail.test.utils import WagtailPageTestCase
 
-from cms.pages import HomePage, NewsIndexPage, NewsPage
+from cms.pages import BasicPage, HomePage, NewsIndexPage, NewsPage
 from cms.tests.utils import create_test_image
 
 
@@ -39,6 +39,11 @@ class SearchTestCase(WagtailPageTestCase):
         cls.news_index.add_child(instance=cls.article)
         cls.article.save_revision().publish()
 
+        # A page type with no `image` field, to exercise the imageless card path.
+        cls.basic = BasicPage(title="Preparedness overview", slug="preparedness-overview")
+        cls.home.add_child(instance=cls.basic)
+        cls.basic.save_revision().publish()
+
         call_command("update_index", stdout=StringIO())
 
     def test_page_description_is_searchable(self) -> None:
@@ -47,10 +52,11 @@ class SearchTestCase(WagtailPageTestCase):
         self.assertTrue(any(r.pk == self.article.pk for r in results))
 
     def test_search_page_returns_matches(self) -> None:
-        """The results page lists a page whose text matches the query."""
+        """The results page lists a matching page with its thumbnail image."""
         resp = self.client.get("/search/", {"q": "zuluwidget"})
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "Influenza surveillance update")
+        self.assertContains(resp, "<img")
 
     def test_blank_query_renders_prompt(self) -> None:
         """No query renders the empty prompt, not a zero-results message."""
@@ -97,9 +103,23 @@ class SearchTestCase(WagtailPageTestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertNotContains(resp, "Influenza surveillance update")
 
+    def test_autocomplete_offers_full_search_when_no_title_match(self) -> None:
+        """A term matching no page title still offers a link to the full search."""
+        resp = self.client.get("/search/autocomplete/", {"q": "zuluwidget"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Search for")
+        self.assertContains(resp, "q=zuluwidget")
+        self.assertNotContains(resp, "Influenza surveillance update")
+
     def test_header_has_search_form(self) -> None:
         """Every page's header exposes a no-JS search form posting to /search/."""
         resp = self.client.get("/")
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, 'action="/search/"')
         self.assertContains(resp, 'name="q"')
+
+    def test_imageless_page_renders(self) -> None:
+        """A matching page whose model has no image field renders without error."""
+        resp = self.client.get("/search/", {"q": "preparedness"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Preparedness overview")
