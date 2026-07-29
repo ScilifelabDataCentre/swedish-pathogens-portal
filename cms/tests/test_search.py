@@ -83,3 +83,16 @@ class SearchTestCase(WagtailPageTestCase):
         resp = self.client.get("/search/", {"q": "influenza", "type": "news"})
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "Influenza surveillance update")
+
+    def test_autocomplete_returns_title_matches(self) -> None:
+        """Autocomplete returns a partial listing pages whose title prefix matches."""
+        resp = self.client.get("/search/autocomplete/", {"q": "influenza"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Influenza surveillance update")
+        self.assertContains(resp, self.article.url)
+
+    def test_autocomplete_blank_query_is_empty(self) -> None:
+        """A blank query yields no suggestions."""
+        resp = self.client.get("/search/autocomplete/", {"q": ""})
+        self.assertEqual(resp.status_code, 200)
+        self.assertNotContains(resp, "Influenza surveillance update")

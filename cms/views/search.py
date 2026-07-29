@@ -34,6 +34,7 @@ SEARCH_MODELS: list[type[Page]] = [model for model, _, _ in SEARCH_TYPES]
 _MODEL_BY_KEY: dict[str, type[Page]] = {key: model for model, key, _ in SEARCH_TYPES}
 _LABEL_BY_MODEL: dict[type[Page], str] = {model: label for model, _, label in SEARCH_TYPES}
 PAGE_SIZE = 12
+AUTOCOMPLETE_LIMIT = 8
 
 
 def _base_queryset() -> PageQuerySet:
@@ -85,3 +86,13 @@ def search(request: HttpRequest) -> HttpResponse:
         "page_obj": page_obj,
     }
     return render(request, "cms/search/results.html", context)
+
+
+def search_autocomplete(request: HttpRequest) -> HttpResponse:
+    """Return an htmx partial of top title matches for the typeahead dropdown."""
+    query = request.GET.get("q", "").strip()
+    results = []
+    if query:
+        matches = _base_queryset().autocomplete(query)[:AUTOCOMPLETE_LIMIT]
+        results = [page.specific for page in matches]
+    return render(request, "cms/search/autocomplete.html", {"query": query, "results": results})
