@@ -13,6 +13,7 @@ from wagtail.blocks import RichTextBlock
 from wagtail.contrib.routable_page.models import RoutablePageMixin, path
 from wagtail.fields import StreamField
 from wagtail.models import Page
+from wagtail.search import index
 
 from cms.blocks import AlertBlock
 from portal_data.context import build_portal_data_context
@@ -49,6 +50,11 @@ class PortalDataPage(RoutablePageMixin, Page):
         ],
         blank=True,
     )
+
+    search_fields = Page.search_fields + [
+        index.SearchField("content"),
+        index.AutocompleteField("title"),
+    ]
 
     content_panels = Page.content_panels + [
         FieldPanel(

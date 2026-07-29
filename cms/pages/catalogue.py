@@ -11,6 +11,7 @@ from wagtail import blocks
 from wagtail.admin.panels import FieldPanel
 from wagtail.fields import StreamField
 from wagtail.models import Page
+from wagtail.search import index
 
 from cms.blocks import AlertBlock, CatalogueCardGridBlock
 from cms.services.decorators import htmx_request_with_url_update
@@ -55,6 +56,12 @@ class CataloguePage(Page):
         ],
         blank=True,
     )
+
+    search_fields = Page.search_fields + [
+        index.SearchField("content"),
+        index.SearchField("filter_label"),
+        index.AutocompleteField("title"),
+    ]
 
     content_panels = Page.content_panels + [
         FieldPanel(
