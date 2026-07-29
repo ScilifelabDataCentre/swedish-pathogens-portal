@@ -73,6 +73,7 @@ def search(request: HttpRequest) -> HttpResponse:
                     "title": specific.title,
                     "excerpt": getattr(specific, "description", "") or specific.search_description,
                     "label": _LABEL_BY_MODEL.get(type(specific), ""),
+                    "image": getattr(specific, "image", None),
                 }
             )
 
