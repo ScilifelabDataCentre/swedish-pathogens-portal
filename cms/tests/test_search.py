@@ -96,3 +96,10 @@ class SearchTestCase(WagtailPageTestCase):
         resp = self.client.get("/search/autocomplete/", {"q": ""})
         self.assertEqual(resp.status_code, 200)
         self.assertNotContains(resp, "Influenza surveillance update")
+
+    def test_header_has_search_form(self) -> None:
+        """Every page's header exposes a no-JS search form posting to /search/."""
+        resp = self.client.get("/")
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'action="/search/"')
+        self.assertContains(resp, 'name="q"')

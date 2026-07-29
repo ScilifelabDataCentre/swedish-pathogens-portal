@@ -63,6 +63,21 @@
                     </div>
                     {% endif %}
                 {% endfor %}
+
+                <form method="get" action="{% url 'search' %}" role="search" class="relative ml-2">
+                    <label for="header-search" class="sr-only">Search the portal</label>
+                    <input id="header-search" type="search" name="q" autocomplete="off"
+                        class="input input-bordered input-sm input-accent w-44"
+                        placeholder="Search" maxlength="100"
+                        aria-label="Search the portal"
+                        aria-controls="header-search-results"
+                        hx-get="{% url 'search_autocomplete' %}"
+                        hx-trigger="keyup changed delay:300ms"
+                        hx-target="#header-search-results"
+                        hx-swap="innerHTML">
+                    <div id="header-search-results" role="region" aria-live="polite"
+                        class="absolute left-0 top-full z-50 mt-1 w-72"></div>
+                </form>
             </nav>
 
             <!-- Mobile Menu Button: right-aligned, minimal gutter on mobile -->
@@ -106,6 +121,13 @@
             </button>
             <hr class="my-4 border-pp-pale-grey">
             <div class="flex flex-col gap-4" aria-label="Main links">
+                <form method="get" action="{% url 'search' %}" role="search" class="mb-2">
+                    <label for="mobile-search" class="sr-only">Search the portal</label>
+                    <input id="mobile-search" type="search" name="q"
+                        class="input input-bordered input-accent w-full"
+                        placeholder="Search the portal" maxlength="100"
+                        aria-label="Search the portal">
+                </form>
                 {% for item in header_menu %}
                     {% if item.has_submenu %}
                     <div role="group" aria-label="{{ item.title }}">
