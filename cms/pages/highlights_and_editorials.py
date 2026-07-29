@@ -10,6 +10,7 @@ from wagtail.blocks import RichTextBlock
 from wagtail.fields import RichTextField, StreamField
 from wagtail.images import get_image_model_string
 from wagtail.models import Orderable, Page
+from wagtail.search import index
 
 from cms.blocks import AlertBlock
 from cms.services.highlights_and_editorials import get_related_articles
@@ -100,6 +101,15 @@ class HighlightsAndEditorialsPage(Page):
         ],
         blank=True,
     )
+
+    search_fields = Page.search_fields + [
+        index.SearchField("description"),
+        index.SearchField("content"),
+        index.SearchField("keywords"),
+        index.SearchField("announcement"),
+        index.SearchField("author"),
+        index.AutocompleteField("title"),
+    ]
 
     content_panels = Page.content_panels + [
         MultiFieldPanel(
