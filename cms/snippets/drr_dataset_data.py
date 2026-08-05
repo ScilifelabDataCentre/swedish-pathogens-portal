@@ -19,12 +19,24 @@ class DrrDatasetData(RevisionMixin, models.Model):
     ``DashboardPage`` and ``PlotlyFigureBlock`` expect (``data``,
     ``data_updated_at``, ``source_file_hash``).
 
+    Deliberately separate from :class:`~cms.snippets.dashboard_data.DashboardData`
+    rather than reusing it: DRR's write path cannot run through the admin upload
+    hook and ``dashboard_visualisation.registry``. Precompute takes three inputs
+    (feature table, CBCS metadata, optional UMAP coordinates) where the registry
+    passes one; the feature tables can be >200 MB, past what parsing plus PCA
+    can do inside an admin POST; and the command must also write the download
+    artefacts under ``media/drr/<slug>/``, which the registry contract does not
+    cover. The read side is identical on purpose so the inherited render path
+    works unchanged.
+
     Attributes:
         dataset_title: Human-readable label for admin display.
         dataset_slug: Unique identifier matching the DrrDatasetPage slug.
         data: Pre-computed Plotly figure JSON keyed by figure_id.
         summary: Summary-statistics panel payload.
-        source_file_hash: SHA-256 of the source feature table, for provenance.
+        source_file_hash: Combined SHA-256 over every precompute input (feature table,
+            metadata, optional UMAP coordinates), so any input change busts the figure
+            render cache. ``summary.source.sha256`` keeps the feature-table digest alone.
         data_updated_at: Public-facing date the underlying data was last updated.
         generated_at: Timestamp of the last precompute run.
     """
