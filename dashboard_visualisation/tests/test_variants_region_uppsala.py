@@ -8,6 +8,12 @@ import plotly.graph_objects as go
 import polars as pl
 from django.test import SimpleTestCase
 
+from dashboard_visualisation.registry import (
+    generate_figures as registry_generate_figures,
+)
+from dashboard_visualisation.registry import (
+    validate_source_columns as registry_validate_source_columns,
+)
 from dashboard_visualisation.variants_region_uppsala import (
     _add_week_start_dates,
     _lineage_four_recent_fig,
@@ -209,3 +215,29 @@ class TestsGenerateFigures(SimpleTestCase):
         )
         mock_read_csv_dataframe.assert_called_once()
         self.assertEqual(mock_figure_to_json.call_count, 3)
+
+
+class TestsRegistryIntegration(SimpleTestCase):
+    """Tests for registry dispatch to the Uppsala variants module."""
+
+    def test_registry_validate_source_columns_ok(self):
+        """Accept cleaned CSV columns via registry for the dashboard slug."""
+        columns = list(_sample_df().columns)
+        self.assertIsNone(registry_validate_source_columns("variants-region-uppsala", columns))
+
+    def test_registry_validate_source_columns_missing(self):
+        """Reject incomplete headers via registry for the dashboard slug."""
+        result = registry_validate_source_columns(
+            "variants-region-uppsala",
+            ["Year-Week", "lineage_groups01"],
+        )
+        self.assertIsNotNone(result)
+        self.assertIn("Missing columns:", result)
+
+    def test_registry_generate_figures(self):
+        """Dispatch generate_figures for variants-region-uppsala to three keys."""
+        result = registry_generate_figures("variants-region-uppsala", FIXTURE_CSV)
+        self.assertEqual(
+            set(result.keys()),
+            {"lineage_six_recent", "lineage_four_recent", "lineage_wholetime"},
+        )
