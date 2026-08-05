@@ -15,10 +15,12 @@ from dashboard_visualisation.registry import (
     validate_source_columns as registry_validate_source_columns,
 )
 from dashboard_visualisation.variants_region_uppsala import (
+    REQUIRED_COLUMNS,
     _add_week_start_dates,
     _lineage_four_recent_fig,
     _lineage_six_recent_fig,
     _lineage_wholetime_fig,
+    _prepare_lineage_frame,
     generate_figures,
     validate_source_columns,
 )
@@ -73,6 +75,52 @@ class TestsValidateSourceColumns(SimpleTestCase):
         self.assertIn("lineage_groups01", result)
         self.assertIn("percentage_lineage6", result)
 
+    def test_required_columns_match_module_contract(self):
+        """Keep REQUIRED_COLUMNS aligned with validate_source_columns checks."""
+        self.assertEqual(
+            REQUIRED_COLUMNS,
+            {
+                "Year-Week",
+                "lineage_groups01",
+                "lineage_groups04",
+                "lineage_groups06",
+                "percentage_lineage1",
+                "percentage_lineage4",
+                "percentage_lineage6",
+            },
+        )
+
+
+class TestsFixtureSchema(SimpleTestCase):
+    """Tests for cleaned fixture shape used by plot builders."""
+
+    def setUp(self):
+        """Load fixture data."""
+        self.df = _sample_df()
+
+    def test_fixture_has_required_columns(self):
+        """Include every column required by the viz module."""
+        missing = REQUIRED_COLUMNS - set(self.df.columns)
+        self.assertEqual(missing, set())
+
+    def test_percentage_columns_within_bounds(self):
+        """Keep lineage percentages in the 0–100 range."""
+        for column in (
+            "percentage_lineage1",
+            "percentage_lineage4",
+            "percentage_lineage6",
+        ):
+            values = self.df.get_column(column)
+            self.assertGreaterEqual(values.min(), 0.0)
+            self.assertLessEqual(values.max(), 100.0)
+
+    def test_fixture_spans_filter_windows(self):
+        """Cover pre-2023, post-Jan-2023, and post-Oct-2023 weeks."""
+        dates = _add_week_start_dates(self.df).get_column("date")
+        self.assertTrue(any(value <= date(2023, 1, 1) for value in dates))
+        self.assertTrue(any(value > date(2023, 1, 1) for value in dates))
+        self.assertTrue(any(value > date(2023, 10, 1) for value in dates))
+
 
 class TestsAddWeekStartDates(SimpleTestCase):
     """Tests for Year-Week → Monday date conversion."""
@@ -82,6 +130,52 @@ class TestsAddWeekStartDates(SimpleTestCase):
         df = pl.DataFrame({"Year-Week": ["2024-01", "2024-33"]})
         result = _add_week_start_dates(df)
         self.assertEqual(result.get_column("date").to_list(), [date(2024, 1, 1), date(2024, 8, 12)])
+
+
+class TestsPrepareLineageFrame(SimpleTestCase):
+    """Tests for shared filter/sort preparation."""
+
+    def test_empty_after_filter_raises(self):
+        """Raise when a date filter removes every row."""
+        df = pl.DataFrame(
+            {
+                "Year-Week": ["2021-20"],
+                "lineage_groups06": ["XBB*"],
+                "percentage_lineage6": [100.0],
+            }
+        )
+        with self.assertRaises(ValueError) as ctx:
+            _prepare_lineage_frame(
+                df,
+                lineage_col="lineage_groups06",
+                percentage_col="percentage_lineage6",
+                sort_map={"XBB*": 1},
+                sort_ascending=True,
+                after_date=date(2023, 10, 1),
+            )
+        self.assertIn("No rows left", str(ctx.exception))
+
+    def test_unknown_lineage_sorts_after_known(self):
+        """Place unmapped lineages after known sort ranks."""
+        df = pl.DataFrame(
+            {
+                "Year-Week": ["2024-20", "2024-20"],
+                "lineage_groups06": ["BrandNewLineage", "XBB*"],
+                "percentage_lineage6": [40.0, 60.0],
+            }
+        )
+        prepared = _prepare_lineage_frame(
+            df,
+            lineage_col="lineage_groups06",
+            percentage_col="percentage_lineage6",
+            sort_map={"XBB*": 1},
+            sort_ascending=True,
+            after_date=date(2023, 10, 1),
+        )
+        self.assertEqual(
+            prepared.get_column("lineage_groups06").to_list(),
+            ["XBB*", "BrandNewLineage"],
+        )
 
 
 class TestsLineageSixRecentFigure(SimpleTestCase):
@@ -121,6 +215,11 @@ class TestsLineageSixRecentFigure(SimpleTestCase):
         self.assertEqual(fig.layout.xaxis.title.text, "<b>Date</b>")
         self.assertEqual(fig.layout.yaxis.title.text, "<b>Percentage of Lineages<br></b>")
 
+    def test_y_axis_range(self):
+        """Use legacy 0–100.1 y-axis range for the six-group chart."""
+        fig = _lineage_six_recent_fig(self.df)
+        self.assertEqual(list(fig.layout.yaxis.range), [0, 100.1])
+
 
 class TestsLineageFourRecentFigure(SimpleTestCase):
     """Tests for the mid-granularity (groups04) figure."""
@@ -147,6 +246,7 @@ class TestsLineageFourRecentFigure(SimpleTestCase):
         fig = _lineage_four_recent_fig(self.df)
         labels = [button.label for menu in fig.layout.updatemenus for button in menu.buttons]
         self.assertIn("Data since Jan 2023", labels)
+        self.assertIn("Select all lineages", labels)
         self.assertEqual(len(fig.layout.updatemenus), 2)
 
 
@@ -241,3 +341,8 @@ class TestsRegistryIntegration(SimpleTestCase):
             set(result.keys()),
             {"lineage_six_recent", "lineage_four_recent", "lineage_wholetime"},
         )
+
+    def test_unregistered_slug_still_empty(self):
+        """Leave unregistered dashboards without generated figures."""
+        result = registry_generate_figures("not-a-real-dashboard", FIXTURE_CSV)
+        self.assertEqual(result, {})
