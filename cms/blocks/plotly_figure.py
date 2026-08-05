@@ -70,12 +70,15 @@ class PlotlyFigureBlock(StructBlock):
             page = parent_context.get("page")
             slug = getattr(page, "slug", "unknown")
             file_hash = parent_context.get("source_file_hash") or ""
-            cache_key = f"dashboard_plot_html:{slug}:{figure_id}:{file_hash}"
+            height_px = int(value.get("height") or 500)
+            # Height must be part of the key: Plotly bakes default_height into the
+            # generated HTML, so a height-only StreamField change must miss the cache.
+            cache_key = f"dashboard_plot_html:{slug}:{figure_id}:{file_hash}:{height_px}"
             plot_html = cache.get(cache_key)
             if plot_html is None:
                 plot_html = plot_html_from_json(
                     figure_json,
-                    height=f"{value.get('height', 500)}px",
+                    height=f"{height_px}px",
                     include_plotlyjs=False,
                 )
                 if plot_html is not None:
