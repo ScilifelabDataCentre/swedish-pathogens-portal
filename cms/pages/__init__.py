@@ -4,6 +4,7 @@ from .basic_page import BasicPage
 from .catalogue import CataloguePage
 from .dashboard import DashboardPage, DashboardTopic
 from .dashboard_index import DashboardIndexPage
+from .drr_dataset import DrrDatasetPage
 from .highlights_and_editorials import (
     HighlightsAndEditorialsPage,
     HighlightsAndEditorialsTopic,
@@ -26,6 +27,7 @@ __all__ = [
     "DashboardIndexPage",
     "DashboardPage",
     "DashboardTopic",
+    "DrrDatasetPage",
     "HighlightsAndEditorialsIndexPage",
     "HighlightsAndEditorialsPage",
     "HighlightsAndEditorialsTopic",
