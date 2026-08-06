@@ -16,7 +16,7 @@ dependencies = [
     "pillow==12.3.0",
     "plotly==6.6.0",
     "polars==1.41.2",
-    "wagtail==7.4.1",
+    "wagtail==7.4.2",
 ]
 
 [dependency-groups]
