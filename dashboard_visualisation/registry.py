@@ -18,6 +18,7 @@ LOGGER = structlog.get_logger(__name__)
 # "serology-statistics": "dashboard_visualisation.serology_statistics",
 VIZ_MODULES: dict[str, str] = {
     "serology-statistics": "dashboard_visualisation.serology_statistics",
+    "variants-region-uppsala": "dashboard_visualisation.variants_region_uppsala",
 }
 
 
