@@ -31,40 +31,39 @@
         {% endif %}
     </div>
 
+    <div id="liver-validation-errors" aria-live="polite"></div>
+
+    {# Both cards are direct grid children so their top edges stay aligned. #}
     <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         <div class="lg:col-span-4 xl:col-span-3">
             {% include "cms/pages/liver_resource/partials/upload_form.html" %}
         </div>
 
-        <div class="lg:col-span-8 xl:col-span-9 flex flex-col gap-4">
-            <div id="liver-validation-errors" aria-live="polite"></div>
-
-            <section
-                id="tln-container"
-                class="card bg-base-100 border border-base-300 shadow-sm"
-                aria-label="Tree-leaf network plot"
-            >
-                <div class="card-body p-3 sm:p-4 relative min-h-[720px]">
-                    <div
-                        id="liver-tln-loading"
-                        class="htmx-indicator absolute inset-0 bg-base-100/80 flex items-center justify-center z-10 rounded-box"
-                    >
-                        <span class="loading loading-spinner text-accent loading-lg" aria-label="Loading plot"></span>
-                    </div>
-
-                    <div id="liver-tln-panel">
-                        {% include "cms/pages/liver_resource/partials/tln_base.html" %}
-                    </div>
-
-                    <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-pp-dark-grey px-2 pb-3">
-                        <span class="font-medium text-base-content">Colour scale</span>
-                        <span><span class="inline-block w-3 h-3 rounded-sm align-middle mr-1" style="background:#8b0000;"></span> Up</span>
-                        <span><span class="inline-block w-3 h-3 rounded-sm align-middle mr-1" style="background:#00008b;"></span> Down</span>
-                        <span><span class="inline-block w-3 h-3 rounded-sm align-middle mr-1 bg-sky-200;"></span> Neutral / no data</span>
-                    </div>
+        <section
+            id="tln-container"
+            class="lg:col-span-8 xl:col-span-9 card bg-base-100 border border-base-300 shadow-sm"
+            aria-label="Tree-leaf network plot"
+        >
+            <div class="card-body p-3 sm:p-4 relative min-h-[720px]">
+                <div
+                    id="liver-tln-loading"
+                    class="htmx-indicator absolute inset-0 bg-base-100/80 flex items-center justify-center z-10 rounded-box"
+                >
+                    <span class="loading loading-spinner text-accent loading-lg" aria-label="Loading plot"></span>
                 </div>
-            </section>
-        </div>
+
+                <div id="liver-tln-panel">
+                    {% include "cms/pages/liver_resource/partials/tln_base.html" %}
+                </div>
+
+                <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-xs text-pp-dark-grey px-2 pb-3">
+                    <span class="font-medium text-base-content">Colour scale</span>
+                    <span><span class="inline-block w-3 h-3 rounded-sm align-middle mr-1" style="background:#8b0000;"></span> Up</span>
+                    <span><span class="inline-block w-3 h-3 rounded-sm align-middle mr-1" style="background:#00008b;"></span> Down</span>
+                    <span><span class="inline-block w-3 h-3 rounded-sm align-middle mr-1 bg-sky-200;"></span> Neutral / no data</span>
+                </div>
+            </div>
+        </section>
     </div>
 </div>
 
