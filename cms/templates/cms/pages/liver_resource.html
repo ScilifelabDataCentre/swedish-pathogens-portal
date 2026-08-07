@@ -10,26 +10,25 @@
     data-recompute-url="{{ liver_recompute_url }}"
     data-has-session="{% if has_session %}true{% else %}false{% endif %}"
 >
-    <div class="flex flex-col gap-4 mb-6">
-        <div class="flex flex-wrap items-center gap-3">
-            <h3 class="my-0">{{ page.title }}</h3>
-            <span class="badge badge-ghost badge-lg">{{ page.get_data_status_display }}</span>
-            {% if page.dashboard_data_updated_at %}
-            <span class="text-pp-dark-grey text-sm">
-                Data last updated:
-                <time datetime="{{ page.dashboard_data_updated_at|date:"Y-m-d" }}">
-                    {{ page.dashboard_data_updated_at|date:"F j, Y" }}
-                </time>
-            </span>
-            {% endif %}
-        </div>
+    <h3>{{ page.title }}</h3>
 
-        {% if page.content %}
-        <div class="prose max-w-none text-pp-dark-grey">
-            {% include_block page.content %}
-        </div>
+    <p class="text-pp-dark-grey mb-6 flex items-center gap-2 flex-wrap">
+        <span class="badge badge-ghost badge-lg">{{ page.get_data_status_display }}</span>
+        {% if page.dashboard_data_updated_at %}
+        <span>
+            Data last updated:
+            <time datetime="{{ page.dashboard_data_updated_at|date:"Y-m-d" }}">
+                {{ page.dashboard_data_updated_at|date:"F j, Y" }}
+            </time>
+        </span>
         {% endif %}
+    </p>
+
+    {% if page.content %}
+    <div class="prose max-w-none text-pp-dark-grey mb-6">
+        {% include_block page.content %}
     </div>
+    {% endif %}
 
     <div id="liver-validation-errors" aria-live="polite"></div>
 
