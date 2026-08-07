@@ -1,3 +1,5 @@
+{% load wagtailroutablepage_tags %}
+
 <aside class="card bg-base-100 border border-base-300 shadow-sm">
     <div class="card-body gap-5 p-5">
         <div>
@@ -14,8 +16,8 @@
             class="flex flex-col gap-4"
             method="post"
             enctype="multipart/form-data"
-            action="{{ liver_upload_url }}"
-            hx-post="{{ liver_upload_url }}"
+            action="{% routablepageurl page 'upload_de' %}"
+            hx-post="{% routablepageurl page 'upload_de' %}"
             hx-target="#liver-tln-panel"
             hx-target-error="#liver-validation-errors"
             hx-swap="innerHTML"
@@ -68,7 +70,7 @@
                     type="button"
                     class="btn btn-outline btn-sm justify-start liver-example-btn"
                     data-example-slug="{{ example.slug }}"
-                    hx-get="{% url 'cms:liver_load_example' example.slug %}"
+                    hx-get="{% routablepageurl page 'load_example' example.slug %}"
                     hx-target="#liver-tln-panel"
                     hx-target-error="#liver-validation-errors"
                     hx-include="#liver-cutoff-select"
@@ -86,14 +88,14 @@
 
         <div class="flex flex-col gap-2">
             <a
-                href="{% url 'cms:liver_download_template' %}"
+                href="{% routablepageurl page 'download_template' %}"
                 class="btn btn-ghost btn-sm justify-start"
             >
                 Download DE template
             </a>
             <a
                 id="liver-export-modules"
-                href="{% url 'cms:liver_export_modules' %}"
+                href="{% routablepageurl page 'export_module_scores' %}"
                 class="btn btn-ghost btn-sm justify-start liver-export-link {% if not has_session %}btn-disabled pointer-events-none{% endif %}"
                 {% if not has_session %}aria-disabled="true" tabindex="-1"{% endif %}
             >
@@ -101,7 +103,7 @@
             </a>
             <a
                 id="liver-export-genes"
-                href="{% url 'cms:liver_export_genes' %}"
+                href="{% routablepageurl page 'export_genes' %}"
                 class="btn btn-ghost btn-sm justify-start liver-export-link {% if not has_session %}btn-disabled pointer-events-none{% endif %}"
                 {% if not has_session %}aria-disabled="true" tabindex="-1"{% endif %}
             >

@@ -8,8 +8,8 @@ from io import BytesIO
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.http import HttpResponse
 from django.test import Client, SimpleTestCase, TestCase
-from django.urls import reverse
 
+from cms.tests.liver_helpers import create_published_liver_resource_page, liver_route_url
 from dashboard_visualisation.liver_resource.analysis import analyse_de_data
 from dashboard_visualisation.liver_resource.computation import parse_de_file
 from dashboard_visualisation.liver_resource.reference_data import EXPECTED_MODULE_COUNT
@@ -84,11 +84,16 @@ class TestLiverComputationEdgeCases(SimpleTestCase):
 class TestLiverViewEdgeCases(TestCase):
     """HTTP edge cases for liver dashboard endpoints."""
 
+    @classmethod
+    def setUpTestData(cls) -> None:
+        """Publish a liver page so RoutablePageMixin sub-routes resolve."""
+        cls.page = create_published_liver_resource_page()
+
     def setUp(self) -> None:
         """Prepare client and endpoint URLs for edge-case requests."""
         self.client = Client()
-        self.upload_url = reverse("cms:liver_upload")
-        self.recompute_url = reverse("cms:liver_recompute")
+        self.upload_url = liver_route_url(self.page, "upload_de")
+        self.recompute_url = liver_route_url(self.page, "recompute")
         self.htmx_headers = {"HTTP_HX_REQUEST": "true"}
 
     def _post_de_file(
@@ -142,7 +147,7 @@ class TestLiverViewEdgeCases(TestCase):
 
     def test_export_genes_without_session_returns_400(self) -> None:
         """Test gene export without upload returns plain-text error."""
-        url = reverse("cms:liver_export_genes")
+        url = liver_route_url(self.page, "export_genes")
         response = self.client.get(url)
         self.assertEqual(response.status_code, 400)
         self.assertIn(b"Upload DE file(s)", response.content)

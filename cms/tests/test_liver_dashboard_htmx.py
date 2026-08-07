@@ -2,8 +2,8 @@
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase
-from django.urls import reverse
 
+from cms.tests.liver_helpers import create_published_liver_resource_page, liver_route_url
 from dashboard_visualisation.liver_resource.reference_data import get_data_root
 from dashboard_visualisation.liver_resource.session import SESSION_KEY
 
@@ -11,10 +11,15 @@ from dashboard_visualisation.liver_resource.session import SESSION_KEY
 class TestLiverDashboardHtmxFlow(TestCase):
     """Verify end-to-end htmx flows used by the liver dashboard page."""
 
+    @classmethod
+    def setUpTestData(cls) -> None:
+        """Publish a liver page so RoutablePageMixin sub-routes resolve."""
+        cls.page = create_published_liver_resource_page()
+
     def setUp(self) -> None:
         """Prepare client and bundled example path for htmx flow tests."""
         self.client = Client()
-        self.upload_url = reverse("cms:liver_upload")
+        self.upload_url = liver_route_url(self.page, "upload_de")
         self.example_path = get_data_root() / "examples" / "HCC-Control.txt"
         self.htmx_headers = {"HTTP_HX_REQUEST": "true"}
 
@@ -55,7 +60,7 @@ class TestLiverDashboardHtmxFlow(TestCase):
 
     def test_htmx_example_load_returns_plot_partial(self) -> None:
         """Test example load via htmx returns plot markup."""
-        url = reverse("cms:liver_load_example", kwargs={"example_slug": "hcc-control"})
+        url = liver_route_url(self.page, "load_example", example_slug="hcc-control")
         response = self.client.get(f"{url}?cutoff=top500", **self.htmx_headers)
 
         self.assertEqual(response.status_code, 200)

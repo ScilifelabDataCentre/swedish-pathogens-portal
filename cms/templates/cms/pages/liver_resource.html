@@ -1,13 +1,13 @@
 {% extends "cms/base.html" %}
 
-{% load static wagtailcore_tags %}
+{% load static wagtailcore_tags wagtailroutablepage_tags %}
 
 {% block content %}
 
 <div
     id="liver-dashboard"
     class="liver-dashboard"
-    data-recompute-url="{{ liver_recompute_url }}"
+    data-recompute-url="{% routablepageurl page 'recompute' %}"
     data-has-session="{% if has_session %}true{% else %}false{% endif %}"
 >
     <h3>{{ page.title }}</h3>

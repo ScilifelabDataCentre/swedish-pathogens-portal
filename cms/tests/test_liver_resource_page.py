@@ -4,14 +4,13 @@ from datetime import date
 from unittest.mock import patch
 
 from django.test import RequestFactory
-from wagtail.models import Page, Site
 from wagtail.test.utils import WagtailPageTestCase
 
 from cms.pages.dashboard import DashboardPage
 from cms.pages.dashboard_index import DashboardIndexPage
-from cms.pages.home import HomePage
 from cms.pages.liver_resource import LiverResourceDashboardPage
 from cms.snippets.dashboard_data import DashboardData
+from cms.tests.liver_helpers import create_published_liver_resource_page, liver_route_url
 from cms.tests.utils import create_test_image
 from dashboard_visualisation.liver_resource.computation import VALID_CUTOFFS
 from dashboard_visualisation.liver_resource.examples import list_example_slugs, list_examples
@@ -27,33 +26,10 @@ class LiverResourcePageTestCase(WagtailPageTestCase):
     @classmethod
     def setUpTestData(cls) -> None:
         """Create site with home page and dashboard index."""
-        root = Page.get_first_root_node()
-        for child in root.get_children():
-            child.delete()
-        root = Page.get_first_root_node()
-
-        cls.home = HomePage(title="Home", slug="home")
-        root.add_child(instance=cls.home)
-        Site.objects.update_or_create(
-            is_default_site=True,
-            defaults={"hostname": "testserver", "root_page": cls.home},
-        )
-
-        cls.index = DashboardIndexPage(title="Dashboards", slug="dashboards")
-        cls.home.add_child(instance=cls.index)
-        cls.index.save_revision().publish()
-
-        cls.image = create_test_image(title="Liver Image", file_name="liver.jpg")
-        cls.page = LiverResourceDashboardPage(
-            title="Liver Resource",
-            slug="liver-resource",
-            description="DINA Liver Resource dashboard",
-            image=cls.image,
-            data_status="active",
-            content=[("text", "<p>Upload a limma-style DE file to colour the TLN.</p>")],
-        )
-        cls.index.add_child(instance=cls.page)
-        cls.page.save_revision().publish()
+        cls.page = create_published_liver_resource_page()
+        cls.index = cls.page.get_parent().specific
+        cls.home = cls.index.get_parent().specific
+        cls.image = cls.page.image
 
     def setUp(self) -> None:
         """Clear cached reference data between tests."""
@@ -148,8 +124,11 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
         request = self.client.get(self.page.url).wsgi_request
         context = self.page.get_context(request)
 
-        self.assertIn("/cms/liver/upload/", context["liver_upload_url"])
-        self.assertIn("/cms/liver/recompute/", context["liver_recompute_url"])
+        self.assertEqual(context["liver_upload_url"], liver_route_url(self.page, "upload_de"))
+        self.assertEqual(context["liver_recompute_url"], liver_route_url(self.page, "recompute"))
+        self.assertIn("/upload/", context["liver_upload_url"])
+        self.assertIn("/recompute/", context["liver_recompute_url"])
+        self.assertNotIn("/cms/liver/", context["liver_upload_url"])
 
     def test_get_context_example_label_uses_dashboard_data_filename(self) -> None:
         """Test example button label comes from the DashboardData source file name."""
@@ -177,7 +156,7 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
     def test_page_includes_htmx_and_plotly_wiring(self) -> None:
         """Test that the page template includes htmx upload wiring and liver JS."""
         response = self.client.get(self.page.url)
-        self.assertContains(response, 'hx-post="/cms/liver/upload/"')
+        self.assertContains(response, f'hx-post="{liver_route_url(self.page, "upload_de")}"')
         self.assertContains(response, 'hx-target="#liver-tln-panel"')
         self.assertContains(response, 'hx-target-error="#liver-validation-errors"')
         self.assertContains(response, 'id="liver-dashboard"')

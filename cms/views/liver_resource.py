@@ -1,9 +1,11 @@
-"""HTMX and JSON endpoints for the DINA Liver Resource dashboard.
+"""HTMX and JSON handlers for the DINA Liver Resource dashboard.
 
-These views support the visitor-driven workflow on ``LiverResourceDashboardPage``:
-upload DE file(s), change DEcutoff, inspect module genes, load bundled examples,
-and download results. Parsed DE data lives in the Django session — not in
-``DashboardData`` (see PR-READINESS.md §5).
+Routed via ``LiverResourceDashboardPage`` ``RoutablePageMixin`` sub-paths
+(for example ``…/upload/``, ``…/recompute/``), not ``cms/urls.py``.
+
+These handlers support the visitor-driven workflow: upload DE file(s), change
+DEcutoff, load bundled examples, and download results. Parsed DE data lives in
+the Django session — not in ``DashboardData``.
 
 MVP endpoint map (all required unless noted):
 

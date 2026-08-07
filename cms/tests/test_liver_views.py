@@ -8,8 +8,8 @@ from unittest.mock import patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, RequestFactory, TestCase
-from django.urls import reverse
 
+from cms.tests.liver_helpers import create_published_liver_resource_page, liver_route_url
 from dashboard_visualisation.liver_resource.reference_data import (
     EXPECTED_MODULE_COUNT,
     get_data_root,
@@ -24,11 +24,16 @@ from dashboard_visualisation.liver_resource.session import (
 class TestLiverViews(TestCase):
     """Verify liver dashboard HTMX endpoints."""
 
+    @classmethod
+    def setUpTestData(cls) -> None:
+        """Publish a liver page so RoutablePageMixin sub-routes resolve."""
+        cls.page = create_published_liver_resource_page()
+
     def setUp(self) -> None:
         """Prepare client and example DE file path."""
         self.client = Client()
-        self.upload_url = reverse("cms:liver_upload")
-        self.recompute_url = reverse("cms:liver_recompute")
+        self.upload_url = liver_route_url(self.page, "upload_de")
+        self.recompute_url = liver_route_url(self.page, "recompute")
         self.example_path = get_data_root() / "examples" / "HCC-Control.txt"
 
     def _hydrated_session(self) -> LiverDeSession | None:
@@ -106,7 +111,7 @@ class TestLiverViews(TestCase):
 
     def test_load_example_returns_plot(self) -> None:
         """Test bundled example endpoint stores session and returns plot."""
-        url = reverse("cms:liver_load_example", kwargs={"example_slug": "hcc-control"})
+        url = liver_route_url(self.page, "load_example", example_slug="hcc-control")
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
@@ -117,7 +122,7 @@ class TestLiverViews(TestCase):
 
     def test_load_unknown_example_returns_error(self) -> None:
         """Test unknown example slug returns validation error."""
-        url = reverse("cms:liver_load_example", kwargs={"example_slug": "missing-example"})
+        url = liver_route_url(self.page, "load_example", example_slug="missing-example")
         response = self.client.get(url)
         self.assertEqual(response.status_code, 400)
         self.assertContains(response, "Unknown example dataset", status_code=400)
@@ -142,7 +147,7 @@ class TestLiverViews(TestCase):
 
     def test_download_template_returns_file(self) -> None:
         """Test template download returns the bundled DE template."""
-        url = reverse("cms:liver_download_template")
+        url = liver_route_url(self.page, "download_template")
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
@@ -152,14 +157,14 @@ class TestLiverViews(TestCase):
 
     def test_export_module_scores_requires_session(self) -> None:
         """Test module scores export without session returns 400."""
-        url = reverse("cms:liver_export_modules")
+        url = liver_route_url(self.page, "export_module_scores")
         response = self.client.get(url)
         self.assertEqual(response.status_code, 400)
 
     def test_export_module_scores_matches_reference(self) -> None:
         """Test module scores download matches R fixture after upload."""
         self._upload_example_file()
-        url = reverse("cms:liver_export_modules")
+        url = liver_route_url(self.page, "export_module_scores")
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
@@ -185,7 +190,7 @@ class TestLiverViews(TestCase):
     def test_export_genes_returns_csv(self) -> None:
         """Test gene classification export returns a CSV attachment."""
         self._upload_example_file()
-        url = reverse("cms:liver_export_genes")
+        url = liver_route_url(self.page, "export_genes")
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
@@ -226,6 +231,11 @@ class TestLiverViews(TestCase):
 class TestLiverViewsWithDashboardData(TestCase):
     """Verify example load uses pre-stored DashboardData figures when present."""
 
+    @classmethod
+    def setUpTestData(cls) -> None:
+        """Publish liver page for routable example endpoint."""
+        cls.page = create_published_liver_resource_page()
+
     def setUp(self) -> None:
         """Create liver DashboardData row from bundled DE file."""
         from datetime import date
@@ -248,7 +258,7 @@ class TestLiverViewsWithDashboardData(TestCase):
 
     def test_load_example_uses_dashboard_data_without_analyse(self) -> None:
         """Test example button renders stored figure and keeps session for exports."""
-        url = reverse("cms:liver_load_example", kwargs={"example_slug": "hcc-control"})
+        url = liver_route_url(self.page, "load_example", example_slug="hcc-control")
         with patch(
             "cms.views.liver_resource.analyse_de_uploads",
             side_effect=AssertionError("analyse_de_uploads should not run"),
