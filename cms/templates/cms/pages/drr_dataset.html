@@ -149,8 +149,10 @@
     {% include_block page.content %}
 {% endif %}
 
-{# Downloads: markup is ready but inert until the download / raw-image routes and
-   download_urls context land (FREYA-2537 downloads, FREYA-2539 raw-image link-out). #}
+{# Downloads: the bulk CSV / Parquet links are live (FREYA-2580); each is rendered
+   only when its artefact has been precomputed. Still pending: the raw-image button
+   (FREYA-2581 / 2539), the compound picker that fills `compounds` (FREYA-2583), and
+   the licence + citation statement this surface needs (FREYA-2588, blocked on DT-7). #}
 {% if download_urls %}
     <section aria-labelledby="drr-downloads-heading" class="mt-10">
         <h4 id="drr-downloads-heading">Downloads</h4>

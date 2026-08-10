@@ -16,12 +16,12 @@ from pathlib import Path
 from typing import Any
 
 import structlog
-from django.conf import settings
 from django.core.management.base import BaseCommand, CommandParser
 from django.utils import timezone
 
 from cms.snippets.drr_dataset_data import DrrDatasetData
 from dashboard_visualisation.drr import (
+    artefact_dir,
     build_all_figures,
     build_compound_index,
     build_summary,
@@ -69,7 +69,7 @@ class Command(BaseCommand):
         metadata_path = Path(options["metadata"])
         title = options["title"] or slug
 
-        output_dir = Path(settings.MEDIA_ROOT) / "drr" / slug
+        output_dir = artefact_dir(slug)
         figures_dir = output_dir / "figures"
         figures_dir.mkdir(parents=True, exist_ok=True)
 
