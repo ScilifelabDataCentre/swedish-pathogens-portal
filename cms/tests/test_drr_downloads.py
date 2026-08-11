@@ -209,6 +209,47 @@ class TestDrrDownloadUrlsContext(DrrDownloadRouteTestCase):
         self.assertNotContains(response, "Download features (CSV)")
 
 
+class TestDrrDownloadUrlRouting(DrrDownloadRouteTestCase):
+    r"""Pins the routing constraint that shaped these URLs.
+
+    Wagtail serves page URLs through ``^((?:[\w\-]+/)*)$`` (``wagtail/urls.py``),
+    so no path segment may contain a dot or a bracket, whatever patterns a
+    ``RoutablePageMixin`` registers. That is why the artefact format became a
+    path segment of its own and the compound id moved into the query string.
+    Should these assertions start failing, the catch-all has changed and the URL
+    design can be revisited.
+    """
+
+    def test_dotted_urls_are_unreachable(self) -> None:
+        """A dotted path segment cannot be routed to, with or without a trailing slash."""
+        self.write_artefacts()
+
+        for url in (
+            "download/features.csv",
+            "download/features.csv/",
+            "download/features.parquet/",
+            "download/compound/CBK1.csv/",
+        ):
+            with self.subTest(url=url):
+                self.assertEqual(self.download(url).status_code, 404)
+
+    def test_bracketed_path_segment_is_unreachable(self) -> None:
+        """A control id like ``[stau]`` cannot travel in the path, encoded or not."""
+        self.write_artefacts()
+
+        for url in ("download/compound/[stau]/", "download/compound/%5Bstau%5D/"):
+            with self.subTest(url=url):
+                self.assertEqual(self.download(url).status_code, 404)
+
+    def test_query_string_carries_what_the_path_cannot(self) -> None:
+        """The same id the path rejects is served when it travels as a query parameter."""
+        self.write_artefacts()
+
+        response = self.client.get(self.page.url + "download/compound/", {"cbkid": "[stau]"})
+
+        self.assertEqual(response.status_code, 200)
+
+
 class TestServeFileFromDirectory(SimpleTestCase):
     """Traversal and error guards in ``cms.services.file_downloads``."""
 
