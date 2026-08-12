@@ -15,7 +15,7 @@ from cms.pages.drr_dataset import DrrDatasetPage
 from cms.pages.home import HomePage
 from cms.snippets.drr_dataset_data import DrrDatasetData
 from cms.tests.test_drr_precompute import FEATURE_CSV, METADATA_TSV
-from cms.tests.utils import create_test_image
+from cms.tests.utils import create_test_image, use_temp_media_root
 
 # A representative, fully-populated summary payload mirroring spec section 7 plus
 # the FREYA-2557 reconciliation block. Counts use comma-grouped values so the
@@ -242,41 +242,55 @@ class TestDrrDatasetPageRender(DrrDatasetPageTestCase):
         self.assertNotContains(response, "Summary statistics")
 
 
-class TestDrrDatasetDownloadsInert(DrrDatasetPageTestCase):
-    """Option A contract: the downloads section stays inert until FREYA-2537 / 2539."""
+class TestDrrDatasetDownloadsWired(DrrDatasetPageTestCase):
+    """Inverts the transitional contract now that FREYA-2580 wires ``download_urls``.
+
+    Route behaviour is covered by ``test_drr_downloads.py``; what this asserts is
+    the page-context payload spec section 10 requires of this file, plus the fact
+    that the raw-image link-out (FREYA-2581) is still absent.
+    """
 
     @classmethod
     def setUpTestData(cls) -> None:
-        """Add a published DRR dataset page for the downloads-inert checks."""
+        """Add a published DRR dataset page for the downloads-context checks."""
         super().setUpTestData()
-        cls.image = create_test_image(title="DRR Inert", file_name="drr-inert.jpg")
+        cls.image = create_test_image(title="DRR Wired", file_name="drr-wired.jpg")
         cls.page = DrrDatasetPage(
-            title="DRR Downloads Inert",
-            slug="drr-downloads-inert",
-            description="Downloads stay hidden until the routes land.",
+            title="DRR Downloads Wired",
+            slug="drr-downloads-wired",
+            description="Downloads are served from precomputed artefacts.",
             image=cls.image,
             data_status="active",
         )
         cls.index.add_child(instance=cls.page)
         cls.page.save_revision().publish()
 
-    def test_download_urls_absent_from_context(self) -> None:
-        """get_context does not expose download_urls until the routes are wired."""
+    def setUp(self) -> None:
+        """Redirect ``MEDIA_ROOT`` and stand in for a precompute run."""
+        super().setUp()
+        artefacts = use_temp_media_root(self) / "drr" / self.page.slug
+        artefacts.mkdir(parents=True)
+        (artefacts / "features.csv").write_text("cbkid\nCBK1\n", encoding="utf-8")
+        (artefacts / "features.parquet").write_bytes(b"PAR1")
+
+    def test_download_urls_present_in_context(self) -> None:
+        """get_context advertises the feature downloads, and only those."""
         request = RequestFactory().get(self.page.url)
         context = self.page.get_context(request)
-        self.assertNotIn("download_urls", context)
+        self.assertEqual(sorted(context["download_urls"]), ["compound_base", "csv", "parquet"])
+        self.assertNotIn("raw_images", context["download_urls"])
 
-    def test_downloads_section_not_rendered_even_with_data(self) -> None:
-        """The downloads markup stays hidden even when a data row is present."""
+    def test_downloads_section_rendered_with_data(self) -> None:
+        """The downloads markup goes live, without the raw-image button."""
         DrrDatasetData.objects.create(
-            dataset_slug="drr-downloads-inert",
+            dataset_slug="drr-downloads-wired",
             summary={"n_compounds": 1},
             data={},
         )
         response = self.client.get(self.page.url)
         self.assertEqual(response.status_code, 200)
-        self.assertNotContains(response, 'id="drr-downloads-heading"')
-        self.assertNotContains(response, "Download features (CSV)")
+        self.assertContains(response, 'id="drr-downloads-heading"')
+        self.assertContains(response, "Download features (CSV)")
         self.assertNotContains(response, "Download raw images")
 
 
