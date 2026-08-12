@@ -5,6 +5,7 @@ description = "The Swedish Pathogens Portal provides information about available
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
+    "boto3>=1.43.69",
     "django==6.0.7",
     "django-environ==0.13.0",
     "django-htmx==1.27.0",
