@@ -73,7 +73,7 @@ THIRD_PARTY_APPS = [
     "django_structlog",
 ]
 
-LOCAL_APPS = ["cms"]
+LOCAL_APPS = ["cms", "portal_data.apps.PortalDataConfig"]
 
 INSTALLED_APPS = DJANGO_APPS + WAGTAIL_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
