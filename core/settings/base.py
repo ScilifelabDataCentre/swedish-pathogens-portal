@@ -132,12 +132,13 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # DATASETS ROOT variable used for portal data storage
 DATASETS_ROOT = env("DATASETS_ROOT", default="/datasets")
 
-# S3 connection settings for portal data files
-STORAGEGRID_ENDPOINT_URL = env("STORAGEGRID_ENDPOINT_URL")
-STORAGEGRID_ACCESS_KEY_ID = env("STORAGEGRID_ACCESS_KEY_ID")
-STORAGEGRID_SECRET_ACCESS_KEY = env("STORAGEGRID_SECRET_ACCESS_KEY")
-STORAGEGRID_BUCKETS = env.list("STORAGEGRID_BUCKETS", default=["spp-unit-bundles"])
-STORAGEGRID_REGION_NAME = env("STORAGEGRID_REGION_NAME", default="us-east-1")
+# S3 connection and file settings for portal data files
+S3_ENDPOINT_URL = env("S3_ENDPOINT_URL")
+S3_ACCESS_KEY_ID = env("S3_ACCESS_KEY_ID")
+S3_SECRET_ACCESS_KEY = env("S3_SECRET_ACCESS_KEY")
+S3_BUCKETS: list[str] = env.list("S3_BUCKETS", default=["spp-unit-bundles-1"])
+# TTL for pre-signed S3 download URLs generated for portal data files, default is 10 hours
+S3_PRE_SIGNED_URL_TTL_SECONDS = env.int("S3_PRE_SIGNED_URL_TTL_SECONDS", default=36000)
 
 # PASSWORDS (https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators)
 # ------------------------------------------------------------------------------

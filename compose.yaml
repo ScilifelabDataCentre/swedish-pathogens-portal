@@ -69,6 +69,40 @@ services:
       - type: bind
         source: ./
         target: /app/local
+  # S3 instance
+  minio:
+    image: bitnamilegacy/minio:2025.7.23-debian-12-r5
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: rootpassword
+    command: server --console-address ":9001" /bitnami/minio/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    volumes:
+      - minio_data:/bitnami/minio/data
+  # Creates a service account to match deployed service account's permissions
+  minio-setup:
+    image: bitnamilegacy/minio-client:2025.7.21-debian-12-r3
+    depends_on:
+      minio:
+        condition: service_healthy
+    restart: on-failure
+    volumes:
+      - ./docker/s3_service_account_policy.json:/tmp/api-worker-policy.json:ro
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set minio http://minio:9000 minioadmin rootpassword;
+      mc admin policy create minio s3-api-policy /tmp/api-worker-policy.json;
+      mc admin user add minio s3-service-account password;
+      mc admin policy attach minio s3-api-policy --user s3-service-account;
+      "
 # Persistant volume for DB
 volumes:
   postgres_db:
+  minio_data:
