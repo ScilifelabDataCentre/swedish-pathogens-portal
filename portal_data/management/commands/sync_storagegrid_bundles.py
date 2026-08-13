@@ -9,7 +9,7 @@ from typing import Any
 
 from botocore.exceptions import BotoCoreError, ClientError
 from django.conf import settings
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.db import transaction
 from django.utils import timezone
 
@@ -57,7 +57,7 @@ class Command(BaseCommand):
 
     help = "Sync portal data bundle manifests from NetApp StorageGRID."
 
-    def add_arguments(self, parser: Any) -> None:  # noqa: ANN401
+    def add_arguments(self, parser: CommandParser) -> None:
         """Register management command arguments."""
         parser.add_argument(
             "--bucket",

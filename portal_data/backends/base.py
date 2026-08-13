@@ -35,9 +35,11 @@ class PortalDataBackend(Protocol):
 
     def list_datasets(self, *, datatype: str) -> list[PortalDataset]:
         """Return datasets available for a datatype."""
+        ...
 
     def get_dataset(self, dataset_id: str) -> PortalDataset | None:
         """Return one dataset by identifier, if it exists."""
+        ...
 
     def get_download_url(
         self,
@@ -47,3 +49,4 @@ class PortalDataBackend(Protocol):
         expires_in_seconds: int,
     ) -> str:
         """Return a temporary download URL for a dataset file."""
+        ...
