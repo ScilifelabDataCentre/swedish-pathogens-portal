@@ -1,0 +1,148 @@
+{% comment %}
+    This file is used to display quantitative plot with filters on the SLU wastewater "overview" page.
+    This template is passed via "StaticBlock" in "SLUDashboardPage" model and is rendered when the
+    editor includes it in the page via wagtail admin panel.
+{% endcomment %}
+
+{% with raw_data=figures.raw_data filter_input=figures.filter_input_context %}
+    {% if not raw_data %}
+        {% include "cms/pages/slu_wastewater/partials/load_message.html" with missing_data="Raw data" %}
+    {% elif not filter_input %}
+        {% include "cms/pages/slu_wastewater/partials/load_message.html" with missing_data="Filter input" %}
+    {% else %}
+    <!-- Quantitative overview plot -->
+    <div id="quant-overview-plot" class="my-6"
+        hx-get="{{ page.url }}"
+        hx-trigger="load once, input from:#plot-filters delay:300ms, click from:#siteSelector>span delay:300ms"
+        hx-include="#plot-filters input, #plot-filters select"
+        hx-target="#quant-overview-plot-area"
+        hx-swap="innerHTML"
+        hx-indicator="#plot-loading"
+        >
+        <div class="relative min-h-113">
+            <!-- Place holder loading message, HTMX will replace it with plot -->
+            <div id="plot-loading" class="htmx-indicator absolute inset-0 bg-base-100/80 flex items-center justify-center z-10 rounded-box">
+                <span class="loading loading-spinner text-accent loading-lg" aria-label="Loading"></span>
+            </div>
+            <div id="quant-overview-plot-area"></div>
+        </div>
+    </div>
+
+    <!-- Plot filters -->
+    <details
+        class="group bg-white rounded-lg border border-pp-pale-grey/30 shadow-sm overflow-hidden transition-all duration-300">
+        <!-- Collapsible header -->
+        <summary
+            class="p-4 font-bold text-lg cursor-pointer flex items-center justify-between list-none hover:bg-pp-pale-grey/10 transition-colors">
+            Plot filters
+            <span class="transition-transform duration-300 group-open:rotate-180">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+            </span>
+        </summary>
+        <!-- Collapsible content -->
+         <div class="border-t border-pp-pale-grey/40">
+            <p class="px-5">Use the filters below to update the above plot.</p>
+            <div id="plot-filters">
+                <div class="grid grid-cols-4 mb-5">
+                    <!-- Years checkbox -->
+                    <div>
+                        <div class="font-medium mb-4 bg-gray-200/50 py-1.5 px-5">Years</div>
+                        <div class="px-5 flex flex-wrap gap-2">
+                            {% for y in filter_input.input_years %}
+                            <label class="label">
+                                <input type="checkbox" id="yr-{{y}}" name="year" value="{{y}}"
+                                class="checkbox checkbox-accent checkbox-xs" checked/>
+                                {{y}}
+                            </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Months slider -->
+                    <div>
+                        <div class="font-medium mb-4 bg-gray-200/50  py-1.5">Months</div>
+                        <div class="pr-8">
+                            <input type="range" id="months" name="months" class="range range-accent"
+                            min="{{ filter_input.input_months|first }}" max="{{ filter_input.input_months|last }}"
+                            value="{{ filter_input.input_months|last }}" step="1"/>
+                            <div class="flex justify-between px-2.5 mt-1 text-xs">
+                                {% for m in filter_input.input_months %}
+                                <span>|</span>
+                                {% endfor %}
+                            </div>
+                            <div class="flex justify-between px-2.5 mt-1 text-xs">
+                                {% for m in filter_input.input_months %}
+                                <span>{{m}}</span>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Normalisation methodology dropdown -->
+                    <div>
+                        <div class="font-medium mb-4 bg-gray-200/50 py-1.5">Normalisation method</div>
+                        <div class="pr-8">
+                            <select name="method" id="norm-method" class="select select-accent">
+                                {% for k,v in filter_input.input_methods.items %}
+                                <option value="{{k}}" {% if k == "pmmov_normalised" %}selected{% endif %}>{{v}}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Rolling average dropdown -->
+                    <div>
+                        <div class="font-medium mb-4 bg-gray-200/50 py-1.5">Time series display</div>
+                        <div class="pr-8">
+                            <select name="timeseries" id="timeseries" class="select select-accent">
+                                {% for k,v in filter_input.input_timeseries.items %}
+                                <option value="{{k}}" {% if k == 3 %}selected{% endif %}>{{v}}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sampling sites checkbox -->
+                <div class="pb-3">
+                    <div class="flex justify-between mb-4 bg-gray-200/50 py-1.5 px-5">
+                        <span class="font-medium">Sampling sites</span>
+                        <div id="siteSelector">
+                            <span class="border rounded text-xs px-1.5 mr-3
+                                hover:bg-gray-600 hover:text-white cursor-pointer"
+                                onclick="siteSelector(true)">
+                                All
+                            </span>
+                            <span class="border rounded text-xs px-1.5
+                                hover:bg-gray-600 hover:text-white cursor-pointer"
+                                onclick="siteSelector(false)">
+                                None
+                            </span>
+                        </div>
+                    </div>
+                    <div class="grid grid-rows-5 grid-cols-4 grid-flow-col px-5">
+                        {% for site in filter_input.input_sites %}
+                        <label class="label">
+                            <input type="checkbox" id="site-{{site|lower}}" name="site" value="{{site}}"
+                                class="checkbox checkbox-accent checkbox-xs" checked/>
+                            {{site}}
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </details>
+    <script>
+        // helper function to select/unselect all sites
+        function siteSelector(checked) {
+            [...document.querySelectorAll("input[name='site']")].forEach((i) => {
+                i.checked = checked
+            });
+        }
+    </script>
+    {% endif %}
+{% endwith %}

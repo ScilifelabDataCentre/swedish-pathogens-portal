@@ -1,0 +1,65 @@
+{% comment %}
+    This file is used to display the recent data information on the SLU wastewater "overview" page.
+    This template is passed via "StaticBlock" in "SLUDashboardPage" model and is rendered when
+    the editor includes it in the page via wagtail admin panel.
+{% endcomment %}
+
+{% with recent_data=figures.recent_data_info %}
+<div id="recent-data-info" class="my-5">
+    {% if recent_data %}
+    <details
+        class="group bg-white rounded-lg border border-pp-pale-grey/30 shadow-sm overflow-hidden transition-all duration-300">
+        <!-- Collapsible header -->
+        <summary
+            class="p-4 font-bold text-lg cursor-pointer flex items-center justify-between list-none hover:bg-pp-pale-grey/10 transition-colors">
+            Recent data summary
+            <span class="transition-transform duration-300 group-open:rotate-180">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                    stroke="currentColor" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+            </span>
+        </summary>
+        <!-- Collapsible content -->
+        <div class="md:flex gap-4 border-t border-pp-pale-grey/20 p-4 [&_[id^='data-table-'][id$='-title']]:sr-only">
+            <!-- Latest data sampling date and sites -->
+            <div class="md:flex-2 flex flex-col gap-3 pr-2 max-md:mb-3 md:border-r md:border-gray-300">
+                <div class="text-lg font-medium">
+                    Latest data sampling date
+                </div>
+                <div>{{ recent_data.sampling_date }}</div>
+                <div class="text-lg font-medium">Latest data sampling sites</div>
+                <div>
+                    {{ recent_data.sampling_sites }}
+                    Collectively, these sites represent {{ recent_data.sampling_sites_pop }}% of Sweden's population.
+                </div>
+            </div>
+            <!-- Sample summary table -->
+            <div class="md:flex-1 flex flex-col gap-3 md:pl-2">
+                <div class="text-lg font-medium">Sample summary</div>
+                <div class="flex flex-col">
+                    {% for row in recent_data.sample_summary %}
+                        <div class="flex justify-between border-b border-gray-300 gap-2 py-1.5
+                                    first:font-medium last:border-0">
+                            {% for v in row %}
+                                <span
+                                {% if forloop.first %}
+                                    class="flex-2"
+                                {% else %}
+                                    class="flex-1 text-right"
+                                {% endif %}
+                                >
+                                    {{ v }}
+                                </span>
+                            {% endfor %}
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </details>
+    {% else %}
+        {% include "cms/pages/slu_wastewater/partials/load_message.html" with missing_data="Recent data info" %}
+    {% endif %}
+</div>
+{% endwith %}

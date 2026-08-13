@@ -1,0 +1,23 @@
+{% comment %}
+    A common snippet that can be included in the template
+    to display a standardized plot loading error message.
+
+    Usage:
+      - {% include "cms/pages/slu_wastewater/partials/load_message.html" %}
+      - {% include "cms/pages/slu_wastewater/partials/load_message.html" with missing_data="Raw data" %}
+      - {% include "cms/pages/slu_wastewater/partials/load_message.html" with message="Custom error message." %}
+{% endcomment %}
+
+<div class="alert alert-{{ message_type|default:'warning' }} my-6" role="alert">
+    <span class="text-base font-medium mx-6">
+        {% if message %}
+        {{ message }}
+        {% elif missing_data %}
+        '{{ missing_data }}' not found, please try again later.
+        {% else %}
+        Encountered an error, please try again later.
+        {% endif %}
+        If the problem persists, <a href="/contact/">contact</a>
+        the portal team.
+    </span>
+</div>

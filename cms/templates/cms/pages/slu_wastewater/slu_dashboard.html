@@ -1,0 +1,73 @@
+{% extends "cms/base.html" %}
+
+{% load plotly_js toc wagtailcore_tags %}
+
+{% block content %}
+
+{% plotlyjs_once %}
+
+<!-- Page title -->
+<h3>{{ page_title|default:page.title }}</h3>
+
+<!-- Data last updated date and Type -->
+<p class="text-pp-dark-grey mb-6 flex items-center gap-2 flex-wrap">
+    <span class="badge badge-ghost badge-lg">{{ page.get_data_status_display }}</span>
+    {% if page.dashboard_data_updated_at %}
+        <span>
+            Data last updated:
+            <time datetime="{{ page.dashboard_data_updated_at|date:"Y-m-d" }}">
+                {{ page.dashboard_data_updated_at|date:"F j, Y" }}
+            </time>
+        </span>
+    {% endif %}
+</p>
+
+{% if page.notice %}
+    <!-- Notice -->
+    <div class="alert
+    {% if page.notice_type == "info" %}
+        alert-info
+    {% elif page.notice_type == "success" %}
+        alert-success
+    {% elif page.notice_type == "warning" %}
+        alert-warning
+    {% elif page.notice_type == "error" %}
+        alert-error
+    {% endif %}
+    ">
+        <div class="[&_h4]:mt-0 [&_h5]:mt-0 [&_p]:m-0">{{ page.notice|richtext }}</div>
+    </div>
+{% endif %}
+
+{% if page.navigation_tabs %}
+    <!-- Navigation header for small device -->
+    <span class="block lg:hidden text-lg font-medium">
+        Page Navigation
+    </span>
+
+    <!-- Navigation tabs -->
+    <div class="flex max-lg:flex-col justify-center font-medium my-5 border-b max-lg:pb-4
+    lg:border-b-pp-dark-blue lg:*:mx-4 *:pt-2 *:pb-1 *:px-5
+    *:text-pp-dark-blue *:rounded-t-lg *:no-underline">
+        {% for tab in page.navigation_tabs %}
+            {% if page.url == tab.url %}
+            <span class="lg:font-normal border max-lg:rounded-lg lg:border-b-0 lg:shadow-[0_4px_white]">
+                {{ tab.title }}
+            </span>
+            {% else %}
+            <a class="hover:bg-gray-200" href="{{ tab.url }}">
+                {{ tab.title }}
+            </a>
+            {% endif %}
+        {% endfor %}
+    </div>
+{% endif %}
+
+<!-- Main page content -->
+{% if page.show_toc %}
+    {% content_with_toc page.slu_content %}
+{% else %}
+    {% include_block page.slu_content %}
+{% endif %}
+
+{% endblock %}
