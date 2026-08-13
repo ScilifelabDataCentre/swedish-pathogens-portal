@@ -10,7 +10,8 @@ import polars as pl
 import polars.selectors as cs
 
 # Non-feature metadata columns in the feature table, verified against the
-# S-BIAD2580 Vero E6 export header. Every other numeric column is a feature.
+# S-BIAD2580 A549-ACE2 validation-screen export header. Every other numeric
+# column is a feature.
 METADATA_COLUMNS: list[str] = [
     "Metadata_Barcode",
     "Metadata_Well",

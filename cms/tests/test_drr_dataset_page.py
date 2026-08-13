@@ -100,8 +100,8 @@ class TestDrrDatasetData(DrrDatasetPageTestCase):
 
     def test_get_data_round_trip(self) -> None:
         """get_data returns the row whose dataset_slug matches."""
-        row = DrrDatasetData.objects.create(dataset_slug="sars-cov2-vero-e6")
-        self.assertEqual(DrrDatasetData.get_data("sars-cov2-vero-e6").pk, row.pk)
+        row = DrrDatasetData.objects.create(dataset_slug="sars-cov2-a549-ace2-validation")
+        self.assertEqual(DrrDatasetData.get_data("sars-cov2-a549-ace2-validation").pk, row.pk)
 
 
 class TestDrrDatasetPageContext(DrrDatasetPageTestCase):
@@ -113,12 +113,12 @@ class TestDrrDatasetPageContext(DrrDatasetPageTestCase):
         super().setUpTestData()
         cls.image = create_test_image(title="DRR Image", file_name="drr.jpg")
         cls.page = DrrDatasetPage(
-            title="SARS-CoV-2 Vero E6 Cell Painting",
-            slug="sars-cov2-vero-e6",
-            description="Primary Cell Painting antiviral screen.",
+            title="SARS-CoV-2 A549-ACE2 Validation Cell Painting",
+            slug="sars-cov2-a549-ace2-validation",
+            description="Validation Cell Painting antiviral screen.",
             image=cls.image,
             data_status="active",
-            cell_line="Vero E6",
+            cell_line="A549-ACE2",
         )
         cls.index.add_child(instance=cls.page)
         cls.page.save_revision().publish()
@@ -126,7 +126,7 @@ class TestDrrDatasetPageContext(DrrDatasetPageTestCase):
     def test_context_pulls_figures_and_summary_from_drr_dataset_data(self) -> None:
         """get_context exposes DrrDatasetData figures and the summary payload."""
         DrrDatasetData.objects.create(
-            dataset_slug="sars-cov2-vero-e6",
+            dataset_slug="sars-cov2-a549-ace2-validation",
             data={"pca": {"data": [], "layout": {}}},
             summary={"n_compounds": 42},
         )
@@ -160,13 +160,13 @@ class TestDrrDatasetPageRender(DrrDatasetPageTestCase):
         super().setUpTestData()
         cls.image = create_test_image(title="DRR Render", file_name="drr-render.jpg")
         cls.page = DrrDatasetPage(
-            title="SARS-CoV-2 Vero E6 Cell Painting",
-            slug="sars-cov2-vero-e6",
-            description="Primary Cell Painting antiviral screen.",
+            title="SARS-CoV-2 A549-ACE2 Validation Cell Painting",
+            slug="sars-cov2-a549-ace2-validation",
+            description="Validation Cell Painting antiviral screen.",
             image=cls.image,
             data_status="active",
-            cell_line="Vero E6",
-            screen_type="Primary Cell Painting",
+            cell_line="A549-ACE2",
+            screen_type="Validation Cell Painting",
             upstream_accession="S-BIAD2580",
             content=[
                 ("plotly_figure", {"figure_id": "pca", "alt_text": "PCA plot", "height": 500}),
@@ -183,7 +183,7 @@ class TestDrrDatasetPageRender(DrrDatasetPageTestCase):
     def test_populated_page_renders_metadata_summary_and_figure(self) -> None:
         """A populated DrrDatasetData renders metadata, the summary panel, and the figure."""
         DrrDatasetData.objects.create(
-            dataset_slug="sars-cov2-vero-e6",
+            dataset_slug="sars-cov2-a549-ace2-validation",
             data={"pca": {"data": [], "layout": {}}},
             summary=FULL_SUMMARY,
             source_file_hash="deadbeefcafe0000",
@@ -195,8 +195,8 @@ class TestDrrDatasetPageRender(DrrDatasetPageTestCase):
 
         # Header and dataset metadata.
         self.assertContains(response, "SARS-CoV-2")
-        self.assertContains(response, "Vero E6")
-        self.assertContains(response, "Primary Cell Painting")
+        self.assertContains(response, "A549-ACE2")
+        self.assertContains(response, "Validation Cell Painting")
         self.assertContains(response, "S-BIAD2580")
         self.assertContains(response, "Data last updated")
         self.assertContains(response, "July 10, 2026")
@@ -330,7 +330,7 @@ class TestDrrDatasetSliceAcceptance(DrrDatasetPageTestCase):
                 description="End-to-end acceptance slice.",
                 image=image,
                 data_status="active",
-                cell_line="Vero E6",
+                cell_line="A549-ACE2",
                 content=[
                     ("plotly_figure", {"figure_id": "pca", "alt_text": "PCA plot", "height": 500}),
                 ],
