@@ -73,7 +73,7 @@ THIRD_PARTY_APPS = [
     "django_structlog",
 ]
 
-LOCAL_APPS = ["cms"]
+LOCAL_APPS = ["cms", "portal_data.apps.PortalDataConfig"]
 
 INSTALLED_APPS = DJANGO_APPS + WAGTAIL_APPS + THIRD_PARTY_APPS + LOCAL_APPS
 
@@ -132,6 +132,12 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # DATASETS ROOT variable used for portal data storage
 DATASETS_ROOT = env("DATASETS_ROOT", default="/datasets")
 
+# S3 connection settings for portal data files
+STORAGEGRID_ENDPOINT_URL = env("STORAGEGRID_ENDPOINT_URL")
+STORAGEGRID_ACCESS_KEY_ID = env("STORAGEGRID_ACCESS_KEY_ID")
+STORAGEGRID_SECRET_ACCESS_KEY = env("STORAGEGRID_SECRET_ACCESS_KEY")
+STORAGEGRID_BUCKETS = env.list("STORAGEGRID_BUCKETS", default=["spp-unit-bundles"])
+STORAGEGRID_REGION_NAME = env("STORAGEGRID_REGION_NAME", default="us-east-1")
 
 # PASSWORDS (https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators)
 # ------------------------------------------------------------------------------
