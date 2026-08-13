@@ -989,7 +989,7 @@ prod = [
 
 [package.metadata]
 requires-dist = [
-    { name = "boto3", specifier = ">=1.43.69" },
+    { name = "boto3", specifier = "==1.43.69" },
     { name = "django", specifier = "==6.0.7" },
     { name = "django-environ", specifier = "==0.13.0" },
     { name = "django-htmx", specifier = "==1.27.0" },
