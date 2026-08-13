@@ -1,0 +1,93 @@
+{% comment %}
+    This file is used to display quantitative plot with filters on the SLU wastewater virus page.
+    This template is passed via "StaticBlock" in "SLUDashboardPage" model and is rendered when the
+    editor includes it in the page via wagtail admin panel.
+{% endcomment %}
+
+{% with raw_data=figures.raw_data filter_input=figures.filter_input_context %}
+    {% if not raw_data %}
+        {% include "cms/pages/slu_wastewater/partials/load_message.html" with missing_data="Raw data" %}
+    {% elif not filter_input %}
+        {% include "cms/pages/slu_wastewater/partials/load_message.html" with missing_data="Filter input" %}
+    {% else %}
+    <!-- Plot Filters -->
+    <div id="plot-filters" class="grid grid-cols-3 justify-evenly pb-4 my-6 bg-pp-pale-grey/10 max-lg:hidden">
+
+        <!-- Normalisation methodology dropdown -->
+        <div>
+            <div class="mb-4 bg-pp-pale-grey/25 py-1.5 px-9 flex gap-2 align-middle peer">
+                <span class="font-medium">All site</span>
+                <label class="inline-flex items-center cursor-pointer" aria-label="all-site">
+                    <input type="radio" name="plot-toggle" value="all" class="hidden peer" checked>
+                    <div class="relative w-7 h-4 bg-neutral rounded-full after:absolute after:top-0.5
+                        after:start-0.5 after:bg-white after:rounded-full after:h-3 after:w-3 
+                        after:transition-all peer-checked:after:translate-x-full
+                        peer-checked:bg-accent"></div>
+                </label>
+            </div>
+            <div class="px-9 peer-has-[input:not(:checked)]:pointer-events-none
+                        peer-has-[input:not(:checked)]:opacity-30">
+                <div class="pb-2 text-sm">Select method</div>
+                <select name="method" id="norm-method" class="select select-accent">
+                    {% for k,v in filter_input.input_methods.items %}
+                    <option value="{{k}}" {% if k == "pmmov_normalised" %}selected{% endif %}>{{v}}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        
+        <!-- Per site selection -->
+        <div>
+            <div class="font-medium mb-4 bg-pp-pale-grey/25 py-1.5 px-7 flex gap-2 align-middle peer">
+                <span class="font-medium">Per site</span>
+                <label class="inline-flex items-center cursor-pointer" aria-label="per-site">
+                    <input type="radio" name="plot-toggle" value="single" class="hidden peer">
+                    <div class="relative w-7 h-4 bg-neutral rounded-full peer-checked:after:translate-x-full
+                        after:absolute after:top-0.5 after:start-0.5 after:bg-white after:rounded-full
+                        after:h-3 after:w-3 after:transition-all peer-checked:bg-accent"></div>
+                </label>
+            </div>
+            <div class="px-7 peer-has-[input:not(:checked)]:pointer-events-none
+                        peer-has-[input:not(:checked)]:opacity-30">
+                <div class="pb-2 text-sm">Select site</div>
+                <select name="site" id="site" class="select select-accent">
+                    {% for s in filter_input.input_sites %}
+                    <option value="{{s}}" {% if forloop.first %}selected{% endif %}>{{s}}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+
+        <!-- Rolling average dropdown -->
+        <div>
+            <div class="font-medium mb-4 bg-pp-pale-grey/25 py-1.5 px-9">Time series display</div>
+            <div class="px-9">
+                <div class="pb-2 text-sm">Select rolling window</div>
+                <select name="timeseries" id="timeseries" class="select select-accent">
+                    {% for k,v in filter_input.input_timeseries.items %}
+                    <option value="{{k}}" {% if k == 1 %}selected{% endif %}>{{v}}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    </div>
+
+    <!-- Virus quantitative plot -->
+    <div id="quant-analysis-plot" class="my-6"
+        hx-get="{{ page.url }}"
+        hx-trigger="load once, input from:#plot-filters delay:300ms"
+        hx-include="#plot-filters input, #plot-filters select"
+        hx-target="#quant-analysis-plot-area"
+        hx-swap="innerHTML"
+        hx-indicator="#plot-loading"
+        >
+        <div class="relative min-h-113">
+            <!-- Place holder loading message, HTMX will replace it with plot -->
+            <div id="plot-loading" class="htmx-indicator absolute inset-0 bg-base-100/80 flex items-center justify-center z-10 rounded-box">
+                <span class="loading loading-spinner text-accent loading-lg" aria-label="Loading"></span>
+            </div>
+            <div id="quant-analysis-plot-area"></div>
+        </div>
+    </div>
+    {% endif %}
+{% endwith %}
