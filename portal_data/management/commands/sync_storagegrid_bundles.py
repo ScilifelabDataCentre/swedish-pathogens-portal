@@ -14,7 +14,7 @@ from django.db import transaction
 from django.utils import timezone
 
 from portal_data.backends.manifests import PortalBundleManifest
-from portal_data.backends.storagegrid import get_storagegrid_client
+from portal_data.backends.storagegrid import S3Client
 from portal_data.models import PortalDatasetIndex
 
 logger = logging.getLogger(__name__)
@@ -64,8 +64,7 @@ class Command(BaseCommand):
             action="append",
             dest="buckets",
             help=(
-                "Bucket to scan. Can be provided multiple times. "
-                "Defaults to settings.STORAGEGRID_BUCKETS."
+                "Buckets to scan. Can be provided multiple times. Defaults to settings.S3_BUCKETS."
             ),
         )
         parser.add_argument(
@@ -107,7 +106,7 @@ class Command(BaseCommand):
         """Run the synchronisation command."""
         del args
 
-        buckets = options["buckets"] or getattr(settings, "STORAGEGRID_BUCKETS", None)
+        buckets = options["buckets"] or getattr(settings, "S3_BUCKETS", None)
         prefix = options["prefix"] or ""
         dry_run = bool(options["dry_run"])
         detect_unexpected_files = bool(options["detect_unexpected_files"])
@@ -115,13 +114,13 @@ class Command(BaseCommand):
         limit = options["limit"]
 
         if not buckets:
-            msg = "No buckets configured. Pass --bucket or define settings.STORAGEGRID_BUCKETS."
+            msg = "No buckets configured. Pass --bucket or define settings.S3_BUCKETS."
             raise CommandError(msg)
 
         if isinstance(buckets, str):
             buckets = [buckets]
 
-        client = get_storagegrid_client()
+        s3_client = S3Client()
         processed = 0
         indexed = 0
         invalid = 0
@@ -136,7 +135,7 @@ class Command(BaseCommand):
         for bucket in buckets:
             try:
                 locations = self._discover_manifests(
-                    client=client,
+                    s3_client=s3_client,
                     bucket=bucket,
                     prefix=prefix,
                 )
@@ -153,7 +152,7 @@ class Command(BaseCommand):
                 processed += 1
 
                 result = self._validate_location(
-                    client=client,
+                    s3_client=s3_client,
                     location=location,
                     detect_unexpected_files=detect_unexpected_files,
                     unexpected_files_fail=unexpected_files_fail,
@@ -209,8 +208,7 @@ class Command(BaseCommand):
 
     def _validate_location(
         self,
-        *,
-        client: Any,  # noqa: ANN401
+        s3_client: S3Client,
         location: ManifestLocation,
         detect_unexpected_files: bool,
         unexpected_files_fail: bool,
@@ -218,7 +216,7 @@ class Command(BaseCommand):
         """Validate one location and handle operational failures."""
         try:
             return self._validate_bundle(
-                client=client,
+                s3_client=s3_client,
                 location=location,
                 detect_unexpected_files=detect_unexpected_files,
                 unexpected_files_fail=unexpected_files_fail,
@@ -230,29 +228,24 @@ class Command(BaseCommand):
 
     def _discover_manifests(
         self,
-        *,
-        client: Any,  # noqa: ANN401
+        s3_client: S3Client,
         bucket: str,
-        prefix: str,
+        prefix: str | None = None,
     ) -> list[ManifestLocation]:
-        """Find manifest.json objects under a bucket and prefix."""
-        paginator = client.get_paginator("list_objects_v2")
+        """Find all manifest.json objects in a specific bucket and optional prefix."""
+        keys = s3_client.list_all_objects(bucket=bucket, prefix=prefix)
+
         locations: list[ManifestLocation] = []
-
-        for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
-            for obj in page.get("Contents", []):
-                key = obj.get("Key", "")
-
-                if key.endswith("/manifest.json") or key == "manifest.json":
-                    locations.append(ManifestLocation(bucket=bucket, key=key))
+        for key in keys:
+            if key.endswith("/manifest.json") or key == "manifest.json":
+                locations.append(ManifestLocation(bucket=bucket, key=key))
 
         locations.sort(key=lambda location: location.key)
         return locations
 
     def _validate_bundle(
         self,
-        *,
-        client: Any,  # noqa: ANN401
+        s3_client: S3Client,
         location: ManifestLocation,
         detect_unexpected_files: bool,
         unexpected_files_fail: bool,
@@ -262,7 +255,7 @@ class Command(BaseCommand):
         unexpected_files: list[str] = []
 
         manifest_payload = self._read_json_object(
-            client=client,
+            s3_client=s3_client,
             bucket=location.bucket,
             key=location.key,
         )
@@ -287,36 +280,25 @@ class Command(BaseCommand):
         for file_record in manifest.files:
             file_key = self._file_key(location.dataset_prefix, file_record.path)
 
-            if not self._object_exists(
-                client=client,
-                bucket=location.bucket,
-                key=file_key,
-            ):
+            object_info = s3_client.head_object(bucket=location.bucket, key=file_key)
+            if not object_info:
                 errors.append(f"Missing file: {file_record.path}")
                 continue
 
-            if file_record.size is not None:
-                actual_size = self._object_size(
-                    client=client,
-                    bucket=location.bucket,
-                    key=file_key,
+            if file_record.size is not None and object_info.content_length != file_record.size:
+                errors.append(
+                    "Size mismatch for "
+                    f"{file_record.path}: manifest={file_record.size}, "
+                    f"actual={object_info.content_length}",
                 )
-                if actual_size is not None and actual_size != file_record.size:
-                    errors.append(
-                        "Size mismatch for "
-                        f"{file_record.path}: manifest={file_record.size}, "
-                        f"actual={actual_size}",
-                    )
 
         if detect_unexpected_files:
-            actual_file_keys = self._list_dataset_file_keys(
-                client=client,
-                bucket=location.bucket,
-                dataset_prefix=location.dataset_prefix,
+            actual_file_keys = s3_client.list_all_objects(
+                bucket=location.bucket, prefix=location.dataset_prefix
             )
 
             unexpected_file_keys = sorted(
-                actual_file_keys - listed_file_keys - {location.key},
+                set(actual_file_keys) - listed_file_keys - {location.key},
             )
 
             unexpected_files = [
@@ -336,83 +318,19 @@ class Command(BaseCommand):
 
     def _read_json_object(
         self,
-        *,
-        client: Any,  # noqa: ANN401
+        s3_client: S3Client,
         bucket: str,
         key: str,
     ) -> dict[str, Any]:  # noqa: ANN401
         """Read a JSON object from object storage."""
-        response = client.get_object(Bucket=bucket, Key=key)
+        body = s3_client.download_s3_file_to_str(bucket=bucket, key=key)
 
-        with response["Body"] as body:
-            raw = body.read()
-
-        payload = json.loads(raw.decode("utf-8"))
-
+        payload = json.loads(body)
         if not isinstance(payload, dict):
             msg = f"Expected JSON object in s3://{bucket}/{key}"
             raise ValueError(msg)
 
         return payload
-
-    def _object_exists(
-        self,
-        *,
-        client: Any,  # noqa: ANN401
-        bucket: str,
-        key: str,
-    ) -> bool:
-        """Return whether an object exists."""
-        try:
-            client.head_object(Bucket=bucket, Key=key)
-        except ClientError as err:
-            status_code = err.response.get("ResponseMetadata", {}).get(
-                "HTTPStatusCode",
-            )
-            error_code = err.response.get("Error", {}).get("Code")
-
-            if status_code == 404 or error_code in {"404", "NoSuchKey", "NotFound"}:
-                return False
-
-            raise
-
-        return True
-
-    def _object_size(
-        self,
-        *,
-        client: Any,  # noqa: ANN401
-        bucket: str,
-        key: str,
-    ) -> int | None:
-        """Return object size, if available."""
-        response = client.head_object(Bucket=bucket, Key=key)
-        size = response.get("ContentLength")
-
-        if size is None:
-            return None
-
-        return int(size)
-
-    def _list_dataset_file_keys(
-        self,
-        *,
-        client: Any,  # noqa: ANN401
-        bucket: str,
-        dataset_prefix: str,
-    ) -> set[str]:
-        """List all object keys under a dataset prefix."""
-        paginator = client.get_paginator("list_objects_v2")
-        prefix = f"{dataset_prefix.rstrip('/')}/"
-        keys: set[str] = set()
-
-        for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
-            for obj in page.get("Contents", []):
-                key = obj.get("Key")
-                if key:
-                    keys.add(key)
-
-        return keys
 
     def _file_key(self, dataset_prefix: str, file_path: str) -> str:
         """Build the object key for a file listed in manifest.json."""
@@ -422,7 +340,6 @@ class Command(BaseCommand):
 
     def _dataset_id_from_result_or_location(
         self,
-        *,
         result: ValidationResult,
         location: ManifestLocation,
     ) -> str:
@@ -435,7 +352,6 @@ class Command(BaseCommand):
     @transaction.atomic
     def _write_index_row(
         self,
-        *,
         location: ManifestLocation,
         result: ValidationResult,
     ) -> None:
