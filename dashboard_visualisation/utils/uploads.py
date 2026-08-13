@@ -126,11 +126,18 @@ def read_source_text(source_file: SourceFile) -> str:
     return raw
 
 
-def read_csv_dataframe(source_file: SourceFile) -> pl.DataFrame:
+def read_csv_dataframe(
+    source_file: SourceFile, columns: list[str] | None = None, null_values: list[str] | None = None
+) -> pl.DataFrame:
     """Parse a dashboard CSV upload into a DataFrame."""
     content = read_source_text(source_file)
     delimiter = detect_csv_delimiter(content)
-    return pl.read_csv(io.BytesIO(content.encode("utf-8")), separator=delimiter)
+    return pl.read_csv(
+        io.BytesIO(content.encode("utf-8")),
+        separator=delimiter,
+        columns=columns,
+        null_values=null_values,
+    )
 
 
 @dataclass
