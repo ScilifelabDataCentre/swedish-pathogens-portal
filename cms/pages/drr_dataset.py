@@ -41,8 +41,8 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
 
     Attributes:
         organism: Source organism label (defaults to SARS-CoV-2).
-        cell_line: Cell line used in the screen (e.g. Vero E6).
-        screen_type: Screen description (e.g. Primary Cell Painting).
+        cell_line: Cell line used in the screen (e.g. A549-ACE2).
+        screen_type: Screen description (e.g. Validation Cell Painting).
         upstream_accession: Upstream repository accession (e.g. S-BIAD2580).
         upstream_bia_url: Upstream raw-image study URL; target of the 302 link-out.
     """
