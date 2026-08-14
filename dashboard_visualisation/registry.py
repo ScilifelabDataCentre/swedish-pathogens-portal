@@ -40,6 +40,36 @@ def validate_source_columns(dashboard_slug: str, columns: list[str]) -> str | No
     return validate(columns)
 
 
+def validate_source_file(
+    dashboard_slug: str,
+    source_file: SourceFile,
+    *,
+    filename: str = "",
+    size_bytes: int | None = None,
+) -> tuple[bool, str | None]:
+    """Dispatch optional dashboard-specific full-file validation.
+
+    Use this when a dashboard cannot use the generic CSV path (for example
+    limma DE ``.txt`` uploads). Same optional-hook pattern as
+    :func:`validate_source_columns`.
+
+    Returns:
+        ``(False, None)`` — no custom validator; caller should run generic CSV
+        checks (and :func:`validate_source_columns`).
+        ``(True, None)`` — custom validator accepted the upload.
+        ``(True, error)`` — custom validator rejected the upload.
+    """
+    module_path = VIZ_MODULES.get(dashboard_slug)
+    if module_path is None:
+        return False, None
+
+    module = importlib.import_module(module_path)
+    validate = getattr(module, "validate_source_file", None)
+    if validate is None:
+        return False, None
+    return True, validate(source_file, filename=filename, size_bytes=size_bytes)
+
+
 def generate_figures(
     dashboard_slug: str,
     source_file: SourceFile,

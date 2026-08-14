@@ -16,8 +16,7 @@ from wagtail.models import RevisionMixin
 from wagtail.snippets.models import register_snippet
 from wagtail.snippets.views.snippets import CreateView, EditView, SnippetViewSet
 
-from dashboard_visualisation.liver_resource.dashboard_figures import LIVER_DASHBOARD_SLUG
-from dashboard_visualisation.registry import validate_source_columns
+from dashboard_visualisation.registry import validate_source_columns, validate_source_file
 from dashboard_visualisation.utils.uploads import (
     calculate_file_hash,
     rewind_source_file,
@@ -28,7 +27,6 @@ LOGGER = structlog.get_logger(__name__)
 
 _SKIP_FILE_HOOK_ATTR = "_dashboard_data_skip_file_hook"
 _UNSUPPORTED_SOURCE_EXTENSIONS = {".numbers", ".xlsx", ".xls", ".ods"}
-_LIVER_SOURCE_EXTENSIONS = {".txt", ".tsv", ".csv"}
 
 
 def _is_new_source_file_upload(source_file: object) -> bool:
@@ -66,18 +64,15 @@ class DashboardDataForm(WagtailAdminModelForm):
             self.instance, "dashboard_slug", ""
         )
 
-        if dashboard_slug == LIVER_DASHBOARD_SLUG:
-            if extension and extension not in _LIVER_SOURCE_EXTENSIONS:
-                raise ValidationError(
-                    f'"{name}" is not supported for the liver dashboard. '
-                    "Upload a tab- or comma-separated limma DE file (.txt, .tsv, or .csv)."
-                )
-            from dashboard_visualisation.liver_resource.validators import validate_de_upload
-
-            size_bytes = getattr(source_file, "size", None)
-            result = validate_de_upload(source_file, size_bytes=size_bytes)
-            if not result.is_valid:
-                raise ValidationError(result.errors[0])
+        handled, file_error = validate_source_file(
+            dashboard_slug,
+            source_file,
+            filename=name,
+            size_bytes=getattr(source_file, "size", None),
+        )
+        if handled:
+            if file_error:
+                raise ValidationError(file_error)
             return source_file
 
         result = validate_csv(source_file)
