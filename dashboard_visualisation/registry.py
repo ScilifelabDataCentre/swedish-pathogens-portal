@@ -21,6 +21,7 @@ VIZ_MODULES: dict[str, str] = {
     "serology-statistics": "dashboard_visualisation.serology_statistics",
     "slu-wastewater": "dashboard_visualisation.slu_wastewater",
     "variants-region-uppsala": "dashboard_visualisation.variants_region_uppsala",
+    "recovac": "dashboard_visualisation.recovac",
 }
 
 
@@ -51,8 +52,8 @@ def validate_source_file(
     """Dispatch optional dashboard-specific full-file validation.
 
     Use this when a dashboard cannot use the generic CSV path (for example
-    limma DE ``.txt`` uploads). Same optional-hook pattern as
-    :func:`validate_source_columns`.
+    limma DE ``.txt`` uploads or a multi-file ``.zip``). Same optional-hook
+    pattern as :func:`validate_source_columns`.
 
     Returns:
         ``(False, None)`` — no custom validator; caller should run generic CSV
