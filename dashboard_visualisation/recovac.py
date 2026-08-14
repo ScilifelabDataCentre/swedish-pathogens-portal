@@ -10,6 +10,9 @@ Figure IDs (Wagtail ``plotly_figure`` / ``DashboardData.data`` keys):
   (legacy blob ``swedishpop_subplot_button.json``)
 * ``comorbidity_subplot`` — coverage (%) and COVID-19 cases by comorbidity
   (legacy blob ``comorbs_subplot_button.json``)
+
+Set each ``plotly_figure`` StreamField height to **1100** so the two subplot
+rows stay readable (the figure JSON also records ``layout.height`` 1100).
 """
 
 from __future__ import annotations
@@ -78,36 +81,37 @@ _KNOWN_COLUMNS = {
     "c19_d2",
 }
 
-# Stacked-area colours from the legacy subplot scripts (six doses → unvaccinated).
+# Darker gold than the legacy yellow ``rgba(235,235,0,1)``, which fails contrast
+# on a white plot background. Same label on area and bar traces so legendgroup
+# can isolate one dose across both subplot rows.
+_TWO_DOSE_COLOR = "#C4A000"
 _AREA_SERIES = (
     ("six_dose", "Six Doses", "grey"),
     ("five_dose", "Five Doses", "black"),
     ("four_dose", "Four Doses", "rgba(5,48,97,1)"),
     ("three_dose", "Three Doses", "rgba(146,197,222,1)"),
-    ("two_dose", "Two Doses", "rgba(235,235,0,1)"),
+    ("two_dose", "Two Doses", _TWO_DOSE_COLOR),
     ("one_dose", "One Dose", "rgba(244,165,130,1)"),
     ("no_dose", "No Doses", "rgba(178,24,43,1)"),
 )
-
-# Snapshot of Plotly RdBu with the legacy yellow substitution at index 5.
-_BAR_SERIES_SWEDISH = (
+_BAR_SERIES = (
     ("vacc6", "Six Doses", "grey"),
     ("vacc5", "Five Doses", "black"),
-    ("vacc4", "Four Doses", "rgb(5,48,97)"),
-    ("vacc3", "Three Doses", "rgb(146,197,222)"),
-    ("vacc2", "Two Doses", "rgb(235, 235, 0)"),
-    ("vacc1", "One Dose", "rgb(244,165,130)"),
-    ("vacc0", "No doses", "rgb(178,24,43)"),
+    ("vacc4", "Four Doses", "rgba(5,48,97,1)"),
+    ("vacc3", "Three Doses", "rgba(146,197,222,1)"),
+    ("vacc2", "Two Doses", _TWO_DOSE_COLOR),
+    ("vacc1", "One Dose", "rgba(244,165,130,1)"),
+    ("vacc0", "No Doses", "rgba(178,24,43,1)"),
 )
-_BAR_SERIES_COMORBIDITY = (
-    ("vacc6", "Six doses", "grey"),
-    ("vacc5", "Five doses", "black"),
-    ("vacc4", "Four doses", "rgba(5,48,97,1)"),
-    ("vacc3", "Three doses", "rgba(146,197,222,1)"),
-    ("vacc2", "Two doses", "rgba(235,235,0,1)"),
-    ("vacc1", "One dose", "rgb(244,165,130)"),
-    ("vacc0", "Unvaccinated", "rgb(178,24,43)"),
-)
+_FIGURE_HEIGHT = 1100
+_XAXIS_SPIKE: dict[str, Any] = {
+    "type": "date",
+    "showspikes": True,
+    "spikemode": "across",
+    "spikethickness": 1,
+    "spikecolor": "#4b5563",
+    "hoverformat": "%b %d, %Y",
+}
 
 _SWEDISH_GROUPS: tuple[tuple[str, str, str], ...] = (
     ("> 18", "vacc_pop_18plus", "iva_vacc_18plus"),
@@ -115,9 +119,17 @@ _SWEDISH_GROUPS: tuple[tuple[str, str, str], ...] = (
     ("> 60", "vacc_pop_60plus", "iva_vacc_60plus"),
 )
 _COMORBIDITY_GROUPS: tuple[tuple[str, str, str], ...] = (
-    ("CVD", "cm_cvd_cardio_vacc_SciLifeLab", "cm_cvd_cardio_covid_vacc_SciLifeLab"),
+    (
+        "Cardiovascular disease",
+        "cm_cvd_cardio_vacc_SciLifeLab",
+        "cm_cvd_cardio_covid_vacc_SciLifeLab",
+    ),
     ("Diabetes", "cm_dm_vacc_SciLifeLab", "cm_dm_covid_vacc_SciLifeLab"),
-    ("RD", "cm_resp_dis1_vacc_SciLifeLab", "cm_resp_dis1_covid_vacc_SciLifeLab"),
+    (
+        "Respiratory disease",
+        "cm_resp_dis1_vacc_SciLifeLab",
+        "cm_resp_dis1_covid_vacc_SciLifeLab",
+    ),
     ("Cancer", "cm_sos_cancer_vacc_SciLifeLab", "cm_sos_cancer_covid_vacc_SciLifeLab"),
 )
 
@@ -414,6 +426,7 @@ def _xaxis_ranges(coverage_dates: list[str], count_dates: list[str]) -> dict[str
                 "title": "<b>Date</b>",
                 "range": [coverage_start, coverage_end],
                 "anchor": "y",
+                **_XAXIS_SPIKE,
             },
             "xaxis2": {
                 "title": "<b>Date</b>",
@@ -421,16 +434,23 @@ def _xaxis_ranges(coverage_dates: list[str], count_dates: list[str]) -> dict[str
                 "linecolor": "black",
                 "range": [count_start, count_end],
                 "anchor": "y2",
+                **_XAXIS_SPIKE,
             },
         },
         "align": {
-            "xaxis": {"title": "<b>Date</b>", "range": [aligned_start, aligned_end], "anchor": "y"},
+            "xaxis": {
+                "title": "<b>Date</b>",
+                "range": [aligned_start, aligned_end],
+                "anchor": "y",
+                **_XAXIS_SPIKE,
+            },
             "xaxis2": {
                 "title": "<b>Date</b>",
                 "showgrid": True,
                 "linecolor": "black",
                 "range": [aligned_start, aligned_end],
                 "anchor": "y2",
+                **_XAXIS_SPIKE,
             },
         },
     }
@@ -474,12 +494,13 @@ def _add_area_traces(
                     y=frame.get_column(column).to_list(),
                     name=name,
                     mode="lines",
-                    line={"width": 1, "color": color},
+                    line={"width": 2, "color": color},
                     fillcolor=color,
                     stackgroup="one",
+                    legendgroup=name,
                     visible=visible,
-                    hovertemplate="%{y:.2f}%",
-                    showlegend=False,
+                    hovertemplate="%{y:.1f}%",
+                    showlegend=group_index == 0,
                 ),
                 row=1,
                 col=1,
@@ -498,19 +519,22 @@ def _add_bar_traces(
         dates = _date_values(frame)
         visible = group_index == 0
         weekly_total = frame.get_column(total_column).to_list()
-        for series_index, (column, name, color) in enumerate(series):
-            bar_kwargs: dict[str, Any] = {
-                "name": name,
-                "x": dates,
-                "y": frame.get_column(column).to_list(),
-                "marker": {"color": color, "line": {"color": "#000000", "width": 1}},
-                "visible": visible,
-                "showlegend": False,
-            }
-            if series_index == 0:
-                bar_kwargs["customdata"] = weekly_total
-                bar_kwargs["hovertemplate"] = "%{y} <b>Tot</b>: %{customdata}"
-            fig.add_trace(go.Bar(**bar_kwargs), row=2, col=1)
+        for column, name, color in series:
+            fig.add_trace(
+                go.Bar(
+                    name=name,
+                    x=dates,
+                    y=frame.get_column(column).to_list(),
+                    marker={"color": color, "line": {"color": "#000000", "width": 1}},
+                    legendgroup=name,
+                    visible=visible,
+                    showlegend=False,
+                    customdata=weekly_total,
+                    hovertemplate="%{y:.0f} (week total: %{customdata:.0f})",
+                ),
+                row=2,
+                col=1,
+            )
 
 
 def _two_panel_subplot_fig(
@@ -518,8 +542,8 @@ def _two_panel_subplot_fig(
     *,
     filter_label: str,
     count_axis_title: str,
+    count_subplot_title: str,
     count_dtick: int,
-    bar_series: tuple[tuple[str, str, str], ...],
     total_column: str,
 ) -> go.Figure:
     """Build a 2-row subplot with group buttons and a timeframe toggle."""
@@ -528,9 +552,14 @@ def _two_panel_subplot_fig(
     count_frames = [counts for _, _, counts in groups]
     n_groups = len(groups)
 
-    fig = make_subplots(rows=2, cols=1, vertical_spacing=0.1)
+    fig = make_subplots(
+        rows=2,
+        cols=1,
+        vertical_spacing=0.2,
+        subplot_titles=("Vaccine coverage (%)", count_subplot_title),
+    )
     _add_area_traces(fig, coverage_frames, series=_AREA_SERIES)
-    _add_bar_traces(fig, count_frames, series=bar_series, total_column=total_column)
+    _add_bar_traces(fig, count_frames, series=_BAR_SERIES, total_column=total_column)
 
     x_axes = _xaxis_ranges(_date_values(coverage_frames[0]), _date_values(count_frames[0]))
     highest = max(count_frames[0].get_column(total_column).to_list())
@@ -544,13 +573,14 @@ def _two_panel_subplot_fig(
         }
         for index, label in enumerate(labels)
     ]
-    button_layer_1_height = 1.20
-    button_layer_2_height = 1.12
+    button_layer_1_height = 1.22
+    button_layer_2_height = 1.14
 
     fig.update_layout(
         title=" ",
+        height=_FIGURE_HEIGHT,
         yaxis={
-            "title": "<b>People with Dose Level (%)<br></b>",
+            "title": "<b>People with this dose level (%)</b>",
             "ticktext": ["0 ", "20 ", "40 ", "60 ", "80 ", "100 "],
             "tickvals": [0, 20, 40, 60, 80, 100],
             "range": [0, 100],
@@ -569,10 +599,26 @@ def _two_panel_subplot_fig(
         plot_bgcolor="white",
         autosize=True,
         font={"size": 12},
-        margin={"r": 0, "t": 150, "b": 0, "l": 0},
-        showlegend=False,
-        hoverlabel={"align": "left"},
+        margin={"r": 180, "t": 200, "b": 60, "l": 80},
+        showlegend=True,
+        legend={
+            "title": {
+                "text": (
+                    "<b>Vaccine doses</b><br>"
+                    "<span style='font-size:11px'>Click to hide; "
+                    "double-click to isolate</span>"
+                ),
+            },
+            "yanchor": "top",
+            "y": 1.0,
+            "xanchor": "left",
+            "x": 1.02,
+            "font": {"size": 12},
+            "tracegroupgap": 0,
+        },
+        hoverlabel={"align": "left", "font": {"size": 14}, "namelength": -1},
         hovermode="x unified",
+        spikedistance=-1,
         updatemenus=[
             {
                 "buttons": group_buttons,
@@ -580,7 +626,7 @@ def _two_panel_subplot_fig(
                 "direction": "right",
                 "pad": {"r": 10, "t": 10},
                 "showactive": True,
-                "x": 0.1,
+                "x": 0.0,
                 "xanchor": "left",
                 "y": button_layer_1_height,
                 "yanchor": "top",
@@ -588,12 +634,12 @@ def _two_panel_subplot_fig(
             {
                 "buttons": [
                     {
-                        "label": "Show all data",
+                        "label": "Select full timeline",
                         "method": "relayout",
                         "args": [x_axes["all"]],
                     },
                     {
-                        "label": "Align timeline",
+                        "label": "Align both plots",
                         "method": "relayout",
                         "args": [x_axes["align"]],
                     },
@@ -602,32 +648,30 @@ def _two_panel_subplot_fig(
                 "direction": "right",
                 "pad": {"r": 10, "t": 10},
                 "showactive": True,
-                "x": 0.1,
+                "x": 0.0,
                 "xanchor": "left",
                 "y": button_layer_2_height,
                 "yanchor": "top",
             },
         ],
-        annotations=[
-            {
-                "text": filter_label,
-                "x": -0.03,
-                "xref": "paper",
-                "y": button_layer_1_height * 0.978,
-                "yref": "paper",
-                "align": "left",
-                "showarrow": False,
-            },
-            {
-                "text": "Timeframe:",
-                "x": -0.03,
-                "xref": "paper",
-                "y": button_layer_2_height * 0.978,
-                "yref": "paper",
-                "align": "left",
-                "showarrow": False,
-            },
-        ],
+    )
+    fig.add_annotation(
+        text=filter_label,
+        x=-0.02,
+        xref="paper",
+        y=button_layer_1_height * 0.978,
+        yref="paper",
+        align="left",
+        showarrow=False,
+    )
+    fig.add_annotation(
+        text="Timeframe:",
+        x=-0.02,
+        xref="paper",
+        y=button_layer_2_height * 0.978,
+        yref="paper",
+        align="left",
+        showarrow=False,
     )
     return fig
 
@@ -645,9 +689,9 @@ def _swedishpop_subplot_fig(tables: dict[str, pl.DataFrame]) -> go.Figure:
     return _two_panel_subplot_fig(
         groups,
         filter_label="Age Range:",
-        count_axis_title="<b>Admissions to ICU<br></b>",
+        count_axis_title="<b>Admissions to ICU (number of people)</b>",
+        count_subplot_title="ICU admissions (count)",
         count_dtick=50,
-        bar_series=_BAR_SERIES_SWEDISH,
         total_column="c19_i1",
     )
 
@@ -669,9 +713,9 @@ def _comorbidity_subplot_fig(tables: dict[str, pl.DataFrame]) -> go.Figure:
     return _two_panel_subplot_fig(
         groups,
         filter_label="Comorbidity:",
-        count_axis_title="<b>COVID-19 cases<br></b>",
+        count_axis_title="<b>COVID-19 cases (number of people)</b>",
+        count_subplot_title="COVID-19 cases (count)",
         count_dtick=500,
-        bar_series=_BAR_SERIES_COMORBIDITY,
         total_column="c19_d2",
     )
 

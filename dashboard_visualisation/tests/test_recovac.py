@@ -306,6 +306,73 @@ class TestsGenerateFigures(SimpleTestCase):
         figures = registry_generate_figures("recovac", source)
         self.assertEqual(set(figures), {"swedishpop_subplot", "comorbidity_subplot"})
 
+    def test_accessibility_layout(self) -> None:
+        """Subplots are taller, titled, with legend, spike hover, and units."""
+        figures = generate_figures(io.BytesIO(build_recovac_zip()))
+        swedish = figures["swedishpop_subplot"]
+        layout = swedish["layout"]
+        self.assertEqual(layout["height"], 1100)
+        self.assertTrue(layout["showlegend"])
+        self.assertEqual(layout["hovermode"], "x unified")
+        self.assertEqual(layout["spikedistance"], -1)
+        titles = [ann.get("text") for ann in layout.get("annotations", [])]
+        self.assertIn("Vaccine coverage (%)", titles)
+        self.assertIn("ICU admissions (count)", titles)
+        self.assertIn("%", layout["yaxis"]["title"]["text"])
+        self.assertIn("number of people", layout["yaxis2"]["title"]["text"])
+        timeframe = [btn["label"] for btn in layout["updatemenus"][1]["buttons"]]
+        self.assertEqual(timeframe, ["Select full timeline", "Align both plots"])
+
+    def test_coverage_and_count_hover_templates(self) -> None:
+        """Coverage hover uses percent; every count bar includes the week total."""
+        swedish = generate_figures(io.BytesIO(build_recovac_zip()))["swedishpop_subplot"]
+        area = swedish["data"][0]
+        self.assertIn("%", area["hovertemplate"])
+        self.assertIn(".1f", area["hovertemplate"])
+        for trace in swedish["data"][21:]:
+            with self.subTest(name=trace["name"]):
+                self.assertIn("customdata", trace)
+                self.assertIn("week total", trace["hovertemplate"])
+
+    def test_comorbidity_buttons_use_full_names(self) -> None:
+        """Comorbidity filters spell out the condition, not CVD/RD."""
+        comorbidity = generate_figures(io.BytesIO(build_recovac_zip()))["comorbidity_subplot"]
+        labels = [btn["label"] for btn in comorbidity["layout"]["updatemenus"][0]["buttons"]]
+        self.assertEqual(
+            labels,
+            [
+                "Cardiovascular disease",
+                "Diabetes",
+                "Respiratory disease",
+                "Cancer",
+            ],
+        )
+
+    def test_two_dose_colour_is_not_legacy_yellow(self) -> None:
+        """Replace the low-contrast yellow used for two-dose traces."""
+        swedish = generate_figures(io.BytesIO(build_recovac_zip()))["swedishpop_subplot"]
+        two_dose = next(trace for trace in swedish["data"] if trace["name"] == "Two Doses")
+        color = two_dose["line"]["color"]
+        self.assertNotIn("235,235,0", color.replace(" ", ""))
+        self.assertNotEqual(color, "rgb(235, 235, 0)")
+
+
+class TestsDashboardDataSaveRecovac(TestCase):
+    """Saving a recovac DashboardData row populates both figure ids."""
+
+    def test_save_stores_both_figure_ids(self) -> None:
+        """Generate both subplot JSON blobs when the zip is first saved."""
+        row = DashboardData.objects.create(
+            dashboard_title="RECOVAC",
+            dashboard_slug="recovac",
+            source_file=SimpleUploadedFile(
+                "recovac-source.zip",
+                build_recovac_zip(),
+                "application/zip",
+            ),
+        )
+        self.assertEqual(set(row.data), {"swedishpop_subplot", "comorbidity_subplot"})
+
 
 class TestsDashboardDataFormRecovac(TestCase):
     """Admin form tests for RECOVAC zip vs CSV-only dashboards."""
