@@ -80,6 +80,9 @@ _KNOWN_COLUMNS = {
     "c19_i1",
     "c19_d2",
 }
+_COVERAGE_REQUIRED_COLUMNS = ("wk", *_VACC_COVERAGE_COLS)
+_ICU_REQUIRED_COLUMNS = ("wk", *_VACC_COUNT_COLS, "c19_i1")
+_CASES_REQUIRED_COLUMNS = ("wk", *_VACC_COUNT_COLS, "c19_d2")
 
 # Darker gold than the legacy yellow ``rgba(235,235,0,1)``, which fails contrast
 # on a white plot background. Same label on area and bar traces so legendgroup
@@ -228,7 +231,23 @@ def _member_is_readable_table(archive: zipfile.ZipFile, member_name: str) -> str
 
     if len(rows) < 2:
         return f'"{basename}" in the zip must have a header row and at least one data row.'
+
+    header = {col.strip().lower() for col in rows[0]}
+    missing_cols = [
+        column for column in _required_columns_for_stem(Path(basename).stem) if column not in header
+    ]
+    if missing_cols:
+        return f'"{basename}" is missing columns: {", ".join(missing_cols)}.'
     return None
+
+
+def _required_columns_for_stem(stem: str) -> tuple[str, ...]:
+    """Return the header columns expected for a named RECOVAC workbook."""
+    if stem.startswith("iva_vacc_"):
+        return _ICU_REQUIRED_COLUMNS
+    if "_covid_vacc_" in stem:
+        return _CASES_REQUIRED_COLUMNS
+    return _COVERAGE_REQUIRED_COLUMNS
 
 
 def validate_source_file(
@@ -274,6 +293,11 @@ def validate_source_file(
         missing = [f"{stem}.xlsx" for stem in REQUIRED_ZIP_STEMS if stem not in indexed]
         if missing:
             return "Missing required files in the zip: " + ", ".join(missing)
+
+        extra = sorted(stem for stem in indexed if stem not in REQUIRED_ZIP_STEMS)
+        if extra:
+            names = [Path(indexed[stem]).name for stem in extra]
+            return "Unexpected files in the zip: " + ", ".join(names)
 
         for stem in REQUIRED_ZIP_STEMS:
             member_error = _member_is_readable_table(archive, indexed[stem])

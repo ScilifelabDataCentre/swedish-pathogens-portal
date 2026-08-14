@@ -59,6 +59,22 @@ class TestDashboardPageModel(DashboardPageTestCase):
         field = DashboardPage._meta.get_field("data_status")
         self.assertFalse(field.has_default())
 
+    def test_content_includes_collapsible_block(self) -> None:
+        """Dashboard StreamField includes collapsible sections for long prose."""
+        child_blocks = DashboardPage._meta.get_field("content").stream_block.child_blocks
+        self.assertEqual(
+            set(child_blocks.keys()),
+            {
+                "text",
+                "alert",
+                "collapsible",
+                "data_table",
+                "last_updated",
+                "plotly_figure",
+                "static_figure",
+            },
+        )
+
 
 class TestDashboardPageContext(DashboardPageTestCase):
     """Tests for DashboardPage.get_context method."""

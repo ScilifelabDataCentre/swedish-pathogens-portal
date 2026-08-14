@@ -9,14 +9,20 @@ from typing import Any
 import polars as pl
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase, TestCase
+from plotly.graph_objects import Figure
 from wagtail.admin.panels import ObjectList
 
 from cms.snippets.dashboard_data import DashboardData, DashboardDataForm
 from dashboard_visualisation.recovac import (
+    _CASES_MIN_DATE,
     REQUIRED_ZIP_STEMS,
+    _comorbidity_subplot_fig,
     _group_visibility,
+    _load_tables,
+    _prep_counts,
     _prep_coverage,
     _prep_week_dates,
+    _swedishpop_subplot_fig,
     generate_figures,
     validate_source_file,
 )
@@ -154,7 +160,7 @@ class TestsValidateSourceFile(SimpleTestCase):
         buffer = io.BytesIO()
         with zipfile.ZipFile(buffer, "w") as archive:
             for stem in REQUIRED_ZIP_STEMS:
-                archive.writestr(f"data/{stem}.csv", _MINIMAL_TABLE_CSV)
+                archive.writestr(f"data/{stem}.csv", _csv_for_stem(stem))
         error = validate_source_file(io.BytesIO(buffer.getvalue()), filename="recovac.zip")
         self.assertIsNone(error)
 
@@ -167,6 +173,58 @@ class TestsValidateSourceFile(SimpleTestCase):
         )
         self.assertIsNotNone(error)
         self.assertIn("empty", error)
+
+    def test_extra_unknown_member_is_rejected(self) -> None:
+        """Reject a zip that contains a table that is not one of the 14 stems."""
+        payload = build_recovac_zip(extra={"readme.csv": "a,b\n1,2\n"})
+        error = validate_source_file(io.BytesIO(payload), filename="recovac-source.zip")
+        self.assertIsNotNone(error)
+        self.assertIn("Unexpected files", error)
+        self.assertIn("readme.csv", error)
+
+    def test_duplicate_stem_is_rejected(self) -> None:
+        """Reject two members that share the same required filename stem."""
+        payload = build_recovac_zip(extra={"nested/vacc_pop_18plus.csv": _COVERAGE_CSV})
+        error = validate_source_file(io.BytesIO(payload), filename="recovac-source.zip")
+        self.assertIsNotNone(error)
+        self.assertIn("more than one file", error)
+        self.assertIn("vacc_pop_18plus", error)
+
+    def test_unsupported_extra_extension_is_rejected(self) -> None:
+        """Reject extra zip members that are not CSV or Excel tables."""
+        payload = build_recovac_zip(extra={"notes.txt": "not a table"})
+        error = validate_source_file(io.BytesIO(payload), filename="recovac-source.zip")
+        self.assertIsNotNone(error)
+        self.assertIn("notes.txt", error)
+        self.assertIn("not a supported table", error)
+
+    def test_coverage_member_missing_columns_is_rejected(self) -> None:
+        """Name the missing coverage columns when a member header is wrong."""
+        stems = tuple(stem for stem in REQUIRED_ZIP_STEMS if stem != "vacc_pop_18plus")
+        payload = build_recovac_zip(
+            stems,
+            extra={"vacc_pop_18plus.csv": "wk,foo\n2021w03,1\n"},
+        )
+        error = validate_source_file(io.BytesIO(payload), filename="recovac-source.zip")
+        self.assertIsNotNone(error)
+        self.assertIn("vacc_pop_18plus.csv", error)
+        self.assertIn("missing columns", error)
+        self.assertIn("vacc1", error)
+
+    def test_icu_member_missing_total_column_is_rejected(self) -> None:
+        """Reject an ICU table that has no weekly total column."""
+        stems = tuple(stem for stem in REQUIRED_ZIP_STEMS if stem != "iva_vacc_18plus")
+        payload = build_recovac_zip(
+            stems,
+            extra={
+                "iva_vacc_18plus.csv": (
+                    "wk,vacc0,vacc1,vacc2,vacc3,vacc4,vacc5,vacc6\n2021w03,1,0,0,0,0,0,0\n"
+                ),
+            },
+        )
+        error = validate_source_file(io.BytesIO(payload), filename="recovac-source.zip")
+        self.assertIsNotNone(error)
+        self.assertIn("c19_i1", error)
 
 
 class TestsRegistryDispatch(SimpleTestCase):
@@ -223,21 +281,47 @@ class TestsPrepHelpers(SimpleTestCase):
         frame = _prep_coverage(
             pl.DataFrame(
                 {
-                    "wk": ["2021w03"],
-                    "vacc1": [0.8],
-                    "vacc2": [0.5],
-                    "vacc3": [0.2],
-                    "vacc4": [0.1],
-                    "vacc5": [0.05],
-                    "vacc6": [0.01],
+                    "wk": ["2021w03", "2021w04"],
+                    "vacc1": [0.8, 0.85],
+                    "vacc2": [0.5, 0.55],
+                    "vacc3": [0.2, 0.25],
+                    "vacc4": [0.1, 0.12],
+                    "vacc5": [0.05, 0.06],
+                    "vacc6": [0.01, 0.02],
                 }
             )
         )
-        row = frame.row(0, named=True)
-        self.assertAlmostEqual(row["no_dose"], 20.0)
-        self.assertAlmostEqual(row["one_dose"], 30.0)
-        self.assertAlmostEqual(row["two_dose"], 30.0)
-        self.assertAlmostEqual(row["six_dose"], 1.0)
+        self.assertEqual(len(frame), 2)
+        first = frame.row(0, named=True)
+        second = frame.row(1, named=True)
+        self.assertAlmostEqual(first["no_dose"], 20.0)
+        self.assertAlmostEqual(first["one_dose"], 30.0)
+        self.assertAlmostEqual(first["two_dose"], 30.0)
+        self.assertAlmostEqual(first["six_dose"], 1.0)
+        self.assertAlmostEqual(second["no_dose"], 15.0)
+        self.assertAlmostEqual(second["one_dose"], 30.0)
+        self.assertAlmostEqual(second["six_dose"], 2.0)
+
+    def test_count_prep_drops_dates_before_min(self) -> None:
+        """Comorbidity case tables drop weeks before 2020-01-31."""
+        frame = _prep_counts(
+            pl.DataFrame(
+                {
+                    "wk": ["2020w01", "2020w06"],
+                    "vacc0": [1, 2],
+                    "vacc1": [0, 0],
+                    "vacc2": [0, 0],
+                    "vacc3": [0, 0],
+                    "vacc4": [0, 0],
+                    "vacc5": [0, 0],
+                    "vacc6": [0, 0],
+                    "c19_d2": [1, 2],
+                }
+            ),
+            total_column="c19_d2",
+            min_date=_CASES_MIN_DATE,
+        )
+        self.assertEqual(frame.get_column("date").to_list(), ["2020-02-03"])
 
 
 class TestsGroupVisibility(SimpleTestCase):
@@ -257,6 +341,28 @@ class TestsGroupVisibility(SimpleTestCase):
         self.assertEqual(mask[28:35], [True] * 7)
         self.assertFalse(any(mask[:7]))
         self.assertFalse(any(mask[21:28]))
+
+
+class TestsFigureBuilders(SimpleTestCase):
+    """Tests for Plotly subplot structure (no blobserver)."""
+
+    def test_swedishpop_figure_has_two_rows_and_two_menus(self) -> None:
+        """Swedish-pop builder returns a 2-row figure with filter + timeframe menus."""
+        fig = _swedishpop_subplot_fig(_load_tables(io.BytesIO(build_recovac_zip())))
+        self.assertIsInstance(fig, Figure)
+        self.assertEqual(len(fig.data), 42)
+        self.assertEqual(len(fig.layout.updatemenus), 2)
+        self.assertIsNotNone(fig.layout.xaxis)
+        self.assertIsNotNone(fig.layout.xaxis2)
+
+    def test_comorbidity_figure_has_two_rows_and_two_menus(self) -> None:
+        """Comorbidity builder returns a 2-row figure with filter + timeframe menus."""
+        fig = _comorbidity_subplot_fig(_load_tables(io.BytesIO(build_recovac_zip())))
+        self.assertIsInstance(fig, Figure)
+        self.assertEqual(len(fig.data), 56)
+        self.assertEqual(len(fig.layout.updatemenus), 2)
+        self.assertIsNotNone(fig.layout.xaxis)
+        self.assertIsNotNone(fig.layout.xaxis2)
 
 
 class TestsGenerateFigures(SimpleTestCase):
