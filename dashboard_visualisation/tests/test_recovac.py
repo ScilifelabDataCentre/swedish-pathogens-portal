@@ -1,10 +1,12 @@
-"""Tests for RECOVAC zip source validation."""
+"""Tests for RECOVAC zip source validation and subplot builders."""
 
 from __future__ import annotations
 
 import io
 import zipfile
+from typing import Any
 
+import polars as pl
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase, TestCase
 from wagtail.admin.panels import ObjectList
@@ -12,14 +14,47 @@ from wagtail.admin.panels import ObjectList
 from cms.snippets.dashboard_data import DashboardData, DashboardDataForm
 from dashboard_visualisation.recovac import (
     REQUIRED_ZIP_STEMS,
+    _group_visibility,
+    _prep_coverage,
+    _prep_week_dates,
     generate_figures,
     validate_source_file,
+)
+from dashboard_visualisation.registry import (
+    generate_figures as registry_generate_figures,
 )
 from dashboard_visualisation.registry import (
     validate_source_file as registry_validate_source_file,
 )
 
 _MINIMAL_TABLE_CSV = "wk,vacc1,vacc2,vacc3,vacc4,vacc5,vacc6\n2021w03,0.1,0.05,0,0,0,0\n"
+_COVERAGE_CSV = (
+    "wk,vacc1,vacc2,vacc3,vacc4,vacc5,vacc6\n"
+    "2019w52,0.01,0,0,0,0,0\n"
+    "2021w03,0.8,0.5,0.2,0.1,0.05,0.01\n"
+    "2021w04,0.85,0.55,0.25,0.12,0.06,0.02\n"
+)
+_ICU_CSV = (
+    "wk,vacc0,vacc1,vacc2,vacc3,vacc4,vacc5,vacc6,c19_i1\n"
+    "2019w52,1,0,0,0,0,0,0,1\n"
+    "2021w03,10,5,3,2,1,0,0,21\n"
+    "2021w04,8,4,3,2,1,1,0,19\n"
+)
+_CASES_CSV = (
+    "wk,vacc0,vacc1,vacc2,vacc3,vacc4,vacc5,vacc6,c19_d2\n"
+    "2019w52,1,0,0,0,0,0,0,1\n"
+    "2021w03,10,5,3,2,1,0,0,21\n"
+    "2021w04,8,4,3,2,1,1,0,19\n"
+)
+
+
+def _csv_for_stem(stem: str) -> str:
+    """Return a synthetic table matching the workbook type for ``stem``."""
+    if stem.startswith("iva_vacc_"):
+        return _ICU_CSV
+    if "_covid_vacc_" in stem:
+        return _CASES_CSV
+    return _COVERAGE_CSV
 
 
 def build_recovac_zip(
@@ -32,7 +67,7 @@ def build_recovac_zip(
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w") as archive:
         for stem in stems if stems is not None else REQUIRED_ZIP_STEMS:
-            archive.writestr(f"{stem}{extension}", _MINIMAL_TABLE_CSV)
+            archive.writestr(f"{stem}{extension}", _csv_for_stem(stem))
         if extra:
             for name, content in extra.items():
                 archive.writestr(name, content)
@@ -169,13 +204,107 @@ class TestsRegistryDispatch(SimpleTestCase):
         self.assertIsNone(error)
 
 
-class TestsGenerateFiguresStub(SimpleTestCase):
-    """Tests for the commit-1 generate_figures placeholder."""
+def _group_button_visible(fig_json: dict[str, Any], button_index: int) -> list[bool]:
+    """Return the ``visible`` mask on a group-filter button."""
+    buttons = fig_json["layout"]["updatemenus"][0]["buttons"]
+    return list(buttons[button_index]["args"][0]["visible"])
 
-    def test_returns_empty_dict(self) -> None:
-        """Return no figures until plot builders land."""
+
+class TestsPrepHelpers(SimpleTestCase):
+    """Tests for week parsing and coverage de-cumulation."""
+
+    def test_iso_week_becomes_monday_and_drops_2019(self) -> None:
+        """Map ``2021w03`` to Monday 2021-01-18 and drop 2019 rows."""
+        frame = _prep_week_dates(pl.DataFrame({"wk": ["2019w52", "2021w03"]}))
+        self.assertEqual(frame.get_column("date").to_list(), ["2021-01-18"])
+
+    def test_decumulate_coverage_shares(self) -> None:
+        """Turn cumulative 0–1 shares into exclusive dose-level percents."""
+        frame = _prep_coverage(
+            pl.DataFrame(
+                {
+                    "wk": ["2021w03"],
+                    "vacc1": [0.8],
+                    "vacc2": [0.5],
+                    "vacc3": [0.2],
+                    "vacc4": [0.1],
+                    "vacc5": [0.05],
+                    "vacc6": [0.01],
+                }
+            )
+        )
+        row = frame.row(0, named=True)
+        self.assertAlmostEqual(row["no_dose"], 20.0)
+        self.assertAlmostEqual(row["one_dose"], 30.0)
+        self.assertAlmostEqual(row["two_dose"], 30.0)
+        self.assertAlmostEqual(row["six_dose"], 1.0)
+
+
+class TestsGroupVisibility(SimpleTestCase):
+    """Tests for full-length subplot visibility masks."""
+
+    def test_mask_length_covers_both_panels(self) -> None:
+        """Swedish-pop mask is 42 flags (3 groups × 7 traces × 2 panels)."""
+        mask = _group_visibility(3, 0)
+        self.assertEqual(len(mask), 42)
+        self.assertEqual(mask[:7], [True] * 7)
+        self.assertEqual(mask[21:28], [True] * 7)
+
+    def test_second_group_enables_both_panels(self) -> None:
+        """Age/comorbidity index 1 turns on top and bottom traces together."""
+        mask = _group_visibility(3, 1)
+        self.assertEqual(mask[7:14], [True] * 7)
+        self.assertEqual(mask[28:35], [True] * 7)
+        self.assertFalse(any(mask[:7]))
+        self.assertFalse(any(mask[21:28]))
+
+
+class TestsGenerateFigures(SimpleTestCase):
+    """Tests for RECOVAC subplot builders from the fixture zip."""
+
+    def test_returns_both_figure_ids(self) -> None:
+        """Build swedishpop and comorbidity figures from the synthetic zip."""
+        figures = generate_figures(io.BytesIO(build_recovac_zip()))
+        self.assertEqual(set(figures), {"swedishpop_subplot", "comorbidity_subplot"})
+        for figure_id, payload in figures.items():
+            with self.subTest(figure_id=figure_id):
+                self.assertIn("data", payload)
+                self.assertIn("layout", payload)
+
+    def test_swedishpop_buttons_match_trace_count(self) -> None:
+        """Age buttons include a visible flag for every trace (both panels)."""
+        figures = generate_figures(io.BytesIO(build_recovac_zip()))
+        swedish = figures["swedishpop_subplot"]
+        n_traces = len(swedish["data"])
+        self.assertEqual(n_traces, 42)
+        for index in range(3):
+            visible = _group_button_visible(swedish, index)
+            self.assertEqual(len(visible), n_traces)
+
+    def test_comorbidity_buttons_match_trace_count(self) -> None:
+        """Comorbidity buttons include a visible flag for every trace."""
+        figures = generate_figures(io.BytesIO(build_recovac_zip()))
+        comorbidity = figures["comorbidity_subplot"]
+        n_traces = len(comorbidity["data"])
+        self.assertEqual(n_traces, 56)
+        for index in range(4):
+            visible = _group_button_visible(comorbidity, index)
+            self.assertEqual(len(visible), n_traces)
+
+    def test_diabetes_button_shows_both_panels(self) -> None:
+        """Diabetes (index 1) unhides coverage and case traces together."""
+        figures = generate_figures(io.BytesIO(build_recovac_zip()))
+        visible = _group_button_visible(figures["comorbidity_subplot"], 1)
+        self.assertTrue(all(visible[7:14]))
+        self.assertTrue(all(visible[35:42]))
+        self.assertFalse(any(visible[:7]))
+        self.assertFalse(any(visible[28:35]))
+
+    def test_registry_dispatches_recovac_figures(self) -> None:
+        """Registry generate_figures returns the same two figure ids."""
         source = io.BytesIO(build_recovac_zip())
-        self.assertEqual(generate_figures(source), {})
+        figures = registry_generate_figures("recovac", source)
+        self.assertEqual(set(figures), {"swedishpop_subplot", "comorbidity_subplot"})
 
 
 class TestsDashboardDataFormRecovac(TestCase):

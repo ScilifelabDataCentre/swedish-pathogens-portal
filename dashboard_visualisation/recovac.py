@@ -1,8 +1,15 @@
 """RECOVAC dashboard visualisation (zip of named source workbooks).
 
-Editors upload a single ``.zip`` whose members match the filenames used by the
-legacy pandas scripts. Plot builders land in a later commit; this module
-validates that zip contract so ``DashboardData`` can accept the upload.
+Editors upload a single ``.zip`` whose members match the filenames used by
+the legacy pandas scripts. Members may be ``.xlsx`` (production) or ``.csv``
+with the same stem (tests / CSV export).
+
+Figure IDs (Wagtail ``plotly_figure`` / ``DashboardData.data`` keys):
+
+* ``swedishpop_subplot`` — coverage (%) and ICU admissions by age
+  (legacy blob ``swedishpop_subplot_button.json``)
+* ``comorbidity_subplot`` — coverage (%) and COVID-19 cases by comorbidity
+  (legacy blob ``comorbs_subplot_button.json``)
 """
 
 from __future__ import annotations
@@ -10,9 +17,15 @@ from __future__ import annotations
 import csv
 import io
 import zipfile
+from datetime import date
 from pathlib import Path
 from typing import Any
 
+import plotly.graph_objects as go
+import polars as pl
+from plotly.subplots import make_subplots
+
+from dashboard_visualisation.utils.plotly import figure_to_json
 from dashboard_visualisation.utils.uploads import (
     SourceFile,
     is_field_file,
@@ -38,6 +51,75 @@ REQUIRED_ZIP_STEMS: tuple[str, ...] = (
 
 _ALLOWED_MEMBER_EXTENSIONS = {".csv", ".xls", ".xlsx"}
 _SKIP_NAME_PARTS = {"__macosx"}
+_CASES_MIN_DATE = date(2020, 1, 31)
+_TRACES_PER_GROUP = 7
+_PANEL_COUNT = 2
+_VACC_COVERAGE_COLS = ("vacc1", "vacc2", "vacc3", "vacc4", "vacc5", "vacc6")
+_VACC_COUNT_COLS = ("vacc0", "vacc1", "vacc2", "vacc3", "vacc4", "vacc5", "vacc6")
+_DOSE_SHARE_COLS = (
+    "no_dose",
+    "one_dose",
+    "two_dose",
+    "three_dose",
+    "four_dose",
+    "five_dose",
+    "six_dose",
+)
+_KNOWN_COLUMNS = {
+    "wk",
+    "vacc0",
+    "vacc1",
+    "vacc2",
+    "vacc3",
+    "vacc4",
+    "vacc5",
+    "vacc6",
+    "c19_i1",
+    "c19_d2",
+}
+
+# Stacked-area colours from the legacy subplot scripts (six doses → unvaccinated).
+_AREA_SERIES = (
+    ("six_dose", "Six Doses", "grey"),
+    ("five_dose", "Five Doses", "black"),
+    ("four_dose", "Four Doses", "rgba(5,48,97,1)"),
+    ("three_dose", "Three Doses", "rgba(146,197,222,1)"),
+    ("two_dose", "Two Doses", "rgba(235,235,0,1)"),
+    ("one_dose", "One Dose", "rgba(244,165,130,1)"),
+    ("no_dose", "No Doses", "rgba(178,24,43,1)"),
+)
+
+# Snapshot of Plotly RdBu with the legacy yellow substitution at index 5.
+_BAR_SERIES_SWEDISH = (
+    ("vacc6", "Six Doses", "grey"),
+    ("vacc5", "Five Doses", "black"),
+    ("vacc4", "Four Doses", "rgb(5,48,97)"),
+    ("vacc3", "Three Doses", "rgb(146,197,222)"),
+    ("vacc2", "Two Doses", "rgb(235, 235, 0)"),
+    ("vacc1", "One Dose", "rgb(244,165,130)"),
+    ("vacc0", "No doses", "rgb(178,24,43)"),
+)
+_BAR_SERIES_COMORBIDITY = (
+    ("vacc6", "Six doses", "grey"),
+    ("vacc5", "Five doses", "black"),
+    ("vacc4", "Four doses", "rgba(5,48,97,1)"),
+    ("vacc3", "Three doses", "rgba(146,197,222,1)"),
+    ("vacc2", "Two doses", "rgba(235,235,0,1)"),
+    ("vacc1", "One dose", "rgb(244,165,130)"),
+    ("vacc0", "Unvaccinated", "rgb(178,24,43)"),
+)
+
+_SWEDISH_GROUPS: tuple[tuple[str, str, str], ...] = (
+    ("> 18", "vacc_pop_18plus", "iva_vacc_18plus"),
+    ("18-59", "vacc_pop_18-59", "iva_vacc_18-59"),
+    ("> 60", "vacc_pop_60plus", "iva_vacc_60plus"),
+)
+_COMORBIDITY_GROUPS: tuple[tuple[str, str, str], ...] = (
+    ("CVD", "cm_cvd_cardio_vacc_SciLifeLab", "cm_cvd_cardio_covid_vacc_SciLifeLab"),
+    ("Diabetes", "cm_dm_vacc_SciLifeLab", "cm_dm_covid_vacc_SciLifeLab"),
+    ("RD", "cm_resp_dis1_vacc_SciLifeLab", "cm_resp_dis1_covid_vacc_SciLifeLab"),
+    ("Cancer", "cm_sos_cancer_vacc_SciLifeLab", "cm_sos_cancer_covid_vacc_SciLifeLab"),
+)
 
 
 def _source_filename(source_file: SourceFile, filename: str) -> str:
@@ -189,12 +271,415 @@ def validate_source_file(
     return None
 
 
-def generate_figures(source_file: SourceFile) -> dict[str, Any]:
-    """Return no figures until the Polars plot builders are added.
+def _read_member_dataframe(archive: zipfile.ZipFile, member_name: str) -> pl.DataFrame:
+    """Read one zip member as a Polars table (CSV or Excel)."""
+    payload = archive.read(member_name)
+    extension = _file_extension(member_name)
+    if extension == ".csv":
+        return pl.read_csv(io.BytesIO(payload))
+    return pl.read_excel(io.BytesIO(payload), engine="calamine")
 
-    Zip validation already ran at upload time. An empty dict keeps
-    ``DashboardData.save`` from crashing; the existing admin warning for
-    empty regeneration applies until plot builders land.
+
+def _load_tables(source_file: SourceFile) -> dict[str, pl.DataFrame]:
+    """Open the RECOVAC zip and return a DataFrame per required stem."""
+    raw = _read_source_bytes(source_file)
+    archive = zipfile.ZipFile(io.BytesIO(raw))
+    with archive:
+        indexed = _index_zip_members(archive)
+        if isinstance(indexed, str):
+            raise ValueError(indexed)
+        missing = [stem for stem in REQUIRED_ZIP_STEMS if stem not in indexed]
+        if missing:
+            raise ValueError("Missing required files in the zip: " + ", ".join(missing))
+        return {
+            stem: _normalise_columns(_read_member_dataframe(archive, indexed[stem]))
+            for stem in REQUIRED_ZIP_STEMS
+        }
+
+
+def _normalise_columns(df: pl.DataFrame) -> pl.DataFrame:
+    """Strip header whitespace and lower-case known RECOVAC column names."""
+    rename: dict[str, str] = {}
+    for column in df.columns:
+        stripped = column.strip()
+        known = stripped.lower()
+        target = known if known in _KNOWN_COLUMNS else stripped
+        if target != column:
+            rename[column] = target
+    return df.rename(rename) if rename else df
+
+
+def _numeric_or_zero(df: pl.DataFrame, columns: tuple[str, ...]) -> pl.DataFrame:
+    """Cast named columns to float, treating blanks and missing columns as 0."""
+    exprs: list[pl.Expr] = []
+    for name in columns:
+        if name not in df.columns:
+            exprs.append(pl.lit(0.0).alias(name))
+            continue
+        exprs.append(
+            pl.col(name)
+            .cast(pl.Utf8)
+            .str.strip_chars()
+            .replace("", "0")
+            .cast(pl.Float64, strict=False)
+            .fill_null(0.0)
+            .alias(name)
+        )
+    return df.with_columns(exprs)
+
+
+def _prep_week_dates(
+    df: pl.DataFrame,
+    *,
+    min_date: date | None = None,
+) -> pl.DataFrame:
+    """Convert ``wk`` (``2021w03``) to Monday-of-week ``date``; drop year 2019."""
+    if "wk" not in df.columns:
+        raise ValueError('Table is missing the "wk" column.')
+
+    prepared = (
+        df.with_columns(pl.col("wk").cast(pl.Utf8).str.strip_chars())
+        .with_columns(
+            pl.col("wk").str.split("w").list.get(0).cast(pl.Int32, strict=False).alias("_year"),
+            pl.col("wk").str.split("w").list.get(1).cast(pl.Int32, strict=False).alias("_week_no"),
+        )
+        .filter(pl.col("_year").is_not_null() & pl.col("_week_no").is_not_null())
+        .filter(pl.col("_year") != 2019)
+        .with_columns(
+            pl.struct(["_year", "_week_no"])
+            .map_elements(
+                lambda row: date.fromisocalendar(row["_year"], row["_week_no"], 1),
+                return_dtype=pl.Date,
+            )
+            .alias("date")
+        )
+        .drop(["_year", "_week_no", "wk"])
+        .filter(pl.col("date").is_not_null())
+    )
+    if min_date is not None:
+        prepared = prepared.filter(pl.col("date") >= min_date)
+    return prepared.with_columns(pl.col("date").dt.strftime("%Y-%m-%d"))
+
+
+def _prep_coverage(df: pl.DataFrame, *, ffill: bool = False) -> pl.DataFrame:
+    """De-cumulate coverage shares (0–1) into exclusive dose-level percents."""
+    prepared = _prep_week_dates(_numeric_or_zero(df, _VACC_COVERAGE_COLS))
+    prepared = prepared.with_columns(
+        ((1 - pl.col("vacc1")) * 100).alias("no_dose"),
+        ((pl.col("vacc1") - pl.col("vacc2")) * 100).alias("one_dose"),
+        ((pl.col("vacc2") - pl.col("vacc3")) * 100).alias("two_dose"),
+        ((pl.col("vacc3") - pl.col("vacc4")) * 100).alias("three_dose"),
+        ((pl.col("vacc4") - pl.col("vacc5")) * 100).alias("four_dose"),
+        ((pl.col("vacc5") - pl.col("vacc6")) * 100).alias("five_dose"),
+        (pl.col("vacc6") * 100).alias("six_dose"),
+    ).drop(list(_VACC_COVERAGE_COLS))
+    if ffill:
+        prepared = prepared.with_columns(pl.col(_DOSE_SHARE_COLS).fill_null(strategy="forward"))
+    if prepared.is_empty():
+        raise ValueError("Coverage table has no rows after dropping year 2019.")
+    return prepared
+
+
+def _prep_counts(
+    df: pl.DataFrame,
+    *,
+    total_column: str,
+    min_date: date | None = None,
+) -> pl.DataFrame:
+    """Parse week dates on an ICU / cases count table."""
+    had_total = total_column in df.columns
+    numeric_cols = _VACC_COUNT_COLS + ((total_column,) if had_total else ())
+    prepared = _prep_week_dates(_numeric_or_zero(df, numeric_cols), min_date=min_date)
+    if not had_total:
+        prepared = prepared.with_columns(pl.sum_horizontal(_VACC_COUNT_COLS).alias(total_column))
+    if prepared.is_empty():
+        raise ValueError("Count table has no rows after date filtering.")
+    return prepared
+
+
+def _date_values(df: pl.DataFrame) -> list[str]:
+    """Return ISO date strings from a prepared table."""
+    return df.get_column("date").to_list()
+
+
+def _xaxis_ranges(coverage_dates: list[str], count_dates: list[str]) -> dict[str, dict[str, Any]]:
+    """Return Plotly x-axis settings for full timeline vs aligned overlap."""
+    coverage_start, coverage_end = min(coverage_dates), max(coverage_dates)
+    count_start, count_end = min(count_dates), max(count_dates)
+    aligned_start = max(coverage_start, count_start)
+    aligned_end = min(coverage_end, count_end)
+    return {
+        "all": {
+            "xaxis": {
+                "title": "<b>Date</b>",
+                "range": [coverage_start, coverage_end],
+                "anchor": "y",
+            },
+            "xaxis2": {
+                "title": "<b>Date</b>",
+                "showgrid": True,
+                "linecolor": "black",
+                "range": [count_start, count_end],
+                "anchor": "y2",
+            },
+        },
+        "align": {
+            "xaxis": {"title": "<b>Date</b>", "range": [aligned_start, aligned_end], "anchor": "y"},
+            "xaxis2": {
+                "title": "<b>Date</b>",
+                "showgrid": True,
+                "linecolor": "black",
+                "range": [aligned_start, aligned_end],
+                "anchor": "y2",
+            },
+        },
+    }
+
+
+def _group_visibility(
+    n_groups: int,
+    group_index: int,
+    *,
+    traces_per_group: int = _TRACES_PER_GROUP,
+    n_panels: int = _PANEL_COUNT,
+) -> list[bool]:
+    """Return a Plotly ``visible`` mask covering both subplot panels for one group.
+
+    Traces are added as all groups on the top panel, then all groups on the
+    bottom panel. The legacy scripts only flagged the top panel (half length);
+    this mask is always ``n_groups * traces_per_group * n_panels`` long.
     """
-    rewind_source_file(source_file)
-    return {}
+    panel_len = n_groups * traces_per_group
+    mask = [False] * (panel_len * n_panels)
+    for panel in range(n_panels):
+        start = panel * panel_len + group_index * traces_per_group
+        mask[start : start + traces_per_group] = [True] * traces_per_group
+    return mask
+
+
+def _add_area_traces(
+    fig: go.Figure,
+    frames: list[pl.DataFrame],
+    *,
+    series: tuple[tuple[str, str, str], ...],
+) -> None:
+    """Add stacked coverage area traces (one group after another) on row 1."""
+    for group_index, frame in enumerate(frames):
+        dates = _date_values(frame)
+        visible = group_index == 0
+        for column, name, color in series:
+            fig.add_trace(
+                go.Scatter(
+                    x=dates,
+                    y=frame.get_column(column).to_list(),
+                    name=name,
+                    mode="lines",
+                    line={"width": 1, "color": color},
+                    fillcolor=color,
+                    stackgroup="one",
+                    visible=visible,
+                    hovertemplate="%{y:.2f}%",
+                    showlegend=False,
+                ),
+                row=1,
+                col=1,
+            )
+
+
+def _add_bar_traces(
+    fig: go.Figure,
+    frames: list[pl.DataFrame],
+    *,
+    series: tuple[tuple[str, str, str], ...],
+    total_column: str,
+) -> None:
+    """Add stacked count bar traces (one group after another) on row 2."""
+    for group_index, frame in enumerate(frames):
+        dates = _date_values(frame)
+        visible = group_index == 0
+        weekly_total = frame.get_column(total_column).to_list()
+        for series_index, (column, name, color) in enumerate(series):
+            bar_kwargs: dict[str, Any] = {
+                "name": name,
+                "x": dates,
+                "y": frame.get_column(column).to_list(),
+                "marker": {"color": color, "line": {"color": "#000000", "width": 1}},
+                "visible": visible,
+                "showlegend": False,
+            }
+            if series_index == 0:
+                bar_kwargs["customdata"] = weekly_total
+                bar_kwargs["hovertemplate"] = "%{y} <b>Tot</b>: %{customdata}"
+            fig.add_trace(go.Bar(**bar_kwargs), row=2, col=1)
+
+
+def _two_panel_subplot_fig(
+    groups: list[tuple[str, pl.DataFrame, pl.DataFrame]],
+    *,
+    filter_label: str,
+    count_axis_title: str,
+    count_dtick: int,
+    bar_series: tuple[tuple[str, str, str], ...],
+    total_column: str,
+) -> go.Figure:
+    """Build a 2-row subplot with group buttons and a timeframe toggle."""
+    labels = [label for label, _, _ in groups]
+    coverage_frames = [coverage for _, coverage, _ in groups]
+    count_frames = [counts for _, _, counts in groups]
+    n_groups = len(groups)
+
+    fig = make_subplots(rows=2, cols=1, vertical_spacing=0.1)
+    _add_area_traces(fig, coverage_frames, series=_AREA_SERIES)
+    _add_bar_traces(fig, count_frames, series=bar_series, total_column=total_column)
+
+    x_axes = _xaxis_ranges(_date_values(coverage_frames[0]), _date_values(count_frames[0]))
+    highest = max(count_frames[0].get_column(total_column).to_list())
+    y_top = max(1, int(highest * 1.05))
+
+    group_buttons = [
+        {
+            "label": label,
+            "method": "update",
+            "args": [{"visible": _group_visibility(n_groups, index)}],
+        }
+        for index, label in enumerate(labels)
+    ]
+    button_layer_1_height = 1.20
+    button_layer_2_height = 1.12
+
+    fig.update_layout(
+        title=" ",
+        yaxis={
+            "title": "<b>People with Dose Level (%)<br></b>",
+            "ticktext": ["0 ", "20 ", "40 ", "60 ", "80 ", "100 "],
+            "tickvals": [0, 20, 40, 60, 80, 100],
+            "range": [0, 100],
+        },
+        yaxis2={
+            "title": count_axis_title,
+            "showgrid": True,
+            "gridcolor": "lightgrey",
+            "linecolor": "black",
+            "dtick": count_dtick,
+            "range": [0, y_top],
+        },
+        xaxis=x_axes["all"]["xaxis"],
+        xaxis2=x_axes["all"]["xaxis2"],
+        barmode="stack",
+        plot_bgcolor="white",
+        autosize=True,
+        font={"size": 12},
+        margin={"r": 0, "t": 150, "b": 0, "l": 0},
+        showlegend=False,
+        hoverlabel={"align": "left"},
+        hovermode="x unified",
+        updatemenus=[
+            {
+                "buttons": group_buttons,
+                "type": "buttons",
+                "direction": "right",
+                "pad": {"r": 10, "t": 10},
+                "showactive": True,
+                "x": 0.1,
+                "xanchor": "left",
+                "y": button_layer_1_height,
+                "yanchor": "top",
+            },
+            {
+                "buttons": [
+                    {
+                        "label": "Show all data",
+                        "method": "relayout",
+                        "args": [x_axes["all"]],
+                    },
+                    {
+                        "label": "Align timeline",
+                        "method": "relayout",
+                        "args": [x_axes["align"]],
+                    },
+                ],
+                "type": "buttons",
+                "direction": "right",
+                "pad": {"r": 10, "t": 10},
+                "showactive": True,
+                "x": 0.1,
+                "xanchor": "left",
+                "y": button_layer_2_height,
+                "yanchor": "top",
+            },
+        ],
+        annotations=[
+            {
+                "text": filter_label,
+                "x": -0.03,
+                "xref": "paper",
+                "y": button_layer_1_height * 0.978,
+                "yref": "paper",
+                "align": "left",
+                "showarrow": False,
+            },
+            {
+                "text": "Timeframe:",
+                "x": -0.03,
+                "xref": "paper",
+                "y": button_layer_2_height * 0.978,
+                "yref": "paper",
+                "align": "left",
+                "showarrow": False,
+            },
+        ],
+    )
+    return fig
+
+
+def _swedishpop_subplot_fig(tables: dict[str, pl.DataFrame]) -> go.Figure:
+    """Coverage vs ICU admissions for the three Swedish age groups."""
+    groups = [
+        (
+            label,
+            _prep_coverage(tables[coverage_stem]),
+            _prep_counts(tables[count_stem], total_column="c19_i1"),
+        )
+        for label, coverage_stem, count_stem in _SWEDISH_GROUPS
+    ]
+    return _two_panel_subplot_fig(
+        groups,
+        filter_label="Age Range:",
+        count_axis_title="<b>Admissions to ICU<br></b>",
+        count_dtick=50,
+        bar_series=_BAR_SERIES_SWEDISH,
+        total_column="c19_i1",
+    )
+
+
+def _comorbidity_subplot_fig(tables: dict[str, pl.DataFrame]) -> go.Figure:
+    """Coverage vs COVID-19 cases for the four comorbidity groups."""
+    groups = [
+        (
+            label,
+            _prep_coverage(tables[coverage_stem], ffill=True),
+            _prep_counts(
+                tables[count_stem],
+                total_column="c19_d2",
+                min_date=_CASES_MIN_DATE,
+            ),
+        )
+        for label, coverage_stem, count_stem in _COMORBIDITY_GROUPS
+    ]
+    return _two_panel_subplot_fig(
+        groups,
+        filter_label="Comorbidity:",
+        count_axis_title="<b>COVID-19 cases<br></b>",
+        count_dtick=500,
+        bar_series=_BAR_SERIES_COMORBIDITY,
+        total_column="c19_d2",
+    )
+
+
+def generate_figures(source_file: SourceFile) -> dict[str, Any]:
+    """Build both RECOVAC subplot figures from the uploaded zip."""
+    tables = _load_tables(source_file)
+    return {
+        "swedishpop_subplot": figure_to_json(_swedishpop_subplot_fig(tables)),
+        "comorbidity_subplot": figure_to_json(_comorbidity_subplot_fig(tables)),
+    }
