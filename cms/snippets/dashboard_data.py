@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import structlog
 from django.contrib.contenttypes.fields import GenericRelation
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files.uploadedfile import UploadedFile
 from django.db import models
+from django.http import HttpRequest
 from django.shortcuts import redirect
 from django.utils import timezone
 from wagtail.admin import messages as admin_messages
@@ -22,6 +25,9 @@ from dashboard_visualisation.utils.uploads import (
     rewind_source_file,
     validate_csv,
 )
+
+if TYPE_CHECKING:
+    from django.contrib.auth.models import User
 
 LOGGER = structlog.get_logger(__name__)
 
@@ -40,8 +46,25 @@ def _is_new_source_file_upload(source_file: object) -> bool:
     return False
 
 
+def _is_internal_user(user: User | None) -> bool:
+    """Return True if the user is a superuser or belongs to the 'editors' group."""
+    if not user or not getattr(user, "is_authenticated", False):
+        return False
+    return user.is_superuser or user.groups.filter(name="editors").exists()
+
+
 class DashboardDataForm(WagtailAdminModelForm):
     """Validate dashboard source uploads before save."""
+
+    def __init__(self, *args: object, **kwargs: object) -> None:
+        """Initialize the form and store the original source file for comparison."""
+        super().__init__(*args, **kwargs)
+
+        for_user = kwargs.get("for_user")
+        # Only superusers and internal editors can see the option
+        # and assign a research group to a dashboard data instance.
+        if not _is_internal_user(for_user):
+            self.fields.pop("research_group", None)
 
     def clean_source_file(self) -> object:
         """Reject non-CSV uploads and validate readable source CSV."""
@@ -97,6 +120,17 @@ class DashboardData(RevisionMixin, models.Model):
         uploaded_by: Username of the editor who uploaded.
     """
 
+    research_group = models.ForeignKey(
+        "auth.Group",
+        on_delete=models.PROTECT,
+        related_name="+",
+        blank=True,
+        null=True,
+        help_text=(
+            "Optional admin setting to restrict access to this dashboard data upload "
+            "to a specific research group."
+        ),
+    )
     dashboard_title = models.CharField(
         max_length=255,
         default="",
@@ -128,6 +162,7 @@ class DashboardData(RevisionMixin, models.Model):
             [
                 FieldPanel("dashboard_title"),
                 FieldPanel("dashboard_slug"),
+                FieldPanel("research_group"),
             ],
             heading="Dashboard",
         ),
@@ -377,6 +412,20 @@ class DashboardDataEditView(
 ):
     """Edit view with dashboard upload feedback."""
 
+    def get_object(self, *args: object, **kwargs: object) -> DashboardData:
+        """Return the object to edit, or raise PermissionDenied if the user cannot access it."""
+        obj = super().get_object(*args, **kwargs)
+        user = getattr(self.request, "user", None)
+        if _is_internal_user(user):
+            return obj
+        if (
+            user is not None
+            and obj.research_group is not None
+            and user.groups.filter(pk=obj.research_group_id).exists()
+        ):
+            return obj
+        raise PermissionDenied
+
 
 class DashboardDataViewSet(SnippetViewSet):
     """Wagtail admin viewset for the Dashboard Data Upload snippet."""
@@ -395,6 +444,16 @@ class DashboardDataViewSet(SnippetViewSet):
         "uploaded_by",
     ]
     list_filter = ["dashboard_slug"]
+
+    def get_queryset(self, request: HttpRequest) -> models.QuerySet:
+        """Return a queryset of DashboardData instances based on the user's permissions."""
+        queryset = self.model.objects.all()
+
+        user = request.user
+        if _is_internal_user(user):
+            return queryset
+
+        return queryset.filter(research_group__in=user.groups.all())
 
 
 register_snippet(DashboardDataViewSet)
