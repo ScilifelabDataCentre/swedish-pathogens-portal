@@ -1,10 +1,23 @@
 """Tests for DashboardData model."""
 
+from unittest.mock import patch
+
+from django.contrib.auth.models import Group, Permission, User
+from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import PermissionDenied
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import IntegrityError
 from django.test import TestCase
+from django.urls import reverse
+from wagtail.admin.models import Admin
+from wagtail.snippets.views.snippets import EditView
 
-from cms.snippets.dashboard_data import DashboardData
+from cms.snippets.dashboard_data import (
+    DashboardData,
+    DashboardDataEditView,
+    DashboardDataViewSet,
+    _is_internal_user,
+)
 
 
 class TestDashboardDataModel(TestCase):
@@ -94,3 +107,211 @@ class TestDashboardDataGetData(TestCase):
         """Test that get_data returns None when no data exists for slug."""
         result = DashboardData.get_data("nonexistent-dashboard")
         self.assertIsNone(result)
+
+
+class DashboardDataAccessTests(TestCase):
+    """Tests for access control on DashboardData based on user groups."""
+
+    def setUp(self) -> None:
+        """Create users and groups for access control tests."""
+        source_file = SimpleUploadedFile(
+            name="current.csv",
+            content=b"date,value\n2024-01-01,100\n",
+            content_type="text/csv",
+        )
+
+        dashboard_data_permission = Permission.objects.get(
+            content_type=ContentType.objects.get_for_model(DashboardData),
+            codename="change_dashboarddata",
+        )
+        admin_permission = Permission.objects.get(
+            content_type=ContentType.objects.get_for_model(Admin),
+            codename="access_admin",
+        )
+        self.editors = Group.objects.create(name="editors")
+        self.editors.permissions.add(dashboard_data_permission, admin_permission)
+        self.researchers = Group.objects.create(name="researchers")
+        self.researchers.permissions.add(dashboard_data_permission, admin_permission)
+        self.other_researchers = Group.objects.create(name="other-researchers")
+
+        self.researcher = User.objects.create_user(username="researcher", password="password")  # noqa: S106
+        self.researcher.groups.add(self.researchers)
+
+        self.editor = User.objects.create_user(username="editor", password="password")  # noqa: S106
+        self.editor.groups.add(self.editors)
+
+        self.superuser = User.objects.create_superuser(username="admin", password="password")  # noqa: S106
+
+        self.own_data = DashboardData.objects.create(
+            dashboard_title="Own dashboard",
+            dashboard_slug="own-dashboard",
+            research_group=self.researchers,
+            source_file=source_file,
+            data={"chart": {}},
+        )
+
+        self.other_data = DashboardData.objects.create(
+            dashboard_title="Other dashboard",
+            dashboard_slug="other-dashboard",
+            research_group=self.other_researchers,
+            source_file=source_file,
+            data={"chart": {}},
+        )
+
+        self.unassigned_data = DashboardData.objects.create(
+            dashboard_title="Unassigned dashboard",
+            dashboard_slug="unassigned-dashboard",
+            research_group=None,
+            source_file=source_file,
+            data={"chart": {}},
+        )
+
+    # ------------------------------------------------------------------
+    # _is_internal_user
+    # ------------------------------------------------------------------
+
+    def test_superuser_is_internal_user(self) -> None:
+        """Test that returns True for super user."""
+        self.assertTrue(_is_internal_user(self.superuser))
+
+    def test_editor_is_internal_user(self) -> None:
+        """Test that returns True for editor."""
+        self.assertTrue(_is_internal_user(self.editor))
+
+    def test_researcher_is_not_internal_user(self) -> None:
+        """Test that returns False for other user."""
+        self.assertFalse(_is_internal_user(self.researcher))
+
+    def test_none_is_not_internal_user(self) -> None:
+        """Test that returns False for passed None."""
+        self.assertFalse(_is_internal_user(None))
+
+    # ------------------------------------------------------------------
+    # DashboardDataForm
+    # ------------------------------------------------------------------
+
+    def test_research_group_field_visible_to_superuser(self) -> None:
+        """Test research_group field appears in the admin form for superuser."""
+
+        self.client.force_login(self.superuser)
+        response = self.client.get(
+            reverse("wagtailsnippets_cms_dashboarddata:edit", args=[self.own_data.pk])
+        )
+
+        self.assertContains(response, 'name="research_group"')
+
+    def test_research_group_field_visible_to_editor(self) -> None:
+        """Test research_group field appears in the admin form for editors."""
+
+        self.client.force_login(self.editor)
+        response = self.client.get(
+            reverse("wagtailsnippets_cms_dashboarddata:edit", args=[self.own_data.pk])
+        )
+
+        self.assertContains(response, 'name="research_group"')
+
+    def test_research_group_field_not_visible_to_researcher(self) -> None:
+        """Test research_group field doesn't appear in the admin form for researchers."""
+
+        self.client.force_login(self.researcher)
+        response = self.client.get(
+            reverse("wagtailsnippets_cms_dashboarddata:edit", args=[self.own_data.pk])
+        )
+
+        self.assertNotContains(response, 'name="research_group"')
+
+    # ------------------------------------------------------------------
+    # DashboardDataViewSet.get_queryset
+    # ------------------------------------------------------------------
+
+    def test_researcher_only_sees_dashboard_data_for_their_group(self) -> None:
+        """Test that researcher only see dashboard data assigned to their group."""
+        request = self.client.get("/").wsgi_request
+        request.user = self.researcher
+
+        queryset = DashboardDataViewSet().get_queryset(request)
+
+        self.assertIn(self.own_data, queryset)
+        self.assertNotIn(self.other_data, queryset)
+        self.assertNotIn(self.unassigned_data, queryset)
+
+    def test_editor_sees_all_dashboard_data(self) -> None:
+        """Test that internal editors can see all dashboard data."""
+        request = self.client.get("/").wsgi_request
+        request.user = self.editor
+
+        queryset = DashboardDataViewSet().get_queryset(request)
+
+        self.assertIn(self.own_data, queryset)
+        self.assertIn(self.other_data, queryset)
+        self.assertIn(self.unassigned_data, queryset)
+
+    def test_superuser_sees_all_dashboard_data(self) -> None:
+        """Test that superusers can see all dashboard data."""
+        request = self.client.get("/").wsgi_request
+        request.user = self.superuser
+
+        queryset = DashboardDataViewSet().get_queryset(request)
+
+        self.assertIn(self.own_data, queryset)
+        self.assertIn(self.other_data, queryset)
+        self.assertIn(self.unassigned_data, queryset)
+
+    # ------------------------------------------------------------------
+    # DashboardDataEditView.get_object
+    # ------------------------------------------------------------------
+
+    def test_researcher_can_access__only_own_dashboard_data(self) -> None:
+        """Test researchers can access edit page only for dashboard data assigned to their group."""
+        view = self._edit_view(self.researcher)
+
+        with patch.object(EditView, "get_object", return_value=self.own_data):
+            self.assertEqual(view.get_object(), self.own_data)
+
+        with (
+            patch.object(EditView, "get_object", return_value=self.other_data),
+            self.assertRaises(PermissionDenied),
+        ):
+            view.get_object()
+
+        with (
+            patch.object(EditView, "get_object", return_value=self.unassigned_data),
+            self.assertRaises(PermissionDenied),
+        ):
+            view.get_object()
+
+    def test_editor_can_access_other_research_group(self) -> None:
+        """Test editors can access edit page of any dashboard data."""
+        view = self._edit_view(self.editor)
+
+        with patch.object(EditView, "get_object", return_value=self.own_data):
+            self.assertEqual(view.get_object(), self.own_data)
+        with patch.object(EditView, "get_object", return_value=self.other_data):
+            self.assertEqual(view.get_object(), self.other_data)
+        with patch.object(EditView, "get_object", return_value=self.unassigned_data):
+            self.assertEqual(view.get_object(), self.unassigned_data)
+
+    def test_superuser_can_access_other_research_group(self) -> None:
+        """Test superusers can access edit page of any dashboard data."""
+        view = self._edit_view(self.superuser)
+
+        with patch.object(EditView, "get_object", return_value=self.own_data):
+            self.assertEqual(view.get_object(), self.own_data)
+        with patch.object(EditView, "get_object", return_value=self.other_data):
+            self.assertEqual(view.get_object(), self.other_data)
+        with patch.object(EditView, "get_object", return_value=self.unassigned_data):
+            self.assertEqual(view.get_object(), self.unassigned_data)
+
+    # ------------------------------------------------------------------
+    # Helper method
+    # ------------------------------------------------------------------
+
+    def _edit_view(self, user: User) -> DashboardDataEditView:
+        """Return edit view with given user."""
+        request = self.client.get("/").wsgi_request
+        request.user = user
+
+        view = DashboardDataEditView()
+        view.request = request
+
+        return view
