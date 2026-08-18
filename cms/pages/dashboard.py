@@ -13,7 +13,13 @@ from wagtail.fields import StreamField
 from wagtail.images import get_image_model_string
 from wagtail.models import Orderable, Page
 
-from cms.blocks import AlertBlock, LastUpdatedBlock, PlotlyFigureBlock, StaticFigureBlock
+from cms.blocks import (
+    AlertBlock,
+    DataTableBlock,
+    LastUpdatedBlock,
+    PlotlyFigureBlock,
+    StaticFigureBlock,
+)
 
 # Only import TopicPage for type checking to avoid circular imports
 if TYPE_CHECKING:
@@ -92,6 +98,7 @@ class DashboardPage(Page):
         [
             ("text", RichTextBlock()),
             ("alert", AlertBlock()),
+            ("data_table", DataTableBlock()),
             ("last_updated", LastUpdatedBlock()),
             ("plotly_figure", PlotlyFigureBlock()),
             ("static_figure", StaticFigureBlock()),
