@@ -1,0 +1,33 @@
+{% comment %}
+    This file is used to display the method and site information on the SLU wastewater "methodology" page.
+    This template is passed via "StaticBlock" in "SLUDashboardPage" model and is rendered when the editor
+    includes it in the page via wagtail admin panel.
+{% endcomment %}
+
+{% load static %}
+
+{% with sites_info=figures.sites_info %}
+    <div class="md:flex md:gap-8 bg-pp-pale-grey/15 px-8 py-6">
+        <div class="md:flex-1 bg-white content-center p-4">
+            <img src="{% static "cms/images/slu_wastewater/ww_slu_flowchart.png" %}"
+                alt="SLU methodology flowchart">
+        </div>
+
+        <div class="md:pl-4 md:flex-1 flex flex-col max-md:mt-4">
+            {% if not sites_info %}
+                <div class="my-auto text-center" role="alert">
+                    No site info available
+                </div>
+            {% else %}
+                {% for site in sites_info %}
+                    <div class="flex justify-between border-b border-gray-300 gap-2 py-1.5
+                    first:font-semibold last:border-0">
+                        {% for s in site %}
+                        <span>{{ s }}</span>
+                        {% endfor %}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+    </div>
+{% endwith %}

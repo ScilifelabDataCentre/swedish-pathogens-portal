@@ -29,7 +29,12 @@ class DashboardIndexPage(Page):
     template = "cms/pages/dashboard_index.html"
     htmx_template = "cms/pages/dashboard_index.html#dashboards_grid"
     parent_page_types = ["cms.HomePage"]
-    subpage_types = ["cms.DashboardPage", "cms.DrrDatasetPage", "cms.LiverResourceDashboardPage"]
+    subpage_types = [
+        "cms.DashboardPage",
+        "cms.DrrDatasetPage",
+        "cms.LiverResourceDashboardPage",
+        "cms.SLUDashboardPage",
+    ]
 
     content = StreamField(
         [
