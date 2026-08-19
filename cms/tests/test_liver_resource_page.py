@@ -50,6 +50,10 @@ class TestLiverResourceDashboardPageModel(LiverResourcePageTestCase):
         """Test that liver dashboard pages cannot have child pages."""
         self.assertEqual(LiverResourceDashboardPage.subpage_types, [])
 
+    def test_max_count_is_one(self) -> None:
+        """Test that only one liver dashboard page may exist in the tree."""
+        self.assertEqual(LiverResourceDashboardPage.max_count, 1)
+
     def test_uses_custom_template(self) -> None:
         """Test that the liver page uses its dedicated template."""
         self.assertEqual(

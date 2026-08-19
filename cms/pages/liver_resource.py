@@ -35,6 +35,7 @@ class LiverResourceDashboardPage(RoutablePageMixin, DashboardPage):
     """
 
     template = "cms/pages/liver_resource.html"
+    max_count = 1
 
     class Meta:
         """Meta options for the LiverResourceDashboardPage model."""
