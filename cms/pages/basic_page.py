@@ -42,7 +42,7 @@ class BasicPage(Page):
                 "matomo_opt_out",
                 StaticBlock(
                     admin_text=("Displays the Matomo analytics opt-out widget."),
-                    template="cms/blocks/matomo_opt_out.html",
+                    template="cms/components/matomo_opt_out.html",
                 ),
             ),
         ],
