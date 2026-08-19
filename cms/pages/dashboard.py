@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any
 
 from django.db import models
 from django.http import HttpRequest
+from django.utils import timezone
 from django.utils.functional import cached_property
 from modelcluster.fields import ParentalKey
 from wagtail.admin.panels import FieldPanel, InlinePanel, MultiFieldPanel, PageChooserPanel
@@ -178,9 +179,12 @@ class DashboardPage(Page):
     @property
     def dashboard_data_updated_at(self) -> date | None:
         """Return the last updated timestamp for the dashboard data or the first published date."""
-        return (
-            getattr(self.dashboard_data, "data_updated_at", None) or self.first_published_at.date()
-        )
+        data_date = getattr(self.dashboard_data, "data_updated_at", None)
+        if data_date:
+            return data_date
+        if self.first_published_at:
+            return timezone.localdate(self.first_published_at)
+        return None
 
     def get_context(self, request: HttpRequest) -> dict[str, Any]:
         """Add DashboardData figures, CSV URL, and parent heading to template context."""
