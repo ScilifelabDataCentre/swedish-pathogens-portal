@@ -8,6 +8,8 @@ does not wait on ``drr_precompute``; what gates it is the editorial
 nothing.
 """
 
+import re
+
 from django.test import RequestFactory
 
 from cms.pages.drr_dataset import DrrDatasetPage
@@ -112,6 +114,21 @@ class TestDrrRawImageLinkOut(DrrDatasetPageTestCase):
         self.assertContains(response, "A549-ACE2")
         self.assertContains(response, "Validation Cell Painting")
         self.assertContains(response, "S-BIAD2580")
+
+    def test_button_opens_in_a_new_tab(self) -> None:
+        """The link leaves the portal, so it carries the site's new-tab contract.
+
+        ``ExternalLinkNewTabHandler`` applies this to rich text only, and cannot
+        see a hardcoded button whose href is an internal route — the outbound hop
+        happens in the 302 — so the attributes are set in the template.
+        """
+        response = self.client.get(self.page.url)
+
+        button = re.search(r'<a href="[^"]*raw-images/"[^>]*>', response.content.decode())
+        self.assertIsNotNone(button)
+        self.assertIn('target="_blank"', button.group(0))
+        self.assertIn("noopener", button.group(0))
+        self.assertIn("noreferrer", button.group(0))
 
     def test_no_template_comment_reaches_the_page(self) -> None:
         """No editorial note leaks into the markup.

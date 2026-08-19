@@ -172,7 +172,7 @@ single-line only, and a multi-line one renders verbatim into the page.
                 <a href="{{ download_urls.parquet }}" class="btn btn-outline btn-sm">Download features (Parquet)</a>
             {% endif %}
             {% if download_urls.raw_images %}
-                <a href="{{ download_urls.raw_images }}" class="btn btn-outline btn-sm" rel="noopener">Download raw images</a>
+                <a href="{{ download_urls.raw_images }}" class="btn btn-outline btn-sm" target="_blank" rel="noopener noreferrer">Download raw images</a>
             {% endif %}
         </div>
 
@@ -190,7 +190,7 @@ single-line only, and a multi-line one renders verbatim into the page.
                 {% endif %}
                 stay with the upstream repository{% if page.upstream_accession %}, study
                 <span class="text-pp-almost-black">{{ page.upstream_accession }}</span>{% endif %}.
-                The button opens that study; the portal never hosts or proxies image data.
+                The button opens that study in a new tab; the portal never hosts or proxies image data.
             </p>
         {% endif %}
 
