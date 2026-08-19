@@ -2,6 +2,8 @@
 
 import polars as pl
 
+from dashboard_visualisation.slu_wastewater.constants import city_display_names
+
 
 def get_sample_data() -> pl.DataFrame:
     """Return representative sample data for dashboard tests."""
@@ -249,4 +251,4 @@ def get_sample_data() -> pl.DataFrame:
                 750.0,
             ],
         }
-    )
+    ).with_columns(pl.col("city").replace(city_display_names).alias("city"))

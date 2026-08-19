@@ -17,7 +17,7 @@ class TestGetRecentDataInfo(SimpleTestCase):
         result = get_recent_data_info(data)
 
         self.assertEqual(result["sampling_date"], "2024-01-24")
-        self.assertEqual(result["sampling_sites"], "Goteborg and Kalmar.")
+        self.assertEqual(result["sampling_sites"], "Göteborg and Kalmar.")
 
         expected_population = round(((600000 + 40000) / 10587710) * 100)
 
