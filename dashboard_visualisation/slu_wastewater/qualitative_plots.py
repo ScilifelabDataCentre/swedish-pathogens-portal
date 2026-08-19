@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 import polars as pl
 from plotly.subplots import make_subplots
 
+from ..utils.plotly import figure_to_json
 from .constants import (
     base_legend,
     bgcolor,
@@ -113,7 +114,7 @@ def get_qual_overview_plot(
     if as_html:
         return fig.to_html(**plotly_to_html_settings)
 
-    return fig.to_json()
+    return figure_to_json(fig)
 
 
 def get_qual_plots(
@@ -242,4 +243,4 @@ def get_qual_plots(
     if as_html:
         return fig.to_html(**plotly_to_html_settings)
 
-    return fig.to_json()
+    return figure_to_json(fig)

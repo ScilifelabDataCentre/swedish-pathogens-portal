@@ -4,6 +4,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import polars as pl
 
+from ..utils.plotly import figure_to_json
 from .constants import (
     bgcolor,
     cities_graph_info,
@@ -172,7 +173,7 @@ def get_quant_overview_plot(
     if as_html:
         return fig.to_html(**plotly_to_html_settings)
 
-    return fig.to_json()
+    return figure_to_json(fig)
 
 
 def get_all_sites_plot(
@@ -275,7 +276,7 @@ def get_all_sites_plot(
     if as_html:
         return fig.to_html(**plotly_to_html_settings)
 
-    return fig.to_json()
+    return figure_to_json(fig)
 
 
 def get_single_site_plot(
@@ -376,4 +377,4 @@ def get_single_site_plot(
     if as_html:
         return fig.to_html(**plotly_to_html_settings)
 
-    return fig.to_json()
+    return figure_to_json(fig)
