@@ -42,6 +42,9 @@ CSRF_TRUSTED_ORIGINS = ["http://localhost:8000", "http://127.0.0.1:8000"]
 MEDIA_ROOT = BASE_DIR / "media"  # noqa: F405
 MEDIA_URL = "media/"
 
+# Private visitor DE session payloads (not served under MEDIA_URL).
+LIVER_SESSION_ROOT = BASE_DIR / "private" / "liver_resource_sessions"  # noqa: F405
+
 
 # EMAIL (Development defaults, override via .env if needed)
 # ------------------------------------------------------------------------------

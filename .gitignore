@@ -20,6 +20,7 @@ db.sqlite3
 db.sqlite3-journal
 *.dump
 media/
+private/
 staticfiles/
 
 # TEMP EXCLUSION

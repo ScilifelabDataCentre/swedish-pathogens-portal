@@ -16,7 +16,7 @@ from wagtail.models import RevisionMixin
 from wagtail.snippets.models import register_snippet
 from wagtail.snippets.views.snippets import CreateView, EditView, SnippetViewSet
 
-from dashboard_visualisation.registry import validate_source_columns
+from dashboard_visualisation.registry import validate_source_columns, validate_source_file
 from dashboard_visualisation.utils.uploads import (
     calculate_file_hash,
     rewind_source_file,
@@ -60,13 +60,25 @@ class DashboardDataForm(WagtailAdminModelForm):
         if not _is_new_source_file_upload(source_file):
             return source_file
 
+        dashboard_slug = self.cleaned_data.get("dashboard_slug") or getattr(
+            self.instance, "dashboard_slug", ""
+        )
+
+        handled, file_error = validate_source_file(
+            dashboard_slug,
+            source_file,
+            filename=name,
+            size_bytes=getattr(source_file, "size", None),
+        )
+        if handled:
+            if file_error:
+                raise ValidationError(file_error)
+            return source_file
+
         result = validate_csv(source_file)
         if not result.is_valid:
             raise ValidationError(result.errors[0])
 
-        dashboard_slug = self.cleaned_data.get("dashboard_slug") or getattr(
-            self.instance, "dashboard_slug", ""
-        )
         if column_error := validate_source_columns(dashboard_slug, result.columns):
             raise ValidationError(column_error)
 

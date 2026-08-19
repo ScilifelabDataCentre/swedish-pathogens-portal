@@ -1,0 +1,2850 @@
+{
+  "meta": {
+    "source_rds": "TLNgraph_102.RDS",
+    "vertex_count": 203,
+    "edge_count": 202,
+    "directed": false,
+    "vertex_attributes": ["name", "label", "size", "label.family", "label.cex", "Ngenes"],
+    "edge_attributes": ["color", "width"]
+  },
+  "vertices": [
+    {
+      "name": "95",
+      "label": "1.2.2",
+      "size": 10.3923,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 108
+    },
+    {
+      "name": "85",
+      "label": "1.2.3",
+      "size": 10.9545,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 120
+    },
+    {
+      "name": "22",
+      "label": "7.1.7",
+      "size": 15.2315,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 232
+    },
+    {
+      "name": "89",
+      "label": "7.1.6",
+      "size": 10.6301,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 113
+    },
+    {
+      "name": "98",
+      "label": "6.2.4",
+      "size": 10.198,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 104
+    },
+    {
+      "name": "44",
+      "label": "6.2.5",
+      "size": 13.5277,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 183
+    },
+    {
+      "name": "88",
+      "label": "8.10.",
+      "size": 10.7238,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 115
+    },
+    {
+      "name": "24",
+      "label": "8.11.",
+      "size": 15.0665,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 227
+    },
+    {
+      "name": "63",
+      "label": "2.4.3",
+      "size": 12,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 144
+    },
+    {
+      "name": "33",
+      "label": "2.4.4",
+      "size": 14.3527,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 206
+    },
+    {
+      "name": "79",
+      "label": "6.3.2",
+      "size": 11.2694,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 127
+    },
+    {
+      "name": "96",
+      "label": "6.3.1",
+      "size": 10.247,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 105
+    },
+    {
+      "name": "82",
+      "label": "7.2.2",
+      "size": 11,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 121
+    },
+    {
+      "name": "3",
+      "label": "7.2.3",
+      "size": 18.1384,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 329
+    },
+    {
+      "name": "67",
+      "label": "3.2.3",
+      "size": 11.6619,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 136
+    },
+    {
+      "name": "72",
+      "label": "3.2.2",
+      "size": 11.5326,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 133
+    },
+    {
+      "name": "83",
+      "label": "3.1.6",
+      "size": 11,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 121
+    },
+    {
+      "name": "50",
+      "label": "3.1.7",
+      "size": 12.7671,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 163
+    },
+    {
+      "name": "102",
+      "label": "1.3.3",
+      "size": 10,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 100
+    },
+    {
+      "name": "1",
+      "label": "1.3.4",
+      "size": 22.4944,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 506
+    },
+    {
+      "name": "93",
+      "label": "6.5.1",
+      "size": 10.4881,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 110
+    },
+    {
+      "name": "25",
+      "label": "6.5.2",
+      "size": 15.0665,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 227
+    },
+    {
+      "name": "41",
+      "label": "6.2.2",
+      "size": 13.9642,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 195
+    },
+    {
+      "name": "71",
+      "label": "6.2.1",
+      "size": 11.5326,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 133
+    },
+    {
+      "name": "92",
+      "label": "5.5.2",
+      "size": 10.5357,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 111
+    },
+    {
+      "name": "65",
+      "label": "5.5.3",
+      "size": 11.6619,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 136
+    },
+    {
+      "name": "99",
+      "label": "4.2.3",
+      "size": 10.0995,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 102
+    },
+    {
+      "name": "48",
+      "label": "4.2.4",
+      "size": 12.9228,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 167
+    },
+    {
+      "name": "49",
+      "label": "1.1.4",
+      "size": 12.8452,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 165
+    },
+    {
+      "name": "66",
+      "label": "1.1.3",
+      "size": 11.6619,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 136
+    },
+    {
+      "name": "76",
+      "label": "3.1.1",
+      "size": 11.3578,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 129
+    },
+    {
+      "name": "74",
+      "label": "3.1.2",
+      "size": 11.4891,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 132
+    },
+    {
+      "name": "87",
+      "label": "6.4.2",
+      "size": 10.7703,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 116
+    },
+    {
+      "name": "73",
+      "label": "6.4.3",
+      "size": 11.4891,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 132
+    },
+    {
+      "name": "42",
+      "label": "2.3.5",
+      "size": 13.8564,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 192
+    },
+    {
+      "name": "94",
+      "label": "2.3.4",
+      "size": 10.4403,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 109
+    },
+    {
+      "name": "80",
+      "label": "2.5.3",
+      "size": 11.225,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 126
+    },
+    {
+      "name": "100",
+      "label": "2.5.2",
+      "size": 10.0995,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 102
+    },
+    {
+      "name": "-3",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "90",
+      "label": "6.2.3",
+      "size": 10.6301,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 113
+    },
+    {
+      "name": "-5",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "53",
+      "label": "2.4.2",
+      "size": 12.4499,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 155
+    },
+    {
+      "name": "47",
+      "label": "7.1.3",
+      "size": 12.9615,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 168
+    },
+    {
+      "name": "64",
+      "label": "7.1.2",
+      "size": 11.9583,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 143
+    },
+    {
+      "name": "84",
+      "label": "1.3.2",
+      "size": 11,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 121
+    },
+    {
+      "name": "-10",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "39",
+      "label": "5.1.2",
+      "size": 14.1421,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 200
+    },
+    {
+      "name": "17",
+      "label": "5.1.3",
+      "size": 15.6205,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 244
+    },
+    {
+      "name": "52",
+      "label": "6.5.3",
+      "size": 12.49,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 156
+    },
+    {
+      "name": "34",
+      "label": "6.5.4",
+      "size": 14.3178,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 205
+    },
+    {
+      "name": "58",
+      "label": "8.3.",
+      "size": 12.2066,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 149
+    },
+    {
+      "name": "38",
+      "label": "8.4.",
+      "size": 14.1421,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 200
+    },
+    {
+      "name": "57",
+      "label": "2.3.2",
+      "size": 12.3288,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 152
+    },
+    {
+      "name": "62",
+      "label": "2.3.1",
+      "size": 12.083,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 146
+    },
+    {
+      "name": "30",
+      "label": "6.4.1",
+      "size": 14.7309,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 217
+    },
+    {
+      "name": "-17",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "20",
+      "label": "3.3.2",
+      "size": 15.3297,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 235
+    },
+    {
+      "name": "46",
+      "label": "3.3.1",
+      "size": 13.1149,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 172
+    },
+    {
+      "name": "91",
+      "label": "4.1.2",
+      "size": 10.583,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 112
+    },
+    {
+      "name": "69",
+      "label": "4.1.3",
+      "size": 11.5758,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 134
+    },
+    {
+      "name": "70",
+      "label": "2.3.3",
+      "size": 11.5326,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 133
+    },
+    {
+      "name": "-18",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "13",
+      "label": "6.1.2",
+      "size": 16.4924,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 272
+    },
+    {
+      "name": "40",
+      "label": "6.1.1",
+      "size": 14.1067,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 199
+    },
+    {
+      "name": "29",
+      "label": "7.2.1",
+      "size": 14.7648,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 218
+    },
+    {
+      "name": "-7",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "60",
+      "label": "8.9.",
+      "size": 12.1244,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 147
+    },
+    {
+      "name": "-4",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "8",
+      "label": "1.1.2",
+      "size": 17.1172,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 293
+    },
+    {
+      "name": "-15",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "21",
+      "label": "8.1.",
+      "size": 15.2643,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 233
+    },
+    {
+      "name": "31",
+      "label": "8.2.",
+      "size": 14.6287,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 214
+    },
+    {
+      "name": "77",
+      "label": "3.1.3",
+      "size": 11.3137,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 128
+    },
+    {
+      "name": "36",
+      "label": "3.1.4",
+      "size": 14.2478,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 203
+    },
+    {
+      "name": "75",
+      "label": "5.6.1",
+      "size": 11.4018,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 130
+    },
+    {
+      "name": "4",
+      "label": "5.6.2",
+      "size": 18.0555,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 326
+    },
+    {
+      "name": "-11",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-25",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "61",
+      "label": "4.2.6",
+      "size": 12.1244,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 147
+    },
+    {
+      "name": "10",
+      "label": "4.2.6",
+      "size": 16.8226,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 283
+    },
+    {
+      "name": "-12",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-20",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "101",
+      "label": "7.1.5",
+      "size": 10,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 100
+    },
+    {
+      "name": "-2",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "51",
+      "label": "2.2.1",
+      "size": 12.49,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 156
+    },
+    {
+      "name": "15",
+      "label": "2.2.2",
+      "size": 16.0624,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 258
+    },
+    {
+      "name": "19",
+      "label": "7.2.5",
+      "size": 15.5242,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 241
+    },
+    {
+      "name": "16",
+      "label": "7.2.4",
+      "size": 15.9687,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 255
+    },
+    {
+      "name": "54",
+      "label": "3.2.1",
+      "size": 12.4097,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 154
+    },
+    {
+      "name": "-8",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "86",
+      "label": "5.5.1",
+      "size": 10.9545,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 120
+    },
+    {
+      "name": "-13",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "11",
+      "label": "3.1.5",
+      "size": 16.6733,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 278
+    },
+    {
+      "name": "-9",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-19",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "6",
+      "label": "2.5.1",
+      "size": 17.1756,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 295
+    },
+    {
+      "name": "-1",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "5",
+      "label": "1.2.1",
+      "size": 17.9165,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 321
+    },
+    {
+      "name": "-28",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-39",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "68",
+      "label": "2.4.1",
+      "size": 11.5758,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 134
+    },
+    {
+      "name": "-21",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-14",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-40",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "45",
+      "label": "8.8.",
+      "size": 13.5277,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 183
+    },
+    {
+      "name": "-34",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "81",
+      "label": "5.1.1",
+      "size": 11.0454,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 122
+    },
+    {
+      "name": "-24",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "59",
+      "label": "7.1.4",
+      "size": 12.1655,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 148
+    },
+    {
+      "name": "-42",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-38",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-46",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-33",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-44",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-37",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-47",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-6",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-50",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "26",
+      "label": "8.6.",
+      "size": 15.0333,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 226
+    },
+    {
+      "name": "55",
+      "label": "8.5.",
+      "size": 12.4097,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 154
+    },
+    {
+      "name": "43",
+      "label": "5.4.1",
+      "size": 13.784,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 190
+    },
+    {
+      "name": "28",
+      "label": "5.4.2",
+      "size": 15,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 225
+    },
+    {
+      "name": "14",
+      "label": "4.2.2",
+      "size": 16.2481,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 264
+    },
+    {
+      "name": "-52",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-41",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-59",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-29",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-45",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "9",
+      "label": "8.7.",
+      "size": 16.9706,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 288
+    },
+    {
+      "name": "-53",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "32",
+      "label": "4.1.1",
+      "size": 14.4568,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 209
+    },
+    {
+      "name": "-30",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "7",
+      "label": "6.1.3",
+      "size": 17.1756,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 295
+    },
+    {
+      "name": "-63",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "97",
+      "label": "4.2.1",
+      "size": 10.198,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 104
+    },
+    {
+      "name": "37",
+      "label": "5.2.2",
+      "size": 14.1774,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 201
+    },
+    {
+      "name": "2",
+      "label": "1.3.1",
+      "size": 18.8944,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 357
+    },
+    {
+      "name": "-23",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "35",
+      "label": "1.1.1",
+      "size": 14.2829,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 204
+    },
+    {
+      "name": "-35",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-16",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-58",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "12",
+      "label": "2.1.2",
+      "size": 16.5831,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 275
+    },
+    {
+      "name": "27",
+      "label": "2.1.1",
+      "size": 15,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 225
+    },
+    {
+      "name": "-48",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-51",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-27",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-31",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-22",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-55",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-56",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-61",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-60",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-65",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "78",
+      "label": "4.2.1",
+      "size": 11.3137,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 128
+    },
+    {
+      "name": "-62",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "18",
+      "label": "5.3.2",
+      "size": 15.6205,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 244
+    },
+    {
+      "name": "23",
+      "label": "5.3.1",
+      "size": 15.1327,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 229
+    },
+    {
+      "name": "-26",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-77",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-76",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-79",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-36",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-80",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-32",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-67",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "56",
+      "label": "7.1.1",
+      "size": 12.4097,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 154
+    },
+    {
+      "name": "-75",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-43",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-74",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-68",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-81",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-54",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-86",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-49",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-69",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-64",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-71",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-66",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-78",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-70",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-88",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-57",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-84",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-73",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-85",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-82",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-92",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-72",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-93",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-91",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-95",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-89",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-90",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-87",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-97",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-83",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-94",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-96",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-98",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-99",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-100",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    },
+    {
+      "name": "-101",
+      "label": null,
+      "size": 0,
+      "label.family": "sans",
+      "label.cex": 0.6,
+      "Ngenes": 0
+    }
+  ],
+  "edges": [
+    {
+      "source": "95",
+      "target": "-1",
+      "color": "grey40",
+      "width": 2
+    },
+    {
+      "source": "85",
+      "target": "-1",
+      "color": "grey40",
+      "width": 2
+    },
+    {
+      "source": "22",
+      "target": "-2",
+      "color": "grey40",
+      "width": 2
+    },
+    {
+      "source": "89",
+      "target": "-2",
+      "color": "grey40",
+      "width": 2
+    },
+    {
+      "source": "98",
+      "target": "-3",
+      "color": "grey40",
+      "width": 2
+    },
+    {
+      "source": "44",
+      "target": "-3",
+      "color": "grey40",
+      "width": 2
+    },
+    {
+      "source": "88",
+      "target": "-4",
+      "color": "grey40",
+      "width": 2
+    },
+    {
+      "source": "24",
+      "target": "-4",
+      "color": "grey40",
+      "width": 2
+    },
+    {
+      "source": "63",
+      "target": "-5",
+      "color": "grey40",
+      "width": 2
+    },
+    {
+      "source": "33",
+      "target": "-5",
+      "color": "grey40",
+      "width": 2
+    },
+    {
+      "source": "79",
+      "target": "-6",
+      "color": "grey40",
+      "width": 2
+    },
+    {
+      "source": "96",
+      "target": "-6",
+      "color": "grey40",
+      "width": 2
+    },
+    {
+      "source": "82",
+      "target": "-7",
+      "color": "grey41",
+      "width": 2
+    },
+    {
+      "source": "3",
+      "target": "-7",
+      "color": "grey41",
+      "width": 2
+    },
+    {
+      "source": "67",
+      "target": "-8",
+      "color": "grey41",
+      "width": 2
+    },
+    {
+      "source": "72",
+      "target": "-8",
+      "color": "grey41",
+      "width": 2
+    },
+    {
+      "source": "83",
+      "target": "-9",
+      "color": "grey41",
+      "width": 2
+    },
+    {
+      "source": "50",
+      "target": "-9",
+      "color": "grey41",
+      "width": 2
+    },
+    {
+      "source": "102",
+      "target": "-10",
+      "color": "grey41",
+      "width": 2
+    },
+    {
+      "source": "1",
+      "target": "-10",
+      "color": "grey41",
+      "width": 2
+    },
+    {
+      "source": "93",
+      "target": "-11",
+      "color": "grey41",
+      "width": 2
+    },
+    {
+      "source": "25",
+      "target": "-11",
+      "color": "grey41",
+      "width": 2
+    },
+    {
+      "source": "41",
+      "target": "-12",
+      "color": "grey41",
+      "width": 2
+    },
+    {
+      "source": "71",
+      "target": "-12",
+      "color": "grey41",
+      "width": 2
+    },
+    {
+      "source": "92",
+      "target": "-13",
+      "color": "grey41",
+      "width": 2
+    },
+    {
+      "source": "65",
+      "target": "-13",
+      "color": "grey41",
+      "width": 2
+    },
+    {
+      "source": "99",
+      "target": "-14",
+      "color": "grey41",
+      "width": 2
+    },
+    {
+      "source": "48",
+      "target": "-14",
+      "color": "grey41",
+      "width": 2
+    },
+    {
+      "source": "49",
+      "target": "-15",
+      "color": "grey41",
+      "width": 2
+    },
+    {
+      "source": "66",
+      "target": "-15",
+      "color": "grey41",
+      "width": 2
+    },
+    {
+      "source": "76",
+      "target": "-16",
+      "color": "grey41",
+      "width": 2
+    },
+    {
+      "source": "74",
+      "target": "-16",
+      "color": "grey41",
+      "width": 2
+    },
+    {
+      "source": "87",
+      "target": "-17",
+      "color": "grey41",
+      "width": 2
+    },
+    {
+      "source": "73",
+      "target": "-17",
+      "color": "grey41",
+      "width": 2
+    },
+    {
+      "source": "42",
+      "target": "-18",
+      "color": "grey41",
+      "width": 2
+    },
+    {
+      "source": "94",
+      "target": "-18",
+      "color": "grey41",
+      "width": 2
+    },
+    {
+      "source": "80",
+      "target": "-19",
+      "color": "grey41",
+      "width": 2
+    },
+    {
+      "source": "100",
+      "target": "-19",
+      "color": "grey41",
+      "width": 2
+    },
+    {
+      "source": "-3",
+      "target": "-20",
+      "color": "grey42",
+      "width": 2
+    },
+    {
+      "source": "90",
+      "target": "-20",
+      "color": "grey42",
+      "width": 2
+    },
+    {
+      "source": "-5",
+      "target": "-21",
+      "color": "grey42",
+      "width": 2
+    },
+    {
+      "source": "53",
+      "target": "-21",
+      "color": "grey42",
+      "width": 2
+    },
+    {
+      "source": "47",
+      "target": "-22",
+      "color": "grey42",
+      "width": 2
+    },
+    {
+      "source": "64",
+      "target": "-22",
+      "color": "grey42",
+      "width": 2
+    },
+    {
+      "source": "84",
+      "target": "-23",
+      "color": "grey42",
+      "width": 2
+    },
+    {
+      "source": "-10",
+      "target": "-23",
+      "color": "grey42",
+      "width": 2
+    },
+    {
+      "source": "39",
+      "target": "-24",
+      "color": "grey42",
+      "width": 2
+    },
+    {
+      "source": "17",
+      "target": "-24",
+      "color": "grey42",
+      "width": 2
+    },
+    {
+      "source": "52",
+      "target": "-25",
+      "color": "grey42",
+      "width": 2
+    },
+    {
+      "source": "34",
+      "target": "-25",
+      "color": "grey42",
+      "width": 2
+    },
+    {
+      "source": "58",
+      "target": "-26",
+      "color": "grey42",
+      "width": 2
+    },
+    {
+      "source": "38",
+      "target": "-26",
+      "color": "grey42",
+      "width": 2
+    },
+    {
+      "source": "57",
+      "target": "-27",
+      "color": "grey42",
+      "width": 2
+    },
+    {
+      "source": "62",
+      "target": "-27",
+      "color": "grey42",
+      "width": 2
+    },
+    {
+      "source": "30",
+      "target": "-28",
+      "color": "grey42",
+      "width": 2
+    },
+    {
+      "source": "-17",
+      "target": "-28",
+      "color": "grey42",
+      "width": 2
+    },
+    {
+      "source": "20",
+      "target": "-29",
+      "color": "grey42",
+      "width": 2
+    },
+    {
+      "source": "46",
+      "target": "-29",
+      "color": "grey42",
+      "width": 2
+    },
+    {
+      "source": "91",
+      "target": "-30",
+      "color": "grey42",
+      "width": 2
+    },
+    {
+      "source": "69",
+      "target": "-30",
+      "color": "grey42",
+      "width": 2
+    },
+    {
+      "source": "70",
+      "target": "-31",
+      "color": "grey42",
+      "width": 2
+    },
+    {
+      "source": "-18",
+      "target": "-31",
+      "color": "grey42",
+      "width": 2
+    },
+    {
+      "source": "13",
+      "target": "-32",
+      "color": "grey42",
+      "width": 2
+    },
+    {
+      "source": "40",
+      "target": "-32",
+      "color": "grey42",
+      "width": 2
+    },
+    {
+      "source": "29",
+      "target": "-33",
+      "color": "grey42",
+      "width": 2
+    },
+    {
+      "source": "-7",
+      "target": "-33",
+      "color": "grey42",
+      "width": 2
+    },
+    {
+      "source": "60",
+      "target": "-34",
+      "color": "grey42",
+      "width": 2
+    },
+    {
+      "source": "-4",
+      "target": "-34",
+      "color": "grey42",
+      "width": 2
+    },
+    {
+      "source": "8",
+      "target": "-35",
+      "color": "grey42",
+      "width": 2
+    },
+    {
+      "source": "-15",
+      "target": "-35",
+      "color": "grey42",
+      "width": 2
+    },
+    {
+      "source": "21",
+      "target": "-36",
+      "color": "grey43",
+      "width": 2
+    },
+    {
+      "source": "31",
+      "target": "-36",
+      "color": "grey43",
+      "width": 2
+    },
+    {
+      "source": "77",
+      "target": "-37",
+      "color": "grey43",
+      "width": 2
+    },
+    {
+      "source": "36",
+      "target": "-37",
+      "color": "grey43",
+      "width": 2
+    },
+    {
+      "source": "75",
+      "target": "-38",
+      "color": "grey43",
+      "width": 2
+    },
+    {
+      "source": "4",
+      "target": "-38",
+      "color": "grey43",
+      "width": 2
+    },
+    {
+      "source": "-11",
+      "target": "-39",
+      "color": "grey43",
+      "width": 2
+    },
+    {
+      "source": "-25",
+      "target": "-39",
+      "color": "grey43",
+      "width": 2
+    },
+    {
+      "source": "61",
+      "target": "-40",
+      "color": "grey43",
+      "width": 2
+    },
+    {
+      "source": "10",
+      "target": "-40",
+      "color": "grey43",
+      "width": 2
+    },
+    {
+      "source": "-12",
+      "target": "-41",
+      "color": "grey43",
+      "width": 2
+    },
+    {
+      "source": "-20",
+      "target": "-41",
+      "color": "grey43",
+      "width": 2
+    },
+    {
+      "source": "101",
+      "target": "-42",
+      "color": "grey43",
+      "width": 2
+    },
+    {
+      "source": "-2",
+      "target": "-42",
+      "color": "grey43",
+      "width": 2
+    },
+    {
+      "source": "51",
+      "target": "-43",
+      "color": "grey43",
+      "width": 2
+    },
+    {
+      "source": "15",
+      "target": "-43",
+      "color": "grey43",
+      "width": 2
+    },
+    {
+      "source": "19",
+      "target": "-44",
+      "color": "grey43",
+      "width": 2
+    },
+    {
+      "source": "16",
+      "target": "-44",
+      "color": "grey43",
+      "width": 2
+    },
+    {
+      "source": "54",
+      "target": "-45",
+      "color": "grey43",
+      "width": 2
+    },
+    {
+      "source": "-8",
+      "target": "-45",
+      "color": "grey43",
+      "width": 2
+    },
+    {
+      "source": "86",
+      "target": "-46",
+      "color": "grey43",
+      "width": 2
+    },
+    {
+      "source": "-13",
+      "target": "-46",
+      "color": "grey43",
+      "width": 2
+    },
+    {
+      "source": "11",
+      "target": "-47",
+      "color": "grey43",
+      "width": 2
+    },
+    {
+      "source": "-9",
+      "target": "-47",
+      "color": "grey43",
+      "width": 2
+    },
+    {
+      "source": "-19",
+      "target": "-48",
+      "color": "grey43",
+      "width": 2
+    },
+    {
+      "source": "6",
+      "target": "-48",
+      "color": "grey43",
+      "width": 2
+    },
+    {
+      "source": "-1",
+      "target": "-49",
+      "color": "grey43",
+      "width": 2
+    },
+    {
+      "source": "5",
+      "target": "-49",
+      "color": "grey43",
+      "width": 2
+    },
+    {
+      "source": "-28",
+      "target": "-50",
+      "color": "grey44",
+      "width": 2
+    },
+    {
+      "source": "-39",
+      "target": "-50",
+      "color": "grey44",
+      "width": 2
+    },
+    {
+      "source": "68",
+      "target": "-51",
+      "color": "grey44",
+      "width": 2
+    },
+    {
+      "source": "-21",
+      "target": "-51",
+      "color": "grey44",
+      "width": 2
+    },
+    {
+      "source": "-14",
+      "target": "-52",
+      "color": "grey44",
+      "width": 2
+    },
+    {
+      "source": "-40",
+      "target": "-52",
+      "color": "grey44",
+      "width": 2
+    },
+    {
+      "source": "45",
+      "target": "-53",
+      "color": "grey44",
+      "width": 2
+    },
+    {
+      "source": "-34",
+      "target": "-53",
+      "color": "grey44",
+      "width": 2
+    },
+    {
+      "source": "81",
+      "target": "-54",
+      "color": "grey44",
+      "width": 2
+    },
+    {
+      "source": "-24",
+      "target": "-54",
+      "color": "grey44",
+      "width": 2
+    },
+    {
+      "source": "59",
+      "target": "-55",
+      "color": "grey44",
+      "width": 2
+    },
+    {
+      "source": "-42",
+      "target": "-55",
+      "color": "grey44",
+      "width": 2
+    },
+    {
+      "source": "-38",
+      "target": "-56",
+      "color": "grey44",
+      "width": 2
+    },
+    {
+      "source": "-46",
+      "target": "-56",
+      "color": "grey44",
+      "width": 2
+    },
+    {
+      "source": "-33",
+      "target": "-57",
+      "color": "grey44",
+      "width": 2
+    },
+    {
+      "source": "-44",
+      "target": "-57",
+      "color": "grey44",
+      "width": 2
+    },
+    {
+      "source": "-37",
+      "target": "-58",
+      "color": "grey45",
+      "width": 2
+    },
+    {
+      "source": "-47",
+      "target": "-58",
+      "color": "grey45",
+      "width": 2
+    },
+    {
+      "source": "-6",
+      "target": "-59",
+      "color": "grey45",
+      "width": 2
+    },
+    {
+      "source": "-50",
+      "target": "-59",
+      "color": "grey45",
+      "width": 2
+    },
+    {
+      "source": "26",
+      "target": "-60",
+      "color": "grey45",
+      "width": 2
+    },
+    {
+      "source": "55",
+      "target": "-60",
+      "color": "grey45",
+      "width": 2
+    },
+    {
+      "source": "43",
+      "target": "-61",
+      "color": "grey45",
+      "width": 2
+    },
+    {
+      "source": "28",
+      "target": "-61",
+      "color": "grey45",
+      "width": 2
+    },
+    {
+      "source": "14",
+      "target": "-62",
+      "color": "grey45",
+      "width": 2
+    },
+    {
+      "source": "-52",
+      "target": "-62",
+      "color": "grey45",
+      "width": 2
+    },
+    {
+      "source": "-41",
+      "target": "-63",
+      "color": "grey45",
+      "width": 2
+    },
+    {
+      "source": "-59",
+      "target": "-63",
+      "color": "grey45",
+      "width": 2
+    },
+    {
+      "source": "-29",
+      "target": "-64",
+      "color": "grey45",
+      "width": 2
+    },
+    {
+      "source": "-45",
+      "target": "-64",
+      "color": "grey45",
+      "width": 2
+    },
+    {
+      "source": "9",
+      "target": "-65",
+      "color": "grey45",
+      "width": 2
+    },
+    {
+      "source": "-53",
+      "target": "-65",
+      "color": "grey45",
+      "width": 2
+    },
+    {
+      "source": "32",
+      "target": "-66",
+      "color": "grey45",
+      "width": 2
+    },
+    {
+      "source": "-30",
+      "target": "-66",
+      "color": "grey45",
+      "width": 2
+    },
+    {
+      "source": "7",
+      "target": "-67",
+      "color": "grey46",
+      "width": 2
+    },
+    {
+      "source": "-63",
+      "target": "-67",
+      "color": "grey46",
+      "width": 2
+    },
+    {
+      "source": "97",
+      "target": "-68",
+      "color": "grey46",
+      "width": 2
+    },
+    {
+      "source": "37",
+      "target": "-68",
+      "color": "grey46",
+      "width": 2
+    },
+    {
+      "source": "2",
+      "target": "-69",
+      "color": "grey46",
+      "width": 2
+    },
+    {
+      "source": "-23",
+      "target": "-69",
+      "color": "grey46",
+      "width": 2
+    },
+    {
+      "source": "35",
+      "target": "-70",
+      "color": "grey46",
+      "width": 2
+    },
+    {
+      "source": "-35",
+      "target": "-70",
+      "color": "grey46",
+      "width": 2
+    },
+    {
+      "source": "-16",
+      "target": "-71",
+      "color": "grey47",
+      "width": 2
+    },
+    {
+      "source": "-58",
+      "target": "-71",
+      "color": "grey47",
+      "width": 2
+    },
+    {
+      "source": "12",
+      "target": "-72",
+      "color": "grey47",
+      "width": 2
+    },
+    {
+      "source": "27",
+      "target": "-72",
+      "color": "grey47",
+      "width": 2
+    },
+    {
+      "source": "-48",
+      "target": "-73",
+      "color": "grey47",
+      "width": 2
+    },
+    {
+      "source": "-51",
+      "target": "-73",
+      "color": "grey47",
+      "width": 2
+    },
+    {
+      "source": "-27",
+      "target": "-74",
+      "color": "grey47",
+      "width": 2
+    },
+    {
+      "source": "-31",
+      "target": "-74",
+      "color": "grey47",
+      "width": 2
+    },
+    {
+      "source": "-22",
+      "target": "-75",
+      "color": "grey47",
+      "width": 2
+    },
+    {
+      "source": "-55",
+      "target": "-75",
+      "color": "grey47",
+      "width": 2
+    },
+    {
+      "source": "-56",
+      "target": "-76",
+      "color": "grey47",
+      "width": 2
+    },
+    {
+      "source": "-61",
+      "target": "-76",
+      "color": "grey47",
+      "width": 2
+    },
+    {
+      "source": "-60",
+      "target": "-77",
+      "color": "grey48",
+      "width": 2
+    },
+    {
+      "source": "-65",
+      "target": "-77",
+      "color": "grey48",
+      "width": 2
+    },
+    {
+      "source": "78",
+      "target": "-78",
+      "color": "grey48",
+      "width": 2
+    },
+    {
+      "source": "-62",
+      "target": "-78",
+      "color": "grey48",
+      "width": 2
+    },
+    {
+      "source": "18",
+      "target": "-79",
+      "color": "grey48",
+      "width": 2
+    },
+    {
+      "source": "23",
+      "target": "-79",
+      "color": "grey48",
+      "width": 2
+    },
+    {
+      "source": "-26",
+      "target": "-80",
+      "color": "grey48",
+      "width": 2
+    },
+    {
+      "source": "-77",
+      "target": "-80",
+      "color": "grey48",
+      "width": 2
+    },
+    {
+      "source": "-76",
+      "target": "-81",
+      "color": "grey49",
+      "width": 2
+    },
+    {
+      "source": "-79",
+      "target": "-81",
+      "color": "grey49",
+      "width": 2
+    },
+    {
+      "source": "-36",
+      "target": "-82",
+      "color": "grey49",
+      "width": 2
+    },
+    {
+      "source": "-80",
+      "target": "-82",
+      "color": "grey49",
+      "width": 2
+    },
+    {
+      "source": "-32",
+      "target": "-83",
+      "color": "grey49",
+      "width": 2
+    },
+    {
+      "source": "-67",
+      "target": "-83",
+      "color": "grey49",
+      "width": 2
+    },
+    {
+      "source": "56",
+      "target": "-84",
+      "color": "grey50",
+      "width": 2
+    },
+    {
+      "source": "-75",
+      "target": "-84",
+      "color": "grey50",
+      "width": 2
+    },
+    {
+      "source": "-43",
+      "target": "-85",
+      "color": "grey50",
+      "width": 2
+    },
+    {
+      "source": "-74",
+      "target": "-85",
+      "color": "grey50",
+      "width": 2
+    },
+    {
+      "source": "-68",
+      "target": "-86",
+      "color": "grey50",
+      "width": 2
+    },
+    {
+      "source": "-81",
+      "target": "-86",
+      "color": "grey50",
+      "width": 2
+    },
+    {
+      "source": "-54",
+      "target": "-87",
+      "color": "grey50",
+      "width": 2
+    },
+    {
+      "source": "-86",
+      "target": "-87",
+      "color": "grey50",
+      "width": 2
+    },
+    {
+      "source": "-49",
+      "target": "-88",
+      "color": "grey50",
+      "width": 2
+    },
+    {
+      "source": "-69",
+      "target": "-88",
+      "color": "grey50",
+      "width": 2
+    },
+    {
+      "source": "-64",
+      "target": "-89",
+      "color": "grey51",
+      "width": 2
+    },
+    {
+      "source": "-71",
+      "target": "-89",
+      "color": "grey51",
+      "width": 2
+    },
+    {
+      "source": "-66",
+      "target": "-90",
+      "color": "grey51",
+      "width": 2
+    },
+    {
+      "source": "-78",
+      "target": "-90",
+      "color": "grey51",
+      "width": 2
+    },
+    {
+      "source": "-70",
+      "target": "-91",
+      "color": "grey54",
+      "width": 2
+    },
+    {
+      "source": "-88",
+      "target": "-91",
+      "color": "grey54",
+      "width": 2
+    },
+    {
+      "source": "-57",
+      "target": "-92",
+      "color": "grey55",
+      "width": 2
+    },
+    {
+      "source": "-84",
+      "target": "-92",
+      "color": "grey55",
+      "width": 2
+    },
+    {
+      "source": "-73",
+      "target": "-93",
+      "color": "grey55",
+      "width": 2
+    },
+    {
+      "source": "-85",
+      "target": "-93",
+      "color": "grey55",
+      "width": 2
+    },
+    {
+      "source": "-82",
+      "target": "-94",
+      "color": "grey62",
+      "width": 2
+    },
+    {
+      "source": "-92",
+      "target": "-94",
+      "color": "grey62",
+      "width": 2
+    },
+    {
+      "source": "-72",
+      "target": "-95",
+      "color": "grey62",
+      "width": 2
+    },
+    {
+      "source": "-93",
+      "target": "-95",
+      "color": "grey62",
+      "width": 2
+    },
+    {
+      "source": "-91",
+      "target": "-96",
+      "color": "grey63",
+      "width": 2
+    },
+    {
+      "source": "-95",
+      "target": "-96",
+      "color": "grey63",
+      "width": 2
+    },
+    {
+      "source": "-89",
+      "target": "-97",
+      "color": "grey66",
+      "width": 2
+    },
+    {
+      "source": "-90",
+      "target": "-97",
+      "color": "grey66",
+      "width": 2
+    },
+    {
+      "source": "-87",
+      "target": "-98",
+      "color": "grey68",
+      "width": 2
+    },
+    {
+      "source": "-97",
+      "target": "-98",
+      "color": "grey68",
+      "width": 2
+    },
+    {
+      "source": "-83",
+      "target": "-99",
+      "color": "grey71",
+      "width": 2
+    },
+    {
+      "source": "-94",
+      "target": "-99",
+      "color": "grey71",
+      "width": 2
+    },
+    {
+      "source": "-96",
+      "target": "-100",
+      "color": "grey81",
+      "width": 2
+    },
+    {
+      "source": "-98",
+      "target": "-100",
+      "color": "grey81",
+      "width": 2
+    },
+    {
+      "source": "-99",
+      "target": "-101",
+      "color": "grey95",
+      "width": 2
+    },
+    {
+      "source": "-100",
+      "target": "-101",
+      "color": "grey95",
+      "width": 2
+    }
+  ]
+}

@@ -1,0 +1,118 @@
+{% load wagtailroutablepage_tags %}
+
+<aside class="card bg-base-100 border border-base-300 shadow-sm">
+    <div class="card-body gap-5 p-5">
+        <div>
+            <h4 class="card-title text-base mb-1">Upload DE file(s)</h4>
+            <p class="text-sm text-pp-dark-grey">
+                Upload one or more tab- or comma-separated limma-style tables with Ensembl gene IDs
+                and columns <code class="text-xs">logFC</code> and <code class="text-xs">adj.P.Val</code>.
+                Multiple files are shown as pie slices on each module leaf.
+            </p>
+        </div>
+
+        <form
+            id="liver-upload-form"
+            class="flex flex-col gap-4"
+            method="post"
+            enctype="multipart/form-data"
+            action="{% routablepageurl page 'upload_de' %}"
+            hx-post="{% routablepageurl page 'upload_de' %}"
+            hx-target="#liver-tln-panel"
+            hx-target-error="#liver-validation-errors"
+            hx-swap="innerHTML"
+            hx-encoding="multipart/form-data"
+            hx-indicator="#liver-tln-loading"
+        >
+            {% csrf_token %}
+
+            <label class="form-control w-full">
+                <span class="label-text font-medium">DE file(s)</span>
+                <input
+                    type="file"
+                    name="de_files"
+                    id="liver-de-files"
+                    accept=".txt,.tsv,.csv,text/plain,text/tab-separated-values"
+                    class="file-input file-input-bordered file-input-sm w-full"
+                    multiple
+                    required
+                >
+            </label>
+
+            <label class="form-control w-full">
+                <span class="label-text font-medium">DEcutoff</span>
+                <select
+                    name="cutoff"
+                    id="liver-cutoff-select"
+                    class="select select-bordered select-sm w-full"
+                >
+                    {% for cutoff in cutoff_choices %}
+                    <option value="{{ cutoff }}" {% if cutoff == current_cutoff %}selected{% endif %}>
+                        {{ cutoff }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </label>
+
+            <button type="submit" class="btn btn-primary btn-sm w-full" id="liver-upload-submit">
+                Upload and plot
+            </button>
+        </form>
+
+        <div class="divider my-0"></div>
+
+        {% if examples %}
+        <div>
+            <h5 class="font-medium text-sm mb-2">Example datasets</h5>
+            <div class="flex flex-col gap-2">
+                {% for example in examples %}
+                <button
+                    type="button"
+                    class="btn btn-outline btn-sm justify-start liver-example-btn"
+                    data-example-slug="{{ example.slug }}"
+                    hx-get="{% routablepageurl page 'load_example' example.slug %}"
+                    hx-target="#liver-tln-panel"
+                    hx-target-error="#liver-validation-errors"
+                    hx-include="#liver-cutoff-select"
+                    hx-swap="innerHTML"
+                    hx-indicator="#liver-tln-loading"
+                >
+                    {{ example.label }}
+                </button>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="divider my-0"></div>
+        {% endif %}
+
+        <div class="flex flex-col gap-2">
+            <a
+                href="{% routablepageurl page 'download_template' %}"
+                class="btn btn-ghost btn-sm justify-start"
+            >
+                Download DE template
+            </a>
+            <a
+                id="liver-export-modules"
+                href="{% routablepageurl page 'export_module_scores' %}"
+                class="btn btn-ghost btn-sm justify-start liver-export-link {% if not has_session %}btn-disabled pointer-events-none{% endif %}"
+                {% if not has_session %}aria-disabled="true" tabindex="-1"{% endif %}
+            >
+                Export module scores (CSV)
+            </a>
+            <a
+                id="liver-export-genes"
+                href="{% routablepageurl page 'export_genes' %}"
+                class="btn btn-ghost btn-sm justify-start liver-export-link {% if not has_session %}btn-disabled pointer-events-none{% endif %}"
+                {% if not has_session %}aria-disabled="true" tabindex="-1"{% endif %}
+            >
+                Export gene classifications (CSV)
+            </a>
+        </div>
+
+        <p id="liver-export-hint" class="text-xs text-pp-dark-grey" {% if has_session %}hidden{% endif %}>
+            Upload a file or load an example before exporting results.
+        </p>
+    </div>
+</aside>
