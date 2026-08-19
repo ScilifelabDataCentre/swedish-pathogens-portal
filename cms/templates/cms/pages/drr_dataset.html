@@ -141,19 +141,26 @@
     </section>
 {% endif %}
 
-{# Figures: server-side PlotlyFigureBlocks render via the inherited context
-   (figures + source_file_hash set by DashboardPage.get_context). #}
+{% comment %}
+Figures: server-side PlotlyFigureBlocks render via the inherited context
+(figures + source_file_hash set by DashboardPage.get_context).
+{% endcomment %}
 {% if page.show_toc %}
     {% content_with_toc page.content %}
 {% else %}
     {% include_block page.content %}
 {% endif %}
 
-{# Downloads: the bulk CSV / Parquet links are live (FREYA-2580), each rendered only
-   when its artefact has been precomputed, and the raw-image link-out (FREYA-2581 /
-   2539) whenever the page names an upstream study. Still pending: the compound picker
-   that fills `compounds` (FREYA-2583), and the licence + citation statement this
-   surface needs (FREYA-2588, blocked on DT-7). #}
+{% comment %}
+Downloads: the bulk CSV / Parquet links are live (FREYA-2580), each rendered only
+when its artefact has been precomputed, and the raw-image link-out (FREYA-2581 /
+2539) whenever the page names an upstream study. Still pending: the compound picker
+that fills `compounds` (FREYA-2583), and the licence + citation statement this
+surface needs (FREYA-2588, blocked on DT-7).
+
+Long notes use this block tag deliberately: Django's hash-comment form is
+single-line only, and a multi-line one renders verbatim into the page.
+{% endcomment %}
 {% if download_urls %}
     <section aria-labelledby="drr-downloads-heading" class="mt-10">
         <h4 id="drr-downloads-heading">Downloads</h4>
@@ -169,8 +176,10 @@
             {% endif %}
         </div>
 
-        {# The raw-image button leaves the portal, so it says which screen's imagery
-           it opens and where that lives (FREYA-2581 / 2539). #}
+        {% comment %}
+        The raw-image button leaves the portal, so it says which screen's imagery
+        it opens and where that lives (FREYA-2581 / 2539).
+        {% endcomment %}
         {% if download_urls.raw_images %}
             <p class="mt-3 text-xs text-pp-dark-grey">
                 Raw images for
@@ -185,8 +194,10 @@
             </p>
         {% endif %}
 
-        {# Per-compound slice: compound picker populated from compounds.parquet
-           when the download route lands (FREYA-2537). #}
+        {% comment %}
+        Per-compound slice: compound picker populated from compounds.parquet
+        when the download route lands (FREYA-2537).
+        {% endcomment %}
         {% if compounds %}
             <form method="get" action="{{ download_urls.compound_base }}" class="mt-4 flex w-full flex-col gap-3 sm:flex-row sm:items-center">
                 <label for="drr-compound" class="sr-only">Compound</label>

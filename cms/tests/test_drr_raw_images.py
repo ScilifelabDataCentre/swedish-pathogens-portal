@@ -113,6 +113,17 @@ class TestDrrRawImageLinkOut(DrrDatasetPageTestCase):
         self.assertContains(response, "Validation Cell Painting")
         self.assertContains(response, "S-BIAD2580")
 
+    def test_no_template_comment_reaches_the_page(self) -> None:
+        """No editorial note leaks into the markup.
+
+        Django's hash-comment form is single-line only: a multi-line one renders
+        verbatim, which is how the upstream note's own comment first shipped
+        visible text onto the page. Caught in a live render, pinned here.
+        """
+        response = self.client.get(self.page.url)
+
+        self.assertNotContains(response, "{#")
+
     def test_nothing_is_rendered_without_an_upstream_study(self) -> None:
         """The unconfigured page shows neither the button nor the upstream note."""
         response = self.client.get(self.unconfigured_page.url)
