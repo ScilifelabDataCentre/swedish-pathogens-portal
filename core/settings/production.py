@@ -27,6 +27,22 @@ WAGTAILADMIN_BASE_URL = env("WAGTAILADMIN_BASE_URL").rstrip("/")
 MEDIA_ROOT = env("MEDIA_ROOT")
 MEDIA_URL = env("MEDIA_URL", default="media").rstrip("/") + "/"
 
+# Private visitor DE session payloads — must NOT be under MEDIA_ROOT /media.
+# Mount a writable volume at the parent path (e.g. /app/private) on the spp pod;
+# do not mount it into the media-proxy nginx container.
+LIVER_SESSION_ROOT = env(
+    "LIVER_SESSION_ROOT",
+    default="/app/private/liver_resource_sessions",
+)
+
+# Must match Gateway ClientSettingsPolicy (50m) and liver MAX_TOTAL_UPLOAD_BYTES.
+# This is the hard cap on the whole request body (multi-file POST). Below this size
+# Django accepts the body; app validators then enforce per-file / total rules.
+DATA_UPLOAD_MAX_MEMORY_SIZE = 50 * 1024 * 1024
+# Individual files larger than this are spooled to NamedTemporaryFile under /tmp
+# (emptyDir on the spp pod). Django deletes those temp files when the request ends.
+FILE_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024
+
 
 # PRODUCTION STATIC FILE SETTINGS
 # ------------------------------------------------------------------------------

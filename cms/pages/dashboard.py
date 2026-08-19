@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any
 
 from django.db import models
 from django.http import HttpRequest
+from django.utils import timezone
 from django.utils.functional import cached_property
 from modelcluster.fields import ParentalKey
 from wagtail.admin.panels import FieldPanel, InlinePanel, MultiFieldPanel, PageChooserPanel
@@ -13,7 +14,13 @@ from wagtail.fields import StreamField
 from wagtail.images import get_image_model_string
 from wagtail.models import Orderable, Page
 
-from cms.blocks import AlertBlock, LastUpdatedBlock, PlotlyFigureBlock, StaticFigureBlock
+from cms.blocks import (
+    AlertBlock,
+    DataTableBlock,
+    LastUpdatedBlock,
+    PlotlyFigureBlock,
+    StaticFigureBlock,
+)
 
 # Only import TopicPage for type checking to avoid circular imports
 if TYPE_CHECKING:
@@ -92,6 +99,7 @@ class DashboardPage(Page):
         [
             ("text", RichTextBlock()),
             ("alert", AlertBlock()),
+            ("data_table", DataTableBlock()),
             ("last_updated", LastUpdatedBlock()),
             ("plotly_figure", PlotlyFigureBlock()),
             ("static_figure", StaticFigureBlock()),
@@ -140,6 +148,13 @@ class DashboardPage(Page):
                 "headings in the content and displayed in a sidebar."
             ),
         ),
+        FieldPanel(
+            "first_published_at",
+            help_text=(
+                "The page creation date that will be displayed on the card, if the dashboard "
+                "doesn't have a corresponding data update timestamp."
+            ),
+        ),
     ]
 
     @property
@@ -163,8 +178,13 @@ class DashboardPage(Page):
 
     @property
     def dashboard_data_updated_at(self) -> date | None:
-        """Return the last updated timestamp for the dashboard data."""
-        return getattr(self.dashboard_data, "data_updated_at", None)
+        """Return the last updated timestamp for the dashboard data or the first published date."""
+        data_date = getattr(self.dashboard_data, "data_updated_at", None)
+        if data_date:
+            return data_date
+        if self.first_published_at:
+            return timezone.localdate(self.first_published_at)
+        return None
 
     def get_context(self, request: HttpRequest) -> dict[str, Any]:
         """Add DashboardData figures, CSV URL, and parent heading to template context."""
