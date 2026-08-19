@@ -142,9 +142,22 @@ class TestDrrRawImageLinkOut(DrrDatasetPageTestCase):
         self.assertNotContains(response, "{#")
 
     def test_nothing_is_rendered_without_an_upstream_study(self) -> None:
-        """The unconfigured page shows neither the button nor the upstream note."""
+        """A precomputed page naming no study shows neither the button nor the note.
+
+        The artefacts are written on purpose. Without them the whole downloads
+        section is hidden, both assertions below pass for the wrong reason, and
+        the note's own guard goes untested — the note could then appear on a
+        precomputed page that has no upstream study to describe.
+        """
+        artefacts = self.media_root / "drr" / self.unconfigured_page.slug
+        artefacts.mkdir(parents=True)
+        (artefacts / "features.csv").write_text("cbkid\nCBK1\n", encoding="utf-8")
+        (artefacts / "features.parquet").write_bytes(b"PAR1")
+
         response = self.client.get(self.unconfigured_page.url)
 
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="drr-downloads-heading"')
+        self.assertContains(response, "Download features (CSV)")
         self.assertNotContains(response, "Download raw images")
         self.assertNotContains(response, "stay with the upstream repository")
