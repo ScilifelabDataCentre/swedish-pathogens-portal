@@ -99,7 +99,7 @@
                         <div class="pr-8">
                             <select name="timeseries" id="timeseries" class="select select-accent">
                                 {% for k,v in filter_input.input_timeseries.items %}
-                                <option value="{{k}}" {% if k == 3 %}selected{% endif %}>{{v}}</option>
+                                <option value="{{k}}">{{v}}</option>
                                 {% endfor %}
                             </select>
                         </div>
