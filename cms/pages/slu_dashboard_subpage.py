@@ -144,7 +144,7 @@ class SLUDashboardSubPage(Page):
     @property
     def get_data_status_display(self) -> str | None:
         """Return the dashboard data status display from the parent page."""
-        return self.parent.get_data_status_display if self.parent else None
+        return self.parent.get_data_status_display() if self.parent else None
 
     @property
     def navigation_tabs(self) -> list[dict[str, str]] | None:
