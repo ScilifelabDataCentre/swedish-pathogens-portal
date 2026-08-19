@@ -14,7 +14,7 @@ from django.test import RequestFactory, SimpleTestCase
 
 from cms.pages.drr_dataset import DrrDatasetPage
 from cms.services.file_downloads import serve_file_from_directory
-from cms.tests.test_drr_dataset_page import DrrDatasetPageTestCase
+from cms.tests.test_drr_dataset_page import UPSTREAM_BIA_URL, DrrDatasetPageTestCase
 from cms.tests.utils import create_test_image, use_temp_media_root
 
 # A deliberately narrow stand-in for the feature table: two compounds and one
@@ -157,22 +157,34 @@ class TestDrrDownloadUrlsContext(DrrDownloadRouteTestCase):
         return self.page.get_context(RequestFactory().get(self.page.url))
 
     def test_download_urls_expose_every_available_download(self) -> None:
-        """Both bulk artefacts and the compound base are advertised as absolute URLs."""
+        """Every surface this page can serve is advertised as an absolute URL."""
         self.write_artefacts()
+        self.page.upstream_bia_url = UPSTREAM_BIA_URL
 
         download_urls = self.context()["download_urls"]
 
-        self.assertEqual(sorted(download_urls), ["compound_base", "csv", "parquet"])
+        self.assertEqual(sorted(download_urls), ["compound_base", "csv", "parquet", "raw_images"])
         self.assertTrue(download_urls["csv"].startswith(self.page.url))
         self.assertIn("download/features/csv/", download_urls["csv"])
         self.assertIn("download/features/parquet/", download_urls["parquet"])
         self.assertIn("download/compound/", download_urls["compound_base"])
+        self.assertIn("raw-images/", download_urls["raw_images"])
 
-    def test_raw_images_is_not_advertised(self) -> None:
-        """The 302 link-out belongs to FREYA-2581 and must not appear here."""
+    def test_raw_images_advertised_only_when_upstream_is_configured(self) -> None:
+        """The link-out appears exactly when the page names an upstream study.
+
+        Inverts the transitional assertion this test used to make. FREYA-2581
+        wired the route; withholding the key while ``upstream_bia_url`` is blank
+        keeps the rule the artefact keys follow — that route 404s, so the page
+        does not advertise it.
+        """
         self.write_artefacts()
 
         self.assertNotIn("raw_images", self.context()["download_urls"])
+
+        self.page.upstream_bia_url = UPSTREAM_BIA_URL
+
+        self.assertIn("raw_images", self.context()["download_urls"])
 
     def test_download_urls_absent_without_artefacts(self) -> None:
         """With nothing precomputed the section stays hidden instead of dead-linking."""
@@ -189,7 +201,11 @@ class TestDrrDownloadUrlsContext(DrrDownloadRouteTestCase):
         self.assertEqual(sorted(self.context()["download_urls"]), ["csv"])
 
     def test_downloads_section_renders_bulk_links(self) -> None:
-        """The template's downloads section goes live, minus the raw-image button."""
+        """The downloads section goes live; this fixture names no upstream study.
+
+        The raw-image button's own render is asserted in
+        ``test_drr_raw_images.py``, where a page carries one.
+        """
         self.write_artefacts()
 
         response = self.client.get(self.page.url)

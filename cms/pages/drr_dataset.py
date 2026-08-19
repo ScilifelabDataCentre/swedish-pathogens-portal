@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 import polars as pl
 from django.db import models
-from django.http import FileResponse, Http404, HttpRequest, HttpResponse
+from django.http import FileResponse, Http404, HttpRequest, HttpResponse, HttpResponseRedirect
 from django.utils.functional import cached_property
 from wagtail.admin.panels import FieldPanel, MultiFieldPanel
 from wagtail.contrib.routable_page.models import RoutablePageMixin, path
@@ -36,8 +36,9 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
     render path, while sourcing figures and summary statistics from
     :class:`~cms.snippets.drr_dataset_data.DrrDatasetData` instead of
     ``DashboardData``. ``RoutablePageMixin`` serves the per-dataset feature
-    downloads (mvp-spec.md section 8); the raw-image 302 link-out follows in a
-    later subtask.
+    downloads and the raw-image 302 link-out (mvp-spec.md section 8); the
+    imagery itself stays with the upstream study and is never hosted or proxied
+    here.
 
     Attributes:
         organism: Source organism label (defaults to SARS-CoV-2).
@@ -109,13 +110,15 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
     def _download_urls(self) -> dict[str, str]:
         """Map each available download to its URL.
 
-        Presence is checked on disk, so a page created before ``drr_precompute``
-        has run advertises nothing instead of linking to a 404. The raw-image
-        link-out is deliberately absent — FREYA-2581 owns it.
+        Artefact presence is checked on disk, so a page created before
+        ``drr_precompute`` has run advertises nothing instead of linking to a
+        404. The raw-image link-out follows the same rule against a different
+        precondition: it is not an artefact, so it depends only on the editorial
+        upstream URL.
 
         Returns:
             dict[str, str]: Template keys mapped to URLs, empty when nothing has
-                been precomputed yet.
+                been precomputed and no upstream study is configured.
         """
         page_url = self.url or ""
         artefacts = self._artefact_dir()
@@ -133,6 +136,12 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
         # whenever that exists. FREYA-2583 adds the picker that submits to it.
         if (artefacts / "features.parquet").is_file():
             urls["compound_base"] = page_url + self.reverse_subpage("download_compound")
+
+        # The link-out needs no precompute — imagery is never an artefact of
+        # ours — so it is offered as soon as an upstream study is set, and
+        # withheld rather than advertised as a 404 when it is not.
+        if self.upstream_bia_url:
+            urls["raw_images"] = page_url + self.reverse_subpage("raw_images")
 
         return urls
 
@@ -210,3 +219,25 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
             f'attachment; filename="{self._attachment_filename(cbkid)}"'
         )
         return response
+
+    @path("raw-images/")
+    def raw_images(self, request: HttpRequest) -> HttpResponseRedirect:
+        """Redirect to the upstream raw-image study for this screen.
+
+        Raw imagery stays upstream: one plate is a ~228 GiB archive, so the
+        portal links out (HTTP 302) instead of streaming or proxying a single
+        byte of it.
+
+        Args:
+            request: The incoming request (unused; kept for route symmetry).
+
+        Returns:
+            HttpResponseRedirect: A 302 to this dataset's upstream study.
+
+        Raises:
+            Http404: If this dataset has no upstream study configured.
+        """
+        if not self.upstream_bia_url:
+            raise Http404("No upstream image study configured")
+
+        return HttpResponseRedirect(self.upstream_bia_url)
