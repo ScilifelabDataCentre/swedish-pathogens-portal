@@ -147,6 +147,13 @@ class DashboardPage(Page):
                 "headings in the content and displayed in a sidebar."
             ),
         ),
+        FieldPanel(
+            "first_published_at",
+            help_text=(
+                "The page creation date that will be displayed on the card, if the dashboard "
+                "doesn't have a corresponding data update timestamp."
+            ),
+        ),
     ]
 
     @property
@@ -170,8 +177,10 @@ class DashboardPage(Page):
 
     @property
     def dashboard_data_updated_at(self) -> date | None:
-        """Return the last updated timestamp for the dashboard data."""
-        return getattr(self.dashboard_data, "data_updated_at", None)
+        """Return the last updated timestamp for the dashboard data or the first published date."""
+        return (
+            getattr(self.dashboard_data, "data_updated_at", None) or self.first_published_at.date()
+        )
 
     def get_context(self, request: HttpRequest) -> dict[str, Any]:
         """Add DashboardData figures, CSV URL, and parent heading to template context."""
