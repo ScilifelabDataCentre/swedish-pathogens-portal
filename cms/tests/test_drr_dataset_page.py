@@ -45,6 +45,11 @@ FULL_SUMMARY = {
     },
 }
 
+# The raw-image 302 target (FREYA-2581). It is an editorial field, so what the
+# tests pin is the round trip — the page redirects to whatever is stored — not
+# this particular study page.
+UPSTREAM_BIA_URL = "https://www.ebi.ac.uk/biostudies/bioimages/studies/S-BIAD2580"
+
 
 class DrrDatasetPageTestCase(WagtailPageTestCase):
     """Base test case that builds the page tree for DRR dataset tests."""
@@ -245,9 +250,11 @@ class TestDrrDatasetPageRender(DrrDatasetPageTestCase):
 class TestDrrDatasetDownloadsWired(DrrDatasetPageTestCase):
     """Inverts the transitional contract now that FREYA-2580 wires ``download_urls``.
 
-    Route behaviour is covered by ``test_drr_downloads.py``; what this asserts is
-    the page-context payload spec section 10 requires of this file, plus the fact
-    that the raw-image link-out (FREYA-2581) is still absent.
+    Route behaviour is covered by ``test_drr_downloads.py`` and
+    ``test_drr_raw_images.py``; what this asserts is the page-context payload
+    spec section 10 requires of this file. The fixture names no upstream study,
+    so the raw-image link-out (FREYA-2581) is advertised only where a test sets
+    one.
     """
 
     @classmethod
@@ -274,14 +281,17 @@ class TestDrrDatasetDownloadsWired(DrrDatasetPageTestCase):
         (artefacts / "features.parquet").write_bytes(b"PAR1")
 
     def test_download_urls_present_in_context(self) -> None:
-        """get_context advertises the feature downloads, and only those."""
+        """get_context advertises the feature downloads and the raw-image link-out."""
+        self.page.upstream_bia_url = UPSTREAM_BIA_URL
         request = RequestFactory().get(self.page.url)
         context = self.page.get_context(request)
-        self.assertEqual(sorted(context["download_urls"]), ["compound_base", "csv", "parquet"])
-        self.assertNotIn("raw_images", context["download_urls"])
+        self.assertEqual(
+            sorted(context["download_urls"]), ["compound_base", "csv", "parquet", "raw_images"]
+        )
+        self.assertIn("raw-images/", context["download_urls"]["raw_images"])
 
     def test_downloads_section_rendered_with_data(self) -> None:
-        """The downloads markup goes live, without the raw-image button."""
+        """The downloads markup goes live; no upstream study, no raw-image button."""
         DrrDatasetData.objects.create(
             dataset_slug="drr-downloads-wired",
             summary={"n_compounds": 1},
