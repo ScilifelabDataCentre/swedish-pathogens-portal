@@ -76,11 +76,21 @@ def content_with_toc(
     is_preview = request and getattr(request, "is_preview", False)
 
     page = context.get("page")
-    cache_key = (
-        f"toc:{page.id}:{page.last_published_at.strftime('%Y%m%d%H%M%S%f')}"
+    published = (
+        page.last_published_at.strftime("%Y%m%d%H%M%S%f")
         if page and page.last_published_at
         else None
     )
+    # This tag caches the full StreamField HTML, including Plotly charts.
+    # Dashboard Data uploads do not change last_published_at, so a new source
+    # file would otherwise keep showing the previous charts until republish.
+    # Append source_file_hash when present (DashboardPage / DrrDatasetPage).
+    # Topic and basic pages have no hash, so they keep toc:{id}:{published}
+    # and are not affected.
+    cache_key = f"toc:{page.id}:{published}" if page and published else None
+    file_hash = context.get("source_file_hash") or ""
+    if cache_key and file_hash:
+        cache_key = f"{cache_key}:{file_hash}"
 
     # Only use cache if we have a valid page and we're not in preview mode
     if cache_key and not is_preview:

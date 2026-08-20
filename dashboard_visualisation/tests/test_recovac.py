@@ -109,6 +109,23 @@ class TestsValidateSourceFile(SimpleTestCase):
         source.name = "recovac-source.zip"
         self.assertIsNone(validate_source_file(source, filename="recovac-source.zip"))
 
+    def test_accepts_prefixed_comorbidity_coverage_headers(self) -> None:
+        """Accept comorbidity coverage CSVs that use researcher prefixes."""
+        extra = {
+            "cm_cvd_cardio_vacc_SciLifeLab.csv": (
+                "cvd_cardio_vacc1,cvd_cardio_vacc2,cvd_cardio_vacc3,"
+                "cvd_cardio_vacc4,cvd_cardio_vacc5,cvd_cardio_vacc6,wk\n"
+                "0.1,0.05,0,0,0,0,2021w03\n"
+            )
+        }
+        stems = tuple(
+            stem for stem in REQUIRED_ZIP_STEMS if stem != "cm_cvd_cardio_vacc_SciLifeLab"
+        )
+        payload = build_recovac_zip(stems, extra=extra)
+        self.assertIsNone(
+            validate_source_file(io.BytesIO(payload), filename="recovac-source.zip")
+        )
+
     def test_rejects_non_zip_extension(self) -> None:
         """Reject a CSV upload for this dashboard."""
         source = io.BytesIO(_MINIMAL_TABLE_CSV.encode("utf-8"))
@@ -301,6 +318,47 @@ class TestsPrepHelpers(SimpleTestCase):
         self.assertAlmostEqual(second["no_dose"], 15.0)
         self.assertAlmostEqual(second["one_dose"], 30.0)
         self.assertAlmostEqual(second["six_dose"], 2.0)
+
+    def test_prefixed_comorbidity_coverage_columns(self) -> None:
+        """Alias ``cvd_cardio_vacc1`` etc. the way the researcher workbooks are named."""
+        frame = _prep_coverage(
+            pl.DataFrame(
+                {
+                    "cvd_cardio_vacc1": [0.8],
+                    "cvd_cardio_vacc2": [0.5],
+                    "cvd_cardio_vacc3": [0.2],
+                    "cvd_cardio_vacc4": [0.1],
+                    "cvd_cardio_vacc5": [0.05],
+                    "cvd_cardio_vacc6": [0.01],
+                    "wk": ["2021w03"],
+                }
+            )
+        )
+        first = frame.row(0, named=True)
+        self.assertAlmostEqual(first["no_dose"], 20.0)
+        self.assertAlmostEqual(first["one_dose"], 30.0)
+        self.assertAlmostEqual(first["six_dose"], 1.0)
+
+    def test_comorbidity_ffill_carries_dose_shares(self) -> None:
+        """Forward-fill exclusive shares when later weeks omit a dose column."""
+        frame = _prep_coverage(
+            pl.DataFrame(
+                {
+                    "wk": ["2021w03", "2021w04"],
+                    "vacc1": [0.8, None],
+                    "vacc2": [0.5, None],
+                    "vacc3": [0.2, None],
+                    "vacc4": [0.1, None],
+                    "vacc5": [0.05, None],
+                    "vacc6": [0.01, None],
+                }
+            ),
+            ffill=True,
+        )
+        second = frame.row(1, named=True)
+        self.assertAlmostEqual(second["no_dose"], 20.0)
+        self.assertAlmostEqual(second["one_dose"], 30.0)
+        self.assertAlmostEqual(second["six_dose"], 1.0)
 
     def test_count_prep_drops_dates_before_min(self) -> None:
         """Comorbidity case tables drop weeks before 2020-01-31."""

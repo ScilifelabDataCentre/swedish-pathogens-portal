@@ -168,6 +168,92 @@ class TestContentWithToc(TestCase):
         self.assertEqual(result, cached_result)
         streamfield.render_as_block.assert_not_called()
         mock_cache.get.assert_called_once()
+        cache_key = mock_cache.get.call_args[0][0]
+        self.assertEqual(cache_key, "toc:123:20260604074153")
+
+    @patch("cms.templatetags.toc.cache")
+    def test_source_file_hash_changes_cache_key(self, mock_cache: MagicMock):
+        """A new Dashboard Data file must miss TOC HTML cache without republishing."""
+        mock_cache.get.return_value = None
+        page = MagicMock()
+        page.id = 123
+        page.last_published_at.strftime.return_value = "20260604074153"
+        streamfield = MagicMock()
+        streamfield.render_as_block.return_value = "<h2>Intro</h2>"
+
+        content_with_toc(
+            Context({"page": page, "source_file_hash": "abc"}),
+            streamfield,
+        )
+        content_with_toc(
+            Context({"page": page, "source_file_hash": "def"}),
+            streamfield,
+        )
+
+        keys = [call.args[0] for call in mock_cache.get.call_args_list]
+        self.assertEqual(keys[0], "toc:123:20260604074153:abc")
+        self.assertEqual(keys[1], "toc:123:20260604074153:def")
+        self.assertEqual(streamfield.render_as_block.call_count, 2)
+
+    @patch("cms.templatetags.toc.cache")
+    def test_pages_without_source_file_hash_keep_original_cache_key(
+        self, mock_cache: MagicMock
+    ):
+        """Topic and basic pages must keep toc:{id}:{published} (no extra segment)."""
+        mock_cache.get.return_value = None
+        page = MagicMock()
+        page.id = 123
+        page.last_published_at.strftime.return_value = "20260604074153"
+        streamfield = MagicMock()
+        streamfield.render_as_block.return_value = "<h2>Intro</h2>"
+
+        content_with_toc(Context({"page": page}), streamfield)
+
+        cache_key = mock_cache.get.call_args[0][0]
+        self.assertEqual(cache_key, "toc:123:20260604074153")
+
+    @patch("cms.templatetags.toc.cache")
+    def test_empty_source_file_hash_keeps_original_cache_key(self, mock_cache: MagicMock):
+        """Historic JSON-only rows set source_file_hash to '' and must not change the key."""
+        mock_cache.get.return_value = None
+        page = MagicMock()
+        page.id = 123
+        page.last_published_at.strftime.return_value = "20260604074153"
+        streamfield = MagicMock()
+        streamfield.render_as_block.return_value = "<h2>Intro</h2>"
+
+        content_with_toc(
+            Context({"page": page, "source_file_hash": ""}),
+            streamfield,
+        )
+
+        cache_key = mock_cache.get.call_args[0][0]
+        self.assertEqual(cache_key, "toc:123:20260604074153")
+
+    @patch("cms.templatetags.toc.cache")
+    def test_historic_dashboard_context_does_not_change_cache_key_shape(
+        self, mock_cache: MagicMock
+    ):
+        """data_status and figures are unused; only a non-empty source_file_hash is appended."""
+        mock_cache.get.return_value = None
+        page = MagicMock()
+        page.id = 42
+        page.last_published_at.strftime.return_value = "20200101000000"
+        streamfield = MagicMock()
+        streamfield.render_as_block.return_value = "<h2>Intro</h2>"
+
+        historic_context = Context(
+            {
+                "page": page,
+                "figures": {"old_chart": {"data": [], "layout": {}}},
+                "data_status": "historic",
+                "source_file_hash": "abc123",
+            }
+        )
+        content_with_toc(historic_context, streamfield)
+
+        cache_key = mock_cache.get.call_args[0][0]
+        self.assertEqual(cache_key, "toc:42:20200101000000:abc123")
 
     @patch("cms.templatetags.toc.cache")
     def test_cache_miss_renders_and_sets_cache(self, mock_cache: MagicMock):

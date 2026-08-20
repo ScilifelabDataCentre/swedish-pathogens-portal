@@ -68,15 +68,10 @@ _DOSE_SHARE_COLS = (
     "five_dose",
     "six_dose",
 )
+_DOSE_COLUMN_NAMES = ("vacc0", "vacc1", "vacc2", "vacc3", "vacc4", "vacc5", "vacc6")
 _KNOWN_COLUMNS = {
     "wk",
-    "vacc0",
-    "vacc1",
-    "vacc2",
-    "vacc3",
-    "vacc4",
-    "vacc5",
-    "vacc6",
+    *_DOSE_COLUMN_NAMES,
     "c19_i1",
     "c19_d2",
 }
@@ -217,6 +212,13 @@ def _member_is_readable_table(archive: zipfile.ZipFile, member_name: str) -> str
 
     extension = _file_extension(basename)
     if extension != ".csv":
+        try:
+            frame = _read_member_dataframe(archive, member_name)
+        except Exception as exc:
+            return f'Could not read "{basename}" in the zip: {exc}'
+        missing_cols = _table_missing_required_columns(frame, Path(basename).stem)
+        if missing_cols:
+            return f'"{basename}" is missing columns: {", ".join(missing_cols)}.'
         return None
 
     try:
@@ -232,13 +234,19 @@ def _member_is_readable_table(archive: zipfile.ZipFile, member_name: str) -> str
     if len(rows) < 2:
         return f'"{basename}" in the zip must have a header row and at least one data row.'
 
-    header = {col.strip().lower() for col in rows[0]}
+    header = {_canonical_column_name(col) for col in rows[0]}
     missing_cols = [
         column for column in _required_columns_for_stem(Path(basename).stem) if column not in header
     ]
     if missing_cols:
         return f'"{basename}" is missing columns: {", ".join(missing_cols)}.'
     return None
+
+
+def _table_missing_required_columns(df: pl.DataFrame, stem: str) -> list[str]:
+    """Return required column names still missing after aliasing."""
+    columns = set(_normalise_columns(df).columns)
+    return [column for column in _required_columns_for_stem(stem) if column not in columns]
 
 
 def _required_columns_for_stem(stem: str) -> tuple[str, ...]:
@@ -333,34 +341,66 @@ def _load_tables(source_file: SourceFile) -> dict[str, pl.DataFrame]:
         }
 
 
+def _canonical_column_name(column: str) -> str:
+    """Map a workbook header onto the names used by the legacy pandas scripts.
+
+    Population coverage files use ``vacc1``…``vacc6``. Comorbidity coverage
+    files use the same values under prefixes such as ``cvd_cardio_vacc1``.
+    The old comorbidity dataprep renamed by column *position*; we rename by
+    suffix so extra columns cannot scramble the mapping.
+    """
+    stripped = column.strip()
+    lowered = stripped.lower()
+    if lowered in _KNOWN_COLUMNS:
+        return lowered
+    for dose in _DOSE_COLUMN_NAMES:
+        if lowered.endswith(f"_{dose}"):
+            return dose
+    return stripped
+
+
 def _normalise_columns(df: pl.DataFrame) -> pl.DataFrame:
-    """Strip header whitespace and lower-case known RECOVAC column names."""
+    """Strip header whitespace and alias known RECOVAC / prefixed dose columns."""
+    taken = set(df.columns)
     rename: dict[str, str] = {}
     for column in df.columns:
-        stripped = column.strip()
-        known = stripped.lower()
-        target = known if known in _KNOWN_COLUMNS else stripped
-        if target != column:
-            rename[column] = target
+        target = _canonical_column_name(column)
+        if target == column:
+            continue
+        if target in taken:
+            continue
+        rename[column] = target
+        taken.add(target)
+        taken.discard(column)
     return df.rename(rename) if rename else df
 
 
-def _numeric_or_zero(df: pl.DataFrame, columns: tuple[str, ...]) -> pl.DataFrame:
-    """Cast named columns to float, treating blanks and missing columns as 0."""
+def _numeric_or_zero(
+    df: pl.DataFrame,
+    columns: tuple[str, ...],
+    *,
+    fill_null: bool = True,
+) -> pl.DataFrame:
+    """Cast named columns to float, treating blanks and missing columns as 0.
+
+    When ``fill_null`` is False, empty cells stay null so a later forward-fill
+    can match the legacy comorbidity coverage dataprep.
+    """
     exprs: list[pl.Expr] = []
     for name in columns:
         if name not in df.columns:
             exprs.append(pl.lit(0.0).alias(name))
             continue
-        exprs.append(
+        parsed = (
             pl.col(name)
             .cast(pl.Utf8)
             .str.strip_chars()
-            .replace("", "0")
+            .replace("", None)
             .cast(pl.Float64, strict=False)
-            .fill_null(0.0)
-            .alias(name)
         )
+        if fill_null:
+            parsed = parsed.fill_null(0.0)
+        exprs.append(parsed.alias(name))
     return df.with_columns(exprs)
 
 
@@ -398,8 +438,18 @@ def _prep_week_dates(
 
 
 def _prep_coverage(df: pl.DataFrame, *, ffill: bool = False) -> pl.DataFrame:
-    """De-cumulate coverage shares (0–1) into exclusive dose-level percents."""
-    prepared = _prep_week_dates(_numeric_or_zero(df, _VACC_COVERAGE_COLS))
+    """De-cumulate coverage shares (0–1) into exclusive dose-level percents.
+
+    Comorbidity tables forward-fill the cumulative dose columns first (legacy
+    ``ffill`` after empty Excel cells), then treat remaining leading nulls as 0.
+    """
+    df = _normalise_columns(df)
+    prepared = _prep_week_dates(
+        _numeric_or_zero(df, _VACC_COVERAGE_COLS, fill_null=False)
+    )
+    if ffill:
+        prepared = prepared.with_columns(pl.col(_VACC_COVERAGE_COLS).forward_fill())
+    prepared = prepared.with_columns(pl.col(_VACC_COVERAGE_COLS).fill_null(0.0))
     prepared = prepared.with_columns(
         ((1 - pl.col("vacc1")) * 100).alias("no_dose"),
         ((pl.col("vacc1") - pl.col("vacc2")) * 100).alias("one_dose"),
@@ -409,8 +459,6 @@ def _prep_coverage(df: pl.DataFrame, *, ffill: bool = False) -> pl.DataFrame:
         ((pl.col("vacc5") - pl.col("vacc6")) * 100).alias("five_dose"),
         (pl.col("vacc6") * 100).alias("six_dose"),
     ).drop(list(_VACC_COVERAGE_COLS))
-    if ffill:
-        prepared = prepared.with_columns(pl.col(_DOSE_SHARE_COLS).fill_null(strategy="forward"))
     if prepared.is_empty():
         raise ValueError("Coverage table has no rows after dropping year 2019.")
     return prepared
@@ -423,6 +471,7 @@ def _prep_counts(
     min_date: date | None = None,
 ) -> pl.DataFrame:
     """Parse week dates on an ICU / cases count table."""
+    df = _normalise_columns(df)
     had_total = total_column in df.columns
     numeric_cols = _VACC_COUNT_COLS + ((total_column,) if had_total else ())
     prepared = _prep_week_dates(_numeric_or_zero(df, numeric_cols), min_date=min_date)
