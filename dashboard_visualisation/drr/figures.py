@@ -78,27 +78,11 @@ def _prepare(table: FeatureTable) -> _Prepared:
 
     Neither standardisation nor imputation is applied: the values arrive
     MAD-normalised per plate and carry no missing entries (spec section 5).
-
-    Raises:
-        ValueError: If the feature matrix carries missing or non-finite values,
-            which nothing fills in.
+    ``numeric_matrix`` rejects an incomplete matrix, so no gap reaches a figure.
     """
-    matrix = table.numeric_matrix()
-    if not np.isfinite(matrix).all():
-        incomplete = [
-            column
-            for index, column in enumerate(table.feature_columns)
-            if not np.isfinite(matrix[:, index]).all()
-        ]
-        raise ValueError(
-            f"Feature matrix has missing or non-finite values in {len(incomplete)} column(s), "
-            f"e.g. {incomplete[:3]}. The input is expected to arrive complete (spec section 5) "
-            "and no value is imputed."
-        )
-
     categories = [_feature_category(column) for column in table.feature_columns]
     return _Prepared(
-        matrix=matrix,
+        matrix=table.numeric_matrix(),
         feature_columns=table.feature_columns,
         categories=categories,
         pert_types=_column_values(table, "pert_type"),

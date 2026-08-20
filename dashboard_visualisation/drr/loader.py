@@ -50,8 +50,30 @@ class FeatureTable:
     feature_columns: list[str]
 
     def numeric_matrix(self) -> np.ndarray:
-        """Return the feature columns as a float64 matrix (rows = profiles)."""
-        return self.frame.select(self.feature_columns).to_numpy().astype(np.float64)
+        """Return the feature columns as a float64 matrix (rows = profiles).
+
+        Returns:
+            The feature values exactly as delivered; nothing is imputed or
+            rescaled (spec section 5).
+
+        Raises:
+            ValueError: If any feature column carries a missing or non-finite
+                value. The screen's export arrives complete, so a gap means the
+                input is wrong rather than that a value needs inventing.
+        """
+        matrix = self.frame.select(self.feature_columns).to_numpy().astype(np.float64)
+        if not np.isfinite(matrix).all():
+            incomplete = [
+                column
+                for index, column in enumerate(self.feature_columns)
+                if not np.isfinite(matrix[:, index]).all()
+            ]
+            raise ValueError(
+                f"Feature matrix has missing or non-finite values in {len(incomplete)} column(s), "
+                f"e.g. {incomplete[:3]}. The input is expected to arrive complete "
+                "(spec section 5) and no value is imputed."
+            )
+        return matrix
 
 
 def load_feature_table(path: str | Path) -> FeatureTable:
@@ -68,7 +90,8 @@ def load_feature_table(path: str | Path) -> FeatureTable:
         A ``FeatureTable`` with the cleaned frame and column split.
 
     Raises:
-        ValueError: If the ``cbkid`` join key is missing from the table.
+        ValueError: If the ``cbkid`` join key is missing from the table, or if
+            the feature matrix carries missing or non-finite values.
     """
     frame = pl.read_csv(path, separator=";", infer_schema_length=_SCHEMA_SCAN_ROWS)
     if frame.width and frame.columns[0] == "":
@@ -81,11 +104,15 @@ def load_feature_table(path: str | Path) -> FeatureTable:
     numeric_columns = frame.select(cs.numeric()).columns
     feature_columns = [column for column in numeric_columns if column not in METADATA_COLUMNS]
 
-    return FeatureTable(
+    table = FeatureTable(
         frame=frame,
         metadata_columns=metadata_columns,
         feature_columns=feature_columns,
     )
+    # Reject an incomplete matrix here, at load, so a run that cannot produce
+    # figures also never overwrites the artefacts a page already serves.
+    table.numeric_matrix()
+    return table
 
 
 def load_metadata(path: str | Path) -> pl.DataFrame:
