@@ -26,7 +26,7 @@ FULL_SUMMARY = {
     "n_plates": 22,
     "n_wells": 7500,
     "n_profiles": 8298,
-    "n_features": 1468,
+    "n_features": 1467,
     "pert_type_counts": {"trt": 6800, "negcon": 900, "poscon": 598},
     "compartments": ["nuclei", "cells", "cytoplasm"],
     "channels": ["CONC", "HOECHST", "MITO", "PHAandWGA", "SYTO"],
@@ -209,7 +209,7 @@ class TestDrrDatasetPageRender(DrrDatasetPageTestCase):
         # Summary counts (intcomma-formatted; commas never appear in Plotly div ids).
         self.assertContains(response, "Summary statistics")
         self.assertContains(response, "8,298")  # n_profiles
-        self.assertContains(response, "1,468")  # n_features
+        self.assertContains(response, "1,467")  # n_features
         self.assertContains(response, "7,500")  # n_wells
 
         # Perturbation types plus compartments / channels.

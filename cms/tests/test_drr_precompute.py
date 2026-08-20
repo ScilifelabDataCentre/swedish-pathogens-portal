@@ -2,35 +2,80 @@
 
 from __future__ import annotations
 
+import base64
 import json
+import re
 import tempfile
 from pathlib import Path
 
+import numpy as np
 import polars as pl
 from django.core.management import call_command
 from django.test import TestCase, override_settings
 
 from cms.snippets.drr_dataset_data import DrrDatasetData
+from dashboard_visualisation.drr.figures import FEATURE_CATEGORIES
+from dashboard_visualisation.drr.loader import load_feature_table
 
 SLUG = "test-drr-dataset"
 
 # Six well-level profiles across two plates, three compounds, and both trt and
 # control perturbations. Feature columns span all three compartments and four
 # channels so summary derivation and category aggregation are exercised. The
-# leading unnamed column mirrors the upstream export's row index.
+# leading unnamed column mirrors the upstream export's row index, and
+# ``Count_nuclei`` sits where the export carries it: numeric, but QC metadata
+# rather than a feature (spec section 5).
 FEATURE_CSV = (
-    ";Metadata_Barcode;Metadata_Well;comp_conc;pert_type;batch_id;cmpd_conc;cbkid;"
+    ";Metadata_Barcode;Metadata_Well;comp_conc;pert_type;batch_id;cmpd_conc;cbkid;Count_nuclei;"
     "AreaShape_Area_nuclei;Intensity_MeanIntensity_illumCONC_nuclei;"
     "Granularity_1_illumMITO_cells;Correlation_Correlation_illumCONC_illumHOECHST_cytoplasm;"
     "RadialDistribution_MeanFrac_illumSYTO_1of4_cells;"
     "Neighbors_FirstClosestDistance_Adjacent_cells\n"
-    "0;P1;A01;10;trt;B1;10;CBK1;1.0;2.0;3.0;0.10;0.50;2.0\n"
-    "1;P1;A02;10;trt;B1;10;CBK1;1.2;2.1;3.4;0.20;0.60;2.1\n"
-    "2;P1;A03;10;ctrl;B1;0;CBK2;0.9;1.8;2.9;0.05;0.40;1.9\n"
-    "3;P2;B01;10;trt;B1;10;CBK3;1.5;2.5;3.9;0.30;0.70;2.4\n"
-    "4;P2;B02;10;ctrl;B1;0;CBK2;0.8;1.7;2.7;0.02;0.35;1.8\n"
-    "5;P2;B03;10;trt;B1;10;CBK3;1.6;2.6;4.1;0.35;0.75;2.5\n"
+    "0;P1;A01;10;trt;B1;10;CBK1;1200;1.0;2.0;3.0;0.10;0.50;2.0\n"
+    "1;P1;A02;10;trt;B1;10;CBK1;1250;1.2;2.1;3.4;0.20;0.60;2.1\n"
+    "2;P1;A03;10;ctrl;B1;0;CBK2;1400;0.9;1.8;2.9;0.05;0.40;1.9\n"
+    "3;P2;B01;10;trt;B1;10;CBK3;1150;1.5;2.5;3.9;0.30;0.70;2.4\n"
+    "4;P2;B02;10;ctrl;B1;0;CBK2;1380;0.8;1.7;2.7;0.02;0.35;1.8\n"
+    "5;P2;B03;10;trt;B1;10;CBK3;1100;1.6;2.6;4.1;0.35;0.75;2.5\n"
 )
+
+# Per-category means of the fixture rows, in the input's own units: the two ctrl
+# rows (the radar's "infected" reference, and CBK2's heatmap row), the four trt
+# rows (the "compound" radar), and the two remaining compounds' heatmap rows.
+# These hold only while the figures run on the values as delivered; standardising
+# the columns again drives each of them to a z-score around -1 to 1 instead.
+CTRL_CATEGORY_MEANS = {
+    "AreaShape": 0.85,
+    "Intensity": 1.75,
+    "Granularity": 2.8,
+    "Correlation": 0.035,
+    "RadialDistribution": 0.375,
+    "Neighbors": 1.85,
+}
+TRT_CATEGORY_MEANS = {
+    "AreaShape": 1.325,
+    "Intensity": 2.3,
+    "Granularity": 3.6,
+    "Correlation": 0.2375,
+    "RadialDistribution": 0.6375,
+    "Neighbors": 2.25,
+}
+CBK1_CATEGORY_MEANS = {
+    "AreaShape": 1.1,
+    "Intensity": 2.05,
+    "Granularity": 3.2,
+    "Correlation": 0.15,
+    "RadialDistribution": 0.55,
+    "Neighbors": 2.05,
+}
+CBK3_CATEGORY_MEANS = {
+    "AreaShape": 1.55,
+    "Intensity": 2.55,
+    "Granularity": 4.0,
+    "Correlation": 0.325,
+    "RadialDistribution": 0.725,
+    "Neighbors": 2.45,
+}
 
 # CBK3 is intentionally absent to exercise the unmatched-cbkid path.
 METADATA_TSV = (
@@ -41,6 +86,15 @@ METADATA_TSV = (
 
 EXPECTED_FIGURE_IDS = {"pca", "heatmap", "radar_compound", "radar_infected"}
 ARTEFACT_SUFFIXES = {".csv", ".parquet", ".json"}
+
+
+def _decode_array(payload: dict | list) -> np.ndarray:
+    """Return a numeric array from figure JSON, decoding Plotly's base64 form."""
+    if isinstance(payload, list):
+        return np.asarray(payload)
+    shape = tuple(int(part) for part in payload["shape"].split(","))
+    buffer = base64.b64decode(payload["bdata"])
+    return np.frombuffer(buffer, dtype=payload["dtype"]).reshape(shape)
 
 
 class DrrPrecomputeTests(TestCase):
@@ -57,6 +111,12 @@ class DrrPrecomputeTests(TestCase):
         self.metadata_path.write_text(METADATA_TSV, encoding="utf-8")
         self.media = self.base / "media"
         self.out_dir = self.media / "drr" / SLUG
+
+    def _write_incomplete_input(self) -> None:
+        """Blank one ctrl row's AreaShape value, leaving a gap in the feature matrix."""
+        self.input_path.write_text(
+            FEATURE_CSV.replace("0;CBK2;1400;0.9;", "0;CBK2;1400;;"), encoding="utf-8"
+        )
 
     def _run(self, **extra: str) -> None:
         """Invoke drr_precompute against the fixtures with MEDIA_ROOT overridden."""
@@ -103,6 +163,101 @@ class DrrPrecomputeTests(TestCase):
         self.assertEqual(summary["compartments"], ["nuclei", "cells", "cytoplasm"])
         self.assertEqual(summary["channels"], ["CONC", "HOECHST", "MITO", "SYTO"])
         self.assertEqual(summary["source"]["filename"], "features.csv")
+
+    def test_count_nuclei_is_metadata_not_a_feature(self) -> None:
+        """Count_nuclei is QC metadata: out of the feature set, still in the download."""
+        self._run()
+        table = load_feature_table(self.input_path)
+        self.assertIn("Count_nuclei", table.metadata_columns)
+        self.assertNotIn("Count_nuclei", table.feature_columns)
+
+        summary = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))
+        self.assertEqual(summary["n_features"], 6)
+        features = pl.read_parquet(self.out_dir / "features.parquet")
+        self.assertIn("Count_nuclei", features.columns)
+
+    def test_radars_are_not_standardised(self) -> None:
+        """Both radar modes plot category means in the values' own units (spec section 5)."""
+        self._run()
+        figures = DrrDatasetData.get_data(SLUG).data
+
+        for figure_id, expected in (
+            ("radar_infected", CTRL_CATEGORY_MEANS),
+            ("radar_compound", TRT_CATEGORY_MEANS),
+        ):
+            radii = figures[figure_id]["data"][0]["r"]
+            self.assertEqual(len(radii), len(FEATURE_CATEGORIES) + 1, figure_id)
+            for index, category in enumerate(FEATURE_CATEGORIES):
+                self.assertAlmostEqual(radii[index], expected[category], places=6, msg=figure_id)
+            # The ring closes on its first axis.
+            self.assertAlmostEqual(radii[-1], radii[0], places=6, msg=figure_id)
+
+    def test_heatmap_cells_are_not_standardised(self) -> None:
+        """Heatmap cells are per-compound category means, one row per compound."""
+        self._run()
+        trace = DrrDatasetData.get_data(SLUG).data["heatmap"]["data"][0]
+
+        self.assertEqual(trace["y"], ["CBK1", "CBK2", "CBK3"])
+        self.assertEqual(trace["x"], FEATURE_CATEGORIES)
+        cells = _decode_array(trace["z"])
+        for row, expected in enumerate(
+            (CBK1_CATEGORY_MEANS, CTRL_CATEGORY_MEANS, CBK3_CATEGORY_MEANS)
+        ):
+            for column, category in enumerate(FEATURE_CATEGORIES):
+                self.assertAlmostEqual(
+                    float(cells[row][column]), expected[category], places=6, msg=category
+                )
+
+    def test_pca_axes_carry_the_variance_they_explain(self) -> None:
+        """Each PCA axis states its own share of the variance, as paper Fig 1C does.
+
+        The expected shares come from the eigenvalues of the feature covariance,
+        which is the same quantity by a different route: it agrees only while the
+        decomposition is mean-centred and left unscaled.
+        """
+        self._run()
+        layout = DrrDatasetData.get_data(SLUG).data["pca"]["layout"]
+
+        matrix = load_feature_table(self.input_path).numeric_matrix()
+        eigenvalues = np.sort(np.linalg.eigvalsh(np.cov(matrix, rowvar=False, bias=True)))[::-1]
+        expected = 100 * eigenvalues[:2] / eigenvalues.sum()
+
+        for axis, component, want in (("xaxis", "PC1", expected[0]), ("yaxis", "PC2", expected[1])):
+            title = layout[axis]["title"]["text"]
+            match = re.fullmatch(rf"{component} \((\d+\.\d)% variance\)", title)
+            self.assertIsNotNone(match, title)
+            self.assertEqual(match.group(1), f"{want:.1f}", title)
+
+    def test_missing_feature_values_are_not_imputed(self) -> None:
+        """A gap in the feature matrix fails loudly, naming its column, rather than being filled."""
+        self._write_incomplete_input()
+        with self.assertRaisesMessage(ValueError, "AreaShape_Area_nuclei"):
+            self._run()
+
+    def test_incomplete_input_publishes_nothing(self) -> None:
+        """A run that cannot build figures leaves no downloadable artefact behind."""
+        self._write_incomplete_input()
+        with self.assertRaises(ValueError):
+            self._run()
+
+        self.assertEqual([path for path in self.out_dir.rglob("*") if path.is_file()], [])
+        self.assertIsNone(DrrDatasetData.get_data(SLUG))
+
+    def test_incomplete_rerun_leaves_the_previous_generation_intact(self) -> None:
+        """A failed re-run cannot leave a new download beside the old figures."""
+        self._run()
+        before = {path: path.read_bytes() for path in self.out_dir.rglob("*") if path.is_file()}
+        row = DrrDatasetData.get_data(SLUG)
+
+        self._write_incomplete_input()
+        with self.assertRaises(ValueError):
+            self._run()
+
+        after = {path: path.read_bytes() for path in self.out_dir.rglob("*") if path.is_file()}
+        self.assertEqual(after, before)
+        reloaded = DrrDatasetData.get_data(SLUG)
+        self.assertEqual(reloaded.source_file_hash, row.source_file_hash)
+        self.assertEqual(reloaded.data, row.data)
 
     def test_compound_index_includes_unmatched(self) -> None:
         """Every feature cbkid is indexed; unmatched compounds keep null metadata."""
