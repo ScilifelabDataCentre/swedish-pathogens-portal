@@ -11,26 +11,43 @@ from django.core.management import call_command
 from django.test import TestCase, override_settings
 
 from cms.snippets.drr_dataset_data import DrrDatasetData
+from dashboard_visualisation.drr.figures import FEATURE_CATEGORIES
+from dashboard_visualisation.drr.loader import load_feature_table
 
 SLUG = "test-drr-dataset"
 
 # Six well-level profiles across two plates, three compounds, and both trt and
 # control perturbations. Feature columns span all three compartments and four
 # channels so summary derivation and category aggregation are exercised. The
-# leading unnamed column mirrors the upstream export's row index.
+# leading unnamed column mirrors the upstream export's row index, and
+# ``Count_nuclei`` sits where the export carries it: numeric, but QC metadata
+# rather than a feature (spec section 5).
 FEATURE_CSV = (
-    ";Metadata_Barcode;Metadata_Well;comp_conc;pert_type;batch_id;cmpd_conc;cbkid;"
+    ";Metadata_Barcode;Metadata_Well;comp_conc;pert_type;batch_id;cmpd_conc;cbkid;Count_nuclei;"
     "AreaShape_Area_nuclei;Intensity_MeanIntensity_illumCONC_nuclei;"
     "Granularity_1_illumMITO_cells;Correlation_Correlation_illumCONC_illumHOECHST_cytoplasm;"
     "RadialDistribution_MeanFrac_illumSYTO_1of4_cells;"
     "Neighbors_FirstClosestDistance_Adjacent_cells\n"
-    "0;P1;A01;10;trt;B1;10;CBK1;1.0;2.0;3.0;0.10;0.50;2.0\n"
-    "1;P1;A02;10;trt;B1;10;CBK1;1.2;2.1;3.4;0.20;0.60;2.1\n"
-    "2;P1;A03;10;ctrl;B1;0;CBK2;0.9;1.8;2.9;0.05;0.40;1.9\n"
-    "3;P2;B01;10;trt;B1;10;CBK3;1.5;2.5;3.9;0.30;0.70;2.4\n"
-    "4;P2;B02;10;ctrl;B1;0;CBK2;0.8;1.7;2.7;0.02;0.35;1.8\n"
-    "5;P2;B03;10;trt;B1;10;CBK3;1.6;2.6;4.1;0.35;0.75;2.5\n"
+    "0;P1;A01;10;trt;B1;10;CBK1;1200;1.0;2.0;3.0;0.10;0.50;2.0\n"
+    "1;P1;A02;10;trt;B1;10;CBK1;1250;1.2;2.1;3.4;0.20;0.60;2.1\n"
+    "2;P1;A03;10;ctrl;B1;0;CBK2;1400;0.9;1.8;2.9;0.05;0.40;1.9\n"
+    "3;P2;B01;10;trt;B1;10;CBK3;1150;1.5;2.5;3.9;0.30;0.70;2.4\n"
+    "4;P2;B02;10;ctrl;B1;0;CBK2;1380;0.8;1.7;2.7;0.02;0.35;1.8\n"
+    "5;P2;B03;10;trt;B1;10;CBK3;1100;1.6;2.6;4.1;0.35;0.75;2.5\n"
 )
+
+# Per-category means of the two ctrl rows, in the input's own units. The radar's
+# "infected" mode averages exactly those rows, so these values hold only while
+# the figures run on the values as delivered; standardising the columns again
+# would drive every one of them to a z-score near -1.
+CTRL_CATEGORY_MEANS = {
+    "AreaShape": 0.85,
+    "Intensity": 1.75,
+    "Granularity": 2.8,
+    "Correlation": 0.035,
+    "RadialDistribution": 0.375,
+    "Neighbors": 1.85,
+}
 
 # CBK3 is intentionally absent to exercise the unmatched-cbkid path.
 METADATA_TSV = (
@@ -103,6 +120,44 @@ class DrrPrecomputeTests(TestCase):
         self.assertEqual(summary["compartments"], ["nuclei", "cells", "cytoplasm"])
         self.assertEqual(summary["channels"], ["CONC", "HOECHST", "MITO", "SYTO"])
         self.assertEqual(summary["source"]["filename"], "features.csv")
+
+    def test_count_nuclei_is_metadata_not_a_feature(self) -> None:
+        """Count_nuclei is QC metadata: out of the feature set, still in the download."""
+        self._run()
+        table = load_feature_table(self.input_path)
+        self.assertIn("Count_nuclei", table.metadata_columns)
+        self.assertNotIn("Count_nuclei", table.feature_columns)
+
+        summary = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))
+        self.assertEqual(summary["n_features"], 6)
+        features = pl.read_parquet(self.out_dir / "features.parquet")
+        self.assertIn("Count_nuclei", features.columns)
+
+    def test_feature_matrix_is_not_standardised(self) -> None:
+        """Figures are computed on the values as delivered (spec section 5)."""
+        self._run()
+        radii = DrrDatasetData.get_data(SLUG).data["radar_infected"]["data"][0]["r"]
+
+        self.assertEqual(len(radii), len(FEATURE_CATEGORIES) + 1)
+        for index, category in enumerate(FEATURE_CATEGORIES):
+            self.assertAlmostEqual(radii[index], CTRL_CATEGORY_MEANS[category], places=6)
+        # The ring closes on its first axis.
+        self.assertAlmostEqual(radii[-1], radii[0], places=6)
+
+    def test_missing_feature_values_are_not_imputed(self) -> None:
+        """A gap in the feature matrix fails loudly, naming its column, rather than being filled."""
+        self.input_path.write_text(
+            FEATURE_CSV.replace("0;CBK2;1400;0.9;", "0;CBK2;1400;;"), encoding="utf-8"
+        )
+        with self.assertRaisesMessage(ValueError, "AreaShape_Area_nuclei"):
+            self._run()
+
+    def test_pca_axes_carry_percent_variance(self) -> None:
+        """Both PCA axes state the variance they explain, as paper Fig 1C does."""
+        self._run()
+        layout = DrrDatasetData.get_data(SLUG).data["pca"]["layout"]
+        self.assertRegex(layout["xaxis"]["title"]["text"], r"^PC1 \(\d+\.\d% variance\)$")
+        self.assertRegex(layout["yaxis"]["title"]["text"], r"^PC2 \(\d+\.\d% variance\)$")
 
     def test_compound_index_includes_unmatched(self) -> None:
         """Every feature cbkid is indexed; unmatched compounds keep null metadata."""

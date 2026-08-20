@@ -11,7 +11,10 @@ import polars.selectors as cs
 
 # Non-feature metadata columns in the feature table, verified against the
 # S-BIAD2580 A549-ACE2 validation-screen export header. Every other numeric
-# column is a feature.
+# column is a feature. ``Count_nuclei`` is numeric but a QC column, not a
+# morphological feature: the authors' own notebook skips it before building
+# their feature matrix (spec section 5). It stays in the frame, so downloads
+# still carry it.
 METADATA_COLUMNS: list[str] = [
     "Metadata_Barcode",
     "Metadata_Well",
@@ -20,6 +23,7 @@ METADATA_COLUMNS: list[str] = [
     "batch_id",
     "cmpd_conc",
     "cbkid",
+    "Count_nuclei",
 ]
 
 # Scan enough rows to infer column dtypes correctly for the full inputs

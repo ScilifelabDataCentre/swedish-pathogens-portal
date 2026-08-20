@@ -1,9 +1,12 @@
 """Server-side Plotly figures for a DRR dataset (spec section 6, ADR-0004).
 
-All figures are computed offline from the standardized feature matrix and
-serialised to Plotly JSON. Trace ``uid``s (randomly assigned by Plotly) are
-stripped so the serialised output is byte-stable across identical runs, which
-the ``drr_precompute`` idempotency contract depends on.
+All figures are computed offline from the feature matrix as delivered and
+serialised to Plotly JSON. The input arrives MAD-normalised per plate against
+that plate's DMSO wells, which is the only normalisation applied to it; values
+are therefore in the authors' MAD units throughout (spec section 5). Trace
+``uid``s (randomly assigned by Plotly) are stripped so the serialised output is
+byte-stable across identical runs, which the ``drr_precompute`` idempotency
+contract depends on.
 """
 
 from __future__ import annotations
@@ -43,7 +46,7 @@ class _Prepared:
     """Precomputed inputs shared by every figure builder.
 
     Attributes:
-        matrix: Standardized feature matrix (rows = profiles, cols = features).
+        matrix: Feature matrix as delivered (rows = profiles, cols = features).
         feature_columns: Feature column names, aligned with ``matrix`` columns.
         categories: Feature category per column (``None`` if uncategorised).
         pert_types: Per-row ``pert_type`` label.
@@ -71,20 +74,31 @@ def _column_values(table: FeatureTable, name: str) -> np.ndarray:
 
 
 def _prepare(table: FeatureTable) -> _Prepared:
-    """Impute and z-score the feature matrix and gather per-row labels."""
-    matrix = table.numeric_matrix()
-    column_mean = np.nanmean(matrix, axis=0) if matrix.size else np.zeros(matrix.shape[1])
-    column_mean = np.where(np.isnan(column_mean), 0.0, column_mean)
-    matrix = np.where(np.isnan(matrix), column_mean, matrix)
+    """Take the feature matrix as delivered and gather the per-row labels.
 
-    mean = matrix.mean(axis=0) if matrix.size else np.zeros(matrix.shape[1])
-    std = matrix.std(axis=0) if matrix.size else np.ones(matrix.shape[1])
-    std = np.where(std == 0.0, 1.0, std)
-    standardized = (matrix - mean) / std
+    Neither standardisation nor imputation is applied: the values arrive
+    MAD-normalised per plate and carry no missing entries (spec section 5).
+
+    Raises:
+        ValueError: If the feature matrix carries missing or non-finite values,
+            which nothing fills in.
+    """
+    matrix = table.numeric_matrix()
+    if not np.isfinite(matrix).all():
+        incomplete = [
+            column
+            for index, column in enumerate(table.feature_columns)
+            if not np.isfinite(matrix[:, index]).all()
+        ]
+        raise ValueError(
+            f"Feature matrix has missing or non-finite values in {len(incomplete)} column(s), "
+            f"e.g. {incomplete[:3]}. The input is expected to arrive complete (spec section 5) "
+            "and no value is imputed."
+        )
 
     categories = [_feature_category(column) for column in table.feature_columns]
     return _Prepared(
-        matrix=standardized,
+        matrix=matrix,
         feature_columns=table.feature_columns,
         categories=categories,
         pert_types=_column_values(table, "pert_type"),
@@ -103,12 +117,17 @@ def _category_indices(prep: _Prepared) -> dict[str, list[int]]:
 def build_pca(prep: _Prepared) -> go.Figure:
     """Build a PC1/PC2 scatter of well-level profiles coloured by ``pert_type``.
 
-    PCA is computed via numpy SVD on the standardized matrix (no sklearn). Each
-    component's sign is fixed (largest-magnitude loading forced positive) so the
-    scores, and therefore the serialised figure, are reproducible.
+    PCA is computed via numpy SVD on the values as delivered (no sklearn). Only
+    the column means are removed, which is what makes the decomposition a PCA
+    and what the percent-variance annotation is measured against; the per-column
+    scaling is not reapplied, matching the authors' ``PLSRegression(scale=False)``
+    (spec section 5). Each component's sign is fixed (largest-magnitude loading
+    forced positive) so the scores, and therefore the serialised figure, are
+    reproducible.
     """
     data = prep.matrix
-    left, singular, right = np.linalg.svd(data, full_matrices=False)
+    centred = data - data.mean(axis=0) if data.size else data
+    left, singular, right = np.linalg.svd(centred, full_matrices=False)
     components = min(2, singular.shape[0])
     scores = left[:, :components] * singular[:components]
     for i in range(components):
@@ -144,7 +163,7 @@ def build_pca(prep: _Prepared) -> go.Figure:
 
 
 def _compound_category_matrix(prep: _Prepared) -> tuple[list[str], np.ndarray]:
-    """Return sorted cbkids and their per-category mean standardized signal."""
+    """Return sorted cbkids and their per-category mean signal, in MAD units."""
     category_indices = _category_indices(prep)
     cbkids = sorted(set(prep.cbkids.tolist()))
     rows = []
@@ -162,7 +181,7 @@ def _compound_category_matrix(prep: _Prepared) -> tuple[list[str], np.ndarray]:
 
 
 def build_heatmap(prep: _Prepared) -> go.Figure:
-    """Build a compound x feature-category heatmap of mean standardized signal."""
+    """Build a compound x feature-category heatmap of mean signal in MAD units."""
     cbkids, matrix = _compound_category_matrix(prep)
     if matrix.shape[0] > _HEATMAP_MAX_COMPOUNDS:
         ranked = np.argsort(-np.abs(matrix).sum(axis=1))[:_HEATMAP_MAX_COMPOUNDS]
@@ -177,7 +196,7 @@ def build_heatmap(prep: _Prepared) -> go.Figure:
             y=cbkids,
             colorscale="RdBu",
             zmid=0,
-            colorbar={"title": "mean z-score"},
+            colorbar={"title": "mean (MAD units)"},
         )
     )
     figure.update_layout(
@@ -189,7 +208,7 @@ def build_heatmap(prep: _Prepared) -> go.Figure:
 
 
 def _category_means(prep: _Prepared, row_mask: np.ndarray) -> list[float]:
-    """Return the mean standardized value per feature category for the rows."""
+    """Return the mean value per feature category for the rows, in MAD units."""
     category_indices = _category_indices(prep)
     means = []
     for category in FEATURE_CATEGORIES:
