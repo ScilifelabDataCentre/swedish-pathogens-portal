@@ -69,14 +69,17 @@ class Command(BaseCommand):
         metadata_path = Path(options["metadata"])
         title = options["title"] or slug
 
+        LOGGER.info("drr.precompute.start", slug=slug, input=str(input_path))
+
+        # Read and validate both inputs before touching the artefact directory:
+        # the page advertises downloads from the files on disk, so a run that
+        # fails afterwards would leave them describing a different generation.
+        table = load_feature_table(input_path)
+        metadata = load_metadata(metadata_path)
+
         output_dir = artefact_dir(slug)
         figures_dir = output_dir / "figures"
         figures_dir.mkdir(parents=True, exist_ok=True)
-
-        LOGGER.info("drr.precompute.start", slug=slug, input=str(input_path))
-
-        table = load_feature_table(input_path)
-        metadata = load_metadata(metadata_path)
 
         compound_index = build_compound_index(table, metadata)
         compound_index.write_parquet(output_dir / "compounds.parquet")
