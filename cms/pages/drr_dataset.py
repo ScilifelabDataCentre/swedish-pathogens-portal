@@ -17,6 +17,7 @@ from cms.services.file_downloads import serve_file_from_directory
 from dashboard_visualisation.drr import artefact_dir
 
 if TYPE_CHECKING:
+    from datetime import date
     from pathlib import Path
 
     from cms.snippets.drr_dataset_data import DrrDatasetData
@@ -87,6 +88,19 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
         from cms.snippets.drr_dataset_data import DrrDatasetData
 
         return DrrDatasetData.get_data(self.slug)
+
+    @property
+    def dashboard_data_updated_at(self) -> date | None:
+        """Return the precompute date only, with no publication-date fallback.
+
+        ``DashboardPage`` falls back to ``first_published_at`` so a card without
+        a data row still carries a date. A dataset page states the provenance of
+        the data it renders — the date is stamped by ``drr_precompute`` alongside
+        the artefacts — so borrowing the page's own publication date would label
+        an editorial date as a measurement date. Without a row the card and the
+        "Data last updated" line are both omitted instead.
+        """
+        return getattr(self.dashboard_data, "data_updated_at", None)
 
     def get_context(self, request: HttpRequest) -> dict[str, Any]:
         """Add the DRR summary-statistics payload and the download URLs."""

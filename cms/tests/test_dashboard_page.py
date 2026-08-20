@@ -187,7 +187,7 @@ class TestDashboardIndexPageModel(DashboardPageTestCase):
 
             mock_queryset = [dashboard1, dashboard2]
             (
-                mock_child_of.return_value.live.return_value.public.return_value.prefetch_related.return_value.distinct.return_value.filter.return_value
+                mock_child_of.return_value.live.return_value.public.return_value.specific.return_value.prefetch_related.return_value.distinct.return_value.filter.return_value
             ) = mock_queryset
 
             context = self.index.get_context(request)
@@ -225,7 +225,7 @@ class TestDashboardIndexPageModel(DashboardPageTestCase):
             dashboard.dashboard_data_updated_at = None
             dashboard.title = "Influenza Dashboard"
 
-            queryset_chain = mock_child_of.return_value.live.return_value.public.return_value.prefetch_related.return_value.distinct.return_value  # noqa: E501
+            queryset_chain = mock_child_of.return_value.live.return_value.public.return_value.specific.return_value.prefetch_related.return_value.distinct.return_value  # noqa: E501
 
             queryset_chain.filter.return_value = [dashboard]
 

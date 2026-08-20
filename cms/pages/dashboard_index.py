@@ -98,10 +98,14 @@ class DashboardIndexPage(Page):
             filters &= models.Q(dashboard_topics__topic__slug__in=topics_filter)
             context["topics_filter"] = topics_filter
 
+        # `.specific()` so subclassed dashboards (DrrDatasetPage) keep their own
+        # `dashboard_data` override: the card date and the sort key below both
+        # read it, and a base DashboardPage row resolves the wrong snippet model.
         dashboards = (
             DashboardPage.objects.child_of(self)
             .live()
             .public()
+            .specific()
             .prefetch_related("dashboard_topics__topic")
             .distinct()
             .filter(filters)
