@@ -53,7 +53,7 @@
                         <div class="px-5 flex flex-wrap gap-2">
                             {% for y in filter_input.input_years %}
                             <label class="label">
-                                <input type="checkbox" id="yr-{{y}}" name="year" value="{{y}}"
+                                <input type="checkbox" id="yr-{{y}}" name="years" value="{{y}}"
                                 class="checkbox checkbox-accent checkbox-xs" checked/>
                                 {{y}}
                             </label>
@@ -85,7 +85,7 @@
                     <div>
                         <div class="font-medium mb-4 bg-gray-200/50 py-1.5">Normalisation method</div>
                         <div class="pr-8">
-                            <select name="method" id="norm-method" class="select select-accent">
+                            <select name="methods" id="norm-method" class="select select-accent">
                                 {% for k,v in filter_input.input_methods.items %}
                                 <option value="{{k}}" {% if k == "pmmov_normalised" %}selected{% endif %}>{{v}}</option>
                                 {% endfor %}
@@ -126,7 +126,7 @@
                     <div class="grid grid-rows-5 grid-cols-4 grid-flow-col px-5">
                         {% for site in filter_input.input_sites %}
                         <label class="label">
-                            <input type="checkbox" id="site-{{site|lower}}" name="site" value="{{site}}"
+                            <input type="checkbox" id="site-{{site|lower}}" name="sites" value="{{site}}"
                                 class="checkbox checkbox-accent checkbox-xs" checked/>
                             {{site}}
                         </label>

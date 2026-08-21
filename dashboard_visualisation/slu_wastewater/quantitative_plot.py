@@ -59,12 +59,12 @@ def get_quant_overview_plot(
 
     # get passed filter args, if not passed use defaults
     f_year = (
-        list(map(int, f_args.get("year", [])))
+        list(map(int, f_args.get("years", [])))
         or data["sampling_date"].dt.year().unique().sort().to_list()
     )
     f_month = [1, int(f_args.get("months", ["12"])[0])]
-    f_sites = f_args.get("site", data["city"].unique().sort().to_list())
-    f_method = f_args.get("method", ["pmmov_normalised"])[0]
+    f_sites = f_args.get("sites", data["city"].unique().sort().to_list())
+    f_method = f_args.get("methods", ["pmmov_normalised"])[0]
     f_roll = int(f_args.get("timeseries", ["1"])[0])
 
     cols_common = ["target", "sampling_date", "week", "month", "year"]
@@ -207,7 +207,7 @@ def get_all_sites_plot(
         data = pl.DataFrame(data)
 
     # filter args processing and default
-    f_method = f_args.get("method", ["pmmov_normalised"])[0]
+    f_method = f_args.get("methods", ["pmmov_normalised"])[0]
     f_roll = int(f_args.get("timeseries", ["1"])[0])
 
     cols_todrop = ["inhabitants", "category"]
@@ -310,7 +310,7 @@ def get_single_site_plot(
         data = pl.DataFrame(data)
 
     f_roll = int(f_args.get("timeseries", ["1"])[0])
-    f_site = f_args.get("site", data["city"].unique().sort().to_list())[0]
+    f_site = f_args.get("sites", data["city"].unique().sort().to_list())[0]
 
     cols_todrop = ["target", "inhabitants", "category"]
     cols_values = ["pmmov_normalised", "copies_day_inhabitant", "copies_l"]

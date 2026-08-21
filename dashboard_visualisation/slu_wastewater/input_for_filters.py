@@ -18,10 +18,9 @@ def get_input_for_filters(data: pl.DataFrame) -> dict:
     """
     sampling_date = data["sampling_date"].str.to_date()
     return {
-        "input_years": sorted(sampling_date.dt.year().unique().to_list()),
-        "input_months": sorted(sampling_date.dt.month().unique().to_list()),
-        "input_viruses": sorted(data.get_column("target").unique().to_list()),
-        "input_sites": sorted(data.get_column("city").unique().to_list()),
+        "input_years": sampling_date.dt.year().unique().sort().cast(pl.String).to_list(),
+        "input_months": sampling_date.dt.month().unique().sort().cast(pl.String).to_list(),
+        "input_sites": data.get_column("city").unique().sort().to_list(),
         "input_methods": norm_methods_map,
         "input_timeseries": timeseries_map,
     }

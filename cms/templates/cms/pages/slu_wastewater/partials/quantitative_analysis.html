@@ -28,7 +28,7 @@
             <div class="px-9 peer-has-[input:not(:checked)]:pointer-events-none
                         peer-has-[input:not(:checked)]:opacity-30">
                 <div class="pb-2 text-sm">Select method</div>
-                <select name="method" id="norm-method" class="select select-accent">
+                <select name="methods" id="norm-method" class="select select-accent">
                     {% for k,v in filter_input.input_methods.items %}
                     <option value="{{k}}" {% if k == "pmmov_normalised" %}selected{% endif %}>{{v}}</option>
                     {% endfor %}
@@ -50,7 +50,7 @@
             <div class="px-7 peer-has-[input:not(:checked)]:pointer-events-none
                         peer-has-[input:not(:checked)]:opacity-30">
                 <div class="pb-2 text-sm">Select site</div>
-                <select name="site" id="site" class="select select-accent">
+                <select name="sites" id="sites" class="select select-accent">
                     {% for s in filter_input.input_sites %}
                     <option value="{{s}}" {% if forloop.first %}selected{% endif %}>{{s}}</option>
                     {% endfor %}

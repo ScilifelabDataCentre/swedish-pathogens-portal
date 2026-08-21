@@ -97,10 +97,10 @@ norm_methods_map = {
 
 # Dictionary mapping timeseries types to their corresponding labels
 timeseries_map = {
-    1: "Weekly",
-    2: "Rolling average, 2 weeks",
-    3: "Rolling average, 3 weeks",
-    4: "Rolling average, 4 weeks",
+    "1": "Weekly",
+    "2": "Rolling average, 2 weeks",
+    "3": "Rolling average, 3 weeks",
+    "4": "Rolling average, 4 weeks",
 }
 
 # Common settings for axes and legends in plots
