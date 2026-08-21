@@ -19,6 +19,7 @@ from .outbreaks_index import OutbreaksIndexPage
 from .plp_index import PlpIndexPage
 from .plp_project import PlpProjectPage
 from .portal_data import PortalDataPage
+from .publications import PublicationsPage
 from .slu_dashboard import SLUDashboardPage
 from .slu_dashboard_subpage import SLUDashboardSubPage
 from .topics import TopicPage
@@ -43,6 +44,7 @@ __all__ = [
     "PlpIndexPage",
     "PlpProjectPage",
     "PortalDataPage",
+    "PublicationsPage",
     "SLUDashboardPage",
     "SLUDashboardSubPage",
     "TopicPage",
