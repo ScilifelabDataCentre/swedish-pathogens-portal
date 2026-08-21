@@ -1,4 +1,4 @@
-{% load static django_htmx %}
+{% load static django_htmx wagtailimages_tags %}
 
 <head>
 
@@ -6,29 +6,36 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
-    <!-- Page Title, can be passed via a title block in another template or via context in a view -->
+    {# SEO title set in promote panel is given priority #}
+    <!-- Page Title -->
      <title>
-        {% if page.title %}
+        {% if page.seo_title %}
+            {{ page.seo_title }}
+        {% elif page.title %}
             {{ page.title }}
         {% else %}
-            Swedish Pathogens Portal
+            {{ page.get_site.site_name }}
         {% endif %}
      </title>
 
     <!-- Site meta info -->
     <meta http-equiv="content-language" content="en">
+
+    {% block description %}
+    {# Search description set in promote panel if given priority #}
+    {% if page.search_description %}
+     <meta name="description" content="{{ page.search_description }}">
+    {% elif page.description %}
+    <meta name="description" content="{{ page.description }}">
+    {% else %}
     <meta name="description" content="
-        {% block description %}
-            {% if description %}
-                {{ description }}
-            {% else %}
-                The Swedish Pathogens Portal provides information about available datasets,
-                resources, tools, and services related to pandemic preparedness in Sweden.
-                We offer support to all those involved in pandemic preparedness research
-                that are affiliated with a Swedish research institution or university.
-            {% endif %}
-        {% endblock %}
+        The {{ page.get_site.site_name }} provides information about available datasets,
+        resources, tools, and services related to pandemic preparedness in Sweden.
+        We offer support to all those involved in pandemic preparedness research
+        that are affiliated with a Swedish research institution or university.
     ">
+    {% endif %}
+    {% endblock %}
 
     <!-- Favicons -->
     <link rel="apple-touch-icon" sizes="180x180" href="{% static 'cms/images/apple-touch-icon.png' %}">
@@ -38,6 +45,39 @@
     <!-- Stylesheet -->
     <link rel="stylesheet" href="{% static 'cms/css/portal.css' %}">
 
+    <!-- Meta tags for social media sharing -->
+    <meta property="og:locale" content="en">
+    <meta property="og:url" content="{{ page.full_url }}">
+
+    {# Have to be set in the site settings on the Wagtail admin #}
+    <meta property="og:site_name" content="{{ page.get_site.site_name }}">
+
+    {# SEO title set in promote panel is given priority #}
+    {% if page.seo_title %}
+    <meta property="og:title" content="{{ page.seo_title }}">
+    {% elif page.title %}
+    <meta property="og:title" content="{{ page.title }}">
+    {% endif %}
+
+    {# SEO description set in promote panel is given priority #}
+    {% if page.search_description %}
+    <meta property="og:description" content="{{ page.search_description }}">
+    {% elif page.description %}
+    <meta property="og:description" content="{{ page.description }}">
+    {% endif %}
+
+    {# When an image is not available fall back to the default logo #}
+    {% if page.image %}
+    {% image page.image format-webp as cover %}
+    <meta property="og:image" content="{{ cover.full_url }}">
+    {% else %}
+    <meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'cms/images/swe_pathogens_logo.svg' %}">
+    {% endif %}
+
+    {# Twitter card meta tags for social media sharing #}
+    <meta name="twitter:card" content="summary_large_image">
+
+    <!-- Load the htmx -->
     {% htmx_script %}
     {% django_htmx_script %}
 
