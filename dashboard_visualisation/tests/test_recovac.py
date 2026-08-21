@@ -486,17 +486,29 @@ class TestsGenerateFigures(SimpleTestCase):
         self.assertIn("number of people", layout["yaxis2"]["title"]["text"])
         timeframe = [btn["label"] for btn in layout["updatemenus"][1]["buttons"]]
         self.assertEqual(timeframe, ["Select full timeline", "Align both plots"])
+        self.assertEqual(layout["updatemenus"][0]["x"], 0.1)
+        self.assertEqual(layout["updatemenus"][1]["x"], 0.1)
+        hoverlabel = layout.get("hoverlabel") or {}
+        self.assertEqual(hoverlabel.get("align"), "left")
+        self.assertNotEqual((hoverlabel.get("font") or {}).get("size"), 14)
 
     def test_coverage_and_count_hover_templates(self) -> None:
-        """Coverage hover uses percent; every count bar includes the week total."""
+        """Coverage hover is one line; week total appears once per age group."""
         swedish = generate_figures(io.BytesIO(build_recovac_zip()))["swedishpop_subplot"]
         area = swedish["data"][0]
-        self.assertIn("%", area["hovertemplate"])
+        self.assertIn("%{fullData.name}", area["hovertemplate"])
         self.assertIn(".1f", area["hovertemplate"])
-        for trace in swedish["data"][21:]:
-            with self.subTest(name=trace["name"]):
-                self.assertIn("customdata", trace)
-                self.assertIn("week total", trace["hovertemplate"])
+        self.assertIn("<extra></extra>", area["hovertemplate"])
+        bars = [trace for trace in swedish["data"] if trace["type"] == "bar"]
+        for index, trace in enumerate(bars):
+            with self.subTest(name=trace["name"], index=index):
+                self.assertIn("%{fullData.name}", trace["hovertemplate"])
+                self.assertIn("<extra></extra>", trace["hovertemplate"])
+                if index % 7 == 0:
+                    self.assertIn("week total", trace["hovertemplate"])
+                    self.assertIn("customdata", trace)
+                else:
+                    self.assertNotIn("week total", trace["hovertemplate"])
 
     def test_comorbidity_buttons_use_full_names(self) -> None:
         """Comorbidity filters spell out the condition, not CVD/RD."""

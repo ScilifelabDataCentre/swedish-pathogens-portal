@@ -101,7 +101,15 @@ _BAR_SERIES = (
     ("vacc1", "One Dose", "rgba(244,165,130,1)"),
     ("vacc0", "No Doses", "rgba(178,24,43,1)"),
 )
+_COVERAGE_HOVER = "%{fullData.name}: %{y:.1f}%<extra></extra>"
+_COUNT_HOVER = "%{fullData.name}: %{y:.0f}<extra></extra>"
+_COUNT_HOVER_WITH_TOTAL = (
+    "%{fullData.name}: %{y:.0f} (week total: %{customdata:.0f})<extra></extra>"
+)
 _FIGURE_HEIGHT = 1100
+# Live plots put menus at 0.1 so Age / Comorbidity / Timeframe stay visible.
+_BUTTON_MENU_X = 0.1
+_BUTTON_LABEL_X = -0.03
 _XAXIS_SPIKE: dict[str, Any] = {
     "type": "date",
     "showspikes": True,
@@ -572,7 +580,7 @@ def _add_area_traces(
                     stackgroup="one",
                     legendgroup=name,
                     visible=visible,
-                    hovertemplate="%{y:.1f}%",
+                    hovertemplate=_COVERAGE_HOVER,
                     showlegend=group_index == 0,
                 ),
                 row=1,
@@ -592,7 +600,8 @@ def _add_bar_traces(
         dates = _date_values(frame)
         visible = group_index == 0
         weekly_total = frame.get_column(total_column).to_list()
-        for column, name, color in series:
+        for series_index, (column, name, color) in enumerate(series):
+            include_week_total = series_index == 0
             fig.add_trace(
                 go.Bar(
                     name=name,
@@ -602,8 +611,10 @@ def _add_bar_traces(
                     legendgroup=name,
                     visible=visible,
                     showlegend=False,
-                    customdata=weekly_total,
-                    hovertemplate="%{y:.0f} (week total: %{customdata:.0f})",
+                    customdata=weekly_total if include_week_total else None,
+                    hovertemplate=(
+                        _COUNT_HOVER_WITH_TOTAL if include_week_total else _COUNT_HOVER
+                    ),
                 ),
                 row=2,
                 col=1,
@@ -689,7 +700,7 @@ def _two_panel_subplot_fig(
             "font": {"size": 12},
             "tracegroupgap": 0,
         },
-        hoverlabel={"align": "left", "font": {"size": 14}, "namelength": -1},
+        hoverlabel={"align": "left"},
         hovermode="x unified",
         spikedistance=-1,
         updatemenus=[
@@ -699,7 +710,7 @@ def _two_panel_subplot_fig(
                 "direction": "right",
                 "pad": {"r": 10, "t": 10},
                 "showactive": True,
-                "x": 0.0,
+                "x": _BUTTON_MENU_X,
                 "xanchor": "left",
                 "y": button_layer_1_height,
                 "yanchor": "top",
@@ -721,7 +732,7 @@ def _two_panel_subplot_fig(
                 "direction": "right",
                 "pad": {"r": 10, "t": 10},
                 "showactive": True,
-                "x": 0.0,
+                "x": _BUTTON_MENU_X,
                 "xanchor": "left",
                 "y": button_layer_2_height,
                 "yanchor": "top",
@@ -730,7 +741,7 @@ def _two_panel_subplot_fig(
     )
     fig.add_annotation(
         text=filter_label,
-        x=-0.02,
+        x=_BUTTON_LABEL_X,
         xref="paper",
         y=button_layer_1_height * 0.978,
         yref="paper",
@@ -739,7 +750,7 @@ def _two_panel_subplot_fig(
     )
     fig.add_annotation(
         text="Timeframe:",
-        x=-0.02,
+        x=_BUTTON_LABEL_X,
         xref="paper",
         y=button_layer_2_height * 0.978,
         yref="paper",
