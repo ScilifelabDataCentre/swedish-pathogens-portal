@@ -17,6 +17,7 @@ from dashboard_visualisation.slu_wastewater.quantitative_plot import (
     get_all_sites_plot,
     get_single_site_plot,
 )
+from dashboard_visualisation.slu_wastewater.validators import validate_analysis_plot_request_params
 
 if TYPE_CHECKING:
     from cms.pages.slu_dashboard import SLUDashboardPage
@@ -187,7 +188,6 @@ class SLUDashboardSubPage(Page):
                         "message_type": "error",
                     },
                 )
-            request_params = dict(request.GET)
             raw_data = getattr(self.dashboard_data, "data", {}).get("raw_data", None)
             if raw_data is None:
                 # This should never happen, but if it does, return
@@ -197,6 +197,7 @@ class SLUDashboardSubPage(Page):
                     "cms/pages/slu_wastewater/partials/load_message.html",
                     {"missing_data": "Raw data", "message_type": "error"},
                 )
+            request_params = validate_analysis_plot_request_params(request.GET, raw_data)
             # call appropriate function depending upon the plot type
             if request.GET.get("plot-toggle") == "all":
                 quant_plot_html = get_all_sites_plot(

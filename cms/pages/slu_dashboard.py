@@ -11,6 +11,7 @@ from wagtail.fields import RichTextField, StreamField
 from cms.blocks import AlertBlock, CollapsibleBlock, LastUpdatedBlock, PlotlyFigureBlock
 from cms.pages.dashboard import DashboardPage
 from dashboard_visualisation.slu_wastewater.quantitative_plot import get_quant_overview_plot
+from dashboard_visualisation.slu_wastewater.validators import validate_overview_plot_request_params
 
 NOTICE_TYPE_CHOICES = [
     ("info", "Info"),
@@ -134,7 +135,6 @@ class SLUDashboardPage(DashboardPage):
         # overview plot is expected to be requested via HTMX. If this changes in the
         # future, additional logic may be needed to determine which plot to generate.
         if request.htmx:
-            request_params = dict(request.GET)
             raw_data = getattr(self.dashboard_data, "data", {}).get("raw_data", None)
             if raw_data is None:
                 # This should never happen, but if it does, return
@@ -144,6 +144,7 @@ class SLUDashboardPage(DashboardPage):
                     "cms/pages/slu_wastewater/partials/load_message.html",
                     {"missing_data": "Raw data", "message_type": "error"},
                 )
+            request_params = validate_overview_plot_request_params(request.GET, raw_data)
             plot_html = get_quant_overview_plot(data=raw_data, as_html=True, **request_params)
             return HttpResponse(plot_html)
 
