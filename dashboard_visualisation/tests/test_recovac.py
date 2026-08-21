@@ -293,6 +293,11 @@ class TestsPrepHelpers(SimpleTestCase):
         frame = _prep_week_dates(pl.DataFrame({"wk": ["2019w52", "2021w03"]}))
         self.assertEqual(frame.get_column("date").to_list(), ["2021-01-18"])
 
+    def test_invalid_iso_week_is_dropped(self) -> None:
+        """Skip week numbers that are not valid ISO weeks instead of failing generate."""
+        frame = _prep_week_dates(pl.DataFrame({"wk": ["2021w54", "2021w03"]}))
+        self.assertEqual(frame.get_column("date").to_list(), ["2021-01-18"])
+
     def test_decumulate_coverage_shares(self) -> None:
         """Turn cumulative 0–1 shares into exclusive dose-level percents."""
         frame = _prep_coverage(
@@ -412,6 +417,23 @@ class TestsFigureBuilders(SimpleTestCase):
         self.assertEqual(len(fig.layout.updatemenus), 2)
         self.assertIsNotNone(fig.layout.xaxis)
         self.assertIsNotNone(fig.layout.xaxis2)
+
+    def test_count_yaxis_uses_max_across_groups(self) -> None:
+        """ICU y-axis must fit the tallest age group, not only the default one."""
+        stems = tuple(stem for stem in REQUIRED_ZIP_STEMS if stem != "iva_vacc_18-59")
+        payload = build_recovac_zip(
+            stems,
+            extra={
+                "iva_vacc_18-59.csv": (
+                    "wk,vacc0,vacc1,vacc2,vacc3,vacc4,vacc5,vacc6,c19_i1\n"
+                    "2021w03,100,50,30,20,10,0,0,210\n"
+                    "2021w04,80,40,30,20,10,10,0,190\n"
+                )
+            },
+        )
+        fig = _swedishpop_subplot_fig(_load_tables(io.BytesIO(payload)))
+        y_max = fig.layout.yaxis2.range[1]
+        self.assertGreaterEqual(y_max, 210)
 
     def test_comorbidity_figure_has_two_rows_and_two_menus(self) -> None:
         """Comorbidity builder returns a 2-row figure with filter + timeframe menus."""

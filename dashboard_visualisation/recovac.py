@@ -412,6 +412,14 @@ def _numeric_or_zero(
     return df.with_columns(exprs)
 
 
+def _monday_from_iso_week(year: int, week_no: int) -> date | None:
+    """Return Monday of an ISO week, or None when the week number is invalid."""
+    try:
+        return date.fromisocalendar(year, week_no, 1)
+    except ValueError:
+        return None
+
+
 def _prep_week_dates(
     df: pl.DataFrame,
     *,
@@ -432,7 +440,7 @@ def _prep_week_dates(
         .with_columns(
             pl.struct(["_year", "_week_no"])
             .map_elements(
-                lambda row: date.fromisocalendar(row["_year"], row["_week_no"], 1),
+                lambda row: _monday_from_iso_week(row["_year"], row["_week_no"]),
                 return_dtype=pl.Date,
             )
             .alias("date")
@@ -646,7 +654,7 @@ def _two_panel_subplot_fig(
     _add_bar_traces(fig, count_frames, series=_BAR_SERIES, total_column=total_column)
 
     x_axes = _xaxis_ranges(_date_values(coverage_frames[0]), _date_values(count_frames[0]))
-    highest = max(count_frames[0].get_column(total_column).to_list())
+    highest = max(max(frame.get_column(total_column).to_list()) for frame in count_frames)
     y_top = max(1, int(highest * 1.05))
 
     group_buttons = [

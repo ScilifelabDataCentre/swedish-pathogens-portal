@@ -14,8 +14,11 @@ services:
     image: swedish_pathogens_portal
     pull_policy: never
     container_name: spp_web
-    # Ignore media uploads so saving a DashboardData file does not restart
-    # the process mid-request (watchdog otherwise sees media/*.zip).
+    # Dev-only (this file is the Docker development stack). Production uses
+    # gunicorn and never reads this entrypoint. runserver_plus watches the bind
+    # mount; a DashboardData save writes into media/ and would otherwise restart
+    # the process mid-request. Exclude media and zip so reviewers can upload
+    # recovac (and any other) source files without a watchdog bounce.
     entrypoint:
       - python
       - manage.py

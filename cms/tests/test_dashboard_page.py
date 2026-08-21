@@ -184,13 +184,14 @@ class TestDashboardIndexPageModel(DashboardPageTestCase):
         self.assertEqual(DashboardIndexPage.parent_page_types, ["cms.HomePage"])
 
     def test_subpage_types_allows_dashboard_page_types(self) -> None:
-        """Test that standard, DRR, and liver dashboard pages are allowed children."""
+        """Test that standard, DRR, liver, and SLU dashboard pages are allowed children."""
         self.assertEqual(
             DashboardIndexPage.subpage_types,
             [
                 "cms.DashboardPage",
                 "cms.DrrDatasetPage",
                 "cms.LiverResourceDashboardPage",
+                "cms.SLUDashboardPage",
             ],
         )
 
