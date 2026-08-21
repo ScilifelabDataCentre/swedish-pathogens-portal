@@ -1,8 +1,8 @@
 """Basic content page model with a StreamField body."""
 
 from django.db import models
-from wagtail import blocks
 from wagtail.admin.panels import FieldPanel
+from wagtail.blocks import RichTextBlock, StaticBlock
 from wagtail.fields import StreamField
 from wagtail.models import Page
 
@@ -14,11 +14,12 @@ class BasicPage(Page):
 
     Attributes:
         show_toc: Whether to generate and display a table of contents sidebar.
-        content (StreamField): StreamField with four content block types:
+        content (StreamField): StreamField with five content block types:
             - RichTextBlock: formatted text (headings, bold, italic, links, lists)
             - AlertBlock: callout/notice box
             - DataTableBlock: interactive table with search and pagination
             - CollapsibleBlock: ``<details>`` accordion with a rich-text body
+            - StaticBlock: Matomo analytics opt-out widget
     """
 
     template = "cms/pages/basic_page.html"
@@ -29,7 +30,7 @@ class BasicPage(Page):
         [
             (
                 "text",
-                blocks.RichTextBlock(
+                RichTextBlock(
                     verbose_name="Text (rich)",
                     help_text="Main body copy. Use headings for structure; images optional.",
                 ),
@@ -37,8 +38,18 @@ class BasicPage(Page):
             ("alert", AlertBlock()),
             ("data_table", DataTableBlock()),
             ("collapsible", CollapsibleBlock()),
+            (
+                "matomo_opt_out",
+                StaticBlock(
+                    admin_text=("Displays the Matomo analytics opt-out widget."),
+                    template="cms/components/matomo_opt_out.html",
+                ),
+            ),
         ],
         blank=True,
+        block_counts={
+            "matomo_opt_out": {"max_num": 1},
+        },
     )
 
     content_panels = Page.content_panels + [

@@ -21,50 +21,55 @@ _INTRO_TEXT = "Generic basic page intro copy."
 _TABLE_ID = "metrics"
 
 
-def _content_with_blocks(intro: str = _INTRO_TEXT, table_id: str = _TABLE_ID) -> str:
-    """Return StreamField JSON with a rich-text intro, a collapsible, and a data table.
+def _content_with_blocks(
+    intro: str = _INTRO_TEXT, table_id: str = _TABLE_ID, include_matomo_opt_out: bool = False
+) -> str:
+    """Return StreamField JSON content for a basic page.
+
+    Contains a rich-text intro, a collapsible, a data table and an optional matomo_opt_out block.
 
     Mirrors the JSON Wagtail serialises for ``BasicPage.content``: a top-level
     ``text`` block, a ``collapsible`` whose body holds one inner rich-text block
     (``CollapsibleBlock.body`` enforces ``min_num=1``), and a top-level
     ``data_table`` that renders the ``id="data-table-<id>-title"`` caption marker.
     """
-    return json.dumps(
-        [
-            {"type": "text", "value": f"<p>{intro}</p>", "id": "block-intro"},
-            {
-                "type": "collapsible",
-                "value": {
-                    "label": "Programme timeline",
-                    "body": [
-                        {
-                            "type": "text",
-                            "value": "<p>Inner disclosure copy</p>",
-                            "id": "inner-text",
-                        },
-                    ],
-                },
-                "id": "block-collapsible",
-            },
-            {
-                "type": "data_table",
-                "value": {
-                    "table_id": table_id,
-                    "show_controls": True,
-                    "per_page": "10",
-                    "table": {
-                        "columns": [
-                            {"type": "text", "heading": "Name"},
-                            {"type": "numeric", "heading": "Score"},
-                        ],
-                        "rows": [{"values": ["Alice", 95.0]}],
-                        "caption": "Programme metrics",
+    blocks = [
+        {"type": "text", "value": f"<p>{intro}</p>", "id": "block-intro"},
+        {
+            "type": "collapsible",
+            "value": {
+                "label": "Programme timeline",
+                "body": [
+                    {
+                        "type": "text",
+                        "value": "<p>Inner disclosure copy</p>",
+                        "id": "inner-text",
                     },
-                },
-                "id": "block-table",
+                ],
             },
-        ]
-    )
+            "id": "block-collapsible",
+        },
+        {
+            "type": "data_table",
+            "value": {
+                "table_id": table_id,
+                "show_controls": True,
+                "per_page": "10",
+                "table": {
+                    "columns": [
+                        {"type": "text", "heading": "Name"},
+                        {"type": "numeric", "heading": "Score"},
+                    ],
+                    "rows": [{"values": ["Alice", 95.0]}],
+                    "caption": "Programme metrics",
+                },
+            },
+            "id": "block-table",
+        },
+    ]
+    if include_matomo_opt_out:
+        blocks.append({"type": "matomo_opt_out", "value": {}, "id": "block-matomo-opt-out"})
+    return json.dumps(blocks)
 
 
 class BasicPagePlacementTest(SimpleTestCase):
@@ -92,11 +97,11 @@ class BasicPageContentBlocksTest(SimpleTestCase):
     """``BasicPage.content`` exposes exactly the expected block types."""
 
     def test_content_block_set_is_trimmed(self) -> None:
-        """Only ``text``, ``alert``, ``data_table``, and ``collapsible`` are allowed."""
+        """Only expected blocks are allowed."""
         child_blocks = BasicPage._meta.get_field("content").stream_block.child_blocks
         self.assertEqual(
             set(child_blocks.keys()),
-            {"text", "alert", "data_table", "collapsible"},
+            {"text", "alert", "data_table", "collapsible", "matomo_opt_out"},
         )
 
 
@@ -105,7 +110,10 @@ class BasicPageRenderTest(WagtailPageTestCase):
 
     @classmethod
     def setUpTestData(cls) -> None:
-        """Publish two BasicPages: one with mixed content, one empty."""
+        """Publish three BasicPages for tests.
+
+        one with mixed content, one empty, and one "privacy" page containing a matomo_opt_out block.
+        """
         root = Page.get_first_root_node()
         for child in root.get_children():
             child.delete()
@@ -126,6 +134,11 @@ class BasicPageRenderTest(WagtailPageTestCase):
         cls.home.add_child(instance=cls.empty_page)
         cls.empty_page.save_revision().publish()
 
+        cls.privacy_page = BasicPage(title="Privacy Policy", slug="privacy")
+        cls.privacy_page.content = _content_with_blocks(include_matomo_opt_out=True)
+        cls.home.add_child(instance=cls.privacy_page)
+        cls.privacy_page.save_revision().publish()
+
     def test_renders_intro_collapsible_and_data_table(self) -> None:
         """The page returns 200 with the intro, a ``<details``, and the table marker."""
         resp = self.client.get(self.page.url)
@@ -138,3 +151,12 @@ class BasicPageRenderTest(WagtailPageTestCase):
         """A ``BasicPage`` with empty ``content`` still publishes and renders 200."""
         resp = self.client.get(self.empty_page.url)
         self.assertEqual(resp.status_code, 200)
+
+    def test_matomo_opt_out_block_renders_in_privacy_page(self) -> None:
+        """The ``matomo_opt_out`` block renders the expected widget from the script."""
+        resp = self.client.get(self.privacy_page.url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'id="matomo-opt-out"')
+        self.assertContains(
+            resp, "https://matomo.dc.scilifelab.se/index.php?module=CoreAdminHome&action=optOutJS"
+        )
