@@ -1,6 +1,5 @@
 """Publications Page that displays recent Sweden affiliated research papers in Europe PMC."""
 
-from dataclasses import dataclass
 from typing import Any
 
 from django.http import HttpRequest, HttpResponse
@@ -12,19 +11,7 @@ from wagtail.models import Page
 
 from cms.blocks import AlertBlock
 from cms.blocks.publications import PublicationsBlock
-
-
-@dataclass
-class Pathogen:
-    """A pathogen that can be used to search for publications in Europe PMC.
-
-    Attributes:
-        name (str): The name of the pathogen.
-        search_terms (list[str]): A list of search terms to find in a publication's abstract.
-    """
-
-    name: str
-    search_terms: list[str]
+from cms.services.publications import Pathogen, render_publications_partial, resolve_active_pathogen
 
 
 class PublicationsPage(Page):
@@ -71,8 +58,10 @@ class PublicationsPage(Page):
         return pathogens
 
     def get_context(self, request: HttpRequest) -> dict[str, Any]:
-        """Add TODO to the context."""
+        """Add the active (selected) pathogen to the template context."""
         context = super().get_context(request)
+        active_pathogen = resolve_active_pathogen(page=self, request=request)
+        context["active_pathogen"] = active_pathogen.name if active_pathogen else None
         return context
 
     def serve(self, request: HttpRequest) -> HttpResponse:
@@ -81,6 +70,6 @@ class PublicationsPage(Page):
         If the request is made via HTMX, render the publications list partial template,
         otherwise render the full page.
         """
-        # if request.htmx:
-        # TODO
+        if request.htmx:
+            return render_publications_partial(request=request, page=self)
         return super().serve(request)

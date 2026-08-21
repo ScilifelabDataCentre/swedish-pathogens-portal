@@ -1,0 +1,55 @@
+{% comment %}
+    PublicationsBlock's template: 
+    Contains a left sidebar with a pathogen filter and a lazy-loaded publications list on the right. 
+    The list is loaded via HTMX on page load or when a new pathogen is selected.
+{% endcomment %}
+
+<div class="lg:flex lg:gap-4 mt-6">
+    <div>
+        <h5 class="px-4 py-2 m-0 bg-pp-pale-grey">Categories</h5>
+        <nav id="pathogen-nav" class="px-4 py-3 border border-pp-pale-grey
+            *:text-pp-dark-blue *:font-medium *:has-[.active]:text-gray-500
+            *:has-[.active]:pointer-events-none">
+            {% for pathogen in self.pathogens %}
+            <div id="{{ pathogen.name|slugify }}">
+                <span class="cursor-pointer hover:underline hover:underline-offset-3
+                    {% if pathogen.name == active_pathogen %}active{% endif %}"
+                    hx-get="{{ page.url }}"
+                    hx-vals='{"pathogen": "{{ pathogen.name }}"}'
+                    hx-trigger="click"
+                    hx-target="#publications-list"
+                    hx-swap="innerHTML"
+                    hx-indicator="#publications-loading">
+                    {{ pathogen.name }}
+                </span>
+            </div>
+            {% endfor %}
+        </nav>
+    </div>
+    <div class="lg:flex-1 relative min-h-40"
+        hx-get="{{ page.url }}"
+        hx-vals='{"pathogen": "{{ active_pathogen }}"}'
+        hx-trigger="load once"
+        hx-target="#publications-list"
+        hx-swap="innerHTML"
+        hx-indicator="#publications-loading">
+        <h5 class="bg-pp-pale-grey mt-6 lg:mt-0 px-3 py-2">Recent publications</h5>
+        <div id="publications-loading"
+            class="htmx-indicator absolute inset-0 bg-base-100/80 flex items-center justify-center z-10 rounded-box">
+            <span class="loading loading-spinner text-accent loading-lg" aria-label="Loading"></span>
+        </div>
+        <div id="publications-list">
+            <!-- Publications list loaded lazily by HTMX -->
+        </div>
+    </div>
+</div>
+
+<script>
+    // htmx only swaps #publications-list, so update the nav's "active" state ourselves.
+    document.body.addEventListener("htmx:beforeRequest", (event) => {
+        if (event.target.closest("#pathogen-nav")) {
+            document.querySelectorAll("#pathogen-nav .active").forEach((el) => el.classList.remove("active"));
+            event.target.classList.add("active");
+        }
+    });
+</script>
