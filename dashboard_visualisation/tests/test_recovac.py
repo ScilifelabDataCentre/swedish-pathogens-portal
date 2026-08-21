@@ -122,9 +122,7 @@ class TestsValidateSourceFile(SimpleTestCase):
             stem for stem in REQUIRED_ZIP_STEMS if stem != "cm_cvd_cardio_vacc_SciLifeLab"
         )
         payload = build_recovac_zip(stems, extra=extra)
-        self.assertIsNone(
-            validate_source_file(io.BytesIO(payload), filename="recovac-source.zip")
-        )
+        self.assertIsNone(validate_source_file(io.BytesIO(payload), filename="recovac-source.zip"))
 
     def test_rejects_non_zip_extension(self) -> None:
         """Reject a CSV upload for this dashboard."""

@@ -196,9 +196,7 @@ class TestContentWithToc(TestCase):
         self.assertEqual(streamfield.render_as_block.call_count, 2)
 
     @patch("cms.templatetags.toc.cache")
-    def test_pages_without_source_file_hash_keep_original_cache_key(
-        self, mock_cache: MagicMock
-    ):
+    def test_pages_without_source_file_hash_keep_original_cache_key(self, mock_cache: MagicMock):
         """Topic and basic pages must keep toc:{id}:{published} (no extra segment)."""
         mock_cache.get.return_value = None
         page = MagicMock()

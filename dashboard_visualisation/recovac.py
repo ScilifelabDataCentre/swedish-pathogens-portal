@@ -460,9 +460,7 @@ def _prep_coverage(df: pl.DataFrame, *, ffill: bool = False) -> pl.DataFrame:
     ``ffill`` after empty Excel cells), then treat remaining leading nulls as 0.
     """
     df = _normalise_columns(df)
-    prepared = _prep_week_dates(
-        _numeric_or_zero(df, _VACC_COVERAGE_COLS, fill_null=False)
-    )
+    prepared = _prep_week_dates(_numeric_or_zero(df, _VACC_COVERAGE_COLS, fill_null=False))
     if ffill:
         prepared = prepared.with_columns(pl.col(_VACC_COVERAGE_COLS).forward_fill())
     prepared = prepared.with_columns(pl.col(_VACC_COVERAGE_COLS).fill_null(0.0))
@@ -620,9 +618,7 @@ def _add_bar_traces(
                     visible=visible,
                     showlegend=False,
                     customdata=weekly_total if include_week_total else None,
-                    hovertemplate=(
-                        _COUNT_HOVER_WITH_TOTAL if include_week_total else _COUNT_HOVER
-                    ),
+                    hovertemplate=(_COUNT_HOVER_WITH_TOTAL if include_week_total else _COUNT_HOVER),
                 ),
                 row=2,
                 col=1,
