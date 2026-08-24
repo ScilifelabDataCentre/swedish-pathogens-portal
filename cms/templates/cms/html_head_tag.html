@@ -1,4 +1,16 @@
-{% load static django_htmx %}
+{% load static django_htmx wagtailimages_tags %}
+
+{% comment %}
+    Set the site name, meta title, and meta description for the page. The site name is retrieved
+    from the page's site object (i.e. set in the site settings), and if not available, it defaults
+    to "Swedish Pathogens Portal". The meta title is determined by checking for a SEO title, then
+    the page title, and finally falling back to the site name. The meta description is set by
+    checking for a search description, then the page description, and finally using a default
+    description about the Swedish Pathogens Portal.
+{% endcomment %}
+{% firstof page.get_site.site_name "Swedish Pathogens Portal" as meta_site_name %}
+{% firstof page.seo_title page.title meta_site_name as meta_title %}
+{% firstof page.search_description page.description "The Swedish Pathogens Portal provides information about datasets, resources, tools, and services for pandemic preparedness in Sweden." as meta_description %}
 
 <head>
 
@@ -6,29 +18,16 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
 
-    <!-- Page Title, can be passed via a title block in another template or via context in a view -->
-     <title>
-        {% if page.title %}
-            {{ page.title }}
-        {% else %}
-            Swedish Pathogens Portal
-        {% endif %}
-     </title>
+    {# SEO title set in promote panel is given priority #}
+    <!-- Page Title -->
+     <title>{{ meta_title }}</title>
 
     <!-- Site meta info -->
-    <meta http-equiv="content-language" content="en">
-    <meta name="description" content="
-        {% block description %}
-            {% if description %}
-                {{ description }}
-            {% else %}
-                The Swedish Pathogens Portal provides information about available datasets,
-                resources, tools, and services related to pandemic preparedness in Sweden.
-                We offer support to all those involved in pandemic preparedness research
-                that are affiliated with a Swedish research institution or university.
-            {% endif %}
-        {% endblock %}
-    ">
+    <meta http-equiv="content-language" content="en_UK">
+
+    {% block description %}
+    <meta name="description" content="{{ meta_description }}">
+    {% endblock %}
 
     <!-- Favicons -->
     <link rel="apple-touch-icon" sizes="180x180" href="{% static 'cms/images/apple-touch-icon.png' %}">
@@ -38,6 +37,33 @@
     <!-- Stylesheet -->
     <link rel="stylesheet" href="{% static 'cms/css/portal.css' %}">
 
+    <!-- Meta tags for social media sharing -->
+    <meta property="og:locale" content="en_GB">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="{{ page.full_url }}">
+    <meta property="og:site_name" content="{{ meta_site_name }}">
+    <meta property="og:title" content="{{ meta_title }}">
+    <meta property="og:description" content="{{ meta_description }}">
+
+    {# When an image is not available fall back to the default logo #}
+    {% if page.image %}
+    {% image page.image format-jpeg fill-900x450 as cover %}
+    <meta property="og:image" content="{{ cover.full_url }}">
+    <meta property="og:image:width" content="{{ cover.width }}">
+    <meta property="og:image:height" content="{{ cover.height }}">
+    <meta property="og:image:alt" content="{{ cover.alt }}">
+    {% else %}
+    <meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'cms/images/swe_pathogens_logo_social_media.jpg' %}">
+    <meta property="og:image:width" content="900">
+    <meta property="og:image:height" content="450">
+    <meta property="og:image:alt" content="Swedish Pathogens Portal logo">
+    {% endif %}
+    <meta property="og:image:type" content="image/jpeg">
+
+    {# Twitter card meta tags for social media sharing #}
+    <meta name="twitter:card" content="summary_large_image">
+
+    <!-- Load the htmx -->
     {% htmx_script %}
     {% django_htmx_script %}
 
