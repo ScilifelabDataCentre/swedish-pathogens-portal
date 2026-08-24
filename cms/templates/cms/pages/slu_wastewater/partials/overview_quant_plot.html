@@ -137,9 +137,32 @@
         </div>
     </details>
     <script>
+        // check if any year or site is selected before the HTMX request is sent
+        document.body.addEventListener('htmx:beforeRequest', function(evt) {
+            const requestPath = evt.detail.pathInfo.finalRequestPath;
+            if (!requestPath.includes("years=") || !requestPath.includes("sites=")) {
+                evt.preventDefault();
+                evt.detail.target.innerHTML = `
+                    <div id='input-alert' class='min-h-[450px] content-center text-red-500 text-center'>
+                        At least one year and one sampling site should be selected
+                    </div>`;
+            }
+        });
+
+        // check if the HTMX request returned empty response and show error message
+        document.body.addEventListener('htmx:afterRequest', function(evt) {
+            if (evt.detail.xhr.responseText == "" || evt.detail.xhr.responseText == "None") {
+                evt.detail.target.innerHTML = `
+                    <div id='plot-loading-error' class='min-h-[450px] content-center text-red-500 text-center'>
+                        An error occurred while loading the plot. Please try again later.<br>
+                        If the problem persists, <a href="/contact/">contact</a> the portal team.
+                    </div>`;
+            }
+        });
+
         // helper function to select/unselect all sites
         function siteSelector(checked) {
-            [...document.querySelectorAll("input[name='site']")].forEach((i) => {
+            [...document.querySelectorAll("input[name='sites']")].forEach((i) => {
                 i.checked = checked
             });
         }
