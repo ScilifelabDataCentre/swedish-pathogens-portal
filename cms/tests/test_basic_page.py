@@ -72,7 +72,7 @@ def _content_with_blocks(
     return json.dumps(blocks)
 
 
-class BasicPagePlacementTest(SimpleTestCase):
+class BasicPagePlacementTest(WagtailPageTestCase):
     """``BasicPage`` is a generic page: no placement restrictions."""
 
     def test_placement_attributes_are_absent(self) -> None:
@@ -91,6 +91,19 @@ class BasicPagePlacementTest(SimpleTestCase):
     def test_home_page_is_an_allowed_parent(self) -> None:
         """``HomePage`` is a permitted parent of ``BasicPage``."""
         self.assertIn(HomePage, BasicPage.allowed_parent_page_models())
+
+    def test_basic_page_cannot_be_created_under_root(self) -> None:
+        """A ``BasicPage`` may not be created directly beneath the Wagtail root."""
+        root = Page.get_first_root_node()
+
+        self.assertFalse(BasicPage.can_create_at(root))
+
+    def test_basic_page_cannot_be_moved_under_root(self) -> None:
+        """An existing ``BasicPage`` may not be moved directly beneath the Wagtail root."""
+        root = Page.get_first_root_node()
+        basic_page = BasicPage()
+
+        self.assertFalse(basic_page.can_move_to(root))
 
 
 class BasicPageContentBlocksTest(SimpleTestCase):

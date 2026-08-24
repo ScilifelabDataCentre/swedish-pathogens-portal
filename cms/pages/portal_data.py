@@ -29,7 +29,8 @@ class PortalDataPage(RoutablePageMixin, Page):
     portal_data.wagtail_urls, and their corresponding root urlconf includes.
     """
 
-    subpage_types: list[str] = []
+    parent_page_types = ["cms.HomePage"]
+    subpage_types = []  # no child pages allowed
 
     datatype = models.CharField(
         max_length=64,
