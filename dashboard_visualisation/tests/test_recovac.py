@@ -17,6 +17,7 @@ from dashboard_visualisation.recovac import (
     _CASES_MIN_DATE,
     REQUIRED_ZIP_STEMS,
     _comorbidity_subplot_fig,
+    _group_showlegend,
     _group_visibility,
     _load_tables,
     _prep_counts,
@@ -283,6 +284,12 @@ def _group_button_visible(fig_json: dict[str, Any], button_index: int) -> list[b
     return list(buttons[button_index]["args"][0]["visible"])
 
 
+def _group_button_showlegend(fig_json: dict[str, Any], button_index: int) -> list[bool]:
+    """Return the ``showlegend`` mask on a group-filter button."""
+    buttons = fig_json["layout"]["updatemenus"][0]["buttons"]
+    return list(buttons[button_index]["args"][0]["showlegend"])
+
+
 class TestsPrepHelpers(SimpleTestCase):
     """Tests for week parsing and coverage de-cumulation."""
 
@@ -403,6 +410,17 @@ class TestsGroupVisibility(SimpleTestCase):
         self.assertFalse(any(mask[:7]))
         self.assertFalse(any(mask[21:28]))
 
+    def test_showlegend_only_on_visible_group_areas(self) -> None:
+        """Legend stays on the selected group's area traces, not the bars."""
+        first = _group_showlegend(3, 0)
+        second = _group_showlegend(3, 1)
+        self.assertEqual(len(first), 42)
+        self.assertEqual(first[:7], [True] * 7)
+        self.assertFalse(any(first[7:]))
+        self.assertEqual(second[7:14], [True] * 7)
+        self.assertFalse(any(second[:7]))
+        self.assertFalse(any(second[14:]))
+
 
 class TestsFigureBuilders(SimpleTestCase):
     """Tests for Plotly subplot structure (no blobserver)."""
@@ -474,6 +492,16 @@ class TestsGenerateFigures(SimpleTestCase):
         for index in range(4):
             visible = _group_button_visible(comorbidity, index)
             self.assertEqual(len(visible), n_traces)
+
+    def test_group_buttons_move_legend_to_visible_areas(self) -> None:
+        """Switching Age/Comorbidity keeps one legend by moving showlegend with visibility."""
+        swedish = generate_figures(io.BytesIO(build_recovac_zip()))["swedishpop_subplot"]
+        n_traces = len(swedish["data"])
+        for index in range(3):
+            showlegend = _group_button_showlegend(swedish, index)
+            self.assertEqual(len(showlegend), n_traces)
+            self.assertEqual(showlegend[index * 7 : (index + 1) * 7], [True] * 7)
+            self.assertEqual(sum(showlegend), 7)
 
     def test_diabetes_button_shows_both_panels(self) -> None:
         """Diabetes (index 1) unhides coverage and case traces together."""

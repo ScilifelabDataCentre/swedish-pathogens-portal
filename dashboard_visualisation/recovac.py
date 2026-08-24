@@ -564,6 +564,27 @@ def _group_visibility(
     return mask
 
 
+def _group_showlegend(
+    n_groups: int,
+    group_index: int,
+    *,
+    traces_per_group: int = _TRACES_PER_GROUP,
+    n_panels: int = _PANEL_COUNT,
+) -> list[bool]:
+    """Return a Plotly ``showlegend`` mask so the visible group's areas keep the legend.
+
+    Only the first group's area traces start with ``showlegend=True``. Plotly
+    hides legend items for traces that are not visible, so switching Age /
+    Comorbidity must also move ``showlegend`` onto the newly visible areas.
+    Bar traces stay off the legend (they share ``legendgroup`` with the areas).
+    """
+    panel_len = n_groups * traces_per_group
+    mask = [False] * (panel_len * n_panels)
+    start = group_index * traces_per_group
+    mask[start : start + traces_per_group] = [True] * traces_per_group
+    return mask
+
+
 def _add_area_traces(
     fig: go.Figure,
     frames: list[pl.DataFrame],
@@ -657,7 +678,12 @@ def _two_panel_subplot_fig(
         {
             "label": label,
             "method": "update",
-            "args": [{"visible": _group_visibility(n_groups, index)}],
+            "args": [
+                {
+                    "visible": _group_visibility(n_groups, index),
+                    "showlegend": _group_showlegend(n_groups, index),
+                }
+            ],
         }
         for index, label in enumerate(labels)
     ]
