@@ -39,10 +39,10 @@ def get_quant_overview_plot(
             (fig.to_html()). If False (default), return a JSON string (fig.to_json()).
         **f_args: Additional filter arguments provided by the dashboard that affect
             the output. Recognised keys include:
-            - year: list[int | str] (years to include)
+            - years: list[int | str] (years to include)
             - months: list[int | str] (start/end months)
-            - site: list[str] (cities/sites to include)
-            - method: list[str] (normalisation method, e.g. 'pmmov_normalised')
+            - sites: list[str] (cities/sites to include)
+            - methods: list[str] (normalisation method, e.g. 'pmmov_normalised')
             - timeseries: list[int | str] (rolling window for trendline)
 
     Returns:
@@ -59,12 +59,12 @@ def get_quant_overview_plot(
 
     # get passed filter args, if not passed use defaults
     f_year = (
-        list(map(int, f_args.get("year", [])))
+        list(map(int, f_args.get("years", [])))
         or data["sampling_date"].dt.year().unique().sort().to_list()
     )
     f_month = [1, int(f_args.get("months", ["12"])[0])]
-    f_sites = f_args.get("site", data["city"].unique().sort().to_list())
-    f_method = f_args.get("method", ["pmmov_normalised"])[0]
+    f_sites = f_args.get("sites", data["city"].unique().sort().to_list())
+    f_method = f_args.get("methods", ["pmmov_normalised"])[0]
     f_roll = int(f_args.get("timeseries", ["1"])[0])
 
     cols_common = ["target", "sampling_date", "week", "month", "year"]
@@ -193,7 +193,7 @@ def get_all_sites_plot(
         as_html (bool): If True, return an HTML string representing the Plotly figure.
             Otherwise return the JSON string.
         **f_args: Optional filter arguments coming from the dashboard UI:
-            - method: list[str] with chosen normalisation method (default 'pmmov_normalised')
+            - methods: list[str] with chosen normalisation method (default 'pmmov_normalised')
             - timeseries: list[int | str] with rolling window size (default '1')
 
     Returns:
@@ -207,7 +207,7 @@ def get_all_sites_plot(
         data = pl.DataFrame(data)
 
     # filter args processing and default
-    f_method = f_args.get("method", ["pmmov_normalised"])[0]
+    f_method = f_args.get("methods", ["pmmov_normalised"])[0]
     f_roll = int(f_args.get("timeseries", ["1"])[0])
 
     cols_todrop = ["inhabitants", "category"]
@@ -297,7 +297,7 @@ def get_single_site_plot(
             return a JSON string.
         **f_args: Any: additional filters passed by the UI:
             - timeseries: list[int | str] rolling average window size
-            - site: list[str] the site to render
+            - sites: list[str] the sites to render
 
     Returns:
         str | go.Figure: JSON or HTML string or Plotly figure object representing
@@ -310,7 +310,7 @@ def get_single_site_plot(
         data = pl.DataFrame(data)
 
     f_roll = int(f_args.get("timeseries", ["1"])[0])
-    f_site = f_args.get("site", data["city"].unique().sort().to_list())[0]
+    f_site = f_args.get("sites", data["city"].unique().sort().to_list())[0]
 
     cols_todrop = ["target", "inhabitants", "category"]
     cols_values = ["pmmov_normalised", "copies_day_inhabitant", "copies_l"]

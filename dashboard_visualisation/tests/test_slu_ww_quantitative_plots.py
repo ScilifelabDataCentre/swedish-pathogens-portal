@@ -20,7 +20,7 @@ class TestGetQuantOverviewPlot(SimpleTestCase):
         """Test that values are aggregated using population-weighted means."""
         data = get_sample_data()
 
-        figure = get_quant_overview_plot(data, as_fig=True, year=["2024"])
+        figure = get_quant_overview_plot(data, as_fig=True, years=["2024"])
 
         scatter_traces = [trace for trace in figure.data if trace.mode == "markers"]
 
@@ -34,7 +34,7 @@ class TestGetQuantOverviewPlot(SimpleTestCase):
         """Test that the rolling line uses the requested rolling window."""
         data = get_sample_data()
 
-        figure = get_quant_overview_plot(data, as_fig=True, year=["2024"], timeseries=["2"])
+        figure = get_quant_overview_plot(data, as_fig=True, years=["2024"], timeseries=["2"])
 
         line_traces = [trace for trace in figure.data if trace.mode == "lines"]
 
@@ -49,7 +49,7 @@ class TestGetQuantOverviewPlot(SimpleTestCase):
         data = get_sample_data()
 
         figure = get_quant_overview_plot(
-            data, as_fig=True, year=["2024"], method=["copies_day_inhabitant"]
+            data, as_fig=True, years=["2024"], methods=["copies_day_inhabitant"]
         )
 
         scatter_traces = [trace for trace in figure.data if trace.mode == "markers"]
@@ -62,7 +62,7 @@ class TestGetQuantOverviewPlot(SimpleTestCase):
         """Test that only the requested year is included."""
         data = get_sample_data()
 
-        figure = get_quant_overview_plot(data, as_fig=True, year=["2024"])
+        figure = get_quant_overview_plot(data, as_fig=True, years=["2024"])
 
         scatter_traces = [trace for trace in figure.data if trace.mode == "markers"]
 
@@ -75,7 +75,7 @@ class TestGetQuantOverviewPlot(SimpleTestCase):
         """Test that only the requested site is included."""
         data = get_sample_data()
 
-        figure = get_quant_overview_plot(data, as_fig=True, year=["2024"], site=["Göteborg"])
+        figure = get_quant_overview_plot(data, as_fig=True, years=["2024"], sites=["Göteborg"])
 
         scatter_traces = [trace for trace in figure.data if trace.mode == "markers"]
 
@@ -90,7 +90,7 @@ class TestGetQuantOverviewPlot(SimpleTestCase):
         """Test that only samples within the requested month range are included."""
         data = get_sample_data()
 
-        figure = get_quant_overview_plot(data, as_fig=True, year=["2024"], months=["1"])
+        figure = get_quant_overview_plot(data, as_fig=True, years=["2024"], months=["1"])
 
         scatter_traces = [trace for trace in figure.data if trace.mode == "markers"]
 
@@ -135,8 +135,7 @@ class TestGetQuantOverviewPlot(SimpleTestCase):
 
         result = get_quant_overview_plot(data)
 
-        self.assertIsInstance(result, str)
-        self.assertTrue(result.startswith("{"))
+        self.assertIsInstance(result, dict)
 
 
 class TestGetAllSitesPlot(SimpleTestCase):
@@ -200,7 +199,7 @@ class TestGetAllSitesPlot(SimpleTestCase):
         """Test that the requested measurement method is used."""
         data = get_sample_data()
 
-        figure = get_all_sites_plot(data, "virus_a", as_fig=True, method=["copies_day_inhabitant"])
+        figure = get_all_sites_plot(data, "virus_a", as_fig=True, methods=["copies_day_inhabitant"])
 
         traces = {trace.name: list(trace.y) for trace in figure.data}
 
@@ -231,8 +230,7 @@ class TestGetAllSitesPlot(SimpleTestCase):
 
         result = get_all_sites_plot(data, "virus_a")
 
-        self.assertIsInstance(result, str)
-        self.assertTrue(result.startswith("{"))
+        self.assertIsInstance(result, dict)
 
 
 class TestGetSingleSitePlot(SimpleTestCase):
@@ -242,7 +240,7 @@ class TestGetSingleSitePlot(SimpleTestCase):
         """Test that the function creates one trace for each normalization method."""
         data = get_sample_data()
 
-        figure = get_single_site_plot(data, "virus_a", as_fig=True, site=["Göteborg"])
+        figure = get_single_site_plot(data, "virus_a", as_fig=True, sites=["Göteborg"])
 
         self.assertEqual(
             {trace.name for trace in figure.data},
@@ -253,7 +251,7 @@ class TestGetSingleSitePlot(SimpleTestCase):
         """Test that only data from the requested site is plotted."""
         data = get_sample_data()
 
-        figure = get_single_site_plot(data, "virus_a", as_fig=True, site=["Göteborg"])
+        figure = get_single_site_plot(data, "virus_a", as_fig=True, sites=["Göteborg"])
 
         expected_count = data.filter(
             (data["target"] == "virus_a") & (data["city"] == "Göteborg")
@@ -266,7 +264,7 @@ class TestGetSingleSitePlot(SimpleTestCase):
         """Test that only data for the requested virus is plotted."""
         data = get_sample_data()
 
-        figure = get_single_site_plot(data, "virus_b", as_fig=True, site=["Göteborg"])
+        figure = get_single_site_plot(data, "virus_b", as_fig=True, sites=["Göteborg"])
 
         expected_count = data.filter(
             (data["target"] == "virus_b") & (data["city"] == "Göteborg")
@@ -282,7 +280,7 @@ class TestGetSingleSitePlot(SimpleTestCase):
         data = get_sample_data()
 
         figure = get_single_site_plot(
-            data, "virus_a", as_fig=True, site=["Göteborg"], timeseries=["2"]
+            data, "virus_a", as_fig=True, sites=["Göteborg"], timeseries=["2"]
         )
 
         source = data.filter((data["target"] == "virus_a") & (data["city"] == "Göteborg")).sort(
@@ -314,7 +312,7 @@ class TestGetSingleSitePlot(SimpleTestCase):
         """Test that each normalization method is multiplied by its configured scale."""
         data = get_sample_data()
 
-        figure = get_single_site_plot(data, "virus_a", as_fig=True, site=["Göteborg"])
+        figure = get_single_site_plot(data, "virus_a", as_fig=True, sites=["Göteborg"])
 
         source = data.filter((data["target"] == "virus_a") & (data["city"] == "Göteborg")).sort(
             "sampling_date"
@@ -339,7 +337,7 @@ class TestGetSingleSitePlot(SimpleTestCase):
         data = get_sample_data()
 
         figure = get_single_site_plot(
-            data, "virus_a", as_fig=True, site=["Göteborg"], timeseries=["3"]
+            data, "virus_a", as_fig=True, sites=["Göteborg"], timeseries=["3"]
         )
 
         source = data.filter((data["target"] == "virus_a") & (data["city"] == "Göteborg")).sort(
@@ -366,7 +364,7 @@ class TestGetSingleSitePlot(SimpleTestCase):
         data = get_sample_data()
 
         figure = get_single_site_plot(
-            data.to_dict(as_series=False), "virus_a", as_fig=True, site=["Göteborg"]
+            data.to_dict(as_series=False), "virus_a", as_fig=True, sites=["Göteborg"]
         )
 
         self.assertEqual(len(figure.data), 3)
@@ -379,7 +377,7 @@ class TestGetSingleSitePlot(SimpleTestCase):
         """Test that the function creates timeline controls for available years."""
         data = get_sample_data()
 
-        figure = get_single_site_plot(data, "virus_a", as_fig=True, site=["Göteborg"])
+        figure = get_single_site_plot(data, "virus_a", as_fig=True, sites=["Göteborg"])
 
         self.assertEqual(len(figure.layout.updatemenus), 1)
 
@@ -394,7 +392,7 @@ class TestGetSingleSitePlot(SimpleTestCase):
         """Test that the function returns an HTML plot fragment when requested."""
         data = get_sample_data()
 
-        result = get_single_site_plot(data, "virus_a", as_html=True, site=["Göteborg"])
+        result = get_single_site_plot(data, "virus_a", as_html=True, sites=["Göteborg"])
 
         self.assertIsInstance(result, str)
         self.assertIn("<div", result)
@@ -404,7 +402,6 @@ class TestGetSingleSitePlot(SimpleTestCase):
         """Test that the function returns JSON by default."""
         data = get_sample_data()
 
-        result = get_single_site_plot(data, "virus_a", site=["Göteborg"])
+        result = get_single_site_plot(data, "virus_a", sites=["Göteborg"])
 
-        self.assertIsInstance(result, str)
-        self.assertTrue(result.startswith("{"))
+        self.assertIsInstance(result, dict)

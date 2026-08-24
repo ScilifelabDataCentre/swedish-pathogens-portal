@@ -53,7 +53,7 @@
                         <div class="px-5 flex flex-wrap gap-2">
                             {% for y in filter_input.input_years %}
                             <label class="label">
-                                <input type="checkbox" id="yr-{{y}}" name="year" value="{{y}}"
+                                <input type="checkbox" id="yr-{{y}}" name="years" value="{{y}}"
                                 class="checkbox checkbox-accent checkbox-xs" checked/>
                                 {{y}}
                             </label>
@@ -85,7 +85,7 @@
                     <div>
                         <div class="font-medium mb-4 bg-gray-200/50 py-1.5">Normalisation method</div>
                         <div class="pr-8">
-                            <select name="method" id="norm-method" class="select select-accent">
+                            <select name="methods" id="norm-method" class="select select-accent">
                                 {% for k,v in filter_input.input_methods.items %}
                                 <option value="{{k}}" {% if k == "pmmov_normalised" %}selected{% endif %}>{{v}}</option>
                                 {% endfor %}
@@ -126,7 +126,7 @@
                     <div class="grid grid-rows-5 grid-cols-4 grid-flow-col px-5">
                         {% for site in filter_input.input_sites %}
                         <label class="label">
-                            <input type="checkbox" id="site-{{site|lower}}" name="site" value="{{site}}"
+                            <input type="checkbox" id="site-{{site|lower}}" name="sites" value="{{site}}"
                                 class="checkbox checkbox-accent checkbox-xs" checked/>
                             {{site}}
                         </label>
@@ -137,9 +137,32 @@
         </div>
     </details>
     <script>
+        // check if any year or site is selected before the HTMX request is sent
+        document.body.addEventListener('htmx:beforeRequest', function(evt) {
+            const requestPath = evt.detail.pathInfo.finalRequestPath;
+            if (!requestPath.includes("years=") || !requestPath.includes("sites=")) {
+                evt.preventDefault();
+                evt.detail.target.innerHTML = `
+                    <div id='input-alert' class='min-h-[450px] content-center text-red-500 text-center'>
+                        At least one year and one sampling site should be selected
+                    </div>`;
+            }
+        });
+
+        // check if the HTMX request returned empty response and show error message
+        document.body.addEventListener('htmx:afterRequest', function(evt) {
+            if (evt.detail.xhr.responseText == "" || evt.detail.xhr.responseText == "None") {
+                evt.detail.target.innerHTML = `
+                    <div id='plot-loading-error' class='min-h-[450px] content-center text-red-500 text-center'>
+                        An error occurred while loading the plot. Please try again later.<br>
+                        If the problem persists, <a href="/contact/">contact</a> the portal team.
+                    </div>`;
+            }
+        });
+
         // helper function to select/unselect all sites
         function siteSelector(checked) {
-            [...document.querySelectorAll("input[name='site']")].forEach((i) => {
+            [...document.querySelectorAll("input[name='sites']")].forEach((i) => {
                 i.checked = checked
             });
         }
