@@ -116,8 +116,23 @@ class TestValidateOverviewPlotRequestParams(SimpleTestCase):
 
         self.assertEqual(str(context.exception), "Missing parameters: months, timeseries")
 
-    def test_too_many_parameter_values_are_rejected(self):
-        """Test that too many values for a parameter are rejected."""
+    def test_too_many_parameter_values_are_rejected_for_single_value_params(self):
+        """Test that too many values for a parameter are rejected for single-value parameters."""
+        q = QueryDict(
+            "years=2023"
+            "&months=1&months=2"
+            "&sites=Göteborg&sites=Kalmar&sites=Umea"
+            "&methods=pmmov_normalised"
+            "&timeseries=1"
+        )
+
+        with self.assertRaises(Http404) as context:
+            validate_overview_plot_request_params(q, get_sample_data())
+
+        self.assertEqual(str(context.exception), "Too many values for parameter: months")
+
+    def test_too_many_parameter_values_are_rejected_for_multi_value_params(self):
+        """Test that too many values for a parameter are rejected for multi-value parameters."""
         q = QueryDict(
             "years=2023"
             "&months=1"

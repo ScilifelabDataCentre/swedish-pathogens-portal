@@ -34,17 +34,19 @@ def validate_overview_plot_request_params(
         k.replace("input_", ""): set(v.keys()) if isinstance(v, dict) else set(v)
         for k, v in expected_inputs.items()
     }
+    multi_value_params = {"years", "sites"}
 
     _validate_param_keys(q, expected_inputs)
 
     for param in q:
         values = q.getlist(param)
         expected_values = expected_inputs[param]
-        if len(values) > len(expected_values):
+        expected_values_len = len(expected_values) if param in multi_value_params else 1
+        if len(values) > expected_values_len:
             raise Http404(f"Too many values for parameter: {param}")
 
         values_set = set(values)
-        if len(values_set) != len(values):
+        if param in multi_value_params and len(values_set) != len(values):
             raise Http404(f"Duplicate values found for parameter: {param}")
         if not values_set.issubset(expected_values):
             raise Http404(f"Invalid values for parameter: {param}")
