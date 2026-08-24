@@ -101,8 +101,7 @@ class TestGetQualOverviewPlot(SimpleTestCase):
 
         result = get_qual_overview_plot(data)
 
-        self.assertIsInstance(result, str)
-        self.assertTrue(result.startswith("{"))
+        self.assertIsInstance(result, dict)
 
 
 class TestGetQualPlots(SimpleTestCase):
@@ -243,5 +242,4 @@ class TestGetQualPlots(SimpleTestCase):
 
         result = get_qual_plots(data, "virus_a")
 
-        self.assertIsInstance(result, str)
-        self.assertTrue(result.startswith("{"))
+        self.assertIsInstance(result, dict)

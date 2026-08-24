@@ -3,6 +3,7 @@
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+from django.http import QueryDict
 from wagtail.models import Page, Site
 from wagtail.test.utils import WagtailPageTestCase
 
@@ -11,6 +12,7 @@ from cms.pages.home import HomePage
 from cms.pages.slu_dashboard import SLUDashboardPage
 from cms.pages.slu_dashboard_subpage import SLUDashboardSubPage
 from cms.tests.utils import create_test_image
+from dashboard_visualisation.tests.fixtures.slu_ww_sample_data import get_sample_data
 
 
 class TestSLUDashboardSubPage(WagtailPageTestCase):
@@ -162,16 +164,18 @@ class TestSLUDashboardSubPage(WagtailPageTestCase):
         self, mock_dashboard_data: MagicMock, mock_get_plot: MagicMock
     ):
         """Test that an HTMX request returns the single-site plot HTML."""
-        mock_dashboard_data.data = {"raw_data": {"some": "data"}}
+        sample_data = get_sample_data()
+        q = QueryDict("plot-toggle=single&sites=Göteborg&methods=pmmov_normalised&timeseries=1")
+        mock_dashboard_data.data = {"raw_data": sample_data}
         mock_get_plot.return_value = "<div>single-site plot</div>"
 
-        response = self.client.get(self.page.url, {"foo": "bar"}, HTTP_HX_REQUEST="true")
+        response = self.client.get(self.page.url, q, HTTP_HX_REQUEST="true")
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content.decode(), "<div>single-site plot</div>")
 
         mock_get_plot.assert_called_once_with(
-            data={"some": "data"}, virus=self.page.title, as_html=True, foo=["bar"]
+            data=sample_data, virus=self.page.title, as_html=True, **dict(q.lists())
         )
 
     @patch("cms.pages.slu_dashboard_subpage.get_all_sites_plot")
@@ -180,21 +184,18 @@ class TestSLUDashboardSubPage(WagtailPageTestCase):
         self, mock_dashboard_data: MagicMock, mock_get_plot: MagicMock
     ):
         """Test that an HTMX request with all toggle returns the all-sites plot HTML."""
-        mock_dashboard_data.data = {"raw_data": {"some": "data"}}
+        sample_data = get_sample_data()
+        q = QueryDict("plot-toggle=all&sites=Göteborg&methods=pmmov_normalised&timeseries=1")
+        mock_dashboard_data.data = {"raw_data": sample_data}
         mock_get_plot.return_value = "<div>all-sites plot</div>"
 
-        response = self.client.get(
-            self.page.url, {"plot-toggle": "all", "foo": "bar"}, HTTP_HX_REQUEST="true"
-        )
+        response = self.client.get(self.page.url, q, HTTP_HX_REQUEST="true")
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content.decode(), "<div>all-sites plot</div>")
 
         mock_get_plot.assert_called_once_with(
-            data={"some": "data"},
-            virus=self.page.title,
-            as_html=True,
-            **{"plot-toggle": ["all"], "foo": ["bar"]},
+            data=sample_data, virus=self.page.title, as_html=True, **dict(q.lists())
         )
 
     def test_htmx_request_without_raw_data_returns_error(self):

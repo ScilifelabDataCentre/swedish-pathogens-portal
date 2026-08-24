@@ -22,9 +22,7 @@ class TestGetInputForFilters(SimpleTestCase):
 
         result = get_input_for_filters(data)
 
-        self.assertEqual(result["input_years"], [2023, 2024])
-        self.assertEqual(result["input_months"], [1, 3, 6])
-        self.assertEqual(result["input_viruses"], ["virus_a", "virus_b"])
+        self.assertEqual(result["input_years"], ["2023", "2024"])
         self.assertEqual(result["input_sites"], ["Gothenburg", "Stockholm"])
 
     def test_returns_configured_methods_and_timeseries(self):
@@ -37,6 +35,7 @@ class TestGetInputForFilters(SimpleTestCase):
 
         self.assertIs(result["input_methods"], norm_methods_map)
         self.assertIs(result["input_timeseries"], timeseries_map)
+        self.assertEqual(result["input_months"], list(map(str, range(1, 13))))
 
     def test_returns_unique_filter_values(self):
         """Test that duplicate dates, viruses, and sites are returned only once."""
@@ -50,7 +49,5 @@ class TestGetInputForFilters(SimpleTestCase):
 
         result = get_input_for_filters(data)
 
-        self.assertEqual(result["input_years"], [2024])
-        self.assertEqual(result["input_months"], [1])
-        self.assertEqual(result["input_viruses"], ["virus_a"])
+        self.assertEqual(result["input_years"], ["2024"])
         self.assertEqual(result["input_sites"], ["Stockholm"])

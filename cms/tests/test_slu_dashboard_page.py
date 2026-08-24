@@ -2,6 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
+from django.http import QueryDict
 from wagtail.models import Page, Site
 from wagtail.test.utils import WagtailPageTestCase
 
@@ -10,6 +11,7 @@ from cms.pages.home import HomePage
 from cms.pages.slu_dashboard import SLUDashboardPage
 from cms.pages.slu_dashboard_subpage import SLUDashboardSubPage
 from cms.tests.utils import create_test_image
+from dashboard_visualisation.tests.fixtures.slu_ww_sample_data import get_sample_data
 
 
 class TestSLUDashboardPage(WagtailPageTestCase):
@@ -97,14 +99,22 @@ class TestSLUDashboardPage(WagtailPageTestCase):
         self, mock_get_plot: MagicMock, mock_dashboard_data: MagicMock
     ):
         """Test that an HTMX request returns the generated plot HTML."""
-        mock_dashboard_data.data = {"raw_data": {"some": "data"}}
+        sample_data = get_sample_data()
+        q = QueryDict(
+            "years=2023&years=2024"
+            "&months=1"
+            "&sites=Göteborg&sites=Kalmar"
+            "&methods=pmmov_normalised"
+            "&timeseries=1"
+        )
+        mock_dashboard_data.data = {"raw_data": sample_data}
         mock_get_plot.return_value = "<div>plot</div>"
 
-        response = self.client.get(self.page.url, {"foo": "bar"}, HTTP_HX_REQUEST="true")
+        response = self.client.get(self.page.url, q, HTTP_HX_REQUEST="true")
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content.decode(), "<div>plot</div>")
-        mock_get_plot.assert_called_once_with(data={"some": "data"}, as_html=True, foo=["bar"])
+        mock_get_plot.assert_called_once_with(data=sample_data, as_html=True, **dict(q.lists()))
 
     def test_htmx_request_without_raw_data_returns_error(self):
         """Test that an HTMX request without raw data returns an error message."""
