@@ -1,5 +1,17 @@
 {% load static django_htmx wagtailimages_tags %}
 
+{% comment %}
+    Set the site name, meta title, and meta description for the page. The site name is retrieved
+    from the page's site object (i.e. set in the site settings), and if not available, it defaults
+    to "Swedish Pathogens Portal". The meta title is determined by checking for a SEO title, then
+    the page title, and finally falling back to the site name. The meta description is set by
+    checking for a search description, then the page description, and finally using a default
+    description about the Swedish Pathogens Portal.
+{% endcomment %}
+{% firstof page.get_site.site_name "Swedish Pathogens Portal" as meta_site_name %}
+{% firstof page.seo_title page.title meta_site_name as meta_title %}
+{% firstof page.search_description page.description "The Swedish Pathogens Portal provides information about datasets, resources, tools, and services for pandemic preparedness in Sweden." as meta_description %}
+
 <head>
 
     <!-- Required meta tags -->
@@ -8,33 +20,13 @@
 
     {# SEO title set in promote panel is given priority #}
     <!-- Page Title -->
-     <title>
-        {% if page.seo_title %}
-            {{ page.seo_title }}
-        {% elif page.title %}
-            {{ page.title }}
-        {% else %}
-            {{ page.get_site.site_name }}
-        {% endif %}
-     </title>
+     <title>{{ meta_title }}</title>
 
     <!-- Site meta info -->
-    <meta http-equiv="content-language" content="en">
+    <meta http-equiv="content-language" content="en_UK">
 
     {% block description %}
-    {# Search description set in promote panel if given priority #}
-    {% if page.search_description %}
-     <meta name="description" content="{{ page.search_description }}">
-    {% elif page.description %}
-    <meta name="description" content="{{ page.description }}">
-    {% else %}
-    <meta name="description" content="
-        The {{ page.get_site.site_name }} provides information about available datasets,
-        resources, tools, and services related to pandemic preparedness in Sweden.
-        We offer support to all those involved in pandemic preparedness research
-        that are affiliated with a Swedish research institution or university.
-    ">
-    {% endif %}
+    <meta name="description" content="{{ meta_description }}">
     {% endblock %}
 
     <!-- Favicons -->
@@ -46,32 +38,19 @@
     <link rel="stylesheet" href="{% static 'cms/css/portal.css' %}">
 
     <!-- Meta tags for social media sharing -->
-    <meta property="og:locale" content="en">
+    <meta property="og:locale" content="en_GB">
+    <meta property="og:type" content="website">
     <meta property="og:url" content="{{ page.full_url }}">
-
-    {# Have to be set in the site settings on the Wagtail admin #}
-    <meta property="og:site_name" content="{{ page.get_site.site_name }}">
-
-    {# SEO title set in promote panel is given priority #}
-    {% if page.seo_title %}
-    <meta property="og:title" content="{{ page.seo_title }}">
-    {% elif page.title %}
-    <meta property="og:title" content="{{ page.title }}">
-    {% endif %}
-
-    {# SEO description set in promote panel is given priority #}
-    {% if page.search_description %}
-    <meta property="og:description" content="{{ page.search_description }}">
-    {% elif page.description %}
-    <meta property="og:description" content="{{ page.description }}">
-    {% endif %}
+    <meta property="og:site_name" content="{{ meta_site_name }}">
+    <meta property="og:title" content="{{ meta_title }}">
+    <meta property="og:description" content="{{ meta_description }}">
 
     {# When an image is not available fall back to the default logo #}
     {% if page.image %}
-    {% image page.image format-webp as cover %}
-    <meta property="og:image" content="{{ cover.full_url }}">
+    {% image page.image format-jpeg fill-900x450 as cover %}
+    <meta property="og:image" content="{{ cover.full_url }}" width="{{ cover.width }}" height="{{ cover.height }}">
     {% else %}
-    <meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'cms/images/swe_pathogens_logo.svg' %}">
+    <meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'cms/images/swe_pathogens_logo_social_media.jpg' %}" width="900" height="450">
     {% endif %}
 
     {# Twitter card meta tags for social media sharing #}
