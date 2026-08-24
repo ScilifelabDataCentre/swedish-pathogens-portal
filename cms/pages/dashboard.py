@@ -16,6 +16,7 @@ from wagtail.models import Orderable, Page
 
 from cms.blocks import (
     AlertBlock,
+    CollapsibleBlock,
     DataTableBlock,
     LastUpdatedBlock,
     PlotlyFigureBlock,
@@ -74,7 +75,7 @@ class DashboardPage(Page):
         image: Thumbnail image for the index card.
         data_status: Whether the dashboard data is active or historic.
         keywords: Optional keywords for searching.
-        content: StreamField with text, alerts, and figure blocks.
+        content: StreamField with text, collapsible sections, alerts, and figure blocks.
     """
 
     template = "cms/pages/dashboard.html"
@@ -99,6 +100,7 @@ class DashboardPage(Page):
         [
             ("text", RichTextBlock()),
             ("alert", AlertBlock()),
+            ("collapsible", CollapsibleBlock()),
             ("data_table", DataTableBlock()),
             ("last_updated", LastUpdatedBlock()),
             ("plotly_figure", PlotlyFigureBlock()),
@@ -136,7 +138,7 @@ class DashboardPage(Page):
         ),
         FieldPanel(
             "content",
-            help_text="Main content: text, charts, and figures.",
+            help_text="Main content: short intro, collapsible long text, charts, and figures.",
         ),
     ]
 

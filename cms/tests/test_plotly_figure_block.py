@@ -83,3 +83,32 @@ class TestPlotlyFigureBlockCache(SimpleTestCase):
         self.block.get_context(value, parent_context)
 
         self.assertEqual(mock_plot_html.call_count, 1)
+
+    @patch("cms.blocks.plotly_figure.plot_html_from_json")
+    def test_new_source_file_hash_misses_cache(self, mock_plot_html: MagicMock) -> None:
+        """Regenerate Plotly HTML when editors upload a different source file."""
+        mock_plot_html.side_effect = ["<div>old</div>", "<div>new</div>"]
+        value = {
+            "figure_id": "lineage_six_recent",
+            "alt_text": "chart",
+            "height": 800,
+        }
+        self.block.get_context(
+            value,
+            {
+                "page": self.page,
+                "figures": {"lineage_six_recent": self.figure_json},
+                "source_file_hash": "abc123",
+            },
+        )
+        second = self.block.get_context(
+            value,
+            {
+                "page": self.page,
+                "figures": {"lineage_six_recent": self.figure_json},
+                "source_file_hash": "def456",
+            },
+        )
+
+        self.assertEqual(mock_plot_html.call_count, 2)
+        self.assertEqual(second["plot_html"], "<div>new</div>")

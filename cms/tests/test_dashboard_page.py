@@ -59,6 +59,22 @@ class TestDashboardPageModel(DashboardPageTestCase):
         field = DashboardPage._meta.get_field("data_status")
         self.assertFalse(field.has_default())
 
+    def test_content_includes_collapsible_block(self) -> None:
+        """Dashboard StreamField includes collapsible sections for long prose."""
+        child_blocks = DashboardPage._meta.get_field("content").stream_block.child_blocks
+        self.assertEqual(
+            set(child_blocks.keys()),
+            {
+                "text",
+                "alert",
+                "collapsible",
+                "data_table",
+                "last_updated",
+                "plotly_figure",
+                "static_figure",
+            },
+        )
+
 
 class TestDashboardPageContext(DashboardPageTestCase):
     """Tests for DashboardPage.get_context method."""
@@ -77,6 +93,15 @@ class TestDashboardPageContext(DashboardPageTestCase):
         )
         cls.index.add_child(instance=cls.page)
         cls.page.save_revision().publish()
+        cls.historic = DashboardPage(
+            title="Old serology",
+            slug="old-serology",
+            description="Historic serology dashboard",
+            image=cls.image,
+            data_status="historic",
+        )
+        cls.index.add_child(instance=cls.historic)
+        cls.historic.save_revision().publish()
 
     def test_get_context_includes_figures_from_dashboard_data(self) -> None:
         """Test that get_context provides figures from DashboardData."""
@@ -93,6 +118,7 @@ class TestDashboardPageContext(DashboardPageTestCase):
 
         self.assertIn("figures", context)
         self.assertIn("chart_1", context["figures"])
+        self.assertEqual(context["source_file_hash"], data_row.source_file_hash)
 
     def test_get_context_handles_missing_dashboard_data(self) -> None:
         """Test that get_context works when no DashboardData exists."""
@@ -101,6 +127,16 @@ class TestDashboardPageContext(DashboardPageTestCase):
 
         self.assertEqual(context["figures"], {})
         self.assertIsNone(context["dashboard_data"])
+        self.assertEqual(context["source_file_hash"], "")
+
+    def test_historic_dashboard_context_matches_active_shape(self) -> None:
+        """Historic status does not change get_context keys used by TOC caching."""
+        request = self.client.get(self.historic.url).wsgi_request
+        context = self.historic.get_context(request)
+
+        self.assertEqual(self.historic.data_status, "historic")
+        self.assertEqual(context["figures"], {})
+        self.assertEqual(context["source_file_hash"], "")
 
     def test_get_context_includes_dashboard_data_object(self) -> None:
         """Test that the full DashboardData object is in context."""
@@ -148,13 +184,14 @@ class TestDashboardIndexPageModel(DashboardPageTestCase):
         self.assertEqual(DashboardIndexPage.parent_page_types, ["cms.HomePage"])
 
     def test_subpage_types_allows_dashboard_page_types(self) -> None:
-        """Test that standard, DRR, and liver dashboard pages are allowed children."""
+        """Test that standard, DRR, liver, and SLU dashboard pages are allowed children."""
         self.assertEqual(
             DashboardIndexPage.subpage_types,
             [
                 "cms.DashboardPage",
                 "cms.DrrDatasetPage",
                 "cms.LiverResourceDashboardPage",
+                "cms.SLUDashboardPage",
             ],
         )
 

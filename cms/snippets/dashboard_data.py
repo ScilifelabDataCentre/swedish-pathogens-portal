@@ -44,7 +44,7 @@ class DashboardDataForm(WagtailAdminModelForm):
     """Validate dashboard source uploads before save."""
 
     def clean_source_file(self) -> object:
-        """Reject non-CSV uploads and validate readable source CSV."""
+        """Validate the source upload (custom viz-module checks, else CSV)."""
         source_file = self.cleaned_data.get("source_file")
         if not source_file:
             return source_file
