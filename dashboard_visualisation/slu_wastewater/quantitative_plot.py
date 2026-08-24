@@ -39,10 +39,10 @@ def get_quant_overview_plot(
             (fig.to_html()). If False (default), return a JSON string (fig.to_json()).
         **f_args: Additional filter arguments provided by the dashboard that affect
             the output. Recognised keys include:
-            - year: list[int | str] (years to include)
+            - years: list[int | str] (years to include)
             - months: list[int | str] (start/end months)
-            - site: list[str] (cities/sites to include)
-            - method: list[str] (normalisation method, e.g. 'pmmov_normalised')
+            - sites: list[str] (cities/sites to include)
+            - methods: list[str] (normalisation method, e.g. 'pmmov_normalised')
             - timeseries: list[int | str] (rolling window for trendline)
 
     Returns:
@@ -193,7 +193,7 @@ def get_all_sites_plot(
         as_html (bool): If True, return an HTML string representing the Plotly figure.
             Otherwise return the JSON string.
         **f_args: Optional filter arguments coming from the dashboard UI:
-            - method: list[str] with chosen normalisation method (default 'pmmov_normalised')
+            - methods: list[str] with chosen normalisation method (default 'pmmov_normalised')
             - timeseries: list[int | str] with rolling window size (default '1')
 
     Returns:
@@ -297,7 +297,7 @@ def get_single_site_plot(
             return a JSON string.
         **f_args: Any: additional filters passed by the UI:
             - timeseries: list[int | str] rolling average window size
-            - site: list[str] the site to render
+            - sites: list[str] the sites to render
 
     Returns:
         str | go.Figure: JSON or HTML string or Plotly figure object representing
