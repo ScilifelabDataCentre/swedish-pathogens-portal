@@ -57,7 +57,7 @@ def _is_internal_user(user: User | None) -> bool:
     """Return True if the user is a superuser or belongs to the 'editors' group."""
     if not user or not getattr(user, "is_authenticated", False):
         return False
-    return user.is_superuser or user.groups.filter(name="editors").exists()
+    return user.is_superuser or user.groups.filter(name="Editors").exists()
 
 
 def _user_can_access_dashboard_data(user: User | None, obj: DashboardData) -> bool:

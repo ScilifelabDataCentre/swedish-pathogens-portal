@@ -133,7 +133,7 @@ class DashboardDataAccessTests(TestCase):
             content_type=ContentType.objects.get_for_model(Admin),
             codename="access_admin",
         )
-        self.editors = Group.objects.create(name="editors")
+        self.editors = Group.objects.get(name="Editors")
         self.editors.permissions.add(dashboard_data_permission, admin_permission)
         self.researchers = Group.objects.create(name="researchers")
         self.researchers.permissions.add(dashboard_data_permission, admin_permission)
