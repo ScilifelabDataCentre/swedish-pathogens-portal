@@ -9,14 +9,19 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import IntegrityError
 from django.test import TestCase
 from django.urls import reverse
+from django.views.generic import View
 from wagtail.admin.models import Admin
-from wagtail.snippets.views.snippets import EditView
+from wagtail.snippets.views.snippets import EditView, HistoryView, RevisionsCompareView, UsageView
 
 from cms.snippets.dashboard_data import (
     DashboardData,
     DashboardDataEditView,
+    DashboardDataHistoryView,
+    DashboardDataRevisionsCompareView,
+    DashboardDataUsageView,
     DashboardDataViewSet,
     _is_internal_user,
+    _user_can_access_dashboard_data,
 )
 
 
@@ -187,6 +192,30 @@ class DashboardDataAccessTests(TestCase):
         self.assertFalse(_is_internal_user(None))
 
     # ------------------------------------------------------------------
+    # _user_can_access_dashboard_data
+    # ------------------------------------------------------------------
+
+    def test_superuser_can_access_dashboard_data(self) -> None:
+        """Test that superusers can access other dashboard data."""
+        self.assertTrue(_user_can_access_dashboard_data(self.superuser, self.other_data))
+
+    def test_editor_can_access_other_dashboard_data(self) -> None:
+        """Test that editors cannot access other dashboard data."""
+        self.assertTrue(_user_can_access_dashboard_data(self.editor, self.other_data))
+
+    def test_researcher_can_access_own_dashboard_data(self) -> None:
+        """Test that researchers can access their own dashboard data."""
+        self.assertTrue(_user_can_access_dashboard_data(self.researcher, self.own_data))
+
+    def test_researcher_cannot_access_other_dashboard_data(self) -> None:
+        """Test that researchers cannot access other dashboard data."""
+        self.assertFalse(_user_can_access_dashboard_data(self.researcher, self.other_data))
+
+    def test_none_user_cannot_access_dashboard_data(self) -> None:
+        """Test that None user cannot access any dashboard data."""
+        self.assertFalse(_user_can_access_dashboard_data(None, self.own_data))
+
+    # ------------------------------------------------------------------
     # DashboardDataForm
     # ------------------------------------------------------------------
 
@@ -258,12 +287,12 @@ class DashboardDataAccessTests(TestCase):
         self.assertIn(self.unassigned_data, queryset)
 
     # ------------------------------------------------------------------
-    # DashboardDataEditView.get_object
+    # DashboardDataEditView
     # ------------------------------------------------------------------
 
-    def test_researcher_can_access__only_own_dashboard_data(self) -> None:
-        """Test researchers can access edit page only for dashboard data assigned to their group."""
-        view = self._edit_view(self.researcher)
+    def test_researcher_can_access_only_own_dashboard_data(self) -> None:
+        """Test researchers can access edit page only for assigned dashboard data."""
+        view = self._get_view(self.researcher, DashboardDataEditView)
 
         with patch.object(EditView, "get_object", return_value=self.own_data):
             self.assertEqual(view.get_object(), self.own_data)
@@ -282,7 +311,7 @@ class DashboardDataAccessTests(TestCase):
 
     def test_editor_can_access_other_research_group(self) -> None:
         """Test editors can access edit page of any dashboard data."""
-        view = self._edit_view(self.editor)
+        view = self._get_view(self.editor, DashboardDataEditView)
 
         with patch.object(EditView, "get_object", return_value=self.own_data):
             self.assertEqual(view.get_object(), self.own_data)
@@ -293,7 +322,7 @@ class DashboardDataAccessTests(TestCase):
 
     def test_superuser_can_access_other_research_group(self) -> None:
         """Test superusers can access edit page of any dashboard data."""
-        view = self._edit_view(self.superuser)
+        view = self._get_view(self.superuser, DashboardDataEditView)
 
         with patch.object(EditView, "get_object", return_value=self.own_data):
             self.assertEqual(view.get_object(), self.own_data)
@@ -303,15 +332,150 @@ class DashboardDataAccessTests(TestCase):
             self.assertEqual(view.get_object(), self.unassigned_data)
 
     # ------------------------------------------------------------------
+    # DashboardDataHistoryView
+    # ------------------------------------------------------------------
+
+    def test_researcher_can_access_only_own_dashboard_data_history(self) -> None:
+        """Test researchers can access history page only for assigned dashboard data."""
+        view = self._get_view(self.researcher, DashboardDataHistoryView)
+
+        with patch.object(HistoryView, "get_object", return_value=self.own_data):
+            self.assertEqual(view.get_object(), self.own_data)
+
+        with (
+            patch.object(HistoryView, "get_object", return_value=self.other_data),
+            self.assertRaises(PermissionDenied),
+        ):
+            view.get_object()
+
+        with (
+            patch.object(HistoryView, "get_object", return_value=self.unassigned_data),
+            self.assertRaises(PermissionDenied),
+        ):
+            view.get_object()
+
+    def test_editor_can_access_other_research_group_history(self) -> None:
+        """Test editors can access history page of any dashboard data."""
+        view = self._get_view(self.editor, DashboardDataHistoryView)
+
+        with patch.object(HistoryView, "get_object", return_value=self.own_data):
+            self.assertEqual(view.get_object(), self.own_data)
+        with patch.object(HistoryView, "get_object", return_value=self.other_data):
+            self.assertEqual(view.get_object(), self.other_data)
+        with patch.object(HistoryView, "get_object", return_value=self.unassigned_data):
+            self.assertEqual(view.get_object(), self.unassigned_data)
+
+    def test_superuser_can_access_other_research_group_history(self) -> None:
+        """Test superusers can access history page of any dashboard data."""
+        view = self._get_view(self.superuser, DashboardDataHistoryView)
+
+        with patch.object(HistoryView, "get_object", return_value=self.own_data):
+            self.assertEqual(view.get_object(), self.own_data)
+        with patch.object(HistoryView, "get_object", return_value=self.other_data):
+            self.assertEqual(view.get_object(), self.other_data)
+        with patch.object(HistoryView, "get_object", return_value=self.unassigned_data):
+            self.assertEqual(view.get_object(), self.unassigned_data)
+
+    # ------------------------------------------------------------------
+    # DashboardDataRevisionsCompareView
+    # ------------------------------------------------------------------
+
+    def test_researcher_can_access_only_own_dashboard_data_revisions(self) -> None:
+        """Test researchers can access revision page only for assigned dashboard data."""
+        view = self._get_view(self.researcher, DashboardDataRevisionsCompareView)
+
+        with patch.object(RevisionsCompareView, "get_object", return_value=self.own_data):
+            self.assertEqual(view.get_object(), self.own_data)
+
+        with (
+            patch.object(RevisionsCompareView, "get_object", return_value=self.other_data),
+            self.assertRaises(PermissionDenied),
+        ):
+            view.get_object()
+
+        with (
+            patch.object(RevisionsCompareView, "get_object", return_value=self.unassigned_data),
+            self.assertRaises(PermissionDenied),
+        ):
+            view.get_object()
+
+    def test_editor_can_access_other_research_group_revisions(self) -> None:
+        """Test editors can access revision page of any dashboard data."""
+        view = self._get_view(self.editor, DashboardDataRevisionsCompareView)
+
+        with patch.object(RevisionsCompareView, "get_object", return_value=self.own_data):
+            self.assertEqual(view.get_object(), self.own_data)
+        with patch.object(RevisionsCompareView, "get_object", return_value=self.other_data):
+            self.assertEqual(view.get_object(), self.other_data)
+        with patch.object(RevisionsCompareView, "get_object", return_value=self.unassigned_data):
+            self.assertEqual(view.get_object(), self.unassigned_data)
+
+    def test_superuser_can_access_other_research_group_revisions(self) -> None:
+        """Test superusers can access revision page of any dashboard data."""
+        view = self._get_view(self.superuser, DashboardDataRevisionsCompareView)
+
+        with patch.object(RevisionsCompareView, "get_object", return_value=self.own_data):
+            self.assertEqual(view.get_object(), self.own_data)
+        with patch.object(RevisionsCompareView, "get_object", return_value=self.other_data):
+            self.assertEqual(view.get_object(), self.other_data)
+        with patch.object(RevisionsCompareView, "get_object", return_value=self.unassigned_data):
+            self.assertEqual(view.get_object(), self.unassigned_data)
+
+    # ------------------------------------------------------------------
+    # DashboardDataUsageView
+    # ------------------------------------------------------------------
+
+    def test_researcher_can_access_only_own_dashboard_data_usage(self) -> None:
+        """Test researchers can access usage page only for assigned dashboard data."""
+        view = self._get_view(self.researcher, DashboardDataUsageView)
+
+        with patch.object(UsageView, "get_object", return_value=self.own_data):
+            self.assertEqual(view.get_object(), self.own_data)
+
+        with (
+            patch.object(UsageView, "get_object", return_value=self.other_data),
+            self.assertRaises(PermissionDenied),
+        ):
+            view.get_object()
+
+        with (
+            patch.object(UsageView, "get_object", return_value=self.unassigned_data),
+            self.assertRaises(PermissionDenied),
+        ):
+            view.get_object()
+
+    def test_editor_can_access_other_research_group_usage(self) -> None:
+        """Test editors can access usage page of any dashboard data."""
+        view = self._get_view(self.editor, DashboardDataUsageView)
+
+        with patch.object(UsageView, "get_object", return_value=self.own_data):
+            self.assertEqual(view.get_object(), self.own_data)
+        with patch.object(UsageView, "get_object", return_value=self.other_data):
+            self.assertEqual(view.get_object(), self.other_data)
+        with patch.object(UsageView, "get_object", return_value=self.unassigned_data):
+            self.assertEqual(view.get_object(), self.unassigned_data)
+
+    def test_superuser_can_access_other_research_group_usage(self) -> None:
+        """Test superusers can access usage page of any dashboard data."""
+        view = self._get_view(self.superuser, DashboardDataUsageView)
+
+        with patch.object(UsageView, "get_object", return_value=self.own_data):
+            self.assertEqual(view.get_object(), self.own_data)
+        with patch.object(UsageView, "get_object", return_value=self.other_data):
+            self.assertEqual(view.get_object(), self.other_data)
+        with patch.object(UsageView, "get_object", return_value=self.unassigned_data):
+            self.assertEqual(view.get_object(), self.unassigned_data)
+
+    # ------------------------------------------------------------------
     # Helper method
     # ------------------------------------------------------------------
 
-    def _edit_view(self, user: User) -> DashboardDataEditView:
-        """Return edit view with given user."""
+    def _get_view(self, user: User, view_class: type[View]) -> View:
+        """Return view with given user."""
         request = self.client.get("/").wsgi_request
         request.user = user
 
-        view = DashboardDataEditView()
+        view = view_class()
         view.request = request
 
         return view

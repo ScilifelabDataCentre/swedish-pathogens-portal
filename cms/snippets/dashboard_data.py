@@ -17,7 +17,14 @@ from wagtail.admin.forms import WagtailAdminModelForm
 from wagtail.admin.panels import FieldPanel, MultiFieldPanel
 from wagtail.models import RevisionMixin
 from wagtail.snippets.models import register_snippet
-from wagtail.snippets.views.snippets import CreateView, EditView, SnippetViewSet
+from wagtail.snippets.views.snippets import (
+    CreateView,
+    EditView,
+    HistoryView,
+    RevisionsCompareView,
+    SnippetViewSet,
+    UsageView,
+)
 
 from dashboard_visualisation.registry import validate_source_columns
 from dashboard_visualisation.utils.uploads import (
@@ -51,6 +58,16 @@ def _is_internal_user(user: User | None) -> bool:
     if not user or not getattr(user, "is_authenticated", False):
         return False
     return user.is_superuser or user.groups.filter(name="editors").exists()
+
+
+def _user_can_access_dashboard_data(user: User | None, obj: DashboardData) -> bool:
+    if _is_internal_user(user):
+        return True
+    return bool(
+        user is not None
+        and obj.research_group_id
+        and user.groups.filter(pk=obj.research_group_id).exists()
+    )
 
 
 class DashboardDataForm(WagtailAdminModelForm):
@@ -358,6 +375,18 @@ def apply_uploaded_by(instance: DashboardData, request: object) -> None:
         instance.uploaded_by = user.get_username()
 
 
+class DashboardDataObjectPermissionMixin:
+    """Mixin for snippet views that checks object-level permissions."""
+
+    def get_object(self, *args: object, **kwargs: object) -> DashboardData:
+        """Return the object, or raise PermissionDenied if the user cannot access it."""
+        obj = super().get_object(*args, **kwargs)
+        live_obj = getattr(self, "live_object", obj)
+        if not _user_can_access_dashboard_data(self.request.user, live_obj):
+            raise PermissionDenied
+        return obj
+
+
 class DashboardDataUploadedByMixin:
     """Record which editor uploaded (or re-uploaded) the source file."""
 
@@ -405,6 +434,7 @@ class DashboardDataCreateView(
 
 
 class DashboardDataEditView(
+    DashboardDataObjectPermissionMixin,
     DashboardDataUploadedByMixin,
     DashboardDataNoAutosaveMixin,
     DashboardDataSnippetSaveMessagesMixin,
@@ -412,19 +442,26 @@ class DashboardDataEditView(
 ):
     """Edit view with dashboard upload feedback."""
 
-    def get_object(self, *args: object, **kwargs: object) -> DashboardData:
-        """Return the object to edit, or raise PermissionDenied if the user cannot access it."""
-        obj = super().get_object(*args, **kwargs)
-        user = getattr(self.request, "user", None)
-        if _is_internal_user(user):
-            return obj
-        if (
-            user is not None
-            and obj.research_group is not None
-            and user.groups.filter(pk=obj.research_group_id).exists()
-        ):
-            return obj
-        raise PermissionDenied
+
+class DashboardDataHistoryView(
+    DashboardDataObjectPermissionMixin,
+    HistoryView,
+):
+    """History view with object-level permission checks."""
+
+
+class DashboardDataRevisionsCompareView(
+    DashboardDataObjectPermissionMixin,
+    RevisionsCompareView,
+):
+    """Revision comparison view with object-level permission checks."""
+
+
+class DashboardDataUsageView(
+    DashboardDataObjectPermissionMixin,
+    UsageView,
+):
+    """Usage view with object-level permission checks."""
 
 
 class DashboardDataViewSet(SnippetViewSet):
@@ -437,6 +474,9 @@ class DashboardDataViewSet(SnippetViewSet):
     ordering = ["dashboard_slug"]
     add_view_class = DashboardDataCreateView
     edit_view_class = DashboardDataEditView
+    history_view_class = DashboardDataHistoryView
+    revisions_compare_view_class = DashboardDataRevisionsCompareView
+    usage_view_class = DashboardDataUsageView
     list_display = [
         "dashboard_title",
         "dashboard_slug",
