@@ -1,5 +1,6 @@
 """Wagtail CMS Page models."""
 
+from .available_data import AvailableDataPage
 from .basic_page import BasicPage
 from .catalogue import CataloguePage
 from .dashboard import DashboardPage, DashboardTopic
@@ -26,6 +27,7 @@ from .topics import TopicPage
 from .topics_index import TopicsIndexPage
 
 __all__ = [
+    "AvailableDataPage",
     "BasicPage",
     "CataloguePage",
     "DashboardIndexPage",
