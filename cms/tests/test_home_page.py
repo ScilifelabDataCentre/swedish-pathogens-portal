@@ -24,6 +24,7 @@ class TestHomePageClean(WagtailPageTestCase):
 
     def test_allows_button_with_page(self):
         """Test that a HomePage can be valid with button text and a page, but no link."""
+        self.home_page.hero_title = "Home"
         self.home_page.hero_button_text = "Learn more"
         self.home_page.hero_button_page = Page(title="Target")
 
@@ -31,13 +32,23 @@ class TestHomePageClean(WagtailPageTestCase):
 
     def test_allows_button_with_link(self):
         """Test that a HomePage can be valid with button text and a link, but no page."""
+        self.home_page.hero_title = "Home"
         self.home_page.hero_button_text = "Learn more"
         self.home_page.hero_button_link = "https://example.com/"
 
         self.home_page.clean()
 
+    def test_rejects_button_text_without_hero_title_or_text(self):
+        """Test that a HomePage is invalid if button text is provided without a hero title/text."""
+        self.home_page.hero_button_text = "Learn more"
+        self.home_page.hero_button_link = "https://example.com/"
+
+        with self.assertRaises(ValidationError):
+            self.home_page.clean()
+
     def test_rejects_button_text_without_page_or_link(self):
         """Test that a HomePage is invalid if button text is provided without a page or link."""
+        self.home_page.hero_title = "Home"
         self.home_page.hero_button_text = "Learn more"
 
         with self.assertRaises(ValidationError):
@@ -45,6 +56,7 @@ class TestHomePageClean(WagtailPageTestCase):
 
     def test_rejects_page_and_link_together(self):
         """Test that a HomePage is invalid if both page and link are provided with button text."""
+        self.home_page.hero_title = "Home"
         self.home_page.hero_button_text = "Learn more"
         self.home_page.hero_button_page = Page(title="Target")
         self.home_page.hero_button_link = "https://example.com/"
@@ -54,6 +66,7 @@ class TestHomePageClean(WagtailPageTestCase):
 
     def test_rejects_button_page_without_button_text(self):
         """Test that a HomePage is invalid if a button page is provided without button text."""
+        self.home_page.hero_title = "Home"
         self.home_page.hero_button_page = Page(title="Target")
 
         with self.assertRaises(ValidationError):
@@ -61,6 +74,7 @@ class TestHomePageClean(WagtailPageTestCase):
 
     def test_rejects_link_without_button_text(self):
         """Test that a HomePage is invalid if a button link is provided without button text."""
+        self.home_page.hero_title = "Home"
         self.home_page.hero_button_link = "https://example.com/"
 
         with self.assertRaises(ValidationError):

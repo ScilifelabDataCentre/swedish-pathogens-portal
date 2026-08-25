@@ -45,8 +45,9 @@ class HomePage(Page):
         max_length=70,
         blank=True,
         help_text=(
-            "The text displayed on the button in the hero section. This acts as enabler "
-            "for the button, so if this is blank, no button will be displayed."
+            "The text displayed on the button in the hero section. A button can be added "
+            "only if a hero title or text is added. This also cannot be empty if a hero "
+            "button page or link is set."
         ),
     )
     hero_button_page = models.ForeignKey(
@@ -94,17 +95,24 @@ class HomePage(Page):
         super().clean()
 
         # When hero button text is provided, one link MUST be set, but not both.
+        # and hero title or text must be provided if a button is set.
         if self.hero_button_text:
-            if self.hero_button_page and self.hero_button_link:
+            if not self.hero_title and not self.hero_text:
                 message = (
-                    "When hero button text is provided, only either a hero button page or "
-                    "a hero button link can be set, not both."
+                    "When hero button text is provided, either a hero title or hero text "
+                    "must also be provided."
                 )
-                raise ValidationError({"hero_button_page": message, "hero_button_link": message})
+                raise ValidationError({"hero_title": message, "hero_text": message})
             if not self.hero_button_page and not self.hero_button_link:
                 message = (
                     "When hero button text is provided, either a hero button page or a "
                     "hero button link must be set."
+                )
+                raise ValidationError({"hero_button_page": message, "hero_button_link": message})
+            if self.hero_button_page and self.hero_button_link:
+                message = (
+                    "When hero button text is provided, only either a hero button page or "
+                    "a hero button link can be set, not both."
                 )
                 raise ValidationError({"hero_button_page": message, "hero_button_link": message})
         # When either a link is set, hero button text must be provided.
