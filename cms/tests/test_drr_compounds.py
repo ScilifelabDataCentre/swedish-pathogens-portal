@@ -224,6 +224,20 @@ class LoadCompoundNamesTests(SimpleTestCase):
         with self.assertRaisesMessage(ValueError, "pert_type"):
             load_compound_names(path)
 
+    def test_null_pert_type_raises(self) -> None:
+        """An unclassifiable row stops the run: nothing decides it but pert_type."""
+        path = self._write_ipc(
+            NAME_LOOKUP.with_columns(
+                pl.when(pl.col("cbkid") == "CBK008271")
+                .then(None)
+                .otherwise(pl.col("pert_type"))
+                .alias("pert_type")
+            )
+        )
+
+        with self.assertRaisesMessage(ValueError, "no 'pert_type'"):
+            load_compound_names(path)
+
 
 class BuildNameLookupTests(SimpleTestCase):
     """Reducing the raw lookup to one compound name per cbkid (FREYA-2628)."""
@@ -242,6 +256,25 @@ class BuildNameLookupTests(SimpleTestCase):
         reversed_rows = build_name_lookup(CONFLICTING_LOOKUP.reverse())
 
         self.assertEqual(forward.to_dicts(), reversed_rows.to_dicts())
+
+    def test_null_pert_type_is_not_a_condition_row(self) -> None:
+        """A row with no pert_type is neither dropped nor reported as excluded."""
+        names = pl.DataFrame(
+            {
+                "cbkid": ["CBK008271", "CBK281357"],
+                "pert_iname": ["alpha-iname", "DMSO"],
+                "pert_type": [None, "negcon"],
+            }
+        )
+
+        lookup = build_name_lookup(names)
+        report = name_lookup_report(
+            build_compound_index(_feature_table(["CBK008271"]), METADATA, names), names
+        )
+
+        self.assertEqual(lookup["cbkid"].to_list(), ["CBK008271"])
+        self.assertEqual(report["n_condition_rows_excluded"], 1)
+        self.assertEqual(report["n_named"], 1)
 
 
 class CompoundIndexNameLookupTests(SimpleTestCase):

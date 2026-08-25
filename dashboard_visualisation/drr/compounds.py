@@ -157,8 +157,17 @@ def build_name_lookup(names: pl.DataFrame) -> pl.DataFrame:
 
 
 def _drop_condition_rows(names: pl.DataFrame) -> pl.DataFrame:
-    """Drop the lookup rows whose ``pert_iname`` names a condition, not a compound."""
-    return names.filter(~pl.col("pert_type").is_in(_CONDITION_PERT_TYPES))
+    """Drop the lookup rows whose ``pert_iname`` names a condition, not a compound.
+
+    Only the two condition types are dropped. The ``fill_null`` matters: an
+    ``is_in`` against a null is null, and ``filter`` discards a null predicate,
+    so without it a row with no ``pert_type`` would be dropped as well and
+    counted as an excluded condition — losing a name and misreporting why.
+    ``load_compound_names`` rejects such a row up front; this keeps the rule
+    right for a caller that builds a lookup by hand.
+    """
+    is_condition = pl.col("pert_type").is_in(_CONDITION_PERT_TYPES).fill_null(False)
+    return names.filter(~is_condition)
 
 
 def _annotation_lookup(metadata: pl.DataFrame) -> pl.DataFrame | None:

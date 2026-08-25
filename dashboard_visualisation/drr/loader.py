@@ -136,7 +136,10 @@ def load_compound_names(path: str | Path) -> pl.DataFrame:
         The three lookup columns, one row per source row (unreduced).
 
     Raises:
-        ValueError: If any lookup column is missing from the file.
+        ValueError: If any lookup column is missing, or if ``pert_type`` carries
+            a null. Which rows name a compound rather than a condition is
+            decided by that column alone, so an unclassifiable row must stop the
+            run instead of being guessed either way (spec section 5).
     """
     available = pl.read_ipc_schema(path)
     missing = [column for column in NAME_LOOKUP_COLUMNS if column not in available]
@@ -145,7 +148,16 @@ def load_compound_names(path: str | Path) -> pl.DataFrame:
             f"Compound-name lookup is missing the required column(s) {missing}. "
             f"Found: {sorted(available)[:8]}."
         )
-    return pl.read_ipc(path, columns=NAME_LOOKUP_COLUMNS)
+
+    names = pl.read_ipc(path, columns=NAME_LOOKUP_COLUMNS)
+    unclassified = names["pert_type"].null_count()
+    if unclassified:
+        raise ValueError(
+            f"Compound-name lookup has {unclassified} row(s) with no 'pert_type'. "
+            "That column decides which rows name a compound rather than a condition, "
+            "so the file's shape has changed and wants looking at."
+        )
+    return names
 
 
 def load_metadata(path: str | Path) -> pl.DataFrame:
