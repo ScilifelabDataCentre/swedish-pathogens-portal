@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import structlog
 from django.contrib.contenttypes.fields import GenericRelation
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files.uploadedfile import UploadedFile
 from django.db import models
+from django.http import HttpRequest
 from django.shortcuts import redirect
 from django.utils import timezone
 from wagtail.admin import messages as admin_messages
@@ -14,7 +17,14 @@ from wagtail.admin.forms import WagtailAdminModelForm
 from wagtail.admin.panels import FieldPanel, MultiFieldPanel
 from wagtail.models import RevisionMixin
 from wagtail.snippets.models import register_snippet
-from wagtail.snippets.views.snippets import CreateView, EditView, SnippetViewSet
+from wagtail.snippets.views.snippets import (
+    CreateView,
+    EditView,
+    HistoryView,
+    RevisionsCompareView,
+    SnippetViewSet,
+    UsageView,
+)
 
 from dashboard_visualisation.registry import validate_source_columns, validate_source_file
 from dashboard_visualisation.utils.uploads import (
@@ -22,6 +32,9 @@ from dashboard_visualisation.utils.uploads import (
     rewind_source_file,
     validate_csv,
 )
+
+if TYPE_CHECKING:
+    from django.contrib.auth.models import User
 
 LOGGER = structlog.get_logger(__name__)
 
@@ -40,8 +53,35 @@ def _is_new_source_file_upload(source_file: object) -> bool:
     return False
 
 
+def _is_internal_user(user: User | None) -> bool:
+    """Return True if the user is a superuser or belongs to the 'editors' group."""
+    if not user or not getattr(user, "is_authenticated", False):
+        return False
+    return user.is_superuser or user.groups.filter(name="Editors").exists()
+
+
+def _user_can_access_dashboard_data(user: User | None, obj: DashboardData) -> bool:
+    if _is_internal_user(user):
+        return True
+    return bool(
+        user is not None
+        and obj.research_group_id
+        and user.groups.filter(pk=obj.research_group_id).exists()
+    )
+
+
 class DashboardDataForm(WagtailAdminModelForm):
     """Validate dashboard source uploads before save."""
+
+    def __init__(self, *args: object, **kwargs: object) -> None:
+        """Initialize the form and store the original source file for comparison."""
+        super().__init__(*args, **kwargs)
+
+        for_user = kwargs.get("for_user")
+        # Only superusers and internal editors can see the option
+        # and assign a research group to a dashboard data instance.
+        if not _is_internal_user(for_user):
+            self.fields.pop("research_group", None)
 
     def clean_source_file(self) -> object:
         """Validate the source upload (custom viz-module checks, else CSV)."""
@@ -109,6 +149,17 @@ class DashboardData(RevisionMixin, models.Model):
         uploaded_by: Username of the editor who uploaded.
     """
 
+    research_group = models.ForeignKey(
+        "auth.Group",
+        on_delete=models.PROTECT,
+        related_name="+",
+        blank=True,
+        null=True,
+        help_text=(
+            "Optional admin setting to restrict access to this dashboard data upload "
+            "to a specific research group."
+        ),
+    )
     dashboard_title = models.CharField(
         max_length=255,
         default="",
@@ -140,6 +191,7 @@ class DashboardData(RevisionMixin, models.Model):
             [
                 FieldPanel("dashboard_title"),
                 FieldPanel("dashboard_slug"),
+                FieldPanel("research_group"),
             ],
             heading="Dashboard",
         ),
@@ -335,6 +387,18 @@ def apply_uploaded_by(instance: DashboardData, request: object) -> None:
         instance.uploaded_by = user.get_username()
 
 
+class DashboardDataObjectPermissionMixin:
+    """Mixin for snippet views that checks object-level permissions."""
+
+    def get_object(self, *args: object, **kwargs: object) -> DashboardData:
+        """Return the object, or raise PermissionDenied if the user cannot access it."""
+        obj = super().get_object(*args, **kwargs)
+        live_obj = getattr(self, "live_object", obj)
+        if not _user_can_access_dashboard_data(self.request.user, live_obj):
+            raise PermissionDenied
+        return obj
+
+
 class DashboardDataUploadedByMixin:
     """Record which editor uploaded (or re-uploaded) the source file."""
 
@@ -382,12 +446,34 @@ class DashboardDataCreateView(
 
 
 class DashboardDataEditView(
+    DashboardDataObjectPermissionMixin,
     DashboardDataUploadedByMixin,
     DashboardDataNoAutosaveMixin,
     DashboardDataSnippetSaveMessagesMixin,
     EditView,
 ):
     """Edit view with dashboard upload feedback."""
+
+
+class DashboardDataHistoryView(
+    DashboardDataObjectPermissionMixin,
+    HistoryView,
+):
+    """History view with object-level permission checks."""
+
+
+class DashboardDataRevisionsCompareView(
+    DashboardDataObjectPermissionMixin,
+    RevisionsCompareView,
+):
+    """Revision comparison view with object-level permission checks."""
+
+
+class DashboardDataUsageView(
+    DashboardDataObjectPermissionMixin,
+    UsageView,
+):
+    """Usage view with object-level permission checks."""
 
 
 class DashboardDataViewSet(SnippetViewSet):
@@ -400,6 +486,9 @@ class DashboardDataViewSet(SnippetViewSet):
     ordering = ["dashboard_slug"]
     add_view_class = DashboardDataCreateView
     edit_view_class = DashboardDataEditView
+    history_view_class = DashboardDataHistoryView
+    revisions_compare_view_class = DashboardDataRevisionsCompareView
+    usage_view_class = DashboardDataUsageView
     list_display = [
         "dashboard_title",
         "dashboard_slug",
@@ -407,6 +496,16 @@ class DashboardDataViewSet(SnippetViewSet):
         "uploaded_by",
     ]
     list_filter = ["dashboard_slug"]
+
+    def get_queryset(self, request: HttpRequest) -> models.QuerySet:
+        """Return a queryset of DashboardData instances based on the user's permissions."""
+        queryset = self.model.objects.all()
+
+        user = request.user
+        if _is_internal_user(user):
+            return queryset
+
+        return queryset.filter(research_group__in=user.groups.all())
 
 
 register_snippet(DashboardDataViewSet)
