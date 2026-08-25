@@ -85,7 +85,7 @@ class TestDrrCompoundDownload(DrrDownloadRouteTestCase):
         self.assertEqual(self.compound("../../secret.txt").status_code, 404)
 
     def test_extra_input_columns_are_preserved(self) -> None:
-        """A wider feature table still slices — the feather adds ``pert_iname`` (R9)."""
+        """A wider feature table still slices, whatever extra columns an input carries."""
         self.write_artefacts(
             pert_iname=["remdesivir", "remdesivir", "aloxistatin", "staurosporine"]
         )
