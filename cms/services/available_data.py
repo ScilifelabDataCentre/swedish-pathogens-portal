@@ -41,7 +41,8 @@ def fetch_priority_pathogen_taxon_ids() -> list[str]:
 
     def compute() -> list[str] | None:
         """Use in cache_get_or_set to fetch the taxon ids if cache miss."""
-        params = {"query": "id:[* TO *]", "format": "JSON", "size": 200, "fields": "TAXONOMY"}
+        # max size=1000 per request. Current value is 198 hits, so quite a lot of wiggle room.
+        params = {"query": "id:[* TO *]", "format": "JSON", "size": 1000, "fields": "TAXONOMY"}
         url = f"{EBI_BASE_URL}/priority_pathogens"
         data = fetch_json(url=url, params=params)
         if data is None:
@@ -75,9 +76,9 @@ def fetch_ebi_hit_count(index: str, query: str) -> int:
 
     def compute() -> int | None:
         """Use in cache_get_or_set to fetch the hit count if cache miss."""
-        # max size=1000 per request. Current value is 198 hits, so quite a lot of wiggle room.
-        params = {"query": full_query, "size": 1000, "format": "JSON", "facetcount": 0}
-        data = fetch_json(url=f"{EBI_BASE_URL}/{index}", params=params)
+        params = {"query": full_query, "size": 0, "format": "JSON", "facetcount": 0}
+        url = f"{EBI_BASE_URL}/{index}"
+        data = fetch_json(url=url, params=params)
         if data is None:
             return None
         try:
@@ -85,7 +86,7 @@ def fetch_ebi_hit_count(index: str, query: str) -> int:
         except (TypeError, ValueError) as e:
             LOGGER.error(
                 "available_data.invalid_hit_count_response",
-                index=index,
+                url=url,
                 error=str(e),
                 exc_info=True,
             )

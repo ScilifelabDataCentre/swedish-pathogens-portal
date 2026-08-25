@@ -14,7 +14,6 @@ from typing import TYPE_CHECKING, Any
 import structlog
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
-from django.utils import timezone
 from django.utils.http import urlencode
 from django.utils.text import slugify
 
@@ -67,10 +66,11 @@ class Publication:
         """Build a Publication from one raw Europe PMC "result" entry.
 
         Rather than raising on missing fields, provides default values for missing data.
+        The .get("name") or pattern is used to handle cases where key is set, but to None/null.
         """
-        journal_info = result.get("journalInfo") or {}  # handles case where journalInfo = null/None
-        journal = (journal_info.get("journal") or {}).get("title", "journal unknown")
-        doi = result.get("doi", "doi unknown")
+        journal_info = result.get("journalInfo") or {}
+        journal = (journal_info.get("journal") or {}).get("title") or "journal unknown"
+        doi = result.get("doi") or "doi unknown"
 
         if doi != "doi unknown":
             url = f"https://doi.org/{doi}"
@@ -80,8 +80,8 @@ class Publication:
             url = full_text_urls[0].get("url") if full_text_urls else None
 
         return cls(
-            title=result.get("title", "title unknown"),
-            authors=result.get("authorString", "authors unknown"),
+            title=result.get("title") or "title unknown",
+            authors=result.get("authorString") or "authors unknown",
             journal=journal,
             doi=doi,
             url=url,
@@ -99,17 +99,14 @@ def resolve_active_pathogen(page: PublicationsPage, request: HttpRequest) -> Pat
     if not user_pathogen:
         return page.pathogens[0] if page.pathogens else None
 
-    for pathogen in page.pathogens:
-        if pathogen.name == user_pathogen:
-            return pathogen
-
-    available_pathogens = [p.name for p in page.pathogens]
-    LOGGER.warning(
-        "Pathogen %r not found among this page's configured pathogens. configured pathogens: %s",
-        user_pathogen,
-        available_pathogens,
-    )
-    return None
+    pathogen = page.pathogens_by_name.get(user_pathogen)
+    if pathogen is None:
+        LOGGER.warning(
+            "publications.unknown_pathogen",
+            requested=user_pathogen,
+            available=list(page.pathogens_by_name),
+        )
+    return pathogen
 
 
 def _build_abstract_query(pathogen: Pathogen) -> str:
@@ -124,9 +121,7 @@ def fetch_pathogen_publications(pathogen: Pathogen) -> list[Publication]:
     Results cached according to `PUBLICATIONS_CACHE_TTL_SECONDS`.
     Returns an empty list on any fetch/parse failure.
     """
-    now = timezone.now()
-    past_year = f"{now.year - 1}-{now.month:02d} TO {now.year}-{now.month:02d}"
-    query_string = f'{_build_abstract_query(pathogen)} AND AFF:"Sweden" AND PUB_YEAR:[{past_year}]'
+    query_string = f'{_build_abstract_query(pathogen)} AND AFF:"Sweden"'
     cache_key = slugify(f"publications_{pathogen.name}_{query_string}")
 
     def compute() -> list[Publication] | None:

@@ -17,7 +17,7 @@ from cms.services.publications import Pathogen, render_publications_partial, res
 class PublicationsPage(Page):
     """Publications page that displays Sweden affiliated research papers in Europe PMC.
 
-    Papers can be filtered by pathogen Uses EuroPMC's API to retrieve the data.
+    Papers can be filtered by pathogen. Uses EuroPMC's API to retrieve the data.
 
     Attributes:
         content (StreamField): StreamField with three content block types:
@@ -29,6 +29,7 @@ class PublicationsPage(Page):
     template = "cms/pages/publications/index.html"
     parent_page_types = ["cms.HomePage"]
     subpage_types = []
+    max_count = 1
 
     content = StreamField(
         [
@@ -37,7 +38,7 @@ class PublicationsPage(Page):
             ("publications", PublicationsBlock()),
         ],
         blank=False,
-        block_counts={"publications": {"max_num": 1}},
+        block_counts={"publications": {"min_num": 1, "max_num": 1}},
     )
     content_panels = Page.content_panels + [FieldPanel("content")]
 
@@ -56,6 +57,11 @@ class PublicationsPage(Page):
                     )
                 )
         return pathogens
+
+    @cached_property
+    def pathogens_by_name(self) -> dict[str, Pathogen]:
+        """Return a mapping of pathogen name to Pathogen for lookups by name."""
+        return {pathogen.name: pathogen for pathogen in self.pathogens}
 
     def get_context(self, request: HttpRequest) -> dict[str, Any]:
         """Add the active (selected) pathogen to the template context."""

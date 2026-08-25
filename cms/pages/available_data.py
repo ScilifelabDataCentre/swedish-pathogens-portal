@@ -32,7 +32,11 @@ class AvailableDataPage(Page):
             (
                 "available_data",
                 StaticBlock(
-                    admin_text=("Displays EBI dataset counts by category, loaded via HTMX."),
+                    admin_text=(
+                        "Displays EBI dataset counts by category, loaded via HTMX. "
+                        "NOTE: This requires the page to be published until then, previewing it "
+                        "will show an error instead of the counts."
+                    ),
                     template="cms/pages/available_data/partials/available_data_section.html",
                 ),
             ),

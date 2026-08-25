@@ -4,7 +4,7 @@
 {% endcomment %}
 
 <div class="relative min-h-40"
-    hx-get="{{ page.url }}"
+    hx-get="{{ request.path }}"
     hx-trigger="load once"
     hx-target="#available-data-counts"
     hx-swap="innerHTML"

@@ -54,6 +54,21 @@ class TestPublicationFromEuropePMCResult(SimpleTestCase):
         self.assertEqual(publication.doi, "doi unknown")
         self.assertIsNone(publication.url)
 
+    def test_explicit_null_fields_get_placeholder_defaults(self):
+        """Test a record with keys present but explicitly null falls back to placeholder text."""
+        result = {
+            "title": None,
+            "authorString": None,
+            "journalInfo": {"journal": {"title": None}},
+            "doi": None,
+        }
+        publication = Publication.from_europe_pmc_result(result)
+        self.assertEqual(publication.title, "title unknown")
+        self.assertEqual(publication.authors, "authors unknown")
+        self.assertEqual(publication.journal, "journal unknown")
+        self.assertEqual(publication.doi, "doi unknown")
+        self.assertIsNone(publication.url)
+
     def test_missing_doi_falls_back_to_full_text_url(self):
         """Test a record with no doi but a full text URL uses that as the url."""
         result = {
@@ -93,8 +108,11 @@ class TestResolveActivePathogen(SimpleTestCase):
             Pathogen(name="RSV", search_terms=["RSV"]),
             Pathogen(name="AMR", search_terms=["antibiotic resistance", "AMR"]),
         ]
-        self.real_page = SimpleNamespace(pathogens=self.pathogens)
-        self.empty_page = SimpleNamespace(pathogens=[])
+        self.real_page = SimpleNamespace(
+            pathogens=self.pathogens,
+            pathogens_by_name={p.name: p for p in self.pathogens},
+        )
+        self.empty_page = SimpleNamespace(pathogens=[], pathogens_by_name={})
 
     def test_no_pathogen_param_returns_first_configured(self):
         """Test the initial page load (no pathogen param) defaults to the first pathogen."""

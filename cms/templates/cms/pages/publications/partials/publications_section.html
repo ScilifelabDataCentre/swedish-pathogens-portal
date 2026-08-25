@@ -14,12 +14,12 @@
             <div id="{{ pathogen.name|slugify }}">
                 <span class="cursor-pointer hover:underline hover:underline-offset-3
                     {% if pathogen.name == active_pathogen %}active{% endif %}"
-                    hx-get="{{ page.url }}"
-                    hx-vals='{"pathogen": "{{ pathogen.name }}"}'
+                    hx-get="{{ request.path }}?pathogen={{ pathogen.name|urlencode }}"
                     hx-trigger="click"
                     hx-target="#publications-list"
                     hx-swap="innerHTML"
-                    hx-indicator="#publications-loading">
+                    hx-indicator="#publications-loading"
+                    hx-replace-url="true">
                     {{ pathogen.name }}
                 </span>
             </div>
@@ -27,8 +27,7 @@
         </nav>
     </div>
     <div class="lg:flex-1 relative min-h-40"
-        hx-get="{{ page.url }}"
-        hx-vals='{"pathogen": "{{ active_pathogen }}"}'
+        hx-get="{{ request.path }}?pathogen={{ active_pathogen|urlencode }}"
         hx-trigger="load once"
         hx-target="#publications-list"
         hx-swap="innerHTML"
