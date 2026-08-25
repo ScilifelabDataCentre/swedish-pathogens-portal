@@ -1,5 +1,6 @@
 {% load wagtailcore_tags wagtailimages_tags %}
 
+{% if not invalid_page %}
 <section>
     {# Section title and view all link #}
     <div class="flex items-baseline justify-between mb-2">
@@ -32,3 +33,4 @@
     </div>
     {% endif %}
 </section>
+{% endif %}

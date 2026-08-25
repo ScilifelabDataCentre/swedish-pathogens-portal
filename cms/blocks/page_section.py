@@ -4,6 +4,7 @@ from typing import Any
 
 import structlog
 from django import forms
+from django.core.exceptions import ValidationError
 from wagtail import blocks
 
 LOGGER = structlog.get_logger(__name__)
@@ -75,6 +76,23 @@ class PageSectionBlock(blocks.StructBlock):
         help_text="Show the topics on each child card.",
     )
 
+    def clean(self, value: dict[str, Any]) -> dict[str, Any]:
+        """Clean the block value and ensure the selected page is live and public.
+
+        Args:
+            value: The block value to clean.
+        """
+        cleaned_value = super().clean(value)
+        page = cleaned_value.get("page")
+
+        if page:
+            if not page.live:
+                raise ValidationError({"page": "Draft pages cannot be selected."})
+            if page.get_view_restrictions().exists():
+                raise ValidationError({"page": "Private pages cannot be selected."})
+
+        return cleaned_value
+
     def get_context(
         self, value: dict[str, Any], parent_context: dict[str, Any] | None = None
     ) -> dict[str, Any]:
@@ -90,6 +108,12 @@ class PageSectionBlock(blocks.StructBlock):
         context = super().get_context(value, parent_context)
         page = value.get("page")
         order_by = value.get("order_by")
+
+        # if the selected page is deleted or converted to a draft or set to private
+        # return an empty list of child pages
+        if not page or not page.live or page.get_view_restrictions().exists():
+            context["invalid_page"] = True
+            return context
 
         child_pages = page.get_children().live().public().specific()
 

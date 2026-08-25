@@ -4,6 +4,7 @@ from datetime import timedelta
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+from django.core.exceptions import ValidationError
 from django.test import RequestFactory
 from django.utils import timezone
 from django.utils.text import slugify
@@ -74,6 +75,17 @@ class TestPageSectionBlock(WagtailPageTestCase):
 
         return SimpleNamespace(**defaults)
 
+    def make_mock_page(
+        self, url: str = "/page-url/", live: bool = True, private: bool = False
+    ) -> MagicMock:
+        """Create a mock page with provisioned attributes."""
+        page = MagicMock()
+        page.url = url
+        page.live = live
+        page.get_view_restrictions.return_value.exists.return_value = private
+
+        return page
+
     def get_context(self, **overrides: dict) -> dict:
         """Return the context for the PageSectionBlock with optional overrides."""
         value = self.get_block_value(**overrides)
@@ -81,8 +93,64 @@ class TestPageSectionBlock(WagtailPageTestCase):
         return self.block.get_context(value, {"request": self.request})
 
     # -------------------------------------------------------------------------------------------
-    # Test methods for the PageSectionBlock
+    # Tests for the PageSectionBlock clean() method
     # -------------------------------------------------------------------------------------------
+
+    def test_clean_rejects_draft_page(self):
+        """Test that draft pages cannot be selected."""
+        draft_page = self.parent_page.add_child(instance=Page(title="Draft", slug="draft"))
+        draft_page.unpublish()
+
+        with self.assertRaisesMessage(ValidationError, "Draft pages cannot be selected."):
+            self.block.clean({"page": draft_page})
+
+    def test_clean_rejects_private_page(self):
+        """Test that private pages cannot be selected."""
+        private_page = self.parent_page.add_child(instance=Page(title="Private", slug="private"))
+        private_page.save_revision().publish()
+        PageViewRestriction.objects.create(page=private_page, restriction_type="password")
+
+        with self.assertRaisesMessage(ValidationError, "Private pages cannot be selected."):
+            self.block.clean({"page": private_page})
+
+    def test_clean_accepts_live_public_page(self):
+        """Test that live public pages can be selected."""
+        public_page = self.parent_page.add_child(instance=Page(title="Public", slug="public"))
+        public_page.save_revision().publish()
+
+        value = {"page": public_page}
+        cleaned_value = self.block.clean(value)
+
+        self.assertEqual(cleaned_value["page"], public_page)
+
+    # -------------------------------------------------------------------------------------------
+    # Tests for the PageSectionBlock get_context() method
+    # -------------------------------------------------------------------------------------------
+
+    def test_sets_invalid_page_flag_when_page_is_deleted(self):
+        """Test that the block sets the invalid_page flag when the selected page no longer exist."""
+        context = self.get_context(page=None)
+
+        self.assertTrue(context.get("invalid_page"))
+
+    def test_sets_invalid_page_flag_when_page_is_not_live(self):
+        """Test that the block sets the invalid_page flag when the selected page is not live."""
+        draft_page = self.parent_page.add_child(instance=Page(title="Draft", slug="draft"))
+        draft_page.unpublish()  # Ensure this page is in draft state
+
+        context = self.get_context(page=draft_page)
+
+        self.assertTrue(context.get("invalid_page"))
+
+    def test_sets_invalid_page_flag_when_page_is_private(self):
+        """Test that the block sets the invalid_page flag when the selected page is private."""
+        private_page = self.parent_page.add_child(instance=Page(title="Private", slug="private"))
+        private_page.save_revision().publish()
+        PageViewRestriction.objects.create(page=private_page, restriction_type="password")
+
+        context = self.get_context(page=private_page)
+
+        self.assertTrue(context.get("invalid_page"))
 
     def test_returns_child_page_details(self):
         """Test that the block returns the expected child page details in the context."""
@@ -183,8 +251,7 @@ class TestPageSectionBlock(WagtailPageTestCase):
 
     def test_orders_children_by_data_updated_date(self):
         """Test that the block orders child pages by data updated date when specified."""
-        dashboard_page = MagicMock()
-        dashboard_page.url = "/dashboard/"
+        dashboard_page = self.make_mock_page(url="/dashboard/")
 
         dashboard_children = []
         page_titles = ["Oldest", "Middle", "Newest"]
@@ -221,8 +288,7 @@ class TestPageSectionBlock(WagtailPageTestCase):
 
     def test_includes_data_status_as_badge_for_dashboard(self):
         """Test that dashboard child data status is used as the badge."""
-        dashboard_page = MagicMock()
-        dashboard_page.url = "/dashboard/"
+        dashboard_page = self.make_mock_page(url="/dashboard/")
 
         child = self.make_mock_child(data_status="Active")
 
@@ -235,8 +301,7 @@ class TestPageSectionBlock(WagtailPageTestCase):
 
     def test_includes_data_status_as_badge_for_highlights(self):
         """Test that highlights child data status is used as the badge."""
-        highlights_page = MagicMock()
-        highlights_page.url = "/highlights/"
+        highlights_page = self.make_mock_page(url="/highlights/")
 
         child = self.make_mock_child(article_type="Highlights")
 
@@ -271,8 +336,7 @@ class TestPageSectionBlock(WagtailPageTestCase):
 
     def test_includes_date_when_enabled_for_dashboard(self):
         """Test that the block includes the date in the context when enabled."""
-        dashboard_page = MagicMock()
-        dashboard_page.url = "/dashboard/"
+        dashboard_page = self.make_mock_page(url="/dashboard/")
 
         published_at = timezone.now()
         child = self.make_mock_child(dashboard_data_updated_at=published_at)
@@ -286,7 +350,7 @@ class TestPageSectionBlock(WagtailPageTestCase):
 
     def test_includes_topics_when_enabled(self):
         """Test that the block includes the topics in the context when enabled."""
-        page_w_topics = MagicMock()
+        page_w_topics = self.make_mock_page()
         child = self.make_mock_child(topics=["Topic 1", "Topic 2"])
 
         qs = page_w_topics.get_children.return_value.live.return_value.public.return_value.specific
