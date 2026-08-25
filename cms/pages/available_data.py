@@ -2,11 +2,12 @@
 
 from django.http import HttpRequest, HttpResponse
 from wagtail.admin.panels import FieldPanel
-from wagtail.blocks import RichTextBlock
+from wagtail.blocks import RichTextBlock, StaticBlock
 from wagtail.fields import StreamField
 from wagtail.models import Page
 
 from cms.blocks import AlertBlock
+from cms.services.available_data import render_available_data_partial
 
 
 class AvailableDataPage(Page):
@@ -16,7 +17,7 @@ class AvailableDataPage(Page):
         content (StreamField): StreamField with three content block types:
             - RichTextBlock: formatted text (headings, bold, italic, links, lists)
             - AlertBlock: callout/notice box
-            - StaticBlock "available_data": displays the EBI dataset counts. TODO
+            - StaticBlock "available_data": displays the EBI dataset counts.
     """
 
     template = "cms/pages/available_data/index.html"
@@ -28,8 +29,16 @@ class AvailableDataPage(Page):
         [
             ("text", RichTextBlock()),
             ("alert", AlertBlock()),
+            (
+                "available_data",
+                StaticBlock(
+                    admin_text=("Displays EBI dataset counts by category, loaded via HTMX."),
+                    template="cms/pages/available_data/partials/available_data_section.html",
+                ),
+            ),
         ],
         blank=False,
+        block_counts={"available_data": {"min_num": 1, "max_num": 1}},
     )
 
     content_panels = Page.content_panels + [FieldPanel("content")]
@@ -40,6 +49,6 @@ class AvailableDataPage(Page):
         If the request is made via HTMX, render the dataset counts partial
         template, otherwise render the full page.
         """
-        # if request.htmx: TODO
-        #     return render_available_data_partial(request=request, page=self)
+        if request.htmx:
+            return render_available_data_partial(request=request, page=self)
         return super().serve(request)

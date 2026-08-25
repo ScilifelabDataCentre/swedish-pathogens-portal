@@ -1,0 +1,19 @@
+{% comment %}
+    AvailableDataPage's "available_data" StaticBlock template.
+    Dataset counts are loaded via HTMX on page load.
+{% endcomment %}
+
+<div class="relative min-h-40"
+    hx-get="{{ page.url }}"
+    hx-trigger="load once"
+    hx-target="#available-data-counts"
+    hx-swap="innerHTML"
+    hx-indicator="#available-data-loading">
+    <div id="available-data-loading"
+        class="htmx-indicator absolute inset-0 bg-base-100/80 flex items-center justify-center z-10 rounded-box">
+        <span class="loading loading-spinner text-accent loading-lg" aria-label="Loading"></span>
+    </div>
+    <div id="available-data-counts">
+        <!-- Dataset counts loaded lazily by HTMX -->
+    </div>
+</div>

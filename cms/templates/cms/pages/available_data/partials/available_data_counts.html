@@ -1,0 +1,38 @@
+{% comment %}
+    Available data counts fragment returned for the "available_data" block's lazy-load HTMX request. 
+    The `available_data_category` partialdef loads the 2 sections, "Outbreaks" and "Pathogen Sequences"
+{% endcomment %}
+
+{% load humanize %}
+
+{% partialdef available_data_category %}
+<section class="mt-8" aria-labelledby="{{ section.title|slugify }}-heading">
+    <h2 id="{{ section.title|slugify }}-heading" class="pb-2 mb-4 border-b border-pp-pale-grey
+        text-pp-almost-black font-semibold text-2xl">
+        {{ section.title }}
+    </h2>
+    <ul class="list-none flex flex-wrap gap-3 [&_a]:inline-block [&_a]:bg-pp-dark-blue [&_a]:text-white
+        [&_a]:no-underline [&_a]:py-2 [&_a]:px-4 [&_a]:rounded [&_a]:shadow-[2px_2px_0_0_#1a3d5c]
+        [&_a]:transition-all [&_a]:duration-200 [&_a]:hover:bg-pp-teal [&_a]:hover:shadow-[3px_3px_0_0_#2a6d5c]
+        [&_a]:hover:-translate-y-0.5 [&_a]:active:bg-pp-teal [&_a]:active:shadow-[0_0_0_0_#1a3d5c]
+        [&_a]:active:translate-y-px [&_a]:focus-visible:outline-none [&_a]:focus-visible:ring-2
+        [&_a]:focus-visible:ring-pp-dark-blue [&_a]:focus-visible:ring-offset-2
+        [&_a]:focus-visible:ring-offset-white">
+        <li>
+            <a href="{{ section.total_url }}" target="_blank" rel="noopener noreferrer">
+                View all <strong>{{ section.total_count|intcomma }}</strong> results in {{ section.title }}
+            </a>
+        </li>
+        {% for row in section.rows %}
+        <li>
+            <a href="{{ row.url }}" target="_blank" rel="noopener noreferrer">
+                View all <strong>{{ row.count|intcomma }}</strong> results in {{ row.label|title }}
+            </a>
+        </li>
+        {% endfor %}
+    </ul>
+</section>
+{% endpartialdef %}
+
+{% include "cms/pages/available_data/partials/available_data_counts.html#available_data_category" with section=outbreaks %}
+{% include "cms/pages/available_data/partials/available_data_counts.html#available_data_category" with section=pathogens_sequences %}
