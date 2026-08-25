@@ -68,3 +68,12 @@ class BasicPage(Page):
             ),
         ),
     ]
+
+    @classmethod
+    def can_create_at(cls, parent: Page) -> bool:
+        """Allow creation only under the HomePage, and not at the root."""
+        return not parent.is_root() and super().can_create_at(parent)
+
+    def can_move_to(self, parent: Page) -> bool:
+        """Allow moving only under the HomePage, and not to the root."""
+        return not parent.is_root() and super().can_move_to(parent)
