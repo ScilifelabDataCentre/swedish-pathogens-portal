@@ -16,12 +16,12 @@ from pathlib import Path
 from typing import Any
 
 import structlog
-from django.conf import settings
 from django.core.management.base import BaseCommand, CommandParser
 from django.utils import timezone
 
 from cms.snippets.drr_dataset_data import DrrDatasetData
 from dashboard_visualisation.drr import (
+    artefact_dir,
     build_all_figures,
     build_compound_index,
     build_summary,
@@ -69,14 +69,17 @@ class Command(BaseCommand):
         metadata_path = Path(options["metadata"])
         title = options["title"] or slug
 
-        output_dir = Path(settings.MEDIA_ROOT) / "drr" / slug
-        figures_dir = output_dir / "figures"
-        figures_dir.mkdir(parents=True, exist_ok=True)
-
         LOGGER.info("drr.precompute.start", slug=slug, input=str(input_path))
 
+        # Read and validate both inputs before touching the artefact directory:
+        # the page advertises downloads from the files on disk, so a run that
+        # fails afterwards would leave them describing a different generation.
         table = load_feature_table(input_path)
         metadata = load_metadata(metadata_path)
+
+        output_dir = artefact_dir(slug)
+        figures_dir = output_dir / "figures"
+        figures_dir.mkdir(parents=True, exist_ok=True)
 
         compound_index = build_compound_index(table, metadata)
         compound_index.write_parquet(output_dir / "compounds.parquet")

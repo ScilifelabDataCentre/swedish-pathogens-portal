@@ -1,21 +1,28 @@
 """Tests for DrrDatasetPage and the DrrDatasetData snippet (FREYA-2555, FREYA-2559)."""
 
 import tempfile
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 from django.core.cache import cache
 from django.core.management import call_command
+from django.db import connection
 from django.test import RequestFactory, override_settings
+from django.test.utils import CaptureQueriesContext
+from django.utils import timezone
 from wagtail.models import Page, Site
 from wagtail.test.utils import WagtailPageTestCase
 
+from cms.pages.dashboard import DashboardPage, DashboardTopic
 from cms.pages.dashboard_index import DashboardIndexPage
 from cms.pages.drr_dataset import DrrDatasetPage
 from cms.pages.home import HomePage
+from cms.pages.topics import TopicPage
+from cms.pages.topics_index import TopicsIndexPage
+from cms.snippets.dashboard_data import DashboardData
 from cms.snippets.drr_dataset_data import DrrDatasetData
 from cms.tests.test_drr_precompute import FEATURE_CSV, METADATA_TSV
-from cms.tests.utils import create_test_image
+from cms.tests.utils import create_test_image, use_temp_media_root
 
 # A representative, fully-populated summary payload mirroring spec section 7 plus
 # the FREYA-2557 reconciliation block. Counts use comma-grouped values so the
@@ -26,7 +33,7 @@ FULL_SUMMARY = {
     "n_plates": 22,
     "n_wells": 7500,
     "n_profiles": 8298,
-    "n_features": 1468,
+    "n_features": 1467,
     "pert_type_counts": {"trt": 6800, "negcon": 900, "poscon": 598},
     "compartments": ["nuclei", "cells", "cytoplasm"],
     "channels": ["CONC", "HOECHST", "MITO", "PHAandWGA", "SYTO"],
@@ -44,6 +51,11 @@ FULL_SUMMARY = {
         "generated_at": "2026-07-11T10:00:00+00:00",
     },
 }
+
+# The raw-image 302 target (FREYA-2581). It is an editorial field, so what the
+# tests pin is the round trip — the page redirects to whatever is stored — not
+# this particular study page.
+UPSTREAM_BIA_URL = "https://www.ebi.ac.uk/biostudies/bioimages/studies/S-BIAD2580"
 
 
 class DrrDatasetPageTestCase(WagtailPageTestCase):
@@ -100,8 +112,8 @@ class TestDrrDatasetData(DrrDatasetPageTestCase):
 
     def test_get_data_round_trip(self) -> None:
         """get_data returns the row whose dataset_slug matches."""
-        row = DrrDatasetData.objects.create(dataset_slug="sars-cov2-vero-e6")
-        self.assertEqual(DrrDatasetData.get_data("sars-cov2-vero-e6").pk, row.pk)
+        row = DrrDatasetData.objects.create(dataset_slug="sars-cov2-a549-ace2-validation")
+        self.assertEqual(DrrDatasetData.get_data("sars-cov2-a549-ace2-validation").pk, row.pk)
 
 
 class TestDrrDatasetPageContext(DrrDatasetPageTestCase):
@@ -113,12 +125,12 @@ class TestDrrDatasetPageContext(DrrDatasetPageTestCase):
         super().setUpTestData()
         cls.image = create_test_image(title="DRR Image", file_name="drr.jpg")
         cls.page = DrrDatasetPage(
-            title="SARS-CoV-2 Vero E6 Cell Painting",
-            slug="sars-cov2-vero-e6",
-            description="Primary Cell Painting antiviral screen.",
+            title="SARS-CoV-2 A549-ACE2 Validation Cell Painting",
+            slug="sars-cov2-a549-ace2-validation",
+            description="Validation Cell Painting antiviral screen.",
             image=cls.image,
             data_status="active",
-            cell_line="Vero E6",
+            cell_line="A549-ACE2",
         )
         cls.index.add_child(instance=cls.page)
         cls.page.save_revision().publish()
@@ -126,7 +138,7 @@ class TestDrrDatasetPageContext(DrrDatasetPageTestCase):
     def test_context_pulls_figures_and_summary_from_drr_dataset_data(self) -> None:
         """get_context exposes DrrDatasetData figures and the summary payload."""
         DrrDatasetData.objects.create(
-            dataset_slug="sars-cov2-vero-e6",
+            dataset_slug="sars-cov2-a549-ace2-validation",
             data={"pca": {"data": [], "layout": {}}},
             summary={"n_compounds": 42},
         )
@@ -160,13 +172,13 @@ class TestDrrDatasetPageRender(DrrDatasetPageTestCase):
         super().setUpTestData()
         cls.image = create_test_image(title="DRR Render", file_name="drr-render.jpg")
         cls.page = DrrDatasetPage(
-            title="SARS-CoV-2 Vero E6 Cell Painting",
-            slug="sars-cov2-vero-e6",
-            description="Primary Cell Painting antiviral screen.",
+            title="SARS-CoV-2 A549-ACE2 Validation Cell Painting",
+            slug="sars-cov2-a549-ace2-validation",
+            description="Validation Cell Painting antiviral screen.",
             image=cls.image,
             data_status="active",
-            cell_line="Vero E6",
-            screen_type="Primary Cell Painting",
+            cell_line="A549-ACE2",
+            screen_type="Validation Cell Painting",
             upstream_accession="S-BIAD2580",
             content=[
                 ("plotly_figure", {"figure_id": "pca", "alt_text": "PCA plot", "height": 500}),
@@ -183,7 +195,7 @@ class TestDrrDatasetPageRender(DrrDatasetPageTestCase):
     def test_populated_page_renders_metadata_summary_and_figure(self) -> None:
         """A populated DrrDatasetData renders metadata, the summary panel, and the figure."""
         DrrDatasetData.objects.create(
-            dataset_slug="sars-cov2-vero-e6",
+            dataset_slug="sars-cov2-a549-ace2-validation",
             data={"pca": {"data": [], "layout": {}}},
             summary=FULL_SUMMARY,
             source_file_hash="deadbeefcafe0000",
@@ -195,8 +207,8 @@ class TestDrrDatasetPageRender(DrrDatasetPageTestCase):
 
         # Header and dataset metadata.
         self.assertContains(response, "SARS-CoV-2")
-        self.assertContains(response, "Vero E6")
-        self.assertContains(response, "Primary Cell Painting")
+        self.assertContains(response, "A549-ACE2")
+        self.assertContains(response, "Validation Cell Painting")
         self.assertContains(response, "S-BIAD2580")
         self.assertContains(response, "Data last updated")
         self.assertContains(response, "July 10, 2026")
@@ -204,7 +216,7 @@ class TestDrrDatasetPageRender(DrrDatasetPageTestCase):
         # Summary counts (intcomma-formatted; commas never appear in Plotly div ids).
         self.assertContains(response, "Summary statistics")
         self.assertContains(response, "8,298")  # n_profiles
-        self.assertContains(response, "1,468")  # n_features
+        self.assertContains(response, "1,467")  # n_features
         self.assertContains(response, "7,500")  # n_wells
 
         # Perturbation types plus compartments / channels.
@@ -242,42 +254,276 @@ class TestDrrDatasetPageRender(DrrDatasetPageTestCase):
         self.assertNotContains(response, "Summary statistics")
 
 
-class TestDrrDatasetDownloadsInert(DrrDatasetPageTestCase):
-    """Option A contract: the downloads section stays inert until FREYA-2537 / 2539."""
+class TestDrrDatasetDownloadsWired(DrrDatasetPageTestCase):
+    """Inverts the transitional contract now that FREYA-2580 wires ``download_urls``.
+
+    Route behaviour is covered by ``test_drr_downloads.py`` and
+    ``test_drr_raw_images.py``; what this asserts is the page-context payload
+    spec section 10 requires of this file. The fixture names no upstream study,
+    so the raw-image link-out (FREYA-2581) is advertised only where a test sets
+    one.
+    """
 
     @classmethod
     def setUpTestData(cls) -> None:
-        """Add a published DRR dataset page for the downloads-inert checks."""
+        """Add a published DRR dataset page for the downloads-context checks."""
         super().setUpTestData()
-        cls.image = create_test_image(title="DRR Inert", file_name="drr-inert.jpg")
+        cls.image = create_test_image(title="DRR Wired", file_name="drr-wired.jpg")
         cls.page = DrrDatasetPage(
-            title="DRR Downloads Inert",
-            slug="drr-downloads-inert",
-            description="Downloads stay hidden until the routes land.",
+            title="DRR Downloads Wired",
+            slug="drr-downloads-wired",
+            description="Downloads are served from precomputed artefacts.",
             image=cls.image,
             data_status="active",
         )
         cls.index.add_child(instance=cls.page)
         cls.page.save_revision().publish()
 
-    def test_download_urls_absent_from_context(self) -> None:
-        """get_context does not expose download_urls until the routes are wired."""
+    def setUp(self) -> None:
+        """Redirect ``MEDIA_ROOT`` and stand in for a precompute run."""
+        super().setUp()
+        artefacts = use_temp_media_root(self) / "drr" / self.page.slug
+        artefacts.mkdir(parents=True)
+        (artefacts / "features.csv").write_text("cbkid\nCBK1\n", encoding="utf-8")
+        (artefacts / "features.parquet").write_bytes(b"PAR1")
+
+    def test_download_urls_present_in_context(self) -> None:
+        """get_context advertises the feature downloads and the raw-image link-out."""
+        self.page.upstream_bia_url = UPSTREAM_BIA_URL
         request = RequestFactory().get(self.page.url)
         context = self.page.get_context(request)
-        self.assertNotIn("download_urls", context)
+        self.assertEqual(
+            sorted(context["download_urls"]), ["compound_base", "csv", "parquet", "raw_images"]
+        )
+        self.assertIn("raw-images/", context["download_urls"]["raw_images"])
 
-    def test_downloads_section_not_rendered_even_with_data(self) -> None:
-        """The downloads markup stays hidden even when a data row is present."""
+    def test_downloads_section_rendered_with_data(self) -> None:
+        """The downloads markup goes live; no upstream study, no raw-image button."""
         DrrDatasetData.objects.create(
-            dataset_slug="drr-downloads-inert",
+            dataset_slug="drr-downloads-wired",
             summary={"n_compounds": 1},
             data={},
         )
         response = self.client.get(self.page.url)
         self.assertEqual(response.status_code, 200)
-        self.assertNotContains(response, 'id="drr-downloads-heading"')
-        self.assertNotContains(response, "Download features (CSV)")
+        self.assertContains(response, 'id="drr-downloads-heading"')
+        self.assertContains(response, "Download features (CSV)")
         self.assertNotContains(response, "Download raw images")
+
+
+class TestDashboardIndexDrrCards(DrrDatasetPageTestCase):
+    """The Dashboards index must resolve DRR children to their specific class (FREYA-2584).
+
+    ``DashboardIndexPage.get_context`` listed its cards from
+    ``DashboardPage.objects``, which instantiates base ``DashboardPage`` rows, so
+    a ``DrrDatasetPage`` child lost its ``dashboard_data`` override and resolved
+    to ``DashboardData`` — the wrong snippet model. Both consumers of that value
+    were wrong for DRR cards: the card date and the index sort key.
+    """
+
+    # The DRR page is published long before either data date, so a card reading
+    # its publish date — the defect's symptom — sorts last instead of first. The
+    # publish date is still the fallback when nothing is precomputed.
+    DRR_PUBLISHED_ON = date(2024, 1, 15)
+    PLAIN_DATA_DATE = date(2026, 6, 1)
+    DRR_DATA_DATE = date(2026, 7, 11)
+
+    @classmethod
+    def setUpTestData(cls) -> None:
+        """Add one DRR dataset card and one plain dashboard card to the index."""
+        super().setUpTestData()
+        cls.drr_page = cls._add_drr_page("drr-index-card", "DRR Index Card")
+        DrrDatasetPage.objects.filter(pk=cls.drr_page.pk).update(
+            first_published_at=timezone.make_aware(
+                datetime(
+                    cls.DRR_PUBLISHED_ON.year,
+                    cls.DRR_PUBLISHED_ON.month,
+                    cls.DRR_PUBLISHED_ON.day,
+                    12,
+                )
+            )
+        )
+        cls.plain_page = cls._add_plain_page("plain-index-card", "Plain Index Card")
+
+        cls.topics_index = TopicsIndexPage(title="Topics", slug="topics")
+        cls.home.add_child(instance=cls.topics_index)
+        cls.topic = TopicPage(
+            title="Cell Painting",
+            slug="cell-painting",
+            description="Image-based morphological profiling.",
+            image=create_test_image(title="Topic", file_name="topic.jpg"),
+        )
+        cls.topics_index.add_child(instance=cls.topic)
+        cls.topic.save_revision().publish()
+        DashboardTopic.objects.create(page=cls.drr_page, topic=cls.topic)
+
+    @classmethod
+    def _add_drr_page(cls, slug: str, title: str) -> DrrDatasetPage:
+        """Publish a DRR dataset page under the Dashboards index."""
+        page = DrrDatasetPage(
+            title=title,
+            slug=slug,
+            description="A DRR dataset card in the Dashboards index.",
+            image=create_test_image(title=title, file_name=f"{slug}.jpg"),
+            data_status="active",
+            cell_line="A549-ACE2",
+        )
+        cls.index.add_child(instance=page)
+        page.save_revision().publish()
+        return page
+
+    @classmethod
+    def _add_plain_page(cls, slug: str, title: str) -> DashboardPage:
+        """Publish a plain dashboard page under the Dashboards index."""
+        page = DashboardPage(
+            title=title,
+            slug=slug,
+            description="A plain dashboard card in the Dashboards index.",
+            image=create_test_image(title=title, file_name=f"{slug}.jpg"),
+            data_status="active",
+        )
+        cls.index.add_child(instance=page)
+        page.save_revision().publish()
+        return page
+
+    def _cards(self, query: str = "") -> list[DashboardPage]:
+        """Return the index's card list, in the order the index renders it."""
+        request = RequestFactory().get(f"/dashboards/{query}")
+        return self.index.get_context(request)["dashboards_list"]
+
+    def _card(self, slug: str) -> DashboardPage:
+        """Return a single card by slug, failing the test when it is absent."""
+        cards = {page.slug: page for page in self._cards()}
+        self.assertIn(slug, cards)
+        return cards[slug]
+
+    def test_index_card_uses_drr_data_date(self) -> None:
+        """A DRR card carries ``DrrDatasetData.data_updated_at`` as its date."""
+        DrrDatasetData.objects.create(
+            dataset_slug=self.drr_page.slug,
+            data_updated_at=self.DRR_DATA_DATE,
+        )
+
+        card = self._card(self.drr_page.slug)
+
+        self.assertIsInstance(card, DrrDatasetPage)
+        self.assertEqual(card.dashboard_data_updated_at, self.DRR_DATA_DATE)
+
+    def test_index_sorts_drr_card_by_its_own_date(self) -> None:
+        """The sort key reads the DRR date too, not just the rendered card date."""
+        DashboardData.objects.create(
+            dashboard_slug=self.plain_page.slug,
+            data_updated_at=self.PLAIN_DATA_DATE,
+        )
+        DrrDatasetData.objects.create(
+            dataset_slug=self.drr_page.slug,
+            data_updated_at=self.DRR_DATA_DATE,
+        )
+
+        self.assertEqual(
+            [page.slug for page in self._cards()],
+            [self.drr_page.slug, self.plain_page.slug],
+        )
+
+    def test_index_breaks_a_date_tie_on_title(self) -> None:
+        """Newest first, then title — the tie-break holds across both card types.
+
+        Two plain cards share the DRR card's date, so this pins the DRR card's
+        position *within* a tie rather than merely ahead of an older card, and
+        pins plain-to-plain order at the same time.
+        """
+        alpha = self._add_plain_page("alpha-tie-card", "Alpha Tie Card")
+        zulu = self._add_plain_page("zulu-tie-card", "Zulu Tie Card")
+        for page in (alpha, zulu):
+            DashboardData.objects.create(
+                dashboard_slug=page.slug,
+                data_updated_at=self.DRR_DATA_DATE,
+            )
+        DashboardData.objects.create(
+            dashboard_slug=self.plain_page.slug,
+            data_updated_at=self.PLAIN_DATA_DATE,
+        )
+        DrrDatasetData.objects.create(
+            dataset_slug=self.drr_page.slug,
+            data_updated_at=self.DRR_DATA_DATE,
+        )
+
+        self.assertEqual(
+            [page.slug for page in self._cards()],
+            [alpha.slug, self.drr_page.slug, zulu.slug, self.plain_page.slug],
+        )
+
+    def test_index_card_without_precompute_uses_the_publication_date(self) -> None:
+        """No ``DrrDatasetData`` row: the card falls back to ``first_published_at``.
+
+        A DRR card reaches the portal-wide fallback that ``4a8d9df`` ("Add
+        fallback date if dashboard don't have data entry", PR 83) added, through
+        its own snippet lookup returning nothing. It is the publish date pinned
+        by this class, not a plain dashboard's, so the fallback is reached via
+        the DRR ``dashboard_data`` override rather than around it.
+        """
+        card = self._card(self.drr_page.slug)
+
+        self.assertIsNone(card.dashboard_data)
+        self.assertEqual(card.dashboard_data_updated_at, self.DRR_PUBLISHED_ON)
+
+    def test_precompute_less_page_still_shows_a_data_date_line(self) -> None:
+        """The same rule on the page itself: no row, but the publish date stands in."""
+        response = self.client.get(self.drr_page.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Data last updated")
+
+    def test_plain_dashboard_keeps_the_publication_date_fallback(self) -> None:
+        """The shared fallback is unchanged: a plain card falls back to its publish date."""
+        card = self._card(self.plain_page.slug)
+
+        self.assertIsNone(card.dashboard_data)
+        self.assertEqual(
+            card.dashboard_data_updated_at, timezone.localdate(card.first_published_at)
+        )
+
+    def test_plain_dashboard_card_date_is_unchanged(self) -> None:
+        """The shared-code guard: a plain dashboard card still reads ``DashboardData``."""
+        DashboardData.objects.create(
+            dashboard_slug=self.plain_page.slug,
+            data_updated_at=self.PLAIN_DATA_DATE,
+        )
+
+        card = self._card(self.plain_page.slug)
+
+        self.assertNotIsInstance(card, DrrDatasetPage)
+        self.assertEqual(card.dashboard_data_updated_at, self.PLAIN_DATA_DATE)
+
+    def test_index_filters_still_narrow_the_card_list(self) -> None:
+        """Search, status and topic filters are untouched: they query base-model fields."""
+        self.assertEqual(
+            [page.slug for page in self._cards("?search=plain")],
+            [self.plain_page.slug],
+        )
+        self.assertEqual(
+            [page.slug for page in self._cards(f"?topic={self.topic.slug}")],
+            [self.drr_page.slug],
+        )
+        self.assertEqual(self._cards("?type=historic"), [])
+
+    def test_index_query_count_does_not_grow_per_card(self) -> None:
+        """``.specific()`` costs a fixed number of queries, not one per card.
+
+        Each card already costs one snippet lookup, through
+        ``dashboard_data_updated_at`` in the sort key — that predates this
+        change. What is pinned here is that resolving cards to their specific
+        class adds nothing per card on top of it.
+        """
+        with CaptureQueriesContext(connection) as captured:
+            self._cards()
+        baseline = len(captured.captured_queries)
+
+        self._add_drr_page("drr-index-card-2", "DRR Index Card 2")
+        self._add_plain_page("plain-index-card-2", "Plain Index Card 2")
+
+        with self.assertNumQueries(baseline + 2):
+            self.assertEqual(len(self._cards()), 4)
 
 
 class TestDrrDatasetSliceAcceptance(DrrDatasetPageTestCase):
@@ -316,7 +562,7 @@ class TestDrrDatasetSliceAcceptance(DrrDatasetPageTestCase):
                 description="End-to-end acceptance slice.",
                 image=image,
                 data_status="active",
-                cell_line="Vero E6",
+                cell_line="A549-ACE2",
                 content=[
                     ("plotly_figure", {"figure_id": "pca", "alt_text": "PCA plot", "height": 500}),
                 ],
