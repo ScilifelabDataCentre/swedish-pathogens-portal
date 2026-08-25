@@ -1,10 +1,10 @@
 """Management command: precompute DRR dataset artefacts (FREYA-2556).
 
 Manual, repeatable, offline pipeline (spec section 5). Turns a Cell Painting
-feature CSV plus its CBCS metadata TSV into the derived artefacts a
-``DrrDatasetPage`` serves and upserts the slug-keyed ``DrrDatasetData`` row.
-Raw imagery is never touched; only derived artefacts land under
-``media/drr/<slug>/``.
+feature CSV plus its CBCS metadata TSV — and optionally a compound-name lookup
+(FREYA-2628) — into the derived artefacts a ``DrrDatasetPage`` serves, and
+upserts the slug-keyed ``DrrDatasetData`` row. Raw imagery is never touched;
+only derived artefacts land under ``media/drr/<slug>/``.
 """
 
 from __future__ import annotations
@@ -25,8 +25,10 @@ from dashboard_visualisation.drr import (
     build_all_figures,
     build_compound_index,
     build_summary,
+    load_compound_names,
     load_feature_table,
     load_metadata,
+    name_lookup_report,
     reconciliation_report,
 )
 from dashboard_visualisation.utils.uploads import calculate_file_hash
@@ -48,6 +50,12 @@ class Command(BaseCommand):
         parser.add_argument(
             "--metadata", required=True, help="Path to the CBCS compound metadata TSV."
         )
+        parser.add_argument(
+            "--compound-names",
+            dest="compound_names",
+            default=None,
+            help="Optional Arrow file read as a cbkid -> pert_iname lookup; skipped if omitted.",
+        )
         parser.add_argument("--title", default="", help="Human-readable dataset title.")
         parser.add_argument(
             "--umap-coords",
@@ -67,21 +75,23 @@ class Command(BaseCommand):
         slug = options["slug"]
         input_path = Path(options["input"])
         metadata_path = Path(options["metadata"])
+        names_path = Path(options["compound_names"]) if options["compound_names"] else None
         title = options["title"] or slug
 
         LOGGER.info("drr.precompute.start", slug=slug, input=str(input_path))
 
-        # Read and validate both inputs before touching the artefact directory:
+        # Read and validate every input before touching the artefact directory:
         # the page advertises downloads from the files on disk, so a run that
         # fails afterwards would leave them describing a different generation.
         table = load_feature_table(input_path)
         metadata = load_metadata(metadata_path)
+        names = load_compound_names(names_path) if names_path else None
 
         output_dir = artefact_dir(slug)
         figures_dir = output_dir / "figures"
         figures_dir.mkdir(parents=True, exist_ok=True)
 
-        compound_index = build_compound_index(table, metadata)
+        compound_index = build_compound_index(table, metadata, names)
         compound_index.write_parquet(output_dir / "compounds.parquet")
         reconciliation = reconciliation_report(compound_index)
 
@@ -92,7 +102,13 @@ class Command(BaseCommand):
         self._write_figures(figures_dir, figures)
 
         feature_hash = self._hash_file(input_path)
+        names_hash = self._hash_file(names_path) if names_path else None
+        # Fixed order — feature table, metadata, name lookup, UMAP coordinates —
+        # so the combined digest depends on the inputs and not on the order the
+        # optional ones were passed in.
         input_hashes = [feature_hash, self._hash_file(metadata_path)]
+        if names_hash:
+            input_hashes.append(names_hash)
         if options["umap_coords"]:
             input_hashes.append(self._hash_file(Path(options["umap_coords"])))
         source_hash = self._combine_hashes(input_hashes)
@@ -104,6 +120,12 @@ class Command(BaseCommand):
             generated_at=generated_at.isoformat(),
         )
         summary["compound_reconciliation"] = reconciliation
+        summary["name_lookup"] = name_lookup_report(
+            compound_index,
+            names,
+            source_filename=names_path.name if names_path else None,
+            source_hash=names_hash,
+        )
         (output_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
 
         data_updated_at = self._resolve_updated_date(slug, source_hash, options["data_updated_at"])
@@ -127,16 +149,23 @@ class Command(BaseCommand):
             unmatched=reconciliation["n_unannotated"],
             controls=reconciliation["n_control_ids"],
         )
-        self.stdout.write(
-            self.style.SUCCESS(
-                f"Precomputed DRR dataset '{slug}': {summary['n_compounds']} compounds, "
-                f"{summary['n_profiles']} profiles, {len(figures)} figures -> {output_dir}\n"
-                f"  cbkid join: {reconciliation['n_annotated']} annotated "
-                f"({reconciliation['n_recovered']} via normalization), "
-                f"{reconciliation['n_unannotated']} unannotated, "
-                f"{reconciliation['n_control_ids']} controls"
-            )
+        report = (
+            f"Precomputed DRR dataset '{slug}': {summary['n_compounds']} compounds, "
+            f"{summary['n_profiles']} profiles, {len(figures)} figures -> {output_dir}\n"
+            f"  cbkid join: {reconciliation['n_annotated']} annotated "
+            f"({reconciliation['n_recovered']} via normalization), "
+            f"{reconciliation['n_unannotated']} unannotated, "
+            f"{reconciliation['n_control_ids']} controls"
         )
+        if names_path:
+            name_lookup = summary["name_lookup"]
+            report += (
+                f"\n  name lookup: {name_lookup['n_named']} named, "
+                f"{name_lookup['n_unnamed']} unnamed, "
+                f"{name_lookup['n_lookup_ids']} lookup ids, "
+                f"{name_lookup['n_conflicting_ids']} conflicting"
+            )
+        self.stdout.write(self.style.SUCCESS(report))
 
     @staticmethod
     def _write_figures(figures_dir: Path, figures: dict[str, Any]) -> None:
