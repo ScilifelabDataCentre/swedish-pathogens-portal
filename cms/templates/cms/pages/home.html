@@ -5,9 +5,9 @@
 {# Disable the default page heading banner #}
 {% block page_heading %}{% endblock %}
 
+{% block full_width_content %}
 {% if page.hero_title or page.hero_text %}
 <!-- Hero Section -->
-{% block full_width_content %}
 <div class="relative bg-linear-to-br from-pp-dark-blue via-pp-mid-blue to-pp-teal text-white py-12 mb-4">
     <div class="absolute inset-0 bg-cover bg-center opacity-20"
         style="background-image: url('{% static 'cms/images/hero.png' %}');"></div>
@@ -38,8 +38,8 @@
         </div>
     </div>
 </div>
-{% endblock %}
 {% endif %}
+{% endblock %}
 
 {% block content %}
 
