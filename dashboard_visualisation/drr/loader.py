@@ -1,4 +1,4 @@
-"""Load and split the DRR Cell Painting feature table and compound metadata."""
+"""Load the DRR Cell Painting feature table, compound metadata and name lookup."""
 
 from __future__ import annotations
 
@@ -29,6 +29,13 @@ METADATA_COLUMNS: list[str] = [
 # Scan enough rows to infer column dtypes correctly for the full inputs
 # (feature table ~8.3k rows, metadata files up to ~21k rows).
 _SCHEMA_SCAN_ROWS = 100_000
+
+# The only columns read from the companion repository's Arrow file, out of its
+# 1,153: the compound id, the authors' own compound name, and the perturbation
+# type that says which rows name a compound at all (FREYA-2628). None of its
+# feature values is ever read — that file is a row and column subset of our
+# input, so it is a name lookup and not a feature source (spec section 5).
+NAME_LOOKUP_COLUMNS: list[str] = ["cbkid", "pert_iname", "pert_type"]
 
 # Missing values in the metadata TSV are encoded as the literal string "null".
 _METADATA_NULL_VALUE = "null"
@@ -113,6 +120,32 @@ def load_feature_table(path: str | Path) -> FeatureTable:
     # figures also never overwrites the artefacts a page already serves.
     table.numeric_matrix()
     return table
+
+
+def load_compound_names(path: str | Path) -> pl.DataFrame:
+    """Load the compound-name lookup from the companion repository's Arrow file.
+
+    Only ``NAME_LOOKUP_COLUMNS`` are read. The file is compressed IPC, so polars
+    declines to memory-map it and falls back to a normal read, which warns on
+    stderr; the read needs no pyarrow.
+
+    Args:
+        path: Path to the Arrow/IPC file carrying ``pert_iname``.
+
+    Returns:
+        The three lookup columns, one row per source row (unreduced).
+
+    Raises:
+        ValueError: If any lookup column is missing from the file.
+    """
+    available = pl.read_ipc_schema(path)
+    missing = [column for column in NAME_LOOKUP_COLUMNS if column not in available]
+    if missing:
+        raise ValueError(
+            f"Compound-name lookup is missing the required column(s) {missing}. "
+            f"Found: {sorted(available)[:8]}."
+        )
+    return pl.read_ipc(path, columns=NAME_LOOKUP_COLUMNS)
 
 
 def load_metadata(path: str | Path) -> pl.DataFrame:

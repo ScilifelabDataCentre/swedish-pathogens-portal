@@ -21,7 +21,9 @@ from cms.tests.utils import create_test_image, use_temp_media_root
 # bracketed control placeholder, mirroring the real ``cbkid`` shapes documented
 # in ``dashboard_visualisation/drr/compounds.py``. The routes are
 # column-agnostic, so pinning the real ~1,468-column set would only make these
-# tests brittle when the feather input adds ``pert_iname`` (draft R9).
+# tests brittle for no gain. The companion feather does not widen the table:
+# FREYA-2628 reads it as a compound-name lookup into ``compounds.parquet``, and
+# ``pert_iname`` never enters the feature artefacts.
 FEATURE_ROWS = {
     "cbkid": ["CBK1", "CBK1", "CBK2", "[stau]"],
     "Metadata_Barcode": ["P1", "P1", "P2", "P2"],
