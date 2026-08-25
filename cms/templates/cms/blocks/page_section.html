@@ -1,0 +1,36 @@
+{% load wagtailcore_tags wagtailimages_tags %}
+
+{% if not invalid_page %}
+<section>
+    {# Section title and view all link #}
+    <div class="flex items-baseline justify-between mb-2">
+        <h3 class="m-0">{{ value.title|default:value.page.title }}</h3>
+        <a href="{{ value.page.url }}" class="font-bold focus-visible:rounded focus-visible:outline-none
+        focus-visible:ring-2 focus-visible:ring-offset-2" aria-label="View all {{ value.page.title }}"
+        >
+            View all &rarr;
+        </a>
+    </div>
+
+    {# Section description #}
+    {% if value.description %}
+    <div class="mb-6">
+        {{ value.description|richtext }}
+    </div>
+    {% endif %}
+
+    {# Child page cards #}
+    {% if section_children %}
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {% for child in section_children %}
+        {% image child.image format-webp as thumbnail %}
+        {% include "cms/components/content_card.html#content_card" with title=child.title description=child.description image=thumbnail.url url=child.url date=child.date badge_text=child.badge topics=child.topics only %}
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="col-span-3 text-center py-8 bg-pp-pale-grey border-2 border-dashed border-gray-300 rounded-xl">
+        <p class="text-gray-500">No {{ value.page.title }} available yet.</p>
+    </div>
+    {% endif %}
+</section>
+{% endif %}

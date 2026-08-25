@@ -1,143 +1,81 @@
 {% extends "cms/base.html" %}
-{% load static %}
 
-{% block title %}{{ title }}{% endblock %}
+{% load static wagtailcore_tags %}
+
+{# Disable the default page heading banner #}
+{% block page_heading %}{% endblock %}
 
 {% block full_width_content %}
+{% if page.hero_title or page.hero_text %}
 <!-- Hero Section -->
 <div class="relative bg-linear-to-br from-pp-dark-blue via-pp-mid-blue to-pp-teal text-white py-12 mb-4">
     <div class="absolute inset-0 bg-cover bg-center opacity-20"
         style="background-image: url('{% static 'cms/images/hero.png' %}');"></div>
     <div class="container relative z-10">
         <div class="max-w-3xl">
-            <h1 class="text-4xl md:text-5xl font-bold mt-0 leading-tight">
-                Swedish Pathogens Portal
-            </h1>
-            <p class="md:text-xl pb-2 mb-6 md:mb-8 leading-relaxed">
-                Supporting pandemic preparedness research in Sweden by providing access to datasets, resources, and
-                tools.
-            </p>
+            {% if page.hero_title %}
+            <h1 class="text-4xl md:text-5xl font-bold mt-0 leading-tight">{{ page.hero_title }}</h1>
+            {% endif %}
+            {% if page.hero_text %}
+            <p class="md:text-xl pb-2 mb-6 md:mb-8 leading-relaxed">{{ page.hero_text }}</p>
+            {% endif %}
+            {% if page.hero_button_text %}
             <div>
-                <a href=""
-                    class="group bg-pp-lime-green text-pp-dark-blue px-8 py-3 rounded-lg font-bold shadow-lg
-                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pp-lime-green
-                    focus-visible:ring-offset-2 focus-visible:ring-offset-pp-dark-blue"
-                    aria-label="Explore topics and research areas">
-                    Explore Topics
+                <a {% if page.hero_button_page %}
+                    href="{{ page.hero_button_page.url }}"
+                {% elif page.hero_button_link %}
+                    href="{{ page.hero_button_link }}" target="_blank" rel="noopener noreferrer"
+                {% endif %}
+                class="group bg-pp-lime-green text-pp-dark-blue px-8 py-3 rounded-lg font-bold shadow-lg
+                focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pp-lime-green
+                focus-visible:ring-offset-2 focus-visible:ring-offset-pp-dark-blue"
+                aria-label="{{ page.hero_button_text }}"
+                >
+                    {{ page.hero_button_text }}
                 </a>
             </div>
+            {% endif %}
         </div>
     </div>
 </div>
+{% endif %}
 {% endblock %}
 
-{% block page_heading %}{% endblock %}
-
 {% block content %}
+
 <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
     <!-- Main Content Column (Left) -->
     <div class="lg:col-span-9 space-y-12">
-        <!-- Dashboards Section -->
-        <section>
-            <div class="flex items-baseline justify-between mb-2">
-                <h3 class="m-0">Dashboards</h3>
-                <a href=""
-                    class="font-bold focus-visible:rounded focus-visible:outline-none
-                    focus-visible:ring-2 focus-visible:ring-offset-2"
-                    aria-label="View all dashboards">View all &rarr;</a>
-            </div>
-            <p class="mb-6">
-                Interactive visualisations of pathogen surveillance and research data. Explore trends, compare
-                datasets, and access up-to-date summaries from Swedish and international sources.
-            </p>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {% for dashboard in dashboards %}
-                    {% include "cms/components/content_card.html#content_card" with url=dashboard.url image=dashboard.image title=dashboard.name description=dashboard.description only %}
-                {% empty %}
-                <div
-                    class="col-span-3 text-center py-8 bg-pp-pale-grey border-2 border-dashed border-gray-300 rounded-xl">
-                    <p class="text-gray-500">No dashboards available yet.</p>
-                </div>
-                {% endfor %}
-            </div>
-        </section>
-
-        <!-- Articles Section -->
-        <section>
-            <div class="flex items-baseline justify-between mb-2">
-                <h3 class="m-0">Data Highlights & Editorials</h3>
-                <a href=""
-                    class="font-bold focus-visible:rounded focus-visible:outline-none
-                    focus-visible:ring-2 focus-visible:ring-offset-2"
-                    aria-label="View all articles">View all &rarr;</a>
-            </div>
-            <p class="mb-6">
-                Curated data highlights and editorials from the pathogen research community. Stay informed
-                about new findings, methods, and perspectives in pandemic preparedness.
-            </p>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {% for article in articles %}
-                    {% include "cms/components/content_card.html#content_card" with url=article.get_absolute_url image=article.image_url title=article.title description=article.description date=article.created_at badge_text=article.get_type_display topics=article.topics.all only %}
-                {% empty %}
-                <div
-                    class="col-span-3 text-center py-8 bg-pp-pale-grey border-2 border-dashed border-gray-300 rounded-xl">
-                    <p class="text-gray-500">No articles available yet.</p>
-                </div>
-                {% endfor %}
-            </div>
-        </section>
-
-        <!-- Topics Section -->
-        <section>
-            <div class="flex items-baseline justify-between mb-2">
-                <h3 class="m-0">Explore Topics</h3>
-                <a href=""
-                    class="font-bold focus-visible:rounded focus-visible:outline-none
-                    focus-visible:ring-2 focus-visible:ring-offset-2"
-                    aria-label="View all topics">View all &rarr;</a>
-            </div>
-            <p class="mb-6">
-                Browse research areas and pathogen themes. Each topic brings together datasets, guidance, and
-                resources to support your work in surveillance, identification, and investigation.
-            </p>
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {% for topic in topics %}
-                    {% include "cms/components/content_card.html#content_card" with url=topic.get_absolute_url image=topic.image_url title=topic.title description=topic.description only %}
-                {% empty %}
-                <div
-                    class="col-span-3 text-center py-8 bg-pp-pale-grey border-2 border-dashed border-gray-300 rounded-xl">
-                    <p class="text-gray-500">No topics available yet.</p>
-                </div>
-                {% endfor %}
-            </div>
-        </section>
+        {% include_block page.content %}
     </div>
-
-    <!-- Sidebar Column (Right) -->
+    <!-- Sidebar Column for Latest News (Right) -->
+    {% if news_page %}
     <div class="lg:col-span-3">
-        <!-- News Section -->
         <div class="bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden lg:sticky lg:top-24">
+            <!-- Section title and view all link -->
             <div class="bg-linear-to-r from-pp-dark-blue to-pp-mid-blue text-white px-6 py-4">
                 <div class="flex items-center justify-between">
-                    <h2 class="text-lg font-bold m-0">News & Updates</h2>
-                    <a href=""
-                        class="text-pp-lime-green font-bold text-xs focus-visible:rounded focus-visible:outline-none
-                        focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-pp-dark-blue"
-                        aria-label="View all news and updates">View all
-                        &rarr;</a>
+                    <h2 class="text-lg font-bold m-0">{{ news_page.title }}</h2>
+                    <a href="{{ news_page.url }}" class="text-pp-lime-green font-bold text-xs focus-visible:rounded
+                    focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2
+                    focus-visible:ring-offset-pp-dark-blue" aria-label="View all {{ news_page.title }}"
+                    >
+                        View all &rarr;
+                    </a>
                 </div>
             </div>
+            <!-- News child pages -->
             <div class="divide-y divide-gray-200">
-                {% for item in news %}
+                {% for item in news_child_pages %}
                 <div class="p-4 hover:bg-pp-pale-grey/30 transition-colors">
                     <div class="flex items-center gap-2 mb-2">
                         <div class="w-1.5 h-1.5 bg-pp-teal rounded-full"></div>
                         <div class="text-[10px] text-gray-500 uppercase tracking-wide font-semibold">
-                            {{ item.created_at|date:"M d, Y" }}
+                            {{ item.first_published_at|date:"M d, Y" }}
                         </div>
                     </div>
-                    <h3 class="text-sm font-bold text-pp-dark-blue mb-2 leading-tight">
-                        <a href="{{ item.get_absolute_url }}"
+                    <h3 class="text-sm font-bold text-pp-dark-blue mt-3 mb-2 leading-tight">
+                        <a href="{{ item.url }}"
                             class="hover:text-pp-teal hover:no-underline focus-visible:rounded focus-visible:outline-none
                             focus-visible:ring-2 focus-visible:ring-offset-2"
                             aria-label="Read news: {{ item.title }}">
@@ -147,7 +85,7 @@
                     <p class="text-pp-dark-grey text-xs leading-relaxed line-clamp-2 mb-3">
                         {{ item.description }}
                     </p>
-                    <a href="{{ item.get_absolute_url }}"
+                    <a href="{{ item.url }}"
                         class="inline-flex items-center gap-1 text-pp-mid-blue font-bold text-xs hover:text-pp-teal
                         hover:gap-2 transition-all focus-visible:rounded focus-visible:outline-none focus-visible:ring-2
                         focus-visible:ring-offset-2"
@@ -167,6 +105,7 @@
             </div>
         </div>
     </div>
-
+    {% endif %}
 </div>
+
 {% endblock %}

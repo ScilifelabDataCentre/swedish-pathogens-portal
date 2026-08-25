@@ -11,6 +11,7 @@ from .cards import (
 from .collapsible import CollapsibleBlock
 from .data_table import DataTableBlock
 from .last_updated import LastUpdatedBlock
+from .page_section import PageSectionBlock
 from .plotly_figure import PlotlyFigureBlock
 from .static_figure import StaticFigureBlock
 
@@ -24,6 +25,7 @@ __all__ = [
     "CollapsibleBlock",
     "DataTableBlock",
     "LastUpdatedBlock",
+    "PageSectionBlock",
     "PlotlyFigureBlock",
     "StaticFigureBlock",
 ]
