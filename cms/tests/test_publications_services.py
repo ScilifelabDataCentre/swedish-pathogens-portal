@@ -1,14 +1,10 @@
-"""Tests for the Publications page's service layer.
-
-Covers pathogen resolution and the Europe PMC fetch/parse/cache pipeline.
-"""
+"""Tests for the Publications page's service layer."""
 
 from __future__ import annotations
 
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
-import httpx
 from django.core.cache import cache
 from django.test import RequestFactory, SimpleTestCase
 
@@ -21,18 +17,9 @@ from cms.services.publications import (
 )
 
 
-def mock_europe_pmc_response(
-    status_code: int = 200,
-    results: list[dict] | None = None,
-    content: bytes | None = None,
-) -> httpx.Response:
-    """Build a fake Europe PMC search response to mock a httpx.get() request."""
-    request = httpx.Request("GET", "https://www.ebi.ac.uk/europepmc/webservices/rest/search")
-    if content is not None:
-        return httpx.Response(status_code, request=request, content=content)
-    return httpx.Response(
-        status_code, request=request, json={"resultList": {"result": results or []}}
-    )
+def mock_europe_pmc_json(results: list[dict] | None = None) -> dict:
+    """Build a fake Europe PMC search response body to mock fetch_json's return value."""
+    return {"resultList": {"result": results or []}}
 
 
 class TestPublicationFromEuropePMCResult(SimpleTestCase):
@@ -132,7 +119,7 @@ class TestResolveActivePathogen(SimpleTestCase):
 
 
 class TestFetchPathogenPublications(SimpleTestCase):
-    """Tests for fetch_pathogen_publications against mocked HTTP responses."""
+    """Tests for fetch_pathogen_publications against a mocked fetch_json."""
 
     results = [
         {
@@ -154,49 +141,53 @@ class TestFetchPathogenPublications(SimpleTestCase):
         cache.clear()
         self.pathogen = Pathogen(name="Influenza", search_terms=["Influenza"])
 
-    @patch("cms.services.publications._client.get")
-    def test_successful_response_returns_parsed_publications(self, mock_get: MagicMock):
+    @patch("cms.services.publications.fetch_json")
+    def test_successful_response_returns_parsed_publications(self, mock_fetch_json: MagicMock):
         """Test a successful response is parsed into a list of Publication objects."""
-        mock_get.return_value = mock_europe_pmc_response(results=self.results)
+        mock_fetch_json.return_value = mock_europe_pmc_json(results=self.results)
         publications = fetch_pathogen_publications(self.pathogen)
 
         self.assertEqual(len(publications), 2)
-        self.assertEqual(publications[0].title, "A study of Influenza")
+        self.assertEqual(publications[0].title, self.results[0]["title"])
+        self.assertEqual(publications[1].title, self.results[1]["title"])
         self.assertEqual(publications[0].url, "https://doi.org/10.1234/abcd")
-        self.assertEqual(publications[1].title, "Another Influenza study")
         self.assertEqual(publications[1].url, "https://doi.org/10.5678/efgh")
 
-    @patch("cms.services.publications._client.get")
-    def test_successful_response_is_cached(self, mock_get: MagicMock):
-        """Test a second call with the same pathogen doesn't hit the HTTP client again."""
-        mock_get.return_value = mock_europe_pmc_response(results=self.results)
+    @patch("cms.services.publications.fetch_json")
+    def test_successful_response_is_cached(self, mock_fetch_json: MagicMock):
+        """Test a second call with the same pathogen is cached."""
+        mock_fetch_json.return_value = mock_europe_pmc_json(results=self.results)
 
         first = fetch_pathogen_publications(self.pathogen)
         second = fetch_pathogen_publications(self.pathogen)
 
         self.assertEqual(first, second)
-        mock_get.assert_called_once()
+        mock_fetch_json.assert_called_once()
 
-    @patch("cms.services.publications._client.get")
-    def test_no_results_is_not_cached(self, mock_get: MagicMock):
-        """Test an empty result list returns [] and isn't cached, so a later call retries."""
-        mock_get.return_value = mock_europe_pmc_response(results=[])
+    @patch("cms.services.publications.fetch_json")
+    def test_no_results_is_not_cached(self, mock_fetch_json: MagicMock):
+        """Test an empty result list returns [] and isn't cached."""
+        mock_fetch_json.return_value = mock_europe_pmc_json(results=[])
 
         first = fetch_pathogen_publications(self.pathogen)
         second = fetch_pathogen_publications(self.pathogen)
 
         self.assertEqual(first, [])
         self.assertEqual(second, [])
-        self.assertEqual(mock_get.call_count, 2)
+        self.assertEqual(mock_fetch_json.call_count, 2)
 
-    @patch("cms.services.publications._client.get")
-    def test_timeout_returns_empty_list(self, mock_get: MagicMock):
-        """Test a timeout while fetching returns an empty list rather than raising."""
-        mock_get.side_effect = httpx.TimeoutException("timed out")
+    @patch("cms.services.publications.fetch_json")
+    def test_failed_fetch_returns_empty_list(self, mock_fetch_json: MagicMock):
+        """Test fetch_json returning None (a fetch/parse failure) returns [] rather than raising."""
+        mock_fetch_json.return_value = None
         self.assertEqual(fetch_pathogen_publications(self.pathogen), [])
 
-    @patch("cms.services.publications._client.get")
-    def test_http_error_status_returns_empty_list(self, mock_get: MagicMock):
-        """Test a non-2xx response returns an empty list rather than raising."""
-        mock_get.return_value = mock_europe_pmc_response(status_code=500)
-        self.assertEqual(fetch_pathogen_publications(self.pathogen), [])
+    @patch("cms.services.publications.fetch_json")
+    def test_unparseable_result_is_skipped(self, mock_fetch_json: MagicMock):
+        """Test one bad result entry is skipped rather than failing the whole batch."""
+        results = ["not-a-dict"] + self.results
+        mock_fetch_json.return_value = mock_europe_pmc_json(results=results)
+        publications = fetch_pathogen_publications(self.pathogen)
+        self.assertEqual(len(publications), 2)
+        self.assertEqual(publications[0].title, self.results[0]["title"])
+        self.assertEqual(publications[1].title, self.results[1]["title"])

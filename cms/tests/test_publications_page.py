@@ -8,7 +8,7 @@ from wagtail.test.utils import WagtailPageTestCase
 
 from cms.pages import HomePage, PublicationsPage
 
-from .test_publications_services import mock_europe_pmc_response
+from .test_publications_services import mock_europe_pmc_json
 
 
 class TestPublicationsPage(WagtailPageTestCase):
@@ -59,20 +59,20 @@ class TestPublicationsPage(WagtailPageTestCase):
         context = self.page.get_context(request)
         self.assertIsNone(context["active_pathogen"])
 
-    @patch("cms.services.publications._client.get")
+    @patch("cms.services.publications.fetch_json")
     def test_full_page_load_renders_pathogen_side_nav(self, mock_get: MagicMock):
         """Test the plain page load renders both configured pathogens."""
         # don't care about the publications returned in this test
-        mock_get.return_value = mock_europe_pmc_response(results=[])
+        mock_get.return_value = mock_europe_pmc_json(results=[])
         response = self.client.get(self.page.url)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Influenza")
         self.assertContains(response, "Antibiotic Resistance")
 
-    @patch("cms.services.publications._client.get")
+    @patch("cms.services.publications.fetch_json")
     def test_htmx_load_renders_fetched_publication(self, mock_get: MagicMock):
         """Test an HTMX request for a specific pathogen renders what Europe PMC returned."""
-        mock_get.return_value = mock_europe_pmc_response(
+        mock_get.return_value = mock_europe_pmc_json(
             results=[
                 {
                     "title": "A study of Influenza",
@@ -101,10 +101,10 @@ class TestPublicationsPage(WagtailPageTestCase):
         self.assertContains(response, "https://doi.org/10.1234/abcd")
         self.assertContains(response, "https://doi.org/10.5678/efgh")
 
-    @patch("cms.services.publications._client.get")
+    @patch("cms.services.publications.fetch_json")
     def test_htmx_load_for_unrecognized_pathogen_shows_message(self, mock_get: MagicMock):
         """Test an unconfigured pathogen requested via HTMX shows the "isn't recognized" message."""
-        mock_get.return_value = mock_europe_pmc_response(results=[])
+        mock_get.return_value = mock_europe_pmc_json(results=[])
         response = self.client.get(
             self.page.url, {"pathogen": "Nonexistent"}, HTTP_HX_REQUEST="true"
         )

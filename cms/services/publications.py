@@ -8,17 +8,17 @@ Responsible for:
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-import httpx
 import structlog
-from django.core.cache import cache
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 from django.utils import timezone
+from django.utils.http import urlencode
 from django.utils.text import slugify
+
+from cms.services.external_apis import cache_get_or_set, fetch_json
 
 if TYPE_CHECKING:
     from cms.pages.publications import PublicationsPage
@@ -29,9 +29,6 @@ LOGGER = structlog.get_logger(__name__)
 EUROPE_PMC_API_URL = "https://www.ebi.ac.uk/europepmc/webservices/rest/search"
 EUROPE_PMC_WEB_BASE_URL = "https://europepmc.org/search"
 PUBLICATIONS_CACHE_TTL_SECONDS = 30 * 60
-
-# Reused across requests for connection pooling, rather than a client per call.
-_client = httpx.Client(timeout=5)
 
 
 @dataclass
@@ -71,14 +68,15 @@ class Publication:
 
         Rather than raising on missing fields, provides default values for missing data.
         """
-        journal = result.get("journalInfo", {}).get("journal", {}).get("title", "journal unknown")
+        journal_info = result.get("journalInfo") or {}  # handles case where journalInfo = null/None
+        journal = (journal_info.get("journal") or {}).get("title", "journal unknown")
         doi = result.get("doi", "doi unknown")
 
         if doi != "doi unknown":
             url = f"https://doi.org/{doi}"
         else:
             # another possible source for the url
-            full_text_urls = result.get("fullTextUrlList", {}).get("fullTextUrl", [])
+            full_text_urls = (result.get("fullTextUrlList") or {}).get("fullTextUrl") or []
             url = full_text_urls[0].get("url") if full_text_urls else None
 
         return cls(
@@ -123,20 +121,17 @@ def _build_abstract_query(pathogen: Pathogen) -> str:
 def fetch_pathogen_publications(pathogen: Pathogen) -> list[Publication]:
     """Fetch recent Sweden-affiliated publications for a pathogen from Europe PMC.
 
-    results cached according to ``PUBLICATIONS_CACHE_TTL_SECONDS``.
+    Results cached according to `PUBLICATIONS_CACHE_TTL_SECONDS`.
     Returns an empty list on any fetch/parse failure.
     """
     now = timezone.now()
     past_year = f"{now.year - 1}-{now.month:02d} TO {now.year}-{now.month:02d}"
     query_string = f'{_build_abstract_query(pathogen)} AND AFF:"Sweden" AND PUB_YEAR:[{past_year}]'
-
     cache_key = slugify(f"publications_{pathogen.name}_{query_string}")
-    cached_data = cache.get(cache_key)
-    if cached_data is not None:
-        return cached_data
 
-    try:
-        response = _client.get(
+    def compute() -> list[Publication] | None:
+        """Use in cache_get_or_set to fetch and parse publications if cache miss."""
+        data = fetch_json(
             url=EUROPE_PMC_API_URL,
             params={
                 "sortBy": "FIRST_PDATE_D desc",
@@ -146,27 +141,27 @@ def fetch_pathogen_publications(pathogen: Pathogen) -> list[Publication]:
                 "query": query_string,
             },
         )
-        response.raise_for_status()
-    except httpx.TimeoutException:
-        LOGGER.error("Timeout fetching publications for pathogen %r", pathogen.name)
-        return []
-    except httpx.HTTPError as e:
-        LOGGER.error("HTTP error fetching publications for pathogen %r: %s", pathogen.name, e)
-        return []
+        if data is None:
+            return None
 
-    try:
-        results = response.json().get("resultList", {}).get("result", [])
-    except json.JSONDecodeError as e:
-        LOGGER.error(
-            "Invalid JSON response fetching publications for pathogen %r: %s", pathogen.name, e
-        )
-        return []
+        publications = []
+        for pub in data.get("resultList", {}).get("result", []):
+            try:
+                publications.append(Publication.from_europe_pmc_result(pub))
+            except (AttributeError, TypeError) as e:
+                LOGGER.error(
+                    "publications.parse_error",
+                    pathogen=pathogen.name,
+                    error=str(e),
+                    publication=pub,
+                    exc_info=True,
+                )
+        return publications or None
 
-    publications = [Publication.from_europe_pmc_result(pub) for pub in results]
-    if publications:
-        cache.set(key=cache_key, value=publications, timeout=PUBLICATIONS_CACHE_TTL_SECONDS)
-
-    return publications
+    publications = cache_get_or_set(
+        key=cache_key, timeout=PUBLICATIONS_CACHE_TTL_SECONDS, compute=compute
+    )
+    return publications if publications is not None else []
 
 
 def render_publications_partial(request: HttpRequest, page: PublicationsPage) -> HttpResponse:
@@ -184,9 +179,8 @@ def render_publications_partial(request: HttpRequest, page: PublicationsPage) ->
             context=context,
         )
 
-    web_url = (
-        f'{EUROPE_PMC_WEB_BASE_URL}?query={_build_abstract_query(active_pathogen)} AND AFF:"Sweden"'
-    )
+    query_string = f'{_build_abstract_query(active_pathogen)} AND AFF:"Sweden"'
+    web_url = f"{EUROPE_PMC_WEB_BASE_URL}?{urlencode({'query': query_string})}"
     context = {
         "active_pathogen": active_pathogen.name,
         "publications": fetch_pathogen_publications(active_pathogen),
