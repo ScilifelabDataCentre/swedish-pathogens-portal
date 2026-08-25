@@ -290,7 +290,7 @@ class TestPageSectionBlock(WagtailPageTestCase):
         """Test that dashboard child data status is used as the badge."""
         dashboard_page = self.make_mock_page(url="/dashboard/")
 
-        child = self.make_mock_child(data_status="Active")
+        child = self.make_mock_child(get_data_status_display="Active")
 
         qs = dashboard_page.get_children.return_value.live.return_value.public.return_value.specific
         qs.return_value = [child]
@@ -303,7 +303,7 @@ class TestPageSectionBlock(WagtailPageTestCase):
         """Test that highlights child data status is used as the badge."""
         highlights_page = self.make_mock_page(url="/highlights/")
 
-        child = self.make_mock_child(article_type="Highlights")
+        child = self.make_mock_child(get_article_type_display="Highlights")
 
         qs = (
             highlights_page.get_children.return_value.live.return_value.public.return_value.specific

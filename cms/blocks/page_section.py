@@ -149,20 +149,24 @@ class PageSectionBlock(blocks.StructBlock):
                 "image": getattr(child, "image", None),
             }
 
+            # This option is intended for dashboards and highlights pages, which have
+            # a data_status or article_type field. So other pages will not have a badge
+            # and that's okay. If more pages need a badge, we can refactor in future.
             if value.get("show_badge_in_child_pages"):
-                if "dashboard" in page.url:
-                    badge_text = child.data_status
-                elif "highlights" in page.url:
-                    badge_text = child.article_type
-                else:
-                    badge_text = getattr(child, "type", None)
-                child_info["badge"] = badge_text
+                badge = None
+                if hasattr(child, "get_data_status_display"):
+                    badge = child.get_data_status_display
+                elif hasattr(child, "get_article_type_display"):
+                    badge = child.get_article_type_display
+                child_info["badge"] = badge
 
+            # This option is intended to show data updated date for dashboards, and
+            # first published date for other pages. If a different need to be shown
+            # for other pages, we can refactor in future.
             if value.get("show_date_in_child_pages"):
-                if "dashboard" in page.url:
-                    card_date = child.dashboard_data_updated_at
-                else:
-                    card_date = child.first_published_at
+                card_date = (
+                    getattr(child, "dashboard_data_updated_at", None) or child.first_published_at
+                )
                 child_info["date"] = card_date
 
             if value.get("show_topics_in_child_pages"):
