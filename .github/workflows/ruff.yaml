@@ -20,12 +20,19 @@ jobs:
       - name: Checkout the repo
         uses: actions/checkout@v7
 
+      # version-file makes the Ruff version explicit. Without it the action
+      # still finds pyproject.toml by searching upward from `src`, but that is
+      # discovery, not a guarantee: if the pin ever moves out of
+      # [dependency-groups] the action silently falls back to `latest` and CI
+      # lints with a different Ruff than pre-commit does.
       - name: Ruff lint
         uses: astral-sh/ruff-action@v4.0.0
         with:
           args: check .
+          version-file: pyproject.toml
 
       - name: Ruff format (check only)
         uses: astral-sh/ruff-action@v4.0.0
         with:
           args: format --check --diff .
+          version-file: pyproject.toml

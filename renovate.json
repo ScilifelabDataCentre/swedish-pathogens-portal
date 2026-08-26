@@ -24,7 +24,7 @@
     {
       "matchPackageNames": ["ruff", "astral-sh/ruff-pre-commit", "astral-sh/ruff-action"],
       "groupName": "ruff",
-      "description": "Ruff is pinned in pyproject.toml, pre-commit and CI; bump them together."
+      "description": "Ruff is pinned in pyproject.toml and .pre-commit-config.yaml; bump them together. astral-sh/ruff-action is the wrapper's own version, not a Ruff pin: CI resolves Ruff from pyproject.toml via the workflow's version-file input, so it follows the pep621 bump on its own."
     },
     {
       "matchManagers": ["docker-compose"],
