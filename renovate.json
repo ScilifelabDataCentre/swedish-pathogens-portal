@@ -1,34 +1,61 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["config:recommended"],
-  "enabled": true,
+  "extends": ["config:best-practices", ":enablePreCommit", ":noUnscheduledUpdates"],
   "timezone": "Europe/Stockholm",
-  "enabledManagers": [
-    "dockerfile",
-    "docker-compose",
-    "github-actions",
-    "pep621",
-    "pre-commit",
-    "pyenv"
-  ],
-  "vulnerabilityAlerts": {
-    "vulnerabilityFixStrategy": "highest"
-  },
+  "schedule": ["* * * * SUN"],
   "lockFileMaintenance": {
     "enabled": true,
-    "schedule": ["* 0-8 * * TUE"]
+    "schedule": ["* * * * SUN"]
+  },
+  "vulnerabilityAlerts": {
+    "vulnerabilityFixStrategy": "lowest"
   },
   "packageRules": [
     {
       "matchUpdateTypes": ["minor", "patch", "digest"],
       "groupName": "non-major dependencies",
-      "description": "Group all non-major updates into one PR, Tuesday morning.",
-      "schedule": ["* 0-8 * * TUE"]
+      "description": "Group all non-breaking updates into one PR, Sunday, so it is open and green before Monday planning."
+    },
+    {
+      "matchUpdateTypes": ["pin", "pinDigest"],
+      "groupName": "pin digests",
+      "description": "One-time digest pinning is mechanical; keep it out of the PR that needs thought."
     },
     {
       "matchPackageNames": ["ruff", "astral-sh/ruff-pre-commit", "astral-sh/ruff-action"],
       "groupName": "ruff",
       "description": "Ruff is pinned in pyproject.toml, pre-commit and CI; bump them together."
+    },
+    {
+      "matchManagers": ["docker-compose"],
+      "matchPackageNames": ["swedish_pathogens_portal"],
+      "enabled": false,
+      "description": "The web and tailwind services run a locally built image (pull_policy: never). It does not exist in any registry, so there is nothing to look up or pin a digest to."
+    },
+    {
+      "matchUpdateTypes": ["major"],
+      "dependencyDashboardApproval": true,
+      "description": "Majors are listed on the Dependency Dashboard rather than arriving unannounced."
+    },
+    {
+      "matchDatasources": ["docker"],
+      "matchPackageNames": ["python"],
+      "matchUpdateTypes": ["major", "minor"],
+      "groupName": "python",
+      "dependencyDashboardApproval": true,
+      "description": "A Python feature release is a platform upgrade, not a routine bump: docker versioning classifies 3.14 -> 3.15 as a minor. Keeps .python-version and the Dockerfile ARG in lockstep, behind approval. Must stay last; later rules win."
+    }
+  ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": ["/(^|/)Dockerfile$/"],
+      "matchStrings": [
+        "https://github\\.com/(?<depName>[^/]+/[^/]+)/releases/download/(?<currentValue>v[^/]+)/"
+      ],
+      "datasourceTemplate": "github-releases",
+      "versioningTemplate": "semver",
+      "description": "Tailwind CLI and DaisyUI are curled from GitHub releases in the Dockerfile."
     }
   ]
 }
