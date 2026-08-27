@@ -10,7 +10,7 @@
         <nav id="pathogen-nav" class="px-4 py-3 border border-pp-pale-grey
             *:text-pp-dark-blue *:font-medium *:has-[.active]:text-gray-500
             *:has-[.active]:pointer-events-none">
-            {% for pathogen in self.pathogens %}
+            {% for pathogen in page.pathogens %}
             <div id="{{ pathogen.name|slugify }}">
                 <span class="cursor-pointer hover:underline hover:underline-offset-3
                     {% if pathogen.name == active_pathogen %}active{% endif %}"

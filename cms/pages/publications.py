@@ -61,7 +61,7 @@ class PublicationsPage(Page):
                         search_terms=list(pathogen_data["search_terms"]),
                     )
                 )
-        return sorted(pathogens, key=lambda pathogen: pathogen.name)
+        return sorted(pathogens, key=lambda pathogen: pathogen.name.casefold())
 
     @cached_property
     def pathogens_by_name(self) -> dict[str, Pathogen]:
