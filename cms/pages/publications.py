@@ -3,6 +3,7 @@
 from typing import Any
 
 from django.http import HttpRequest, HttpResponse
+from django.shortcuts import render
 from django.utils.functional import cached_property
 from wagtail.admin.panels import FieldPanel
 from wagtail.blocks import RichTextBlock
@@ -11,7 +12,11 @@ from wagtail.models import Page
 
 from cms.blocks import AlertBlock
 from cms.blocks.publications import PublicationsBlock
-from cms.services.publications import Pathogen, render_publications_partial, resolve_active_pathogen
+from cms.services.publications import (
+    Pathogen,
+    build_context_dict,
+    resolve_active_pathogen,
+)
 
 
 class PublicationsPage(Page):
@@ -77,5 +82,9 @@ class PublicationsPage(Page):
         otherwise render the full page.
         """
         if request.htmx:
-            return render_publications_partial(request=request, page=self)
+            return render(
+                request=request,
+                template_name="cms/pages/publications/partials/publications_list.html",
+                context=build_context_dict(request=request, page=self),
+            )
         return super().serve(request)

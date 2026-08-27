@@ -12,12 +12,12 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
 import structlog
-from django.http import HttpRequest, HttpResponse
-from django.shortcuts import render
+from django.http import HttpRequest
 from django.utils.http import urlencode
 from django.utils.text import slugify
 
-from cms.services.external_apis import cache_get_or_set, fetch_json
+from cms.services.api_client import fetch_json
+from cms.services.caching import cache_get_or_set
 
 if TYPE_CHECKING:
     from cms.pages.publications import PublicationsPage
@@ -159,30 +159,22 @@ def fetch_pathogen_publications(pathogen: Pathogen) -> list[Publication]:
     return publications if publications is not None else []
 
 
-def render_publications_partial(request: HttpRequest, page: PublicationsPage) -> HttpResponse:
-    """Render the publications list partial template for an HTMX request."""
+def build_context_dict(
+    request: HttpRequest, page: PublicationsPage
+) -> dict[str, str | list[Publication] | None]:
+    """Build a context dictionary for the publications list partial template."""
     active_pathogen = resolve_active_pathogen(page=page, request=request)
     if not active_pathogen:
-        context = {
+        return {
             "active_pathogen": None,
             "publications": [],
             "europe_pmc_full_list": None,
         }
-        return render(
-            request=request,
-            template_name="cms/pages/publications/partials/publications_list.html",
-            context=context,
-        )
 
     query_string = f'{_build_abstract_query(active_pathogen)} AND AFF:"Sweden"'
     web_url = f"{EUROPE_PMC_WEB_BASE_URL}?{urlencode({'query': query_string})}"
-    context = {
+    return {
         "active_pathogen": active_pathogen.name,
         "publications": fetch_pathogen_publications(active_pathogen),
         "europe_pmc_full_list": web_url,
     }
-    return render(
-        request=request,
-        template_name="cms/pages/publications/partials/publications_list.html",
-        context=context,
-    )

@@ -1,13 +1,14 @@
 """Available Data Page that displays EBI dataset counts by category."""
 
 from django.http import HttpRequest, HttpResponse
+from django.shortcuts import render
 from wagtail.admin.panels import FieldPanel
 from wagtail.blocks import RichTextBlock, StaticBlock
 from wagtail.fields import StreamField
 from wagtail.models import Page
 
 from cms.blocks import AlertBlock
-from cms.services.available_data import render_available_data_partial
+from cms.services.available_data import build_page_context
 
 
 class AvailableDataPage(Page):
@@ -54,5 +55,10 @@ class AvailableDataPage(Page):
         template, otherwise render the full page.
         """
         if request.htmx:
-            return render_available_data_partial(request=request, page=self)
+            return render(
+                request=request,
+                template_name="cms/pages/available_data/partials/available_data_counts.html",
+                context=build_page_context(),
+            )
+
         return super().serve(request)

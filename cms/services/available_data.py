@@ -8,17 +8,12 @@ from __future__ import annotations
 
 import hashlib
 from concurrent.futures import ThreadPoolExecutor
-from typing import TYPE_CHECKING
 
 import structlog
-from django.http import HttpRequest, HttpResponse
-from django.shortcuts import render
 from django.utils.text import slugify
 
-from cms.services.external_apis import cache_get_or_set, fetch_json
-
-if TYPE_CHECKING:
-    from cms.pages.available_data import AvailableDataPage
+from cms.services.api_client import fetch_json
+from cms.services.caching import cache_get_or_set
 
 LOGGER = structlog.get_logger(__name__)
 
@@ -180,12 +175,3 @@ def build_page_context() -> dict:
         "pathogens_sequences": pathogens_section,
         "outbreaks": outbreaks_section,
     }
-
-
-def render_available_data_partial(request: HttpRequest, page: AvailableDataPage) -> HttpResponse:
-    """Render the available data counts partial template for an HTMX request."""
-    return render(
-        request=request,
-        template_name="cms/pages/available_data/partials/available_data_counts.html",
-        context=build_page_context(),
-    )
