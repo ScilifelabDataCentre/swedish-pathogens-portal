@@ -109,10 +109,14 @@ def resolve_active_pathogen(page: PublicationsPage, request: HttpRequest) -> Pat
     return pathogen
 
 
-def _build_abstract_query(pathogen: Pathogen) -> str:
-    """Build an Europe PMC "ABSTRACT:(...)" fragment OR-ing together search terms."""
+def _build_pmc_query(pathogen: Pathogen) -> str:
+    """Build an Europe PMC query for multiple search terms in the abstract.
+
+    Terms are OR-ed together. At least one author must be affiliated with Sweden.
+    String can be used in REST API query or in the web search interface.
+    """
     terms = " OR ".join(f'"{term}"' for term in pathogen.search_terms)
-    return f"ABSTRACT:({terms})"
+    return f'ABSTRACT:({terms}) AND AFF:"Sweden"'
 
 
 def fetch_pathogen_publications(pathogen: Pathogen) -> list[Publication]:
@@ -121,7 +125,7 @@ def fetch_pathogen_publications(pathogen: Pathogen) -> list[Publication]:
     Results cached according to `PUBLICATIONS_CACHE_TTL_SECONDS`.
     Returns an empty list on any fetch/parse failure.
     """
-    query_string = f'{_build_abstract_query(pathogen)} AND AFF:"Sweden"'
+    query_string = _build_pmc_query(pathogen)
     cache_key = slugify(f"publications_{pathogen.name}_{query_string}")
 
     def compute() -> list[Publication] | None:
@@ -171,7 +175,7 @@ def build_context_dict(
             "europe_pmc_full_list": None,
         }
 
-    query_string = f'{_build_abstract_query(active_pathogen)} AND AFF:"Sweden"'
+    query_string = _build_pmc_query(active_pathogen)
     web_url = f"{EUROPE_PMC_WEB_BASE_URL}?{urlencode({'query': query_string})}"
     return {
         "active_pathogen": active_pathogen.name,

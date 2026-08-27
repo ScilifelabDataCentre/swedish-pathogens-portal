@@ -11,7 +11,7 @@ from django.test import RequestFactory, SimpleTestCase
 from cms.services.publications import (
     Pathogen,
     Publication,
-    _build_abstract_query,
+    _build_pmc_query,
     fetch_pathogen_publications,
     resolve_active_pathogen,
 )
@@ -85,16 +85,18 @@ class TestBuildAbstractQuery(SimpleTestCase):
     def test_single_search_term(self):
         """Test a pathogen with one search term."""
         pathogen = Pathogen(name="Influenza", search_terms=["Influenza"])
-        self.assertEqual(_build_abstract_query(pathogen), 'ABSTRACT:("Influenza")')
+        self.assertEqual(_build_pmc_query(pathogen), 'ABSTRACT:("Influenza") AND AFF:"Sweden"')
 
     def test_multiple_search_terms_are_or_joined(self):
         """Test multiple search terms are OR-joined inside a single closed group."""
         pathogen = Pathogen(
             name="AMR",
-            search_terms=["antibiotic resistance", "AMR", "antimicrobial resistance"],
+            search_terms=["resistance", "AMR", "antimicrobial resistance"],
         )
-        expected_query = 'ABSTRACT:("antibiotic resistance" OR "AMR" OR "antimicrobial resistance")'
-        self.assertEqual(_build_abstract_query(pathogen), expected_query)
+        self.assertEqual(
+            _build_pmc_query(pathogen),
+            'ABSTRACT:("resistance" OR "AMR" OR "antimicrobial resistance") AND AFF:"Sweden"',
+        )
 
 
 class TestResolveActivePathogen(SimpleTestCase):
