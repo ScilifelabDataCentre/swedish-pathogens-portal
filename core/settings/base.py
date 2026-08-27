@@ -177,6 +177,8 @@ WAGTAILIMAGES_FORMAT_CONVERSIONS = {
     "png": "webp",
     "webp": "webp",
 }
+# Wagtail workflow action to be called when a workflow is completed and approved.
+WAGTAIL_FINISH_WORKFLOW_ACTION = "cms.workflows.actions.publish_approved_workflow"
 
 
 # Logging
