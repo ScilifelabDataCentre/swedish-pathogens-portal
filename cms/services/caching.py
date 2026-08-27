@@ -27,5 +27,5 @@ def cache_get_or_set(key: str, timeout: int, compute: Callable[[], Any | None]) 
             cache.set(key, value, timeout)
         return value
     except (TypeError, AttributeError, KeyError, IndexError) as e:
-        LOGGER.error("external_apis.cache_compute_error", key=key, error=str(e), exc_info=True)
+        LOGGER.error("caching.cache_compute_error", key=key, error=str(e), exc_info=True)
         return None

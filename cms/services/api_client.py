@@ -29,9 +29,9 @@ def fetch_json(url: str, params: dict[str, Any] | None = None) -> dict[str, Any]
         response.raise_for_status()
         return response.json()
     except httpx.TimeoutException as e:
-        LOGGER.error("external_apis.fetch_timeout", url=url, error=str(e), exc_info=False)
+        LOGGER.error("api_client.fetch_timeout", url=url, error=str(e), exc_info=False)
     except httpx.HTTPError as e:
-        LOGGER.error("external_apis.fetch_http_error", url=url, error=str(e), exc_info=True)
+        LOGGER.error("api_client.fetch_http_error", url=url, error=str(e), exc_info=True)
     except json.JSONDecodeError as e:
-        LOGGER.error("external_apis.fetch_invalid_json", url=url, error=str(e), exc_info=True)
+        LOGGER.error("api_client.fetch_invalid_json", url=url, error=str(e), exc_info=True)
     return None
