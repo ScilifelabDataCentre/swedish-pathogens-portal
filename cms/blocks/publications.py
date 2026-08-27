@@ -37,7 +37,7 @@ class PublicationsBlock(StructBlock):
     pathogens = ListBlock(
         PathogenBlock(),
         min_num=1,
-        help_text="One entry per pathogen to filter on. Order here is the display order.",
+        help_text=("One entry per pathogen to filter on. Displayed alphabetically by name."),
     )
 
     class Meta:
