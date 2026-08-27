@@ -44,7 +44,7 @@ class PublicationsBlock(StructBlock):
         """Block metadata."""
 
         icon = "list-ul"
-        template = "cms/pages/publications/partials/publications_section.html"
+        template = "cms/blocks/publications.html"
         help_text = (
             "NOTE: The publications list is loaded via HTMX and requires the page to be published. "
             "Until this page is published, previewing it will show an error."
