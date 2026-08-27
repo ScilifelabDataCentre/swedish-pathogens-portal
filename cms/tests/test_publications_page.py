@@ -105,8 +105,9 @@ class TestPublicationsPage(WagtailPageTestCase):
     def test_htmx_load_for_unrecognized_pathogen_shows_message(self, mock_get: MagicMock):
         """Test an unconfigured pathogen requested via HTMX shows the "isn't recognized" message."""
         mock_get.return_value = mock_europe_pmc_json(results=[])
-        response = self.client.get(
-            self.page.url, {"pathogen": "Nonexistent"}, HTTP_HX_REQUEST="true"
-        )
+        with self.assertLogs("cms.services.publications", level="WARNING"):
+            response = self.client.get(
+                self.page.url, {"pathogen": "Nonexistent"}, HTTP_HX_REQUEST="true"
+            )
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "isn't recognized")

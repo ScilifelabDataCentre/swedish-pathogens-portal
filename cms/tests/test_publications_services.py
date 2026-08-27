@@ -130,7 +130,8 @@ class TestResolveActivePathogen(SimpleTestCase):
     def test_unrecognized_pathogen_name_returns_none(self):
         """Test a pathogen param that matches nothing configured returns None."""
         request = self.factory.get("/publications/", {"pathogen": "Nonexistent"})
-        self.assertIsNone(resolve_active_pathogen(self.real_page, request))
+        with self.assertLogs("cms.services.publications", level="WARNING"):
+            self.assertIsNone(resolve_active_pathogen(self.real_page, request))
 
     def test_no_pathogens_configured_returns_none(self):
         """Test a page with no pathogens configured returns None."""
@@ -207,7 +208,8 @@ class TestFetchPathogenPublications(SimpleTestCase):
         """Test one bad result entry is skipped rather than failing the whole batch."""
         results = ["not-a-dict"] + self.results
         mock_fetch_json.return_value = mock_europe_pmc_json(results=results)
-        publications = fetch_pathogen_publications(self.pathogen)
+        with self.assertLogs("cms.services.publications", level="ERROR"):
+            publications = fetch_pathogen_publications(self.pathogen)
         self.assertEqual(len(publications), 2)
         self.assertEqual(publications[0].title, self.results[0]["title"])
         self.assertEqual(publications[1].title, self.results[1]["title"])
