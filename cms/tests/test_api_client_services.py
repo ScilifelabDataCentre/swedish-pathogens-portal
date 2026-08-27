@@ -43,13 +43,16 @@ class TestFetchJson(SimpleTestCase):
     def test_timeout_returns_none(self, mock_get: MagicMock):
         """Test a timeout is caught and returns None rather than raising."""
         mock_get.side_effect = httpx.TimeoutException("timed out")
-        self.assertIsNone(fetch_json(url="https://example.test/api", params={}))
+        with self.assertLogs("cms.services.api_client", level="ERROR") as cm:
+            self.assertIsNone(fetch_json(url="https://example.test/api", params={}))
+        self.assertIn("api_client.fetch_timeout", cm.output[0])
 
     @patch("cms.services.api_client.CLIENT.get")
     def test_http_error_returns_none(self, mock_get: MagicMock):
         """Test a non-timeout HTTP error (e.g. connection failure) returns None."""
         mock_get.side_effect = httpx.ConnectError("connection failed")
-        self.assertIsNone(fetch_json(url="https://example.test/api", params={}))
+        with self.assertLogs("cms.services.api_client", level="ERROR"):
+            self.assertIsNone(fetch_json(url="https://example.test/api", params={}))
 
     @patch("cms.services.api_client.CLIENT.get")
     def test_error_status_response_returns_none(self, mock_get: MagicMock):
@@ -59,7 +62,8 @@ class TestFetchJson(SimpleTestCase):
             "server error", request=MagicMock(), response=MagicMock()
         )
         mock_get.return_value = mock_response
-        self.assertIsNone(fetch_json(url="https://example.test/api", params={}))
+        with self.assertLogs("cms.services.api_client", level="ERROR"):
+            self.assertIsNone(fetch_json(url="https://example.test/api", params={}))
 
     @patch("cms.services.api_client.CLIENT.get")
     def test_invalid_json_returns_none(self, mock_get: MagicMock):
@@ -67,4 +71,5 @@ class TestFetchJson(SimpleTestCase):
         mock_response = MagicMock()
         mock_response.json.side_effect = json.JSONDecodeError("bad json", "doc", 0)
         mock_get.return_value = mock_response
-        self.assertIsNone(fetch_json(url="https://example.test/api", params={}))
+        with self.assertLogs("cms.services.api_client", level="ERROR"):
+            self.assertIsNone(fetch_json(url="https://example.test/api", params={}))

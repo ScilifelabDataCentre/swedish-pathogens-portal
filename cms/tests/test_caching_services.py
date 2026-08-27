@@ -62,6 +62,7 @@ class TestCacheGetOrSet(SimpleTestCase):
     def test_compute_raising_expected_error_returns_none(self):
         """Test compute raising one of the expected parse errors is caught and returns None."""
         compute = MagicMock(side_effect=KeyError("missing"))
-        result = cache_get_or_set(key="test_key", timeout=60, compute=compute)
+        with self.assertLogs("cms.services.caching", level="ERROR"):
+            result = cache_get_or_set(key="test_key", timeout=60, compute=compute)
         self.assertIsNone(result)
         self.assertIsNone(cache.get("test_key"))
