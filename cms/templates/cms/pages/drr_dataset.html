@@ -153,9 +153,9 @@ Figures: server-side PlotlyFigureBlocks render via the inherited context
 
 {% comment %}
 Downloads: the bulk CSV / Parquet links are live (FREYA-2580), each rendered only
-when its artefact has been precomputed, and the raw-image link-out (FREYA-2581 /
-2539) whenever the page names an upstream study. Still pending: the compound picker
-that fills `compounds` (FREYA-2583).
+when its artefact has been precomputed, the raw-image link-out (FREYA-2581 / 2539)
+whenever the page names an upstream study, and the compound picker (FREYA-2583)
+whenever the per-compound slice can serve.
 
 Long notes use this block tag deliberately: Django's hash-comment form is
 single-line only, and a multi-line one renders verbatim into the page.
@@ -194,13 +194,15 @@ single-line only, and a multi-line one renders verbatim into the page.
         {% endif %}
 
         {% comment %}
-        Per-compound slice: compound picker populated from compounds.parquet
-        when the download route lands (FREYA-2537).
+        Per-compound slice (FREYA-2583): options come from compounds.parquet, so
+        the picker offers exactly the ids the route can serve. A plain GET form
+        is enough — the id travels in the query string — so the control needs no
+        JavaScript and no htmx.
         {% endcomment %}
         {% if compounds %}
             <form method="get" action="{{ download_urls.compound_base }}" class="mt-4 flex w-full flex-col gap-3 sm:flex-row sm:items-center">
                 <label for="drr-compound" class="sr-only">Compound</label>
-                <select id="drr-compound" name="cbkid" class="input input-bordered w-full sm:w-auto">
+                <select id="drr-compound" name="cbkid" class="select select-bordered w-full sm:w-auto">
                     {% for compound in compounds %}
                         <option value="{{ compound.cbkid }}">{{ compound.label|default:compound.cbkid }}</option>
                     {% endfor %}

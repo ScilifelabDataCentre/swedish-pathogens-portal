@@ -1,9 +1,13 @@
 """Tests for DrrDatasetPage and the DrrDatasetData snippet (FREYA-2555, FREYA-2559)."""
 
+import re
 import tempfile
 from datetime import date, datetime
+from html import unescape
 from pathlib import Path
+from typing import Any
 
+import polars as pl
 from django.core.cache import cache
 from django.core.management import call_command
 from django.db import connection
@@ -309,6 +313,322 @@ class TestDrrDatasetDownloadsWired(DrrDatasetPageTestCase):
         self.assertContains(response, 'id="drr-downloads-heading"')
         self.assertContains(response, "Download features (CSV)")
         self.assertNotContains(response, "Download raw images")
+
+
+class TestDrrCompoundPicker(DrrDatasetPageTestCase):
+    """The on-page compound picker (FREYA-2583, spec section 9).
+
+    Options are read from ``compounds.parquet`` and submitted to the
+    per-compound slice, so the pair these assert is: every option the page
+    offers is an id the route can serve, and every id it can serve is offered.
+    That each one downloads is ``test_drr_compound_download.py``'s.
+
+    The fixture mirrors the real index's shape rather than only the three
+    columns the picker reads — including ``pert_iname``, which FREYA-2628 put
+    there and which this control deliberately does not label from.
+    """
+
+    COMPOUND_INDEX_ROWS = {
+        "cbkid": ["CBK1", "CBK2", "CBK3", "[stau]"],
+        "cbkid_normalized": ["CBK1", "CBK2", "CBK3", None],
+        "kind": ["compound", "compound", "compound", "control"],
+        "n_profiles": [2, 1, 1, 1],
+        "name": ["Remdesivir", "aloxistatin", None, None],
+        "broad_moa": ["antiviral", "cathepsin inhibitor", None, None],
+        "pert_iname": ["gs-5734", "e-64d", None, "staurosporine"],
+    }
+
+    # Compounds first, then by label case-insensitively: an ASCII sort would put
+    # both capitalised labels ahead of "aloxistatin", so this pins the rule
+    # rather than the accident of the fixture's spelling.
+    EXPECTED_LABELS = [
+        "aloxistatin (CBK2)",
+        "CBK3",
+        "Remdesivir (CBK1)",
+        "[stau] (control)",
+    ]
+
+    @classmethod
+    def setUpTestData(cls) -> None:
+        """Publish a DRR dataset page to hang the picker off."""
+        super().setUpTestData()
+        cls.image = create_test_image(title="DRR Picker", file_name="drr-picker.jpg")
+        cls.page = DrrDatasetPage(
+            title="DRR Compound Picker",
+            slug="drr-compound-picker",
+            description="Per-compound downloads are chosen on the page.",
+            image=cls.image,
+            data_status="active",
+        )
+        cls.index.add_child(instance=cls.page)
+        cls.page.save_revision().publish()
+
+    def setUp(self) -> None:
+        """Redirect ``MEDIA_ROOT`` to a temp dir and create the artefact directory."""
+        super().setUp()
+        self.artefacts = use_temp_media_root(self) / "drr" / self.page.slug
+        self.artefacts.mkdir(parents=True)
+
+    def write_feature_table(self) -> None:
+        """Write the ``features.parquet`` the per-compound slice reads."""
+        pl.DataFrame(
+            {
+                "cbkid": ["CBK1", "CBK1", "CBK2", "CBK3", "[stau]"],
+                "Metadata_Barcode": ["P1", "P1", "P2", "P2", "P2"],
+                "AreaShape_Area_nuclei": [1.0, 1.2, 0.9, 1.1, 1.5],
+            }
+        ).write_parquet(self.artefacts / "features.parquet")
+
+    def write_compound_index(self, rows: dict[str, list] | None = None) -> None:
+        """Write ``compounds.parquet``.
+
+        Args:
+            rows: Column-oriented index rows; the class fixture when omitted.
+        """
+        pl.DataFrame(rows or self.COMPOUND_INDEX_ROWS).write_parquet(
+            self.artefacts / "compounds.parquet"
+        )
+
+    def context(self) -> dict[str, Any]:
+        """Return this page's context for a plain GET."""
+        return self.page.get_context(RequestFactory().get(self.page.url))
+
+    def compounds(self) -> list[dict[str, str]]:
+        """Return the picker options this page currently offers."""
+        return self.context().get("compounds", [])
+
+    def test_options_carry_the_label_rule_and_a_deterministic_order(self) -> None:
+        """Annotated, unannotated and control ids each get their own label form."""
+        self.write_feature_table()
+        self.write_compound_index()
+
+        self.assertEqual([option["label"] for option in self.compounds()], self.EXPECTED_LABELS)
+
+    def test_every_downloadable_compound_is_offered_exactly_once(self) -> None:
+        """The option set is the feature table's ``cbkid`` set: nothing hidden, nothing spurious."""
+        self.write_feature_table()
+        self.write_compound_index()
+
+        offered = [option["cbkid"] for option in self.compounds()]
+
+        self.assertEqual(len(offered), len(set(offered)))
+        self.assertEqual(
+            set(offered),
+            set(pl.read_parquet(self.artefacts / "features.parquet")["cbkid"].to_list()),
+        )
+
+    def test_order_does_not_depend_on_the_artefact_row_order(self) -> None:
+        """A re-ordered index renders the same options in the same order."""
+        self.write_feature_table()
+        self.write_compound_index()
+        expected = self.compounds()
+
+        reversed_rows = {
+            column: list(reversed(values)) for column, values in self.COMPOUND_INDEX_ROWS.items()
+        }
+        self.write_compound_index(reversed_rows)
+
+        self.assertEqual(self.compounds(), expected)
+
+    def test_labels_ignore_the_authors_compound_name(self) -> None:
+        """``pert_iname`` belongs to FREYA-2628's Table S8 join, not to this label."""
+        self.write_feature_table()
+        self.write_compound_index()
+
+        labels = " ".join(option["label"] for option in self.compounds())
+
+        self.assertNotIn("gs-5734", labels)
+        self.assertNotIn("staurosporine", labels)
+
+    def test_an_index_that_is_a_subset_of_the_features_hides_a_compound(self) -> None:
+        """Current behaviour, asserted so it cannot be mistaken for the AC2 guarantee.
+
+        The option set is the index's rows, not an intersection computed per
+        request. Precompute keeps the two artefacts equal by building the index
+        from the feature table; if a stale index lags behind, the compounds it
+        omits are silently unreachable from the page. Intersecting here would
+        hide them just as thoroughly and cost a second read, so the invariant
+        stays precompute's — this test says what the page does when it breaks.
+        """
+        self.write_feature_table()
+        self.write_compound_index(
+            {
+                "cbkid": ["CBK1", "CBK2"],
+                "kind": ["compound", "compound"],
+                "name": ["Remdesivir", "aloxistatin"],
+            }
+        )
+
+        offered = {option["cbkid"] for option in self.compounds()}
+
+        self.assertEqual(offered, {"CBK1", "CBK2"})
+        self.assertNotIn("CBK3", offered)
+        self.assertNotIn("[stau]", offered)
+
+    def test_an_index_with_a_surplus_id_offers_an_option_that_404s(self) -> None:
+        """The other direction of the same gap: a surplus index row reaches the select."""
+        self.write_feature_table()
+        self.write_compound_index(
+            {
+                "cbkid": ["CBK1", "CBK404"],
+                "kind": ["compound", "compound"],
+                "name": ["Remdesivir", "ghost"],
+            }
+        )
+
+        self.assertIn("CBK404", {option["cbkid"] for option in self.compounds()})
+
+        response = self.client.get(self.page.url + "download/compound/", {"cbkid": "CBK404"})
+
+        self.assertEqual(response.status_code, 404)
+
+    def test_no_options_without_a_compound_index(self) -> None:
+        """Downloads can be live while the index is missing; the picker then stays away."""
+        self.write_feature_table()
+
+        response = self.client.get(self.page.url)
+
+        self.assertNotIn("compounds", self.context())
+        self.assertContains(response, "Download features (Parquet)")
+        self.assertNotContains(response, 'name="cbkid"')
+
+    def test_no_options_without_the_feature_table(self) -> None:
+        """With nothing to slice there is no per-compound route, so no picker either."""
+        self.write_compound_index()
+
+        response = self.client.get(self.page.url)
+        context = self.context()
+
+        self.assertNotIn("compounds", context)
+        self.assertNotIn("compound_base", context.get("download_urls", {}))
+        self.assertNotContains(response, 'name="cbkid"')
+
+    def test_no_options_when_only_the_csv_was_written(self) -> None:
+        """The slice reads Parquet, so a CSV-only generation offers the bulk file and no picker."""
+        (self.artefacts / "features.csv").write_text("cbkid\nCBK1\n", encoding="utf-8")
+        self.write_compound_index()
+
+        response = self.client.get(self.page.url)
+        context = self.context()
+
+        self.assertNotIn("compounds", context)
+        self.assertNotIn("compound_base", context["download_urls"])
+        self.assertContains(response, "Download features (CSV)")
+        self.assertNotContains(response, 'name="cbkid"')
+
+    def test_an_unreadable_index_withholds_the_picker_instead_of_failing_the_page(self) -> None:
+        """A truncated or half-written index costs the picker, never the whole page.
+
+        Precompute writes ``compounds.parquet`` in place and this read runs on
+        every page view, so the corrupt case is reachable in normal operation —
+        and it must not take the header, the figures and the bulk downloads with
+        it.
+        """
+        self.write_feature_table()
+        for payload in (b"PAR1", b""):
+            with self.subTest(payload=payload):
+                (self.artefacts / "compounds.parquet").write_bytes(payload)
+
+                response = self.client.get(self.page.url)
+
+                self.assertEqual(response.status_code, 200)
+                self.assertNotIn("compounds", self.context())
+                self.assertContains(response, "Download features (Parquet)")
+                self.assertNotContains(response, 'name="cbkid"')
+
+    def test_an_index_without_a_cbkid_column_withholds_the_picker(self) -> None:
+        """An index of the wrong shape names no compound, so it offers none."""
+        self.write_feature_table()
+        self.write_compound_index({"name": ["Remdesivir"], "kind": ["compound"]})
+
+        response = self.client.get(self.page.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("compounds", self.context())
+        self.assertNotContains(response, 'name="cbkid"')
+
+    def test_a_null_id_is_dropped_rather_than_sorted_against(self) -> None:
+        """A null ``cbkid`` names nothing downloadable; the rest of the index still renders."""
+        self.write_feature_table()
+        self.write_compound_index(
+            {
+                "cbkid": ["CBK1", None, "  "],
+                "kind": ["compound", "compound", "compound"],
+                "name": ["Remdesivir", "nameless", "blank"],
+            }
+        )
+
+        response = self.client.get(self.page.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual([option["cbkid"] for option in self.compounds()], ["CBK1"])
+
+    def test_a_name_reaches_the_page_escaped(self) -> None:
+        """Option text is editorial-free but comes from an upstream file, so it is escaped."""
+        self.write_feature_table()
+        self.write_compound_index(
+            {
+                "cbkid": ["CBK1", "CBK2"],
+                "kind": ["compound", "compound"],
+                "name": ['<script>alert("x")</script>', "A & B"],
+            }
+        )
+
+        response = self.client.get(self.page.url)
+        body = response.content.decode()
+
+        self.assertNotIn("<script>alert", body)
+        self.assertIn("&lt;script&gt;", body)
+        self.assertIn("A &amp; B (CBK2)", body)
+
+    def test_rendered_picker_sends_the_selection_to_the_slice_over_get(self) -> None:
+        """A plain GET form carries ``cbkid`` to the per-compound download URL.
+
+        The route reads ``request.GET``, so the method is acceptance rather than
+        styling: a form switched to POST would 404 every submission.
+        """
+        self.write_feature_table()
+        self.write_compound_index()
+
+        response = self.client.get(self.page.url)
+        body = response.content.decode()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response, f'<form method="get" action="{self.page.url}download/compound/"'
+        )
+        self.assertContains(response, '<label for="drr-compound"')
+        self.assertContains(response, '<select id="drr-compound" name="cbkid"')
+
+        # Anchored on this form's own action rather than the first form on the
+        # page, so a search form added to the base template cannot absorb it.
+        form = body[body.index(f'action="{self.page.url}download/compound/"') :]
+        self.assertNotIn("hx-", form[: form.index("</form>")])
+        self.assertEqual(body.count("<option "), len(self.EXPECTED_LABELS))
+        for label in self.EXPECTED_LABELS:
+            self.assertContains(response, label)
+        self.assertContains(response, '<option value="[stau]">')
+
+    def test_every_rendered_option_downloads(self) -> None:
+        """Walk the select the visitor actually sees, not the context it was built from."""
+        self.write_feature_table()
+        self.write_compound_index()
+
+        body = self.client.get(self.page.url).content.decode()
+        values = re.findall(r'<option value="([^"]*)">', body)
+
+        self.assertEqual(len(values), len(self.EXPECTED_LABELS))
+        self.assertIn("[stau]", values)
+        for value in values:
+            with self.subTest(cbkid=value):
+                download = self.client.get(
+                    self.page.url + "download/compound/", {"cbkid": unescape(value)}
+                )
+
+                self.assertEqual(download.status_code, 200)
+                header, *rows = download.content.decode().strip().splitlines()
+                column = header.split(",").index("cbkid")
+                self.assertEqual({row.split(",")[column] for row in rows}, {unescape(value)})
 
 
 class TestDashboardIndexDrrCards(DrrDatasetPageTestCase):
