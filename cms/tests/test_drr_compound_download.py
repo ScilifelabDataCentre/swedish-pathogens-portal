@@ -6,6 +6,8 @@ id travels as a query parameter because Wagtail's page-serving pattern admits
 neither the dots of a ``.csv`` suffix nor the brackets of a control placeholder.
 """
 
+from django.test import RequestFactory
+
 from cms.tests.test_drr_downloads import DrrDownloadRouteTestCase
 
 
@@ -83,6 +85,33 @@ class TestDrrCompoundDownload(DrrDownloadRouteTestCase):
         self.write_artefacts()
 
         self.assertEqual(self.compound("../../secret.txt").status_code, 404)
+
+    def test_every_option_the_picker_offers_downloads(self) -> None:
+        """No option 404s: each id the on-page picker offers serves its own rows (FREYA-2583).
+
+        What this pins is the walk itself — every offered id reaches the route
+        and comes back with only its own rows, the bracketed control included,
+        which survives only because it travels in the query string. It cannot
+        catch the two artefacts disagreeing: ``write_compound_index`` derives the
+        index from ``FEATURE_ROWS``, exactly as precompute derives it from the
+        feature table, so the sets match by construction. The drift cases are
+        asserted against a hand-written index in
+        ``test_drr_dataset_page.TestDrrCompoundPicker``.
+        """
+        self.write_artefacts()
+        self.write_compound_index()
+
+        request = RequestFactory().get(self.page.url)
+        options = self.page.get_context(request)["compounds"]
+
+        self.assertEqual([option["cbkid"] for option in options], ["CBK2", "CBK1", "[stau]"])
+        for option in options:
+            with self.subTest(cbkid=option["cbkid"]):
+                response = self.compound(option["cbkid"])
+                self.assertEqual(response.status_code, 200)
+                header, *rows = response.content.decode().strip().splitlines()
+                column = header.split(",").index("cbkid")
+                self.assertEqual({row.split(",")[column] for row in rows}, {option["cbkid"]})
 
     def test_extra_input_columns_are_preserved(self) -> None:
         """A wider feature table still slices, whatever extra columns an input carries."""

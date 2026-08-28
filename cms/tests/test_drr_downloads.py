@@ -31,6 +31,10 @@ FEATURE_ROWS = {
     "AreaShape_Area_nuclei": [1.0, 1.2, 0.9, 1.5],
 }
 
+# The CBCS annotation the compound index carries for the fixture's ids; anything
+# absent here reaches the picker as a bare ``cbkid`` (FREYA-2583).
+COMPOUND_NAMES = {"CBK1": "remdesivir"}
+
 
 class DrrDownloadRouteTestCase(DrrDatasetPageTestCase):
     """A published DRR dataset page plus an isolated ``MEDIA_ROOT`` per test.
@@ -73,6 +77,29 @@ class DrrDownloadRouteTestCase(DrrDatasetPageTestCase):
         frame = pl.DataFrame({**FEATURE_ROWS, **extra_columns})
         frame.write_csv(self.artefacts / "features.csv")
         frame.write_parquet(self.artefacts / "features.parquet")
+        return frame
+
+    def write_compound_index(self) -> pl.DataFrame:
+        """Write the ``compounds.parquet`` index the on-page picker reads.
+
+        Derived from ``FEATURE_ROWS`` the way precompute derives it from the
+        feature table — one row per distinct ``cbkid``, non-CBCS tokens
+        classified as controls — so a test can never offer an option the slice
+        cannot serve. ``CBK2`` is left unannotated deliberately: 165 of the real
+        816 compounds are.
+
+        Returns:
+            pl.DataFrame: The index that was written.
+        """
+        cbkids = sorted(set(FEATURE_ROWS["cbkid"]))
+        frame = pl.DataFrame(
+            {
+                "cbkid": cbkids,
+                "kind": ["compound" if cbkid.startswith("CBK") else "control" for cbkid in cbkids],
+                "name": [COMPOUND_NAMES.get(cbkid) for cbkid in cbkids],
+            }
+        )
+        frame.write_parquet(self.artefacts / "compounds.parquet")
         return frame
 
     def download(self, relative_url: str) -> object:
