@@ -26,6 +26,11 @@ if TYPE_CHECKING:
 # legitimate ``cbkid`` values — so this sanitises the header only.
 _UNSAFE_FILENAME_CHARS = re.compile(r"[^A-Za-z0-9._-]")
 
+# The compound-index columns the picker labels from. ``name`` and ``kind`` are
+# read when present rather than required: an index built without CBCS metadata
+# carries neither, and the picker still has to offer every downloadable id.
+_COMPOUND_OPTION_COLUMNS = ("cbkid", "name", "kind")
+
 
 class DrrDatasetPage(RoutablePageMixin, DashboardPage):
     """A Drug Repurposing Resource dataset page (dataset-as-page).
@@ -89,13 +94,20 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
         return DrrDatasetData.get_data(self.slug)
 
     def get_context(self, request: HttpRequest) -> dict[str, Any]:
-        """Add the DRR summary-statistics payload and the download URLs."""
+        """Add the DRR summary payload, the download URLs and the compound picker."""
         context = super().get_context(request)
         context["summary"] = getattr(self.dashboard_data, "summary", {})
 
         download_urls = self._download_urls()
         if download_urls:
             context["download_urls"] = download_urls
+
+        # The picker exists to submit to the per-compound slice, so it is
+        # withheld unless that route can serve — otherwise every option 404s.
+        if "compound_base" in download_urls:
+            compounds = self._compound_options()
+            if compounds:
+                context["compounds"] = compounds
 
         return context
 
@@ -133,7 +145,7 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
         }
 
         # The per-compound slice filters the Parquet table, so it is offered
-        # whenever that exists. FREYA-2583 adds the picker that submits to it.
+        # whenever that exists, and the compound picker submits to it.
         if (artefacts / "features.parquet").is_file():
             urls["compound_base"] = page_url + self.reverse_subpage("download_compound")
 
@@ -144,6 +156,56 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
             urls["raw_images"] = page_url + self.reverse_subpage("raw_images")
 
         return urls
+
+    def _compound_options(self) -> list[dict[str, str]]:
+        """List every precomputed compound as an option for the picker.
+
+        Reads ``compounds.parquet``, the index precompute builds by grouping the
+        feature table, so the option set is exactly the set of ``cbkid`` values
+        the per-compound slice can serve: no option 404s and no compound is
+        hidden behind one. Nothing is dropped — the compounds the CBCS join left
+        unannotated keep their bare id, and control placeholders keep theirs.
+
+        Returns:
+            list[dict[str, str]]: ``cbkid`` / ``label`` pairs, compounds before
+                controls and then by label; empty when no index is precomputed.
+        """
+        index = self._artefact_dir() / "compounds.parquet"
+        if not index.is_file():
+            return []
+
+        present = pl.scan_parquet(index).collect_schema().names()
+        columns = [column for column in _COMPOUND_OPTION_COLUMNS if column in present]
+        rows = pl.read_parquet(index, columns=columns).to_dicts()
+
+        options = sorted(
+            (
+                (row.get("kind") == "control", self._compound_label(row), row["cbkid"])
+                for row in rows
+            ),
+            key=lambda option: (option[0], option[1].casefold(), option[2]),
+        )
+        return [{"cbkid": cbkid, "label": label} for _, label, cbkid in options]
+
+    @staticmethod
+    def _compound_label(row: dict[str, Any]) -> str:
+        """Return one compound's picker label.
+
+        Args:
+            row: A ``compounds.parquet`` row: ``cbkid``, plus ``name`` and
+                ``kind`` when the index carries them.
+
+        Returns:
+            str: ``<name> (<cbkid>)`` once the CBCS join annotated the compound,
+                ``<cbkid> (control)`` for a non-CBCS control id, and the bare
+                ``cbkid`` for a compound the join did not annotate.
+        """
+        cbkid = row["cbkid"]
+        if row.get("kind") == "control":
+            return f"{cbkid} (control)"
+
+        name = row.get("name")
+        return f"{name} ({cbkid})" if name else cbkid
 
     def _serve_artefact(self, request: HttpRequest, filename: str) -> FileResponse:
         """Serve one derived artefact from this dataset's directory.

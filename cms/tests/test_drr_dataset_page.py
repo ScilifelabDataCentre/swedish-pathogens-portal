@@ -4,6 +4,7 @@ import tempfile
 from datetime import date, datetime
 from pathlib import Path
 
+import polars as pl
 from django.core.cache import cache
 from django.core.management import call_command
 from django.db import connection
@@ -309,6 +310,165 @@ class TestDrrDatasetDownloadsWired(DrrDatasetPageTestCase):
         self.assertContains(response, 'id="drr-downloads-heading"')
         self.assertContains(response, "Download features (CSV)")
         self.assertNotContains(response, "Download raw images")
+
+
+class TestDrrCompoundPicker(DrrDatasetPageTestCase):
+    """The on-page compound picker (FREYA-2583, spec section 9).
+
+    Options are read from ``compounds.parquet`` and submitted to the
+    per-compound slice, so the pair these assert is: every option the page
+    offers is an id the route can serve, and every id it can serve is offered.
+    That each one downloads is ``test_drr_compound_download.py``'s.
+
+    The fixture mirrors the real index's shape rather than only the three
+    columns the picker reads — including ``pert_iname``, which FREYA-2628 put
+    there and which this control deliberately does not label from.
+    """
+
+    COMPOUND_INDEX_ROWS = {
+        "cbkid": ["CBK1", "CBK2", "CBK3", "[stau]"],
+        "cbkid_normalized": ["CBK1", "CBK2", "CBK3", None],
+        "kind": ["compound", "compound", "compound", "control"],
+        "n_profiles": [2, 1, 1, 1],
+        "name": ["Remdesivir", "aloxistatin", None, None],
+        "broad_moa": ["antiviral", "cathepsin inhibitor", None, None],
+        "pert_iname": ["gs-5734", "e-64d", None, "staurosporine"],
+    }
+
+    # Compounds first, then by label case-insensitively: an ASCII sort would put
+    # both capitalised labels ahead of "aloxistatin", so this pins the rule
+    # rather than the accident of the fixture's spelling.
+    EXPECTED_LABELS = [
+        "aloxistatin (CBK2)",
+        "CBK3",
+        "Remdesivir (CBK1)",
+        "[stau] (control)",
+    ]
+
+    @classmethod
+    def setUpTestData(cls) -> None:
+        """Publish a DRR dataset page to hang the picker off."""
+        super().setUpTestData()
+        cls.image = create_test_image(title="DRR Picker", file_name="drr-picker.jpg")
+        cls.page = DrrDatasetPage(
+            title="DRR Compound Picker",
+            slug="drr-compound-picker",
+            description="Per-compound downloads are chosen on the page.",
+            image=cls.image,
+            data_status="active",
+        )
+        cls.index.add_child(instance=cls.page)
+        cls.page.save_revision().publish()
+
+    def setUp(self) -> None:
+        """Redirect ``MEDIA_ROOT`` to a temp dir and create the artefact directory."""
+        super().setUp()
+        self.artefacts = use_temp_media_root(self) / "drr" / self.page.slug
+        self.artefacts.mkdir(parents=True)
+
+    def write_feature_table(self) -> None:
+        """Write the ``features.parquet`` the per-compound slice reads."""
+        pl.DataFrame(
+            {
+                "cbkid": ["CBK1", "CBK1", "CBK2", "CBK3", "[stau]"],
+                "Metadata_Barcode": ["P1", "P1", "P2", "P2", "P2"],
+                "AreaShape_Area_nuclei": [1.0, 1.2, 0.9, 1.1, 1.5],
+            }
+        ).write_parquet(self.artefacts / "features.parquet")
+
+    def write_compound_index(self, rows: dict[str, list] | None = None) -> None:
+        """Write ``compounds.parquet``.
+
+        Args:
+            rows: Column-oriented index rows; the class fixture when omitted.
+        """
+        pl.DataFrame(rows or self.COMPOUND_INDEX_ROWS).write_parquet(
+            self.artefacts / "compounds.parquet"
+        )
+
+    def compounds(self) -> list[dict[str, str]]:
+        """Return the picker options this page currently offers."""
+        request = RequestFactory().get(self.page.url)
+        return self.page.get_context(request).get("compounds", [])
+
+    def test_options_carry_the_label_rule_and_a_deterministic_order(self) -> None:
+        """Annotated, unannotated and control ids each get their own label form."""
+        self.write_feature_table()
+        self.write_compound_index()
+
+        self.assertEqual([option["label"] for option in self.compounds()], self.EXPECTED_LABELS)
+
+    def test_every_downloadable_compound_is_offered_exactly_once(self) -> None:
+        """The option set is the feature table's ``cbkid`` set: nothing hidden, nothing spurious."""
+        self.write_feature_table()
+        self.write_compound_index()
+
+        offered = [option["cbkid"] for option in self.compounds()]
+
+        self.assertEqual(len(offered), len(set(offered)))
+        self.assertEqual(
+            set(offered),
+            set(pl.read_parquet(self.artefacts / "features.parquet")["cbkid"].to_list()),
+        )
+
+    def test_order_does_not_depend_on_the_artefact_row_order(self) -> None:
+        """A re-ordered index renders the same options in the same order."""
+        self.write_feature_table()
+        self.write_compound_index()
+        expected = self.compounds()
+
+        reversed_rows = {
+            column: list(reversed(values)) for column, values in self.COMPOUND_INDEX_ROWS.items()
+        }
+        self.write_compound_index(reversed_rows)
+
+        self.assertEqual(self.compounds(), expected)
+
+    def test_labels_ignore_the_authors_compound_name(self) -> None:
+        """``pert_iname`` belongs to FREYA-2628's Table S8 join, not to this label."""
+        self.write_feature_table()
+        self.write_compound_index()
+
+        labels = " ".join(option["label"] for option in self.compounds())
+
+        self.assertNotIn("gs-5734", labels)
+        self.assertNotIn("staurosporine", labels)
+
+    def test_no_options_without_a_compound_index(self) -> None:
+        """Downloads can be live while the index is missing; the picker then stays away."""
+        self.write_feature_table()
+
+        response = self.client.get(self.page.url)
+
+        self.assertEqual(self.compounds(), [])
+        self.assertContains(response, "Download features (Parquet)")
+        self.assertNotContains(response, 'name="cbkid"')
+
+    def test_no_options_without_the_feature_table(self) -> None:
+        """With nothing to slice there is no per-compound route, so no picker either."""
+        self.write_compound_index()
+
+        request = RequestFactory().get(self.page.url)
+        context = self.page.get_context(request)
+
+        self.assertNotIn("compounds", context)
+        self.assertNotIn("compound_base", context.get("download_urls", {}))
+
+    def test_rendered_picker_submits_the_selection_to_the_slice(self) -> None:
+        """A plain GET form posts ``cbkid`` to the per-compound download URL."""
+        self.write_feature_table()
+        self.write_compound_index()
+
+        response = self.client.get(self.page.url)
+        body = response.content.decode()
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, f'action="{self.page.url}download/compound/"')
+        self.assertContains(response, '<select id="drr-compound" name="cbkid"')
+        self.assertEqual(body.count("<option "), len(self.EXPECTED_LABELS))
+        for label in self.EXPECTED_LABELS:
+            self.assertContains(response, label)
+        self.assertContains(response, '<option value="[stau]">')
 
 
 class TestDashboardIndexDrrCards(DrrDatasetPageTestCase):
