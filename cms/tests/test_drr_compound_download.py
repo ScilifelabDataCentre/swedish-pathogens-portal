@@ -89,10 +89,14 @@ class TestDrrCompoundDownload(DrrDownloadRouteTestCase):
     def test_every_option_the_picker_offers_downloads(self) -> None:
         """No option 404s: each id the on-page picker offers serves its own rows (FREYA-2583).
 
-        The picker builds its options from ``compounds.parquet`` while this route
-        filters ``features.parquet``, so nothing but a test walking the offered
-        set catches the two artefacts disagreeing — including on the bracketed
-        control id, which only survives because it travels in the query string.
+        What this pins is the walk itself — every offered id reaches the route
+        and comes back with only its own rows, the bracketed control included,
+        which survives only because it travels in the query string. It cannot
+        catch the two artefacts disagreeing: ``write_compound_index`` derives the
+        index from ``FEATURE_ROWS``, exactly as precompute derives it from the
+        feature table, so the sets match by construction. The drift cases are
+        asserted against a hand-written index in
+        ``test_drr_dataset_page.TestDrrCompoundPicker``.
         """
         self.write_artefacts()
         self.write_compound_index()
