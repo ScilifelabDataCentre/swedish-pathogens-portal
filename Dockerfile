@@ -34,13 +34,13 @@ RUN case "${TARGETARCH}" in \
         *) echo "Unsupported architecture: ${TARGETARCH}"; exit 1 ;; \
     esac; \
     curl --fail --silent --show-error --location --output /usr/local/bin/tailwindcss \
-        "https://github.com/tailwindlabs/tailwindcss/releases/download/v4.2.1/tailwindcss-linux-${TAILWIND_ARCH}" \
+        "https://github.com/tailwindlabs/tailwindcss/releases/download/v4.3.3/tailwindcss-linux-${TAILWIND_ARCH}" \
  && chmod +x /usr/local/bin/tailwindcss \
- && curl --fail --silent --show-error --location --output /usr/local/lib/daisyui.mjs https://github.com/saadeghi/daisyui/releases/download/v5.5.19/daisyui.mjs \
- && curl --fail --silent --show-error --location --output /usr/local/lib/daisyui-theme.mjs https://github.com/saadeghi/daisyui/releases/download/v5.5.19/daisyui-theme.mjs
+ && curl --fail --silent --show-error --location --output /usr/local/lib/daisyui.mjs https://github.com/saadeghi/daisyui/releases/download/v5.7.22/daisyui.mjs \
+ && curl --fail --silent --show-error --location --output /usr/local/lib/daisyui-theme.mjs https://github.com/saadeghi/daisyui/releases/download/v5.7.22/daisyui-theme.mjs
 
 # Retrieve `uv` from the third-party image (pin version)
-COPY --from=ghcr.io/astral-sh/uv:0.10.9@sha256:10902f58a1606787602f303954cea099626a4adb02acbac4c69920fe9d278f82 /uv /usr/local/bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.12.7@sha256:95f2aa1fe59274951cfe9b0cbc7972e879ff1004bc8945d130a32eb0dbd85945 /uv /usr/local/bin/uv
 
 # Set working directory
 WORKDIR /app
