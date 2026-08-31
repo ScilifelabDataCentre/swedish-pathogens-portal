@@ -62,6 +62,30 @@ class DashboardTopic(Orderable):
         verbose_name_plural = "Related Topics"
 
 
+class DashboardEbiPathogen(Orderable):
+    """An EBI pathogen type associated with a dashboard page."""
+
+    page = ParentalKey(
+        "cms.DashboardPage",
+        on_delete=models.CASCADE,
+        related_name="ebi_type_of_pathogens",
+    )
+    ebi_type_of_pathogen = models.CharField(
+        max_length=255,
+        verbose_name="Type of pathogen",
+    )
+
+    panels = [
+        FieldPanel("ebi_type_of_pathogen"),
+    ]
+
+    class Meta:
+        """Meta options for the EBI pathogen type."""
+
+        verbose_name = "EBI type of pathogen"
+        verbose_name_plural = "EBI types of pathogen"
+
+
 class DashboardPage(Page):
     """A page representing a single data dashboard.
 
@@ -75,6 +99,8 @@ class DashboardPage(Page):
         image: Thumbnail image for the index card.
         data_status: Whether the dashboard data is active or historic.
         keywords: Optional keywords for searching.
+        ebi_data_type: Data type shown in the European Pathogens Portal catalogue.
+        ebi_data_source: Data source shown in the European Pathogens Portal catalogue.
         content: StreamField with text, collapsible sections, alerts, and figure blocks.
     """
 
@@ -96,6 +122,16 @@ class DashboardPage(Page):
         choices=DATA_STATUS_CHOICES,
     )
     keywords = models.TextField(blank=True)
+    ebi_data_type = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="EBI data type",
+    )
+    ebi_data_source = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="EBI data source",
+    )
     content = StreamField(
         [
             ("text", RichTextBlock()),
@@ -135,6 +171,18 @@ class DashboardPage(Page):
         FieldPanel(
             "keywords",
             help_text=("Comma-separated keywords for related content matching and search"),
+        ),
+        MultiFieldPanel(
+            [
+                FieldPanel("ebi_data_type", heading="EBI data type"),
+                InlinePanel(
+                    "ebi_type_of_pathogens",
+                    label="Type of pathogen",
+                ),
+                FieldPanel("ebi_data_source", heading="EBI data source"),
+            ],
+            heading="EBI / European Pathogens Portal",
+            classname="collapsed",
         ),
         FieldPanel(
             "content",

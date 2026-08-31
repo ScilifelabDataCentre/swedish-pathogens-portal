@@ -59,6 +59,13 @@ class TestSLUDashboardPage(WagtailPageTestCase):
         """Test that only SLUDashboardSubPage can be added as a child."""
         self.assertEqual(SLUDashboardPage.subpage_types, ["cms.SLUDashboardSubPage"])
 
+    def test_inherits_ebi_catalogue_panel(self):
+        """SLU keeps the EBI panel after replacing the parent content field."""
+        headings = [getattr(panel, "heading", None) for panel in SLUDashboardPage.content_panels]
+        self.assertIn("EBI / European Pathogens Portal", headings)
+        self.assertEqual(self.page.ebi_data_type, "")
+        self.assertEqual(self.page.ebi_data_source, "")
+
     def test_navigation_tabs_without_children(self):
         """Test that navigation_tabs contains only the overview link without children."""
         self.assertEqual(self.page.navigation_tabs, [{"title": "Overview", "url": self.page.url}])
