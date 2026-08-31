@@ -54,6 +54,7 @@ WAGTAIL_APPS = [
     "wagtail.contrib.forms",
     "wagtail.contrib.redirects",
     "wagtail.contrib.routable_page",
+    "wagtail.contrib.settings",
     "wagtail.contrib.typed_table_block",
     "wagtail.embeds",
     "wagtail.sites",
