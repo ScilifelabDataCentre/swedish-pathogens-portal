@@ -2,3 +2,4 @@
 
 from cms.pages import *  # noqa: F403
 from cms.snippets import *  # noqa: F403
+from cms.workflows import *  # noqa: F403
