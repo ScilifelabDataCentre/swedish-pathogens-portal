@@ -34,7 +34,7 @@ jobs:
         env:
           TRIVY_DB_REPOSITORY: >-
             ghcr.io/aquasecurity/trivy-db,public.ecr.aws/aquasecurity/trivy-db
-        uses: aquasecurity/trivy-action@0.35.0
+        uses: aquasecurity/trivy-action@v0.35.0
         with:
           image-ref: ghcr.io/scilifelabdatacentre/swedish-pathogens-portal:main
           scanners: "vuln,secret"  # Default but being explicit
