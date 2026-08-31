@@ -158,6 +158,29 @@ class TestDashboardPageEbiFields(DashboardPageTestCase):
         content_index = len(DashboardPage.content_panels) - 1
         self.assertLess(ebi_index, content_index)
 
+    def test_ebi_panel_has_no_help_ribbons(self) -> None:
+        """Admin labels are explicit; panel and pathogen inline have no help banners."""
+        ebi_panel = next(
+            panel
+            for panel in DashboardPage.content_panels
+            if getattr(panel, "heading", None) == "EBI / European Pathogens Portal"
+        )
+        self.assertFalse(getattr(ebi_panel, "help_text", None))
+        self.assertEqual(
+            DashboardPage._meta.get_field("ebi_data_type").verbose_name,
+            "EBI data type",
+        )
+        self.assertEqual(
+            DashboardPage._meta.get_field("ebi_data_source").verbose_name,
+            "EBI data source",
+        )
+        pathogen_inline = next(
+            child
+            for child in ebi_panel.children
+            if getattr(child, "relation_name", None) == "ebi_type_of_pathogens"
+        )
+        self.assertFalse(getattr(pathogen_inline, "help_text", None))
+
     def test_subclasses_keep_ebi_panel_after_content_splice(self) -> None:
         """SLU and DRR panel splicing still includes the EBI panel."""
         slu_headings = [
