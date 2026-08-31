@@ -12,7 +12,7 @@ on:
 #    types: [published]
 jobs:
   push_to_registry:
-    if: github.repository == 'scilifelabdatacentre/spp-wagtail'
+    if: github.repository == 'scilifelabdatacentre/swedish-pathogens-portal'
     name: Publish Docker image
     runs-on: ubuntu-latest
     concurrency:
@@ -34,7 +34,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v6
         with:
-          images: ghcr.io/scilifelabdatacentre/spp-wagtail
+          images: ghcr.io/scilifelabdatacentre/swedish-pathogens-portal
           tags: |
              type=sha,format=long
              type=sha,prefix={{branch}}-

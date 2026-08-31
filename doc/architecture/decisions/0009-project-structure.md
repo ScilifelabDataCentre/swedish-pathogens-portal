@@ -31,7 +31,7 @@ We adopt a single local Django app, `cms`, that contains all Wagtail content mod
 ### Directory layout
 
 ```text
-spp-wagtail/
+swedish-pathogens-portal/
 ├── core/                       # Django project configuration (no content models)
 │   ├── settings/
 │   │   ├── base.py             # Environment-agnostic settings shared by all environments
