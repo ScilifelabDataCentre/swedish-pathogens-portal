@@ -1,11 +1,19 @@
 # Config for yamllint
-# Added to ignore truthy rule in GitHub workflow files
-# but keep it for other YAML files
-# Must be placed in the root of the repository
+# Passed via -c by the Yamllint workflow and the pre-commit hook.
 ---
 extends: default
 
 rules:
+  # `on:` in a workflow is a mapping key, not a boolean.
   truthy:
     ignore: |
       .github/workflows/*
+
+  # Renovate's digest pins are unbreakable and reach 103 columns:
+  # `image: name:tag@sha256:<64 hex>`, `uses: owner/repo@<sha> # v1.2.3`.
+  line-length:
+    max: 120
+
+  # Renovate writes one space before that trailing version comment.
+  comments:
+    min-spaces-from-content: 1
