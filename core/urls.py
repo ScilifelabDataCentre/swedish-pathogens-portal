@@ -23,6 +23,7 @@ from django.contrib import admin
 from django.urls import include, path
 from wagtail import urls as wagtail_urls
 from wagtail.admin import urls as wagtailadmin_urls
+from wagtail.contrib.sitemaps.views import sitemap
 
 # Local imports
 from core.views import healthz
@@ -42,6 +43,7 @@ if settings.DEBUG:
 
 urlpatterns += [
     path(settings.WAGTAILADMIN_URL, include(wagtailadmin_urls)),
+    path("sitemap.xml", sitemap),
     path("cms/", include("cms.urls")),
     # Any URL that was not matched by an explicit URL above are tried and handled by Wagtail.
     # Wagtail raises 404, if it couldn't find a Page or Route handler for the URL
