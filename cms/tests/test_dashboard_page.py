@@ -8,9 +8,11 @@ from django.test import RequestFactory
 from wagtail.models import Page, Site
 from wagtail.test.utils import WagtailPageTestCase
 
-from cms.pages.dashboard import DATA_STATUS_CHOICES, DashboardPage
+from cms.pages.dashboard import DATA_STATUS_CHOICES, DashboardEbiPathogen, DashboardPage
 from cms.pages.dashboard_index import DashboardIndexPage
+from cms.pages.drr_dataset import DrrDatasetPage
 from cms.pages.home import HomePage
+from cms.pages.slu_dashboard import SLUDashboardPage
 from cms.snippets.dashboard_data import DashboardData
 from cms.tests.utils import create_test_image
 
@@ -74,6 +76,97 @@ class TestDashboardPageModel(DashboardPageTestCase):
                 "static_figure",
             },
         )
+
+
+class TestDashboardPageEbiFields(DashboardPageTestCase):
+    """Tests for optional EBI catalogue fields on DashboardPage."""
+
+    @classmethod
+    def setUpTestData(cls) -> None:
+        """Create a dashboard page for EBI field tests."""
+        super().setUpTestData()
+        cls.image = create_test_image(title="EBI Image", file_name="ebi.jpg")
+
+    def _add_dashboard(self, **kwargs: object) -> DashboardPage:
+        """Create and publish a DashboardPage under the index."""
+        page = DashboardPage(
+            title="Serology",
+            slug="serology-statistics",
+            description="Serology test dashboard",
+            image=self.image,
+            data_status="active",
+            **kwargs,
+        )
+        self.index.add_child(instance=page)
+        page.save_revision().publish()
+        return page
+
+    def test_ebi_data_type_is_optional_free_text(self) -> None:
+        """ebi_data_type is blank by default and has no choices."""
+        field = DashboardPage._meta.get_field("ebi_data_type")
+        self.assertTrue(field.blank)
+        self.assertFalse(field.choices)
+        self.assertEqual(field.get_default(), "")
+
+    def test_ebi_data_source_is_optional_free_text(self) -> None:
+        """ebi_data_source is blank by default and has no choices."""
+        field = DashboardPage._meta.get_field("ebi_data_source")
+        self.assertTrue(field.blank)
+        self.assertFalse(field.choices)
+        self.assertEqual(field.get_default(), "")
+
+    def test_does_not_add_ebi_name_id_or_country(self) -> None:
+        """Catalogue name uses Title; id and country are not page fields."""
+        field_names = {field.name for field in DashboardPage._meta.get_fields()}
+        self.assertNotIn("ebi_name", field_names)
+        self.assertNotIn("ebi_id", field_names)
+        self.assertNotIn("country", field_names)
+
+    def test_page_saves_with_empty_ebi_fields(self) -> None:
+        """Existing dashboards remain valid when EBI fields are left blank."""
+        page = self._add_dashboard()
+        self.assertEqual(page.ebi_data_type, "")
+        self.assertEqual(page.ebi_data_source, "")
+        self.assertEqual(page.ebi_type_of_pathogens.count(), 0)
+
+    def test_page_saves_editor_supplied_ebi_values(self) -> None:
+        """Editors can store free-text data type, source, and multiple pathogens."""
+        page = self._add_dashboard(
+            ebi_data_type="Serology",
+            ebi_data_source="Autoimmunity and Serology profiling facility",
+        )
+        DashboardEbiPathogen.objects.create(page=page, ebi_type_of_pathogen="SARS-CoV-2")
+        DashboardEbiPathogen.objects.create(page=page, ebi_type_of_pathogen="Influenza")
+
+        page.refresh_from_db()
+        self.assertEqual(page.ebi_data_type, "Serology")
+        self.assertEqual(
+            page.ebi_data_source,
+            "Autoimmunity and Serology profiling facility",
+        )
+        self.assertEqual(
+            list(page.ebi_type_of_pathogens.values_list("ebi_type_of_pathogen", flat=True)),
+            ["SARS-CoV-2", "Influenza"],
+        )
+
+    def test_ebi_panel_is_before_content(self) -> None:
+        """EBI panel heading is present and content stays last for subclass slicing."""
+        headings = [getattr(panel, "heading", None) for panel in DashboardPage.content_panels]
+        self.assertIn("EBI / European Pathogens Portal", headings)
+        self.assertEqual(DashboardPage.content_panels[-1].field_name, "content")
+        ebi_index = headings.index("EBI / European Pathogens Portal")
+        content_index = len(DashboardPage.content_panels) - 1
+        self.assertLess(ebi_index, content_index)
+
+    def test_subclasses_keep_ebi_panel_after_content_splice(self) -> None:
+        """SLU and DRR panel splicing still includes the EBI panel."""
+        slu_headings = [
+            getattr(panel, "heading", None) for panel in SLUDashboardPage.content_panels
+        ]
+        drr_headings = [getattr(panel, "heading", None) for panel in DrrDatasetPage.content_panels]
+        self.assertIn("EBI / European Pathogens Portal", slu_headings)
+        self.assertIn("EBI / European Pathogens Portal", drr_headings)
+        self.assertEqual(DrrDatasetPage.content_panels[-1].field_name, "content")
 
 
 class TestDashboardPageContext(DashboardPageTestCase):

@@ -122,8 +122,16 @@ class DashboardPage(Page):
         choices=DATA_STATUS_CHOICES,
     )
     keywords = models.TextField(blank=True)
-    ebi_data_type = models.CharField(max_length=255, blank=True)
-    ebi_data_source = models.CharField(max_length=255, blank=True)
+    ebi_data_type = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="EBI data type",
+    )
+    ebi_data_source = models.CharField(
+        max_length=255,
+        blank=True,
+        verbose_name="EBI data source",
+    )
     content = StreamField(
         [
             ("text", RichTextBlock()),
@@ -166,19 +174,14 @@ class DashboardPage(Page):
         ),
         MultiFieldPanel(
             [
-                FieldPanel("ebi_data_type"),
+                FieldPanel("ebi_data_type", heading="EBI data type"),
                 InlinePanel(
                     "ebi_type_of_pathogens",
                     label="Type of pathogen",
-                    help_text="Add one or more pathogen types for the EBI catalogue.",
                 ),
-                FieldPanel("ebi_data_source"),
+                FieldPanel("ebi_data_source", heading="EBI data source"),
             ],
             heading="EBI / European Pathogens Portal",
-            help_text=(
-                "The catalogue name uses the dashboard Title. "
-                "Enter the remaining catalogue values here."
-            ),
             classname="collapsed",
         ),
         FieldPanel(

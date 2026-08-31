@@ -60,6 +60,16 @@ class TestSLUDashboardSubPage(WagtailPageTestCase):
         """Test that only DashboardIndexPage can be a parent of SLUDashboardSubPage."""
         self.assertEqual(SLUDashboardSubPage.parent_page_types, ["cms.SLUDashboardPage"])
 
+    def test_does_not_have_ebi_catalogue_fields(self):
+        """EBI catalogue metadata belongs only to the SLU parent dashboard."""
+        field_names = {field.name for field in SLUDashboardSubPage._meta.get_fields()}
+        headings = [getattr(panel, "heading", None) for panel in SLUDashboardSubPage.content_panels]
+
+        self.assertNotIn("ebi_data_type", field_names)
+        self.assertNotIn("ebi_type_of_pathogens", field_names)
+        self.assertNotIn("ebi_data_source", field_names)
+        self.assertNotIn("EBI / European Pathogens Portal", headings)
+
     def test_parent_returns_dashboard_page(self):
         """Test that parent returns the parent SLUDashboardPage."""
         self.assertEqual(self.page.parent, self.slu_page)
