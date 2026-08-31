@@ -47,6 +47,8 @@ DJANGO_ADMIN_URL = "admin/"
 # ------------------------------------------------------------------------------
 WAGTAIL_SITE_NAME = "Swedish Pathogens Portal"
 WAGTAILADMIN_URL = "wagtail/"
+DISABLE_DIRECT_PUBLISH = env.bool("DISABLE_DIRECT_PUBLISH", default=False)
+DISABLE_SELF_APPROVAL = env.bool("DISABLE_SELF_APPROVAL", default=False)
 
 
 # APPS (https://docs.djangoproject.com/en/5.2/ref/settings/#installed-apps)
