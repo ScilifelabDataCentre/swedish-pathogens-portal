@@ -70,27 +70,30 @@ We will adopt the following formatting rules for the Swedish Pathogens Portal pr
   def __str__(self):
       """Return the topic name for string representation."""
       return self.name
-  
+
+
   # Good: Single-line for simple properties
   @property
   def display_image(self):
       """Return the URL of the thumbnail image."""
       return self.thumbnail_image.url
-  
+
+
   # Good: Google-style for complex models/classes
   class Article(models.Model):
       """Article model for showcasing research findings and editorial content.
-      
+
       Represents articles (data highlights and editorials) that showcase important
       scientific findings, data insights, and editorial content for the Swedish
       Pathogens Portal.
-      
+
       Attributes:
           type (str): Content type - either "Editorial" or "Data Highlight".
           title (str): Display title of the article (max 255 chars, unique).
           slug (str): URL-friendly version of title (auto-generated).
           # ... more attributes
       """
+
       # Implementation
   ```
 
