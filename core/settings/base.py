@@ -213,6 +213,8 @@ LOGGING = {
     #   Without it: different formats for structlog and django/lib logs
     # - ConsoleRenderer produces structured logs as easily readable for console
     # - JSONRenderer produces structured logs as JSON
+    # - foreign_pre_chain enriches JSON records from plain stdlib logging calls (e.g. Django's)
+    #   with the same logger/level/timestamp fields structlog's own records already have.
     # --------------------------------------------------------------------------------------------
     "formatters": {
         "plain_console": {
@@ -222,6 +224,11 @@ LOGGING = {
         "json_formatter": {
             "()": structlog.stdlib.ProcessorFormatter,
             "processor": structlog.processors.JSONRenderer(),
+            "foreign_pre_chain": [
+                structlog.stdlib.add_logger_name,
+                structlog.stdlib.add_log_level,
+                structlog.processors.TimeStamper(fmt="iso"),
+            ],
         },
     },
     # --------------------------------------------------------------------------------------------
