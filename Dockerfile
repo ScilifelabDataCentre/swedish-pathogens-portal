@@ -162,6 +162,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONOPTIMIZE=1 \
     PATH=/app/.venv/bin:$PATH
 
+# EBI catalogue envelope (`/ebi-index.json`). Passed as build-args from the
+# GitHub release image workflow. Local compose uses the `dev` stage + `.env`.
+ARG EBI_RELEASE=dev
+ARG EBI_RELEASE_DATE=
+ENV EBI_RELEASE=${EBI_RELEASE} \
+    EBI_RELEASE_DATE=${EBI_RELEASE_DATE}
+
 # Install runtime libraries required by psycopg[c] and clean up
 RUN apt-get update --quiet --assume-yes \
  && apt-get upgrade --quiet --assume-yes \

@@ -51,3 +51,6 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64
+          build-args: |
+            EBI_RELEASE=${{ github.event.release.tag_name || github.ref_name }}
+            EBI_RELEASE_DATE=${{ github.event.release.published_at }}
