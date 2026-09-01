@@ -107,4 +107,8 @@ EMAIL_TIMEOUT = env.int("EMAIL_TIMEOUT", default=10)
 # REVIEW: Currently logs are not aggregated, only written to stdout.
 # We write to stdout using the plain_console formatter.
 # When ready, we can comment out the below line and switch to json_formatter in production
+# NOTE: prod-entrypoint.sh sets '--access-logfile -', which writes non JSON format logs to STDOUT.
+# This either needs to be removed or configured seperately
+# to ensure all logs are written in JSON format to STDOUT.
+# https://gunicorn.org/guides/docker/?h=json#logging
 # LOGGING["handlers"]["console"]["formatter"] = "json_formatter"  # noqa: F405
