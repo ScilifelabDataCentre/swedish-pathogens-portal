@@ -224,3 +224,32 @@ class EbiIndexBuilderTestCase(WagtailPageTestCase):
         self.assertNotIn("uploaded_by", blob)
         self.assertNotIn("research_group", blob)
         self.assertNotIn("methods", _field_names(payload["entries"][0]))
+
+
+class EbiIndexEndpointTestCase(EbiIndexBuilderTestCase):
+    """Anonymous GET `/ebi-index.json` next to `/healthz/`."""
+
+    def test_anonymous_get_returns_catalogue_json(self) -> None:
+        """Unauthenticated GET is 200 JSON matching `build_index()`."""
+        self._add_dashboard(
+            title="Serology",
+            slug="serology-endpoint",
+            ebi_data_type="Serology",
+        )
+        response = self.client.get("/ebi-index.json")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"].split(";")[0], "application/json")
+        self.assertEqual(response["Cache-Control"], "public, max-age=3600")
+        self.assertEqual(response.json(), build_index())
+
+    def test_head_is_allowed(self) -> None:
+        """HEAD is allowed (crawlers)."""
+        response = self.client.head("/ebi-index.json")
+        self.assertEqual(response.status_code, 200)
+
+    def test_unsafe_methods_return_405(self) -> None:
+        """POST, PUT, PATCH, and DELETE are rejected."""
+        for method in ("post", "put", "patch", "delete"):
+            with self.subTest(method=method):
+                response = getattr(self.client, method)("/ebi-index.json")
+                self.assertEqual(response.status_code, 405)
