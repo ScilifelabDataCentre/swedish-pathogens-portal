@@ -102,3 +102,9 @@ EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
 EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
 EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
 EMAIL_TIMEOUT = env.int("EMAIL_TIMEOUT", default=10)
+
+# LOGGING
+# REVIEW: Currently logs are not aggregated, only written to stdout.
+# We write to stdout using the plain_console formatter.
+# When ready, we can comment out the below line and switch to json_formatter in production
+# LOGGING["handlers"]["console"]["formatter"] = "json_formatter"  # noqa: F405
