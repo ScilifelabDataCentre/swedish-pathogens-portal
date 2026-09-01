@@ -28,6 +28,14 @@ environ.Env.read_env(BASE_DIR / ".env")
 
 SECRET_KEY = env("SECRET_KEY")
 
+# EBI catalogue envelope for `/ebi-index.json` (not a Wagtail Settings form).
+# `name` is fixed. `release` / `release_date` are env vars, baked into the
+# production image at GitHub release (Dockerfile ARG → ENV).
+EBI_INDEX_NAME = "Swedish Pathogens Portal"
+EBI_RELEASE = env("EBI_RELEASE", default="dev")
+_ebi_release_date = env("EBI_RELEASE_DATE", default="")
+EBI_RELEASE_DATE = _ebi_release_date[:10] if len(_ebi_release_date) >= 10 else _ebi_release_date
+
 # INTERNATIONALISATION (https://docs.djangoproject.com/en/5.2/topics/i18n/)
 # ------------------------------------------------------------------------------
 LANGUAGE_CODE = "en-gb"
@@ -54,7 +62,6 @@ WAGTAIL_APPS = [
     "wagtail.contrib.forms",
     "wagtail.contrib.redirects",
     "wagtail.contrib.routable_page",
-    "wagtail.contrib.settings",
     "wagtail.contrib.typed_table_block",
     "wagtail.embeds",
     "wagtail.sites",
@@ -113,7 +120,6 @@ TEMPLATES = [
                 "django.template.context_processors.request",
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
-                "wagtail.contrib.settings.context_processors.settings",
             ],
         },
     },

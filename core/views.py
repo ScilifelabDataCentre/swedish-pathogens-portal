@@ -32,8 +32,8 @@ def healthz(_request: HttpRequest) -> JsonResponse:
 def ebi_index(_request: HttpRequest) -> JsonResponse:
     """Public EBI catalogue JSON for EMBL-EBI (`national-portals-sweden`).
 
-    Unauthenticated. GET and HEAD only. Body is built from Wagtail settings
-    and live dashboard pages with EBI panel values filled.
+    Unauthenticated. GET and HEAD only. Envelope comes from env (fixed name,
+    release fields). Entries are live dashboards with EBI panel values filled.
     """
     response = JsonResponse(build_index(), json_dumps_params={"ensure_ascii": False})
     response["Cache-Control"] = EBI_INDEX_CACHE_CONTROL

@@ -1,9 +1,8 @@
-"""Tests for EBI index envelope settings and catalogue builder."""
+"""Tests for EBI index envelope (env) and catalogue builder."""
 
 from datetime import timedelta
-from unittest.mock import patch
 
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.utils import timezone
 from wagtail.models import Page, Site
 from wagtail.test.utils import WagtailPageTestCase
@@ -12,42 +11,34 @@ from cms.pages.dashboard import DashboardEbiPathogen, DashboardPage
 from cms.pages.dashboard_index import DashboardIndexPage
 from cms.pages.home import HomePage
 from cms.services.ebi_index import build_index
-from cms.settings.ebi_index import (
-    DEFAULT_CATALOGUE_NAME,
-    DEFAULT_RELEASE,
-    DEFAULT_RELEASE_DATE,
-    EbiIndexSettings,
-)
 from cms.tests.utils import create_test_image
 
+FIXED_CATALOGUE_NAME = "Swedish Pathogens Portal"
 
-class EbiIndexSettingsTestCase(TestCase):
-    """Envelope form on Wagtail Settings; no computed JSON fields."""
 
-    def test_defaults(self) -> None:
-        """Name, release, and date are prefilled; GitHub URL is empty."""
-        settings = EbiIndexSettings.load()
-        self.assertEqual(settings.name, DEFAULT_CATALOGUE_NAME)
-        self.assertEqual(settings.release, DEFAULT_RELEASE)
-        self.assertEqual(settings.release_date, DEFAULT_RELEASE_DATE)
-        self.assertEqual(settings.github_releases_latest_url, "")
+class EbiIndexEnvelopeTestCase(TestCase):
+    """Envelope comes from Django settings, not a Wagtail form."""
 
-    def test_github_url_is_optional(self) -> None:
-        """Editors may leave the GitHub latest-release URL blank."""
-        field = EbiIndexSettings._meta.get_field("github_releases_latest_url")
-        self.assertTrue(field.blank)
+    def test_name_is_fixed(self) -> None:
+        """Catalogue name is not WAGTAIL_SITE_NAME and is not editable."""
+        payload = build_index()
+        self.assertEqual(payload["name"], FIXED_CATALOGUE_NAME)
+        self.assertNotIn("(Dev)", payload["name"])
+        self.assertNotIn("Test Portal", payload["name"])
 
-    def test_does_not_store_entry_count_or_entries(self) -> None:
-        """entry_count and entries are computed later, not settings fields."""
-        field_names = {field.name for field in EbiIndexSettings._meta.get_fields()}
-        self.assertNotIn("entry_count", field_names)
-        self.assertNotIn("entries", field_names)
+    @override_settings(EBI_RELEASE="v9.9.9", EBI_RELEASE_DATE="2026-01-15")
+    def test_release_fields_come_from_django_settings(self) -> None:
+        """`release` and `release_date` follow env-backed Django settings."""
+        payload = build_index()
+        self.assertEqual(payload["release"], "v9.9.9")
+        self.assertEqual(payload["release_date"], "2026-01-15")
 
-    def test_admin_heading_is_ebi_index(self) -> None:
-        """Settings form uses the EBI index heading."""
-        self.assertEqual(EbiIndexSettings._meta.verbose_name, "EBI index")
-        headings = [getattr(panel, "heading", None) for panel in EbiIndexSettings.panels]
-        self.assertIn("EBI index", headings)
+    def test_does_not_store_entry_count_or_entries_on_envelope_settings(self) -> None:
+        """entry_count and entries are computed, not env vars."""
+        payload = build_index()
+        self.assertEqual(payload["entry_count"], len(payload["entries"]))
+        self.assertIn("release", payload)
+        self.assertNotIn("github_releases_latest_url", payload)
 
 
 def _entry_fields(entry: dict[str, object]) -> list[dict[str, str]]:
@@ -69,7 +60,7 @@ def _field_names(entry: dict[str, object]) -> list[str]:
 
 
 class EbiIndexBuilderTestCase(WagtailPageTestCase):
-    """`build_index()` from settings plus live dashboards with EBI fields."""
+    """`build_index()` from env envelope plus live dashboards with EBI fields."""
 
     @classmethod
     def setUpTestData(cls) -> None:
@@ -141,9 +132,7 @@ class EbiIndexBuilderTestCase(WagtailPageTestCase):
         DashboardEbiPathogen.objects.create(page=newer, ebi_type_of_pathogen="SARS-CoV-2")
 
         payload = build_index()
-        self.assertEqual(payload["name"], DEFAULT_CATALOGUE_NAME)
-        self.assertEqual(payload["release"], DEFAULT_RELEASE)
-        self.assertEqual(payload["release_date"], DEFAULT_RELEASE_DATE)
+        self.assertEqual(payload["name"], FIXED_CATALOGUE_NAME)
         self.assertEqual(payload["entry_count"], 2)
 
         first, second = payload["entries"]
@@ -169,47 +158,6 @@ class EbiIndexBuilderTestCase(WagtailPageTestCase):
         payload = build_index()
         self.assertEqual(payload["entry_count"], 0)
         self.assertEqual(payload["entries"], [])
-
-    def test_github_success_overrides_text_fields(self) -> None:
-        """A successful GitHub latest-release fetch replaces release and date."""
-        settings = EbiIndexSettings.load()
-        settings.github_releases_latest_url = (
-            "https://api.github.com/repos/example/portal/releases/latest"
-        )
-        settings.save()
-
-        with patch(
-            "cms.services.ebi_index.fetch_github_latest_release",
-            return_value={"tag_name": "v9.9.9", "published_at": "2026-01-15T12:00:00Z"},
-        ) as fetch:
-            payload = build_index()
-
-        fetch.assert_called_once()
-        self.assertEqual(payload["release"], "v9.9.9")
-        self.assertEqual(payload["release_date"], "2026-01-15")
-
-    def test_github_failure_keeps_text_fields(self) -> None:
-        """If GitHub fetch fails, envelope text fields are unchanged."""
-        settings = EbiIndexSettings.load()
-        settings.github_releases_latest_url = (
-            "https://api.github.com/repos/example/portal/releases/latest"
-        )
-        settings.save()
-
-        with patch(
-            "cms.services.ebi_index.fetch_github_latest_release",
-            return_value=None,
-        ):
-            payload = build_index()
-
-        self.assertEqual(payload["release"], DEFAULT_RELEASE)
-        self.assertEqual(payload["release_date"], DEFAULT_RELEASE_DATE)
-
-    def test_empty_github_url_does_not_fetch(self) -> None:
-        """No HTTP call when the GitHub URL is blank."""
-        with patch("cms.services.ebi_index.fetch_github_latest_release") as fetch:
-            build_index()
-        fetch.assert_not_called()
 
     def test_payload_omits_private_and_methods_keys(self) -> None:
         """Catalogue JSON must not include methods or admin-only fields."""
