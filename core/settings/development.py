@@ -48,41 +48,52 @@ LIVER_SESSION_ROOT = BASE_DIR / "private" / "liver_resource_sessions"  # noqa: F
 
 # EMAIL (Development defaults, override via .env if needed)
 # ------------------------------------------------------------------------------
-# Two backends are available locally:
+# Mailpit is the default: a local SMTP catcher listening on 127.0.0.1:1025 with
+# a web UI at http://127.0.0.1:8025/. It is preferred over the console backend
+# because it exercises the real SMTP client path — EHLO, envelope, headers —
+# which is what production actually does against the Workspace relay. The
+# console backend cannot show you a wrong From: or a dropped Reply-To; mailpit
+# can, and it has an HTTP API you can assert against.
 #
-# 1. Console (default) — outgoing mail is printed to the runserver stdout.
-#    Fastest iteration, no external service. Good enough when you only need
-#    to confirm message body and headers.
+# Start it with `devbox run hub-up` (devbox) or `docker compose up mailpit`
+# (Docker). For fast iteration with no service at all, override the backend:
 #
-# 2. Mailpit — a local SMTP catcher with a web UI at http://127.0.0.1:8025/.
-#    Captures every outbound message so you can inspect the envelope the way
-#    a real MTA would receive it (From, To, Reply-To, multipart parts).
+#     EMAIL_BACKEND=django.core.mail.backends.console.EmailBackend
 #
-# To route the dev server through mailpit, add to your local .env:
+# Use EMAIL_HOST=mailpit instead of 127.0.0.1 when running inside Docker
+# Compose, where the service name resolves on the network.
 #
-#     EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
-#     EMAIL_HOST=localhost      # or `mailpit` when running via docker compose
-#     EMAIL_PORT=1025
-#     EMAIL_USE_TLS=False
-#
-# Start mailpit with `docker compose up mailpit`. End-to-end test the contact form:
-# GET /contact/, submit a valid message, then either watch the runserver
-# output (console) or open http://127.0.0.1:8025/ (mailpit) to inspect the
-# delivered message. CONTACT_RECIPIENT_EMAIL stays `dev-null@example.org` by
-# default so a misconfigured backend cannot accidentally reach a real inbox.
-EMAIL_BACKEND = env(
+# Django 6.1 replaced the EMAIL_* settings with MAILERS; defining any
+# deprecated EMAIL_* name alongside MAILERS raises ImproperlyConfigured. The
+# env var names below are unchanged, so existing local overrides keep working.
+# OPTIONS are validated against the chosen backend: a mailer built from MAILERS
+# raises InvalidMailer on keys the backend does not accept, and the console
+# backend accepts none of the SMTP ones. So only hand them over when the
+# backend is actually SMTP. Lowercase names are not Django settings, so these
+# two helpers stay private to this module.
+_EMAIL_BACKEND = env(
     "EMAIL_BACKEND",
-    default="django.core.mail.backends.console.EmailBackend",
+    default="django.core.mail.backends.smtp.EmailBackend",
 )
+_SMTP_OPTIONS = {
+    "host": env("EMAIL_HOST", default="127.0.0.1"),
+    "port": env.int("EMAIL_PORT", default=1025),
+    "use_tls": env.bool("EMAIL_USE_TLS", default=False),
+    "timeout": env.int("EMAIL_TIMEOUT", default=10),
+}
+MAILERS = {
+    "default": {
+        "BACKEND": _EMAIL_BACKEND,
+        "OPTIONS": _SMTP_OPTIONS if _EMAIL_BACKEND.endswith("smtp.EmailBackend") else {},
+    },
+}
 DEFAULT_FROM_EMAIL = env(
     "DEFAULT_FROM_EMAIL",
     default="Pathogens Portal <no-reply@example.org>",
 )
+# Kept at a black-hole address so a misconfigured backend cannot reach a real
+# inbox: end-to-end checks read the message out of mailpit, not out of a mailbox.
 CONTACT_RECIPIENT_EMAIL = env(
     "CONTACT_RECIPIENT_EMAIL",
     default="dev-null@example.org",
 )
-EMAIL_HOST = env("EMAIL_HOST", default="localhost")
-EMAIL_PORT = env.int("EMAIL_PORT", default=25)
-EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=False)
-EMAIL_TIMEOUT = env.int("EMAIL_TIMEOUT", default=10)

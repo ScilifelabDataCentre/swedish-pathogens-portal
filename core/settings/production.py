@@ -85,22 +85,39 @@ SECURE_HSTS_PRELOAD = env.bool("SECURE_HSTS_PRELOAD", default=False)
 # EMAIL (Production via Google Workspace SMTP Relay)
 # ------------------------------------------------------------------------------
 # Server-to-server transactional mail via smtp-relay.gmail.com. Auth at the
-# relay side is IP allowlist + TLS. No credentials in env unless we enable
-# "Require SMTP Authentication" on the relay, in which case EMAIL_HOST_USER and
-# EMAIL_HOST_PASSWORD must be set.
-# EMAIL_BACKEND is a pinned literal, never env-driven, so a misconfigured
-# deployment cannot silently swap transports. EMAIL_HOST / EMAIL_PORT /
-# EMAIL_USE_TLS are env-overridable to support staging or a future relay swap.
-EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = env("EMAIL_HOST", default="smtp-relay.gmail.com")
-EMAIL_PORT = env.int("EMAIL_PORT", default=587)
-EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
+# relay side is IP allowlist (the cluster's egress NAT sits in
+# 130.237.255.0/24) plus required TLS, so no credential travels in env.
+#
+# Django 6.1 replaced the EMAIL_* settings with MAILERS; the old names are
+# removed in Django 7.0. Defining any deprecated EMAIL_* name alongside MAILERS
+# raises ImproperlyConfigured, so this module must not reintroduce one.
+#
+# BACKEND is a pinned literal, never env-driven, so a misconfigured deployment
+# cannot silently swap transports. The OPTIONS below stay env-overridable to
+# support staging or a future relay swap without a code change; username and
+# password are read with empty defaults so ticking "Require SMTP
+# Authentication" on the relay is an env change, not a code change.
+MAILERS = {
+    "default": {
+        "BACKEND": "django.core.mail.backends.smtp.EmailBackend",
+        "OPTIONS": {
+            "host": env("EMAIL_HOST", default="smtp-relay.gmail.com"),
+            "port": env.int("EMAIL_PORT", default=587),
+            "use_tls": env.bool("EMAIL_USE_TLS", default=True),
+            "username": env("EMAIL_HOST_USER", default=""),
+            "password": env("EMAIL_HOST_PASSWORD", default=""),
+            "timeout": env.int("EMAIL_TIMEOUT", default=10),
+        },
+    },
+}
+# Not deprecated by the MAILERS migration, and required: a missing sender fails
+# at settings load rather than at the first send. The relay rejects any From:
+# outside the Workspace domain, so this must be an @scilifelab.se address.
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL")
 CONTACT_RECIPIENT_EMAIL = env(
     "CONTACT_RECIPIENT_EMAIL",
     default="pathogens@scilifelab.se",
 )
-EMAIL_TIMEOUT = env.int("EMAIL_TIMEOUT", default=10)
 
 # LOGGING
 # REVIEW: Currently logs are not aggregated, only written to stdout.

@@ -53,7 +53,7 @@ def _flatten_log_value(value: object) -> str:
 
 
 @override_settings(
-    EMAIL_BACKEND="django.core.mail.backends.locmem.EmailBackend",
+    MAILERS={"default": {"BACKEND": "django.core.mail.backends.locmem.EmailBackend"}},
     DEFAULT_FROM_EMAIL="Pathogens Portal Test <test@example.org>",
     CONTACT_RECIPIENT_EMAIL="contact-test@example.org",
 )
@@ -154,6 +154,23 @@ class ContactPageTests(TestCaseWithSite):
         self.assertIn("duration_ms", record)
         self.assertIsInstance(record["duration_ms"], int)
         return record
+
+    # ------------------------------------------------------------------
+    # Mailer wiring
+    # ------------------------------------------------------------------
+
+    def test_active_mailer_is_locmem(self):
+        """The default mailer resolves to locmem, so outbox assertions mean something.
+
+        Guards the MAILERS migration: ``setup_test_environment()`` rewrites every
+        alias to locmem, so a stale ``EMAIL_BACKEND`` override would be silently
+        inert rather than failing, and every ``mail.outbox`` assertion in this
+        module would keep passing while testing the wrong thing.
+        """
+        self.assertEqual(
+            mail.mailers["default"].__class__.__module__,
+            "django.core.mail.backends.locmem",
+        )
 
     # ------------------------------------------------------------------
     # GET render + cookie set

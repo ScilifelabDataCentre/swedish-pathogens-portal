@@ -219,7 +219,9 @@ def handle_post(page: ContactPage, request: HttpRequest) -> HttpResponse:
         headers=headers,
     )
     try:
-        email.send(fail_silently=False)
+        # fail_silently defaults to False and the argument is removed in
+        # Django 7.0; the exception is what drives the EMAIL_SEND_ERROR path.
+        email.send()
     except Exception:  # noqa: BLE001 — backend failures must not leak to users.
         duration_ms = int((time.monotonic() - start) * 1000)
         LOGGER.error(
