@@ -4,6 +4,11 @@ Endpoints defined here are used across the system.
 """
 
 from django.http import HttpRequest, JsonResponse
+from django.views.decorators.http import require_http_methods
+
+from cms.services.ebi_index import build_index
+
+EBI_INDEX_CACHE_CONTROL = "public, max-age=3600"
 
 
 def healthz(_request: HttpRequest) -> JsonResponse:
@@ -21,3 +26,15 @@ def healthz(_request: HttpRequest) -> JsonResponse:
 
     """
     return JsonResponse({"status": "ok"})
+
+
+@require_http_methods(["GET", "HEAD"])
+def ebi_index(_request: HttpRequest) -> JsonResponse:
+    """Public EBI catalogue JSON for EMBL-EBI (`national-portals-sweden`).
+
+    Unauthenticated. GET and HEAD only. Body is built from Wagtail settings
+    and live dashboard pages with EBI panel values filled.
+    """
+    response = JsonResponse(build_index(), json_dumps_params={"ensure_ascii": False})
+    response["Cache-Control"] = EBI_INDEX_CACHE_CONTROL
+    return response

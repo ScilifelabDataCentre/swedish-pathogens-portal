@@ -25,12 +25,13 @@ from wagtail import urls as wagtail_urls
 from wagtail.admin import urls as wagtailadmin_urls
 
 # Local imports
-from core.views import healthz
+from core.views import ebi_index, healthz
 
 # not part of public scan - skipping namespace
 urlpatterns = [
     path(settings.ADMIN_URL, admin.site.urls, name="admin"),
     path("healthz/", healthz, name="healthz"),
+    path("ebi-index.json", ebi_index, name="ebi_index"),
 ]
 # Auto browser reload addition for local development
 if settings.DEBUG:
