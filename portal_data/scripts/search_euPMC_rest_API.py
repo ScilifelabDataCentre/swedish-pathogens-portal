@@ -33,7 +33,7 @@ BASE_URL = "https://www.ebi.ac.uk/europepmc/webservices/rest/search"
 BASE_FILTER = '((ACCESSION_TYPE:"metabolights") OR (LABS_PUBS:"1782"))'
 
 script_dir = Path(__file__).resolve().parent
-input_csv = script_dir  / "authors.csv"
+input_csv = script_dir / "authors.csv"
 
 
 def build_query(author_name: str) -> str:
