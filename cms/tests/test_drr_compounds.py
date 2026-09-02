@@ -2,15 +2,21 @@
 
 from __future__ import annotations
 
+import tempfile
+from pathlib import Path
+
 import polars as pl
 from django.test import SimpleTestCase
 
 from dashboard_visualisation.drr import (
     build_compound_index,
+    build_name_lookup,
+    load_compound_names,
+    name_lookup_report,
     normalize_cbkid,
     reconciliation_report,
 )
-from dashboard_visualisation.drr.loader import FeatureTable
+from dashboard_visualisation.drr.loader import NAME_LOOKUP_COLUMNS, FeatureTable
 
 # One metadata row per bare stem; a duplicate stem with a different name is
 # included to exercise deterministic deduplication.
@@ -20,6 +26,28 @@ METADATA = pl.DataFrame(
         "name": ["alpha", "beta", "beta-alt", "gamma"],
         "broad_moa": ["moaA", "moaB", "moaB", "moaC"],
         "broad_target": ["tgtA", "tgtB", "tgtB", "tgtC"],
+    }
+)
+
+# The name lookup's measured shape in miniature (FREYA-2628): treated compounds,
+# the negative-control id carrying its condition as a "name" under both control
+# perturbation types, and a bracketed positive control that does carry a real
+# compound name.
+NAME_LOOKUP = pl.DataFrame(
+    {
+        "cbkid": ["CBK008271", "CBK000155", "CBK281357", "CBK281357", "[flup]"],
+        "pert_iname": ["alpha-iname", "beta-iname", "DMSO", "non-inf", "Fluphenazine"],
+        "pert_type": ["trt", "trt", "negcon", "non-inf", "poscon"],
+    }
+)
+
+# One treated id carrying two names — the shape change the conflict count exists
+# to surface, rather than deduplicate away silently.
+CONFLICTING_LOOKUP = pl.DataFrame(
+    {
+        "cbkid": ["CBK000155", "CBK000155"],
+        "pert_iname": ["beta-iname", "beta-iname-alt"],
+        "pert_type": ["trt", "trt"],
     }
 )
 
@@ -158,3 +186,189 @@ class ReconciliationReportTests(SimpleTestCase):
         self.assertEqual(report["n_recovered"], 0)
         self.assertEqual(report["unmatched_cbkids"], ["CBK000155"])
         self.assertEqual(report["n_control_ids"], 1)
+
+
+class LoadCompoundNamesTests(SimpleTestCase):
+    """Reading the companion Arrow file as a three-column lookup (FREYA-2628)."""
+
+    def setUp(self) -> None:
+        """Provide a temporary directory for Arrow fixtures."""
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.base = Path(tmp.name)
+
+    def _write_ipc(self, frame: pl.DataFrame) -> Path:
+        """Write a frame as a compressed Arrow file, as the upstream file is."""
+        path = self.base / "lookup.feather"
+        frame.write_ipc(path, compression="zstd")
+        return path
+
+    def test_only_the_lookup_columns_are_read(self) -> None:
+        """Feature values are never read: three columns come back, whatever the file holds."""
+        path = self._write_ipc(
+            NAME_LOOKUP.with_columns(
+                pl.lit(1.0).alias("AreaShape_Area_nuclei"),
+                pl.lit(2.0).alias("Intensity_MeanIntensity_illumSYTO_cells"),
+            )
+        )
+
+        names = load_compound_names(path)
+
+        self.assertEqual(names.columns, NAME_LOOKUP_COLUMNS)
+        self.assertEqual(names.height, NAME_LOOKUP.height)
+
+    def test_missing_column_raises(self) -> None:
+        """A file without a lookup column fails loudly, naming what is missing."""
+        path = self._write_ipc(NAME_LOOKUP.drop("pert_type"))
+
+        with self.assertRaisesMessage(ValueError, "pert_type"):
+            load_compound_names(path)
+
+    def test_null_pert_type_raises(self) -> None:
+        """An unclassifiable row stops the run: nothing decides it but pert_type."""
+        path = self._write_ipc(
+            NAME_LOOKUP.with_columns(
+                pl.when(pl.col("cbkid") == "CBK008271")
+                .then(None)
+                .otherwise(pl.col("pert_type"))
+                .alias("pert_type")
+            )
+        )
+
+        with self.assertRaisesMessage(ValueError, "no 'pert_type'"):
+            load_compound_names(path)
+
+
+class BuildNameLookupTests(SimpleTestCase):
+    """Reducing the raw lookup to one compound name per cbkid (FREYA-2628)."""
+
+    def test_condition_rows_are_dropped_and_ids_are_unique(self) -> None:
+        """The negcon/non-inf rows go, leaving one row per remaining id."""
+        lookup = build_name_lookup(NAME_LOOKUP)
+
+        self.assertEqual(lookup.columns, ["cbkid", "pert_iname"])
+        self.assertEqual(lookup.height, lookup["cbkid"].n_unique())
+        self.assertNotIn("CBK281357", lookup["cbkid"].to_list())
+
+    def test_dedup_is_order_independent(self) -> None:
+        """A conflicting id resolves the same way whatever the input row order."""
+        forward = build_name_lookup(CONFLICTING_LOOKUP)
+        reversed_rows = build_name_lookup(CONFLICTING_LOOKUP.reverse())
+
+        self.assertEqual(forward.to_dicts(), reversed_rows.to_dicts())
+
+    def test_null_pert_type_is_not_a_condition_row(self) -> None:
+        """A row with no pert_type is neither dropped nor reported as excluded."""
+        names = pl.DataFrame(
+            {
+                "cbkid": ["CBK008271", "CBK281357"],
+                "pert_iname": ["alpha-iname", "DMSO"],
+                "pert_type": [None, "negcon"],
+            }
+        )
+
+        lookup = build_name_lookup(names)
+        report = name_lookup_report(
+            build_compound_index(_feature_table(["CBK008271"]), METADATA, names), names
+        )
+
+        self.assertEqual(lookup["cbkid"].to_list(), ["CBK008271"])
+        self.assertEqual(report["n_condition_rows_excluded"], 1)
+        self.assertEqual(report["n_named"], 1)
+
+
+class CompoundIndexNameLookupTests(SimpleTestCase):
+    """The pert_iname join into the compound index (FREYA-2628)."""
+
+    def test_name_column_is_appended_last(self) -> None:
+        """The lookup adds one column, at the end of the documented order."""
+        index = build_compound_index(_feature_table(["CBK008271"]), METADATA, NAME_LOOKUP)
+        self.assertEqual(index.columns, [*EXPECTED_INDEX_COLUMNS, "pert_iname"])
+
+    def test_column_absent_without_a_lookup(self) -> None:
+        """Omitting the lookup leaves the index exactly as it was."""
+        index = build_compound_index(_feature_table(["CBK008271"]), METADATA)
+        self.assertEqual(index.columns, EXPECTED_INDEX_COLUMNS)
+
+    def test_condition_ids_end_with_no_name(self) -> None:
+        """The negative-control id is left unnamed: DMSO/non-inf name a condition."""
+        index = build_compound_index(
+            _feature_table(["CBK281357", "CBK008271"]), METADATA, NAME_LOOKUP
+        )
+        self.assertIsNone(_row(index, "CBK281357")["pert_iname"])
+        self.assertEqual(_row(index, "CBK008271")["pert_iname"], "alpha-iname")
+
+    def test_bracketed_control_keeps_its_own_name(self) -> None:
+        """A bracketed positive control is named by the lookup, though it has no CBCS row."""
+        row = _row(
+            build_compound_index(_feature_table(["[flup]"]), METADATA, NAME_LOOKUP), "[flup]"
+        )
+        self.assertEqual(row["kind"], "control")
+        self.assertIsNone(row["name"])
+        self.assertEqual(row["pert_iname"], "Fluphenazine")
+
+    def test_id_absent_from_the_lookup_keeps_its_annotation(self) -> None:
+        """An unnamed id keeps an explicit null and its CBCS annotation."""
+        row = _row(
+            build_compound_index(_feature_table(["CBK011567"]), METADATA, NAME_LOOKUP),
+            "CBK011567",
+        )
+        self.assertEqual(row["name"], "gamma")
+        self.assertIsNone(row["pert_iname"])
+
+    def test_join_is_on_the_raw_cbkid(self) -> None:
+        """A salt variant inherits the CBCS annotation but not the base id's pert_iname."""
+        row = _row(
+            build_compound_index(_feature_table(["CBK008271G"]), METADATA, NAME_LOOKUP),
+            "CBK008271G",
+        )
+        self.assertEqual(row["name"], "alpha")
+        self.assertIsNone(row["pert_iname"])
+
+    def test_names_are_stable_across_runs(self) -> None:
+        """Two runs over the same lookup agree on every name, in any row order."""
+        table = _feature_table(["CBK008271", "CBK000155", "CBK281357", "[flup]"])
+        first = build_compound_index(table, METADATA, NAME_LOOKUP)
+        second = build_compound_index(table, METADATA, NAME_LOOKUP.reverse())
+
+        self.assertEqual(first["pert_iname"].to_list(), second["pert_iname"].to_list())
+
+
+class NameLookupReportTests(SimpleTestCase):
+    """The name_lookup block written into summary.json and the log (FREYA-2628)."""
+
+    def test_report_counts(self) -> None:
+        """Provenance, lookup size, named/unnamed rows and the excluded conditions."""
+        index = build_compound_index(
+            _feature_table(["CBK008271", "CBK281357", "CBK999999"]), METADATA, NAME_LOOKUP
+        )
+        report = name_lookup_report(
+            index, NAME_LOOKUP, source_filename="lookup.feather", source_hash="a" * 64
+        )
+
+        self.assertEqual(report["source"], "lookup.feather")
+        self.assertEqual(report["sha256"], "a" * 64)
+        self.assertEqual(report["n_lookup_ids"], 3)
+        self.assertEqual(report["n_named"], 1)
+        self.assertEqual(report["n_unnamed"], 2)
+        self.assertEqual(report["n_condition_rows_excluded"], 2)
+        self.assertEqual(report["n_conflicting_ids"], 0)
+
+    def test_conflicting_ids_are_counted(self) -> None:
+        """An id with two names is reported, not silently deduplicated."""
+        index = build_compound_index(_feature_table(["CBK000155"]), METADATA, CONFLICTING_LOOKUP)
+        report = name_lookup_report(index, CONFLICTING_LOOKUP)
+        self.assertEqual(report["n_conflicting_ids"], 1)
+
+    def test_report_without_a_lookup(self) -> None:
+        """With no lookup the block still exists, with a null source and no counts."""
+        index = build_compound_index(_feature_table(["CBK008271"]), METADATA)
+        report = name_lookup_report(index)
+
+        self.assertIsNone(report["source"])
+        self.assertIsNone(report["sha256"])
+        self.assertEqual(report["n_lookup_ids"], 0)
+        self.assertEqual(report["n_named"], 0)
+        self.assertEqual(report["n_unnamed"], 0)
+        self.assertEqual(report["n_condition_rows_excluded"], 0)
+        self.assertEqual(report["n_conflicting_ids"], 0)

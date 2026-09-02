@@ -84,6 +84,16 @@ METADATA_TSV = (
     "CBK2\tcompoundB\tnull\tnull\tcovid-repurpose/b.ome.zarr.zip\n"
 )
 
+# The name lookup in miniature (FREYA-2628): one treated compound the feature
+# table also holds, one negative control whose "name" is its condition and is
+# therefore excluded, and one lookup id absent from the feature table. CBK3 is
+# absent from the lookup, so it keeps a null name.
+NAME_LOOKUP_ROWS = {
+    "cbkid": ["CBK1", "CBK2", "CBK9"],
+    "pert_iname": ["remdesivir", "DMSO", "aloxistatin"],
+    "pert_type": ["trt", "negcon", "trt"],
+}
+
 EXPECTED_FIGURE_IDS = {"pca", "heatmap", "radar_compound", "radar_infected"}
 ARTEFACT_SUFFIXES = {".csv", ".parquet", ".json"}
 
@@ -111,6 +121,15 @@ class DrrPrecomputeTests(TestCase):
         self.metadata_path.write_text(METADATA_TSV, encoding="utf-8")
         self.media = self.base / "media"
         self.out_dir = self.media / "drr" / SLUG
+
+    def _write_names(self, names: list[str] | None = None) -> Path:
+        """Write the name lookup as a compressed Arrow file, as upstream ships it."""
+        rows = dict(NAME_LOOKUP_ROWS)
+        if names is not None:
+            rows["pert_iname"] = names
+        path = self.base / "names.feather"
+        pl.DataFrame(rows).write_ipc(path, compression="zstd")
+        return path
 
     def _write_incomplete_input(self) -> None:
         """Blank one ctrl row's AreaShape value, leaving a gap in the feature matrix."""
@@ -286,6 +305,77 @@ class DrrPrecomputeTests(TestCase):
         )
         self.assertEqual(compounds["cbkid_normalized"].to_list(), ["CBK1", "CBK2", "CBK3"])
         self.assertEqual(compounds["kind"].unique().to_list(), ["compound"])
+
+    def test_compound_names_are_joined_when_supplied(self) -> None:
+        """The lookup adds pert_iname last; conditions and absent ids stay null."""
+        self._run(compound_names=str(self._write_names()))
+        compounds = pl.read_parquet(self.out_dir / "compounds.parquet")
+
+        self.assertEqual(
+            compounds.columns,
+            [
+                "cbkid",
+                "cbkid_normalized",
+                "kind",
+                "n_profiles",
+                "name",
+                "broad_moa",
+                "broad_target",
+                "pert_iname",
+            ],
+        )
+        self.assertEqual(compounds["pert_iname"].to_list(), ["remdesivir", None, None])
+
+    def test_summary_has_name_lookup_block(self) -> None:
+        """The name_lookup counts describe the join the run actually made."""
+        names_path = self._write_names()
+        self._run(compound_names=str(names_path))
+        summary = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))
+        lookup = summary["name_lookup"]
+
+        self.assertEqual(lookup["source"], "names.feather")
+        self.assertEqual(len(lookup["sha256"]), 64)
+        self.assertEqual(lookup["n_lookup_ids"], 2)
+        self.assertEqual(lookup["n_named"], 1)
+        self.assertEqual(lookup["n_unnamed"], 2)
+        self.assertEqual(lookup["n_condition_rows_excluded"], 1)
+        self.assertEqual(lookup["n_conflicting_ids"], 0)
+
+    def test_without_compound_names_nothing_changes(self) -> None:
+        """Omitted, the flag leaves no name column and a null lookup source."""
+        self._run()
+        compounds = pl.read_parquet(self.out_dir / "compounds.parquet")
+        summary = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))
+
+        self.assertNotIn("pert_iname", compounds.columns)
+        self.assertIsNone(summary["name_lookup"]["source"])
+        self.assertIsNone(summary["name_lookup"]["sha256"])
+
+    def test_compound_names_never_reach_the_downloads(self) -> None:
+        """pert_iname is a compound-index column only: the feature artefacts keep their shape."""
+        self._run(compound_names=str(self._write_names()))
+
+        features = pl.read_parquet(self.out_dir / "features.parquet")
+        self.assertNotIn("pert_iname", features.columns)
+        header = (self.out_dir / "features.csv").read_text(encoding="utf-8").splitlines()[0]
+        self.assertNotIn("pert_iname", header)
+
+    def test_name_change_busts_snippet_hash_only(self) -> None:
+        """A names-only change folds into the snippet hash; summary keeps the feature digest."""
+        self._run(compound_names=str(self._write_names()))
+        first = DrrDatasetData.get_data(SLUG)
+        first_summary_sha = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))[
+            "source"
+        ]["sha256"]
+
+        self._run(compound_names=str(self._write_names(["remdesivir-alt", "DMSO", "aloxistatin"])))
+        second = DrrDatasetData.get_data(SLUG)
+        second_summary = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))
+
+        self.assertNotEqual(second.source_file_hash, first.source_file_hash)
+        self.assertEqual(second_summary["source"]["sha256"], first_summary_sha)
+        compounds = pl.read_parquet(self.out_dir / "compounds.parquet")
+        self.assertEqual(compounds["pert_iname"].to_list(), ["remdesivir-alt", None, None])
 
     def test_summary_has_reconciliation_block(self) -> None:
         """The summary carries the cbkid reconciliation report for editors."""

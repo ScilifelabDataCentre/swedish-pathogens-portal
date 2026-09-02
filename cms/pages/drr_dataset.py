@@ -6,6 +6,7 @@ import re
 from typing import TYPE_CHECKING, Any
 
 import polars as pl
+import structlog
 from django.db import models
 from django.http import FileResponse, Http404, HttpRequest, HttpResponse, HttpResponseRedirect
 from django.utils.functional import cached_property
@@ -21,10 +22,17 @@ if TYPE_CHECKING:
 
     from cms.snippets.drr_dataset_data import DrrDatasetData
 
+LOGGER = structlog.get_logger(__name__)
+
 # Everything outside this set is dropped from a download's filename. Compound
 # ids are not restricted to it — control placeholders such as ``[stau]`` are
 # legitimate ``cbkid`` values — so this sanitises the header only.
 _UNSAFE_FILENAME_CHARS = re.compile(r"[^A-Za-z0-9._-]")
+
+# The compound-index columns the picker labels from. ``name`` and ``kind`` are
+# read when present rather than required: an index built without CBCS metadata
+# carries neither, and the picker still has to offer every downloadable id.
+_COMPOUND_OPTION_COLUMNS = ("cbkid", "name", "kind")
 
 
 class DrrDatasetPage(RoutablePageMixin, DashboardPage):
@@ -89,13 +97,20 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
         return DrrDatasetData.get_data(self.slug)
 
     def get_context(self, request: HttpRequest) -> dict[str, Any]:
-        """Add the DRR summary-statistics payload and the download URLs."""
+        """Add the DRR summary payload, the download URLs and the compound picker."""
         context = super().get_context(request)
         context["summary"] = getattr(self.dashboard_data, "summary", {})
 
         download_urls = self._download_urls()
         if download_urls:
             context["download_urls"] = download_urls
+
+        # The picker exists to submit to the per-compound slice, so it is
+        # withheld unless that route can serve — otherwise every option 404s.
+        if "compound_base" in download_urls:
+            compounds = self._compound_options()
+            if compounds:
+                context["compounds"] = compounds
 
         return context
 
@@ -133,7 +148,7 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
         }
 
         # The per-compound slice filters the Parquet table, so it is offered
-        # whenever that exists. FREYA-2583 adds the picker that submits to it.
+        # whenever that exists, and the compound picker submits to it.
         if (artefacts / "features.parquet").is_file():
             urls["compound_base"] = page_url + self.reverse_subpage("download_compound")
 
@@ -144,6 +159,73 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
             urls["raw_images"] = page_url + self.reverse_subpage("raw_images")
 
         return urls
+
+    def _compound_options(self) -> list[dict[str, str]]:
+        """List every precomputed compound as an option for the picker.
+
+        Reads ``compounds.parquet``, the index precompute builds by grouping the
+        feature table, so the option set is exactly the set of ``cbkid`` values
+        the per-compound slice can serve: no option 404s and no compound is
+        hidden behind one. Nothing is dropped — the compounds the CBCS join left
+        unannotated keep their bare id, and control placeholders keep theirs.
+
+        Every unreadable index yields no options rather than an exception: this
+        read happens on each page view, precompute writes the file in place, and
+        the picker is an enhancement of a page whose header, figures and bulk
+        downloads must survive a half-written or truncated generation. That is
+        the same failure posture the figures already take.
+
+        Returns:
+            list[dict[str, str]]: ``cbkid`` / ``label`` pairs, compounds before
+                controls and then by label; empty when no index is readable.
+        """
+        index = self._artefact_dir() / "compounds.parquet"
+        if not index.is_file():
+            return []
+
+        try:
+            present = pl.scan_parquet(index).collect_schema().names()
+            if "cbkid" not in present:
+                LOGGER.warning("drr.compounds.index_has_no_cbkid", path=str(index))
+                return []
+
+            columns = [column for column in _COMPOUND_OPTION_COLUMNS if column in present]
+            rows = pl.read_parquet(index, columns=columns).to_dicts()
+        except (OSError, pl.exceptions.PolarsError) as error:
+            LOGGER.warning("drr.compounds.index_unreadable", path=str(index), error=str(error))
+            return []
+
+        # A null id is dropped rather than labelled: it names no downloadable
+        # compound, and mixing None into the sort key would raise instead.
+        options = sorted(
+            (
+                (row.get("kind") == "control", self._compound_label(row), row["cbkid"])
+                for row in rows
+                if isinstance(row.get("cbkid"), str) and row["cbkid"].strip()
+            ),
+            key=lambda option: (option[0], option[1].casefold(), option[2]),
+        )
+        return [{"cbkid": cbkid, "label": label} for _, label, cbkid in options]
+
+    @staticmethod
+    def _compound_label(row: dict[str, Any]) -> str:
+        """Return one compound's picker label.
+
+        Args:
+            row: A ``compounds.parquet`` row: ``cbkid``, plus ``name`` and
+                ``kind`` when the index carries them.
+
+        Returns:
+            str: ``<name> (<cbkid>)`` once the CBCS join annotated the compound,
+                ``<cbkid> (control)`` for a non-CBCS control id, and the bare
+                ``cbkid`` for a compound the join did not annotate.
+        """
+        cbkid = row["cbkid"]
+        if row.get("kind") == "control":
+            return f"{cbkid} (control)"
+
+        name = row.get("name")
+        return f"{name} ({cbkid})" if name and str(name).strip() else cbkid
 
     def _serve_artefact(self, request: HttpRequest, filename: str) -> FileResponse:
         """Serve one derived artefact from this dataset's directory.

@@ -21,13 +21,19 @@ from cms.tests.utils import create_test_image, use_temp_media_root
 # bracketed control placeholder, mirroring the real ``cbkid`` shapes documented
 # in ``dashboard_visualisation/drr/compounds.py``. The routes are
 # column-agnostic, so pinning the real ~1,468-column set would only make these
-# tests brittle when the feather input adds ``pert_iname`` (draft R9).
+# tests brittle for no gain. The companion feather does not widen the table:
+# FREYA-2628 reads it as a compound-name lookup into ``compounds.parquet``, and
+# ``pert_iname`` never enters the feature artefacts.
 FEATURE_ROWS = {
     "cbkid": ["CBK1", "CBK1", "CBK2", "[stau]"],
     "Metadata_Barcode": ["P1", "P1", "P2", "P2"],
     "Metadata_Well": ["A01", "A02", "B01", "B02"],
     "AreaShape_Area_nuclei": [1.0, 1.2, 0.9, 1.5],
 }
+
+# The CBCS annotation the compound index carries for the fixture's ids; anything
+# absent here reaches the picker as a bare ``cbkid`` (FREYA-2583).
+COMPOUND_NAMES = {"CBK1": "remdesivir"}
 
 
 class DrrDownloadRouteTestCase(DrrDatasetPageTestCase):
@@ -71,6 +77,29 @@ class DrrDownloadRouteTestCase(DrrDatasetPageTestCase):
         frame = pl.DataFrame({**FEATURE_ROWS, **extra_columns})
         frame.write_csv(self.artefacts / "features.csv")
         frame.write_parquet(self.artefacts / "features.parquet")
+        return frame
+
+    def write_compound_index(self) -> pl.DataFrame:
+        """Write the ``compounds.parquet`` index the on-page picker reads.
+
+        Derived from ``FEATURE_ROWS`` the way precompute derives it from the
+        feature table — one row per distinct ``cbkid``, non-CBCS tokens
+        classified as controls — so a test can never offer an option the slice
+        cannot serve. ``CBK2`` is left unannotated deliberately: 165 of the real
+        816 compounds are.
+
+        Returns:
+            pl.DataFrame: The index that was written.
+        """
+        cbkids = sorted(set(FEATURE_ROWS["cbkid"]))
+        frame = pl.DataFrame(
+            {
+                "cbkid": cbkids,
+                "kind": ["compound" if cbkid.startswith("CBK") else "control" for cbkid in cbkids],
+                "name": [COMPOUND_NAMES.get(cbkid) for cbkid in cbkids],
+            }
+        )
+        frame.write_parquet(self.artefacts / "compounds.parquet")
         return frame
 
     def download(self, relative_url: str) -> object:
