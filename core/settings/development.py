@@ -61,9 +61,3 @@ CONTACT_RECIPIENT_EMAIL = env(
     default="dev-null@example.org",
 )
 EMAIL_TIMEOUT = env.int("EMAIL_TIMEOUT", default=10)
-
-# LOGGING (Development defaults)
-# ------------------------------------------------------------------------------
-# Create log directory if it doesn't exist
-
-LOG_DIR.mkdir(parents=True, exist_ok=True)  # noqa: F405

@@ -10,6 +10,7 @@ For a full list of settings and their values, see:
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+import sys
 from pathlib import Path
 
 import environ
@@ -186,10 +187,11 @@ WAGTAILIMAGES_FORMAT_CONVERSIONS = {
 # https://django-structlog.readthedocs.io/
 #
 # Usage in app code (module level logger):
-#   LOGGER = structlog.get_logger(__name__)
-#   LOGGER.info("Example of an info level log")
-
-LOG_DIR = Path(env("LOG_DIR", default=BASE_DIR / "logs"))
+#     LOGGER = structlog.get_logger(__name__)
+#     LOGGER.error("api_client.fetch_timeout", url=url, error=str(e), exc_info=False)
+#
+# Note that as these are JSON/structured logs, we aim to pass data as key-value pairs,
+# rather than a long string message.
 
 LOGGING = {
     # --------------------------------------------------------------------------------------------
@@ -211,6 +213,8 @@ LOGGING = {
     #   Without it: different formats for structlog and django/lib logs
     # - ConsoleRenderer produces structured logs as easily readable for console
     # - JSONRenderer produces structured logs as JSON
+    # - foreign_pre_chain enriches JSON records from plain stdlib logging calls (e.g. Django's)
+    #   with the same logger/level/timestamp fields structlog's own records already have.
     # --------------------------------------------------------------------------------------------
     "formatters": {
         "plain_console": {
@@ -220,34 +224,24 @@ LOGGING = {
         "json_formatter": {
             "()": structlog.stdlib.ProcessorFormatter,
             "processor": structlog.processors.JSONRenderer(),
+            "foreign_pre_chain": [
+                structlog.stdlib.add_logger_name,
+                structlog.stdlib.add_log_level,
+                structlog.processors.TimeStamper(fmt="iso"),
+            ],
         },
     },
     # --------------------------------------------------------------------------------------------
     # Handlers
     #
-    # Define what happens to the log messages
-    # This config defines two handlers: one to output to console and one to write
-    # to a JSON file.
-    #
-    # - StreamHandler writes logs to stdout
-    # - TimedRotatingFileHandler writes logs to a file
-    #     > New file created every (interval 1) Monday (W0)
-    #     > Total 11 files kept: 10 old (backupCount 10) and current
-    #     > Delay=False means file is opened immediately, not on first write
+    # All messages are written to stdout only, we do not write any log files (see https://12factor.net/logs).
+    # The formatter can differ per environment but defaults to plain_console for local development.
     # --------------------------------------------------------------------------------------------
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
             "formatter": "plain_console",
-        },
-        "json_file": {
-            "class": "logging.handlers.TimedRotatingFileHandler",
-            "formatter": "json_formatter",
-            "filename": str(LOG_DIR / "spp_structlog.jsonl"),
-            "when": "W0",
-            "interval": 1,
-            "backupCount": 10,
-            "delay": False,
+            "stream": sys.stdout,
         },
     },
     # --------------------------------------------------------------------------------------------
@@ -257,20 +251,17 @@ LOGGING = {
     #
     # - The "root" logger is the default logger (entire application)
     #     > Placement of root key is required - inside loggers key not allowed
-    # - django_structlog and werkzeug loggers are used by the packages called
-    #   exactly that
-    # - propagate set as False to prevent logs from being passed to parent loggers
-    # - werkzeug logger produces access logs
-    #     > only uses the console handler to avoid excessive logging and duplicates
-    #     > propagate being False avoids werkzeug logs also going to root (--> json file)
+    # - Setting Non-root loggers to propagate=False to prevent logs being passed to parent loggers
+    # - django_structlog and werkzeug loggers are used by the packages called exactly that
+    # - werkzeug logger produces access logs (in local development)
     # --------------------------------------------------------------------------------------------
     "root": {
-        "handlers": ["console", "json_file"],
+        "handlers": ["console"],
         "level": "INFO",
     },
     "loggers": {
         "django_structlog": {
-            "handlers": ["console", "json_file"],
+            "handlers": ["console"],
             "level": "INFO",
             "propagate": False,
         },

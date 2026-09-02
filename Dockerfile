@@ -178,9 +178,6 @@ RUN groupadd --system --gid 800 app \
 # Working directory
 WORKDIR /app
 
-# Ensure logs directory exists and is writable
-RUN mkdir -p /app/logs && chown app:app /app/logs
-
 # Copy pre-built virtual environment from build stage
 COPY --from=build --chown=app:app /app/.venv /app/.venv
 

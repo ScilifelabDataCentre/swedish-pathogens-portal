@@ -102,3 +102,13 @@ EMAIL_USE_TLS = env.bool("EMAIL_USE_TLS", default=True)
 EMAIL_HOST_USER = env("EMAIL_HOST_USER", default="")
 EMAIL_HOST_PASSWORD = env("EMAIL_HOST_PASSWORD", default="")
 EMAIL_TIMEOUT = env.int("EMAIL_TIMEOUT", default=10)
+
+# LOGGING
+# REVIEW: Currently logs are not aggregated, only written to stdout.
+# We write to stdout using the plain_console formatter.
+# When ready, we can uncomment out the below line and switch to json_formatter in production
+# NOTE: prod-entrypoint.sh sets '--access-logfile -', which writes non JSON format logs to STDOUT.
+# This either needs to be removed or configured seperately
+# to ensure all logs are written in JSON format to STDOUT.
+# https://gunicorn.org/guides/docker/?h=json#logging
+# LOGGING["handlers"]["console"]["formatter"] = "json_formatter"  # noqa: F405
