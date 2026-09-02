@@ -1,9 +1,25 @@
 #!/bin/sh
 set -eu
 
+# Usage:
+#   ./fetch_metabolights.sh [TARGETS_FILE] [DEST_ROOT]
+#
+# Mirrors the MetaboLights study directories listed in TARGETS_FILE (as
+# produced by search_euPMC_rest_API.py) from the EBI FTP server into
+# DEST_ROOT, using lftp for resumable mirroring.
+#
+#   TARGETS_FILE  Lines of "FLAG REMOTE_PATH [LOCAL_PATH]". LOCAL_PATH, if
+#                 present, is ignored -- DEST_ROOT below always decides
+#                 where studies land. Defaults to targets.txt next to this
+#                 script.
+#   DEST_ROOT     Local directory to mirror studies into. Defaults to a
+#                 "datasets" directory next to this script (so it can be
+#                 .gitignored and the script can be run from anywhere).
+
 BASE_HOST="ftp.ebi.ac.uk"
-TARGETS_FILE="targets.txt"
-DEST_ROOT="/datasets"
+SCRIPT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+TARGETS_FILE="${1:-$SCRIPT_DIR/targets.txt}"
+DEST_ROOT="${2:-$SCRIPT_DIR/datasets}"
 
 echo "Using targets file: $TARGETS_FILE"
 echo "Destination root:   $DEST_ROOT"

@@ -1,4 +1,24 @@
-"""Search Europe PMC for publications associated with MetaboLights."""
+"""Search Europe PMC for publications associated with MetaboLights.
+
+Usage:
+    python search_euPMC_rest_API.py
+
+Expects, in the same directory as this script:
+    authors.csv
+        CSV with an "author" column listing author names to search for.
+    pathogen_infectious_disease_keywords_just_keywords.csv
+        One keyword per line, used to filter results by title/abstract
+        content.
+
+Writes, to the current working directory:
+    europepmc_metabolights_papers.csv   One row per matched paper.
+    europepmc_metabolights_summary.csv  One row per author, with match counts.
+    targets.txt                         lftp mirror targets for any
+                                         MetaboLights accessions found.
+                                         Consumed by fetch_metabolights.sh,
+                                         which controls the local download
+                                         location.
+"""
 
 from __future__ import annotations
 
@@ -11,6 +31,9 @@ import requests
 
 BASE_URL = "https://www.ebi.ac.uk/europepmc/webservices/rest/search"
 BASE_FILTER = '((ACCESSION_TYPE:"metabolights") OR (LABS_PUBS:"1782"))'
+
+script_dir = Path(__file__).resolve().parent
+input_csv = script_dir  / "authors.csv"
 
 
 def build_query(author_name: str) -> str:
@@ -64,7 +87,6 @@ def safe_get(record: dict, key: str) -> str:
 
 
 METABOLIGHTS_FTP_BASE = "/pub/databases/metabolights/studies/public"
-METABOLIGHTS_LOCAL_BASE = "~/Downloads/MTBLS_data"
 
 
 def extract_metabolights_accessions(paper: dict) -> list[str]:
@@ -81,10 +103,13 @@ def extract_metabolights_accessions(paper: dict) -> list[str]:
 
 
 def format_lftp_target(accession: str) -> str:
-    """Format a single MTBLS accession as an lftp mirror target line."""
-    return (
-        f"--recursive {METABOLIGHTS_FTP_BASE}/{accession}/ {METABOLIGHTS_LOCAL_BASE}/{accession}/"
-    )
+    """Format a single MTBLS accession as an lftp mirror target line.
+
+    Only the remote path is included; fetch_metabolights.sh decides the
+    local download location (via its DEST_ROOT), so no local path is
+    written here.
+    """
+    return f"--recursive {METABOLIGHTS_FTP_BASE}/{accession}/"
 
 
 ANNOTATIONS_API_URL = "https://www.ebi.ac.uk/europepmc/annotations_api/annotationsByArticleIds"

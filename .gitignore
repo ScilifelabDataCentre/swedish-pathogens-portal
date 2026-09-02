@@ -75,3 +75,9 @@ Thumbs.db
 
 #Portal data override
 docker-compose.override.yaml
+
+# Article finding files
+europepmc_metabolights_papers.csv
+europepmc_metabolights_summary.csv
+
+
