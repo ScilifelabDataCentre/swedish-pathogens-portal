@@ -14,7 +14,7 @@ INCLUDE_DJANGO_ADMIN = env.bool("INCLUDE_DJANGO_ADMIN", default=False)
 
 if INCLUDE_DJANGO_ADMIN:
     # Required to set DJANGO_ADMIN_URL if INCLUDE_DJANGO_ADMIN is True.
-    DJANGO_ADMIN_URL = env("ADMIN_URL").rstrip("/") + "/"
+    DJANGO_ADMIN_URL = env("DJANGO_ADMIN_URL").rstrip("/") + "/"
 # ADMINS = [(Full name, email address)]
 # MANAGERS = ADMINS
 

@@ -8,15 +8,6 @@ from .base import env
 
 DEBUG = True
 
-INCLUDE_DJANGO_ADMIN = True
-DJANGO_ADMIN_URL = "admin/"
-
-# WAGTAIL (Development)
-# ------------------------------------------------------------------------------
-WAGTAIL_SITE_NAME = "Swedish Pathogens Portal (Dev)"
-WAGTAILADMIN_URL = "wagtail/"
-WAGTAILADMIN_BASE_URL = "http://localhost:8000"
-
 
 # DEVELOPMENT APPS
 # ------------------------------------------------------------------------------
