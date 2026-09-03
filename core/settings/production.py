@@ -21,7 +21,6 @@ if INCLUDE_DJANGO_ADMIN:
 
 # WAGTAIL (Production)
 # ------------------------------------------------------------------------------
-WAGTAIL_SITE_NAME = "Swedish Pathogens Portal"
 WAGTAILADMIN_URL = env("WAGTAILADMIN_URL").rstrip("/") + "/"
 WAGTAILADMIN_BASE_URL = env("WAGTAILADMIN_BASE_URL").rstrip("/")
 
