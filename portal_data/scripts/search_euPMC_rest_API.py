@@ -191,7 +191,9 @@ def flatten_paper(
     }
 
 
-def read_authors_from_publications_csv(input_csv: str, authors_column: str = "Authors") -> list[str]:
+def read_authors_from_publications_csv(
+    input_csv: str, authors_column: str = "Authors"
+) -> list[str]:
     """Read unique, non-empty author names out of a publications CSV file.
 
     Each row's `authors_column` holds a comma-separated list of authors in
