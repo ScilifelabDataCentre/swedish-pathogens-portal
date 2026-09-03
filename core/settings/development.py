@@ -8,7 +8,8 @@ from .base import env
 
 DEBUG = True
 
-ADMIN_URL = "admin/"
+INCLUDE_DJANGO_ADMIN = True
+DJANGO_ADMIN_URL = "admin/"
 
 # WAGTAIL (Development)
 # ------------------------------------------------------------------------------

@@ -28,11 +28,20 @@ from wagtail.contrib.sitemaps.views import sitemap
 # Local imports
 from core.views import healthz
 
-# not part of public scan - skipping namespace
-urlpatterns = [
-    path(settings.ADMIN_URL, admin.site.urls, name="admin"),
+urlpatterns = []
+
+# Include Django admin URLs if enabled in settings.
+if settings.INCLUDE_DJANGO_ADMIN:
+    urlpatterns += [
+        path(settings.DJANGO_ADMIN_URL, admin.site.urls),
+    ]
+
+# General URLs for health checks and sitemap.
+urlpatterns += [
     path("healthz/", healthz, name="healthz"),
+    path("sitemap.xml", sitemap, name="sitemap"),
 ]
+
 # Auto browser reload addition for local development
 if settings.DEBUG:
     urlpatterns += [
@@ -41,9 +50,9 @@ if settings.DEBUG:
     # Serve media files in development
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
+# Wagtail admin and CMS URLs
 urlpatterns += [
     path(settings.WAGTAILADMIN_URL, include(wagtailadmin_urls)),
-    path("sitemap.xml", sitemap),
     path("cms/", include("cms.urls")),
     # Any URL that was not matched by an explicit URL above are tried and handled by Wagtail.
     # Wagtail raises 404, if it couldn't find a Page or Route handler for the URL
