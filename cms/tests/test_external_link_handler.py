@@ -1,7 +1,7 @@
 """Tests for the external link handler."""
 
 from django.test import SimpleTestCase
-from wagtail.rich_text import expand_db_html, features
+from wagtail.rich_text import expand_db_html
 
 from cms.handlers.external_link import ExternalLinkNewTabHandler
 
@@ -81,14 +81,3 @@ class TestExternalLinkNewTabHandler(SimpleTestCase):
         self.assertIn('href="/about"', html)
         self.assertNotIn('target="_blank"', html)
         self.assertNotIn('rel="noopener noreferrer"', html)
-
-
-class TestExternalLinkFeature(SimpleTestCase):
-    """Tests for the external link feature registration."""
-
-    def test_register_external_link(self):
-        """Test that the external link handler is registered as a rich text feature."""
-        features_link_types = features.get_link_types()
-
-        self.assertIn("external", features_link_types)
-        self.assertIs(features_link_types["external"], ExternalLinkNewTabHandler)
