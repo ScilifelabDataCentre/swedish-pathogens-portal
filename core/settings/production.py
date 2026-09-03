@@ -114,10 +114,11 @@ MAILERS = {
 # at settings load rather than at the first send. The relay rejects any From:
 # outside the Workspace domain, so this must be an @scilifelab.se address.
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL")
-CONTACT_RECIPIENT_EMAIL = env(
-    "CONTACT_RECIPIENT_EMAIL",
-    default="pathogens@scilifelab.se",
-)
+# Required, no default: where contact-form submissions are delivered. Read with
+# no fallback so a deployment that forgets it fails at settings load instead of
+# silently mailing the live pathogens@scilifelab.se inbox (staging points this
+# at a test recipient). The deployment secret MUST define it.
+CONTACT_RECIPIENT_EMAIL = env("CONTACT_RECIPIENT_EMAIL")
 
 # LOGGING
 # REVIEW: Currently logs are not aggregated, only written to stdout.
