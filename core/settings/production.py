@@ -10,14 +10,17 @@ DEBUG = False
 
 # ADMIN
 # ------------------------------------------------------------------------------
-ADMIN_URL = env("ADMIN_URL").rstrip("/") + "/"
+INCLUDE_DJANGO_ADMIN = env.bool("INCLUDE_DJANGO_ADMIN", default=False)
+
+if INCLUDE_DJANGO_ADMIN:
+    # Required to set DJANGO_ADMIN_URL if INCLUDE_DJANGO_ADMIN is True.
+    DJANGO_ADMIN_URL = env("DJANGO_ADMIN_URL").rstrip("/") + "/"
 # ADMINS = [(Full name, email address)]
 # MANAGERS = ADMINS
 
 
 # WAGTAIL (Production)
 # ------------------------------------------------------------------------------
-WAGTAIL_SITE_NAME = "Swedish Pathogens Portal"
 WAGTAILADMIN_URL = env("WAGTAILADMIN_URL").rstrip("/") + "/"
 WAGTAILADMIN_BASE_URL = env("WAGTAILADMIN_BASE_URL").rstrip("/")
 

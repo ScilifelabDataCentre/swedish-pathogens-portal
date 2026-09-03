@@ -8,14 +8,13 @@ from .base import env
 
 DEBUG = True
 
-ADMIN_URL = "admin/"
+# Include Django Admin in development environment
+INCLUDE_DJANGO_ADMIN = True
 
-# WAGTAIL (Development)
+# Development settings for Wagtail.
 # ------------------------------------------------------------------------------
 WAGTAIL_SITE_NAME = "Swedish Pathogens Portal (Dev)"
-WAGTAILADMIN_URL = "wagtail/"
 WAGTAILADMIN_BASE_URL = "http://localhost:8000"
-
 
 # DEVELOPMENT APPS
 # ------------------------------------------------------------------------------

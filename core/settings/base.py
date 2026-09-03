@@ -37,6 +37,18 @@ USE_I18N = True
 USE_TZ = True
 
 
+# Base Django admin settings, can be overridden in environment-specific settings files.
+# ------------------------------------------------------------------------------
+INCLUDE_DJANGO_ADMIN = False
+DJANGO_ADMIN_URL = "admin/"
+
+
+# Base WAGTAIL settings, can be overridden in environment-specific settings files.
+# ------------------------------------------------------------------------------
+WAGTAIL_SITE_NAME = "Swedish Pathogens Portal"
+WAGTAILADMIN_URL = "wagtail/"
+
+
 # APPS (https://docs.djangoproject.com/en/5.2/ref/settings/#installed-apps)
 # ------------------------------------------------------------------------------
 DJANGO_APPS = [
