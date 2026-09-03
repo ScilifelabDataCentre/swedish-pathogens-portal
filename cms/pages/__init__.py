@@ -3,6 +3,7 @@
 from .available_data import AvailableDataPage
 from .basic_page import BasicPage
 from .catalogue import CataloguePage
+from .contact import ContactPage
 from .dashboard import DashboardEbiPathogen, DashboardPage, DashboardTopic
 from .dashboard_index import DashboardIndexPage
 from .drr_dataset import DrrDatasetPage
@@ -30,6 +31,7 @@ __all__ = [
     "AvailableDataPage",
     "BasicPage",
     "CataloguePage",
+    "ContactPage",
     "DashboardEbiPathogen",
     "DashboardIndexPage",
     "DashboardPage",

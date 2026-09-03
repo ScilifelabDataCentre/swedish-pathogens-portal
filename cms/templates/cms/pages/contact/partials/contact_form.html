@@ -1,0 +1,107 @@
+{% comment %}
+    ContactPage's "contact_form" StaticBlock template.
+
+    Rendered inside {% include_block page.content %}, so it receives the page
+    render context (form, signed_ts, dsc_token, csrf_token, messages) via
+    include_block's parent-context pass-through. Never rendered on its own.
+{% endcomment %}
+
+<div class="max-w-2xl">
+
+  {# Success and error flash messages #}
+  {% if messages %}
+    <div role="status" aria-live="polite" class="mb-6 space-y-3">
+      {% for message in messages %}
+        <div class="alert {% if message.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">
+          <span>{{ message }}</span>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {# Error summary (non-field errors include the EMAIL_SEND_ERROR generic message) #}
+  {% if form.non_field_errors or form.errors %}
+    <div role="alert" aria-live="assertive" class="alert alert-error mb-6">
+      {% if form.non_field_errors %}
+        <span>{{ form.non_field_errors }}</span>
+      {% else %}
+        <span class="font-medium">We couldn't submit the form. Please check the fields below.</span>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  <form method="post" action="" novalidate class="space-y-6">
+    {% csrf_token %}
+
+    {# Hidden anti-spam fields #}
+    {{ form.website }}
+    {{ form.contact_ts }}
+    {{ form.contact_dsc }}
+
+    <div>
+      <label for="id_name" class="label">
+        <span class="font-medium text-base-content">Name <span class="text-error">*</span></span>
+      </label>
+      <input type="text" name="name" id="id_name" value="{{ form.name.value|default_if_none:'' }}"
+             class="input w-full{% if form.name.errors %} input-error{% endif %}"
+             {% if form.name.errors %}aria-invalid="true" aria-describedby="id_name_error" autofocus{% endif %}
+             minlength="2" maxlength="100" required>
+      {% if form.name.errors %}
+        <p id="id_name_error" class="mt-1 text-sm text-error">{{ form.name.errors.0 }}</p>
+      {% endif %}
+    </div>
+
+    <div>
+      <label for="id_email" class="label">
+        <span class="font-medium text-base-content">Email <span class="text-error">*</span></span>
+      </label>
+      <input type="email" name="email" id="id_email" value="{{ form.email.value|default_if_none:'' }}"
+             class="input w-full{% if form.email.errors %} input-error{% endif %}"
+             {% if form.email.errors %}aria-invalid="true" aria-describedby="id_email_error" autofocus{% endif %} required>
+      {% if form.email.errors %}
+        <p id="id_email_error" class="mt-1 text-sm text-error">{{ form.email.errors.0 }}</p>
+      {% endif %}
+    </div>
+
+    <div>
+      <fieldset class="fieldset">
+        <legend class="fieldset-legend">What kind of a question or suggestion do you have?
+          <span class="text-error">*</span></legend>
+        <div class="mt-1 space-y-1">
+          {% for checkbox in form.category %}
+          <label class="label cursor-pointer justify-start gap-3 py-1">
+            {{ checkbox.tag }}
+            <span class="text-base-content">{{ checkbox.choice_label }}</span>
+          </label>
+          {% endfor %}
+        </div>
+      </fieldset>
+      {% if form.category.errors %}
+        <p class="mt-1 text-sm text-error">{{ form.category.errors.0 }}</p>
+      {% endif %}
+      <p class="mt-1 text-sm text-base-content/70">You can ask a question or suggest one or more items using this
+        form.</p>
+    </div>
+
+    <div>
+      <label for="id_message" class="label">
+        <span class="font-medium text-base-content">Message <span class="text-error">*</span></span>
+      </label>
+      <textarea name="message" id="id_message"
+                class="textarea w-full min-h-40{% if form.message.errors %} textarea-error{% endif %}"
+                {% if form.message.errors %}aria-invalid="true" aria-describedby="id_message_error" autofocus{% endif %}
+                required minlength="20" maxlength="5000">{{ form.message.value|default_if_none:'' }}</textarea>
+      {% if form.message.errors %}
+        <p id="id_message_error" class="mt-1 text-sm text-error">{{ form.message.errors.0 }}</p>
+      {% endif %}
+      <p class="mt-1 text-sm text-base-content/70">Please describe what you need help with (e.g., sharing your own
+        dataset) or provide link(s) and/or DOI(s) to your suggested dataset, project, publication, preprint, etc. and
+        anything else that we should know.</p>
+    </div>
+
+    <div>
+      <button type="submit" class="btn btn-primary">Send message</button>
+    </div>
+  </form>
+
+</div>

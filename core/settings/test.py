@@ -30,3 +30,13 @@ WAGTAILADMIN_URL = "wagtail/"
 WAGTAILADMIN_BASE_URL = "http://localhost:8000"
 
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
+
+# EMAIL
+# ------------------------------------------------------------------------------
+# base.py defines no mail configuration, so declare it here rather than leaving
+# tests to inherit Django's smtp default. setup_test_environment() rewrites
+# every MAILERS alias to locmem anyway; naming it explicitly keeps the module
+# free of deprecated EMAIL_* names and makes the intent readable.
+MAILERS = {
+    "default": {"BACKEND": "django.core.mail.backends.locmem.EmailBackend"},
+}

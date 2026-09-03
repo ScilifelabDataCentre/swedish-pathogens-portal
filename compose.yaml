@@ -33,6 +33,11 @@ services:
       - .env
     environment:
       - DATABASE_URL=psql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_PORT}/${POSTGRES_DB}
+      # Send mail to the mailpit service by default. Set here, not in
+      # development.py, which is shared with devbox where the host is 127.0.0.1.
+      # ${EMAIL_HOST:-mailpit} still lets .env override (environment: beats
+      # env_file:). With mailpit's profile off, sends fail gracefully.
+      - EMAIL_HOST=${EMAIL_HOST:-mailpit}
     ports:
       - "8000:8000"
     working_dir: /app/local
@@ -83,6 +88,23 @@ services:
       - type: bind
         source: ./
         target: /app/local
+  # Dev SMTP catcher — opt-in: `docker compose --profile mailpit up`.
+  # Catches outbound mail at http://localhost:8025/ (SMTP on 1025). The web
+  # service targets this host by default (EMAIL_HOST above); with the profile
+  # off, sends fail gracefully (EMAIL_SEND_ERROR), no crash.
+  mailpit:
+    image: axllent/mailpit:v1.30
+    container_name: spp_mailpit
+    profiles:
+      - "mailpit"
+    ports:
+      - "1025:1025"   # SMTP
+      - "8025:8025"   # Web UI
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:8025/"]
+      interval: 5s
+      timeout: 2s
+      retries: 5
 # Persistant volume for DB
 volumes:
   postgres_db:
