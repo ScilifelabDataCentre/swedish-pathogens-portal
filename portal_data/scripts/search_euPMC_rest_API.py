@@ -4,8 +4,11 @@ Usage:
     python search_euPMC_rest_API.py
 
 Expects, in the same directory as this script:
-    authors.csv
-        CSV with an "author" column listing author names to search for.
+    publications.csv
+        CSV with an "Authors" column per publication, holding a
+        comma-separated list of authors in "Lastname Initials" form
+        (e.g. "Keller T, Etana A, Bosch Y"). Unique author names are
+        extracted across all rows and searched individually.
     pathogen_infectious_disease_keywords_just_keywords.csv
         One keyword per line, used to filter results by title/abstract
         content.
@@ -31,9 +34,6 @@ import requests
 
 BASE_URL = "https://www.ebi.ac.uk/europepmc/webservices/rest/search"
 BASE_FILTER = '((ACCESSION_TYPE:"metabolights") OR (LABS_PUBS:"1782"))'
-
-script_dir = Path(__file__).resolve().parent
-input_csv = script_dir / "authors.csv"
 
 
 def build_query(author_name: str) -> str:
@@ -191,25 +191,35 @@ def flatten_paper(
     }
 
 
-def read_authors_from_csv(input_csv: str, author_column: str) -> list[str]:
-    """Read unique, non-empty author names from a column in a CSV file."""
+def read_authors_from_publications_csv(input_csv: str, authors_column: str = "Authors") -> list[str]:
+    """Read unique, non-empty author names out of a publications CSV file.
+
+    Each row's `authors_column` holds a comma-separated list of authors in
+    "Lastname Initials" form (e.g. "Keller T, Etana A, Bosch Y"). This
+    splits that list and collects the unique names across all rows, in
+    order of first appearance.
+    """
     authors = []
     seen = set()
 
     with Path(input_csv).open(newline="", encoding="utf-8-sig") as f:
         reader = csv.DictReader(f)
-        if author_column not in reader.fieldnames:
+        if authors_column not in reader.fieldnames:
             raise ValueError(
-                f"Column '{author_column}' not found. Available columns: {reader.fieldnames}"
+                f"Column '{authors_column}' not found. Available columns: {reader.fieldnames}"
             )
 
         for row in reader:
-            author = (row.get(author_column) or "").strip()
-            if not author:
+            raw_authors = (row.get(authors_column) or "").strip()
+            if not raw_authors:
                 continue
-            if author not in seen:
-                seen.add(author)
-                authors.append(author)
+            for author in raw_authors.split(","):
+                author = author.strip()
+                if not author:
+                    continue
+                if author not in seen:
+                    seen.add(author)
+                    authors.append(author)
 
     return authors
 
@@ -279,14 +289,14 @@ def find_keyword_matches(text: str, pattern: re.Pattern[str]) -> list[str]:
 
 def main() -> None:
     """Run the Europe PMC author search and write results to CSV files."""
-    input_csv = "authors.csv"
-    author_column = "author"
+    input_csv = "publications.csv"
+    authors_column = "Authors"
     keywords_csv = "pathogen_infectious_disease_keywords_just_keywords.csv"
     papers_output_csv = "europepmc_metabolights_papers.csv"
     summary_output_csv = "europepmc_metabolights_summary.csv"
     targets_output_txt = "targets.txt"
 
-    authors = read_authors_from_csv(input_csv, author_column)
+    authors = read_authors_from_publications_csv(input_csv, authors_column)
     keywords = load_keywords(keywords_csv)
     keyword_pattern = build_keyword_pattern(keywords)
     print(f"Loaded {len(keywords)} keywords from {keywords_csv}")
