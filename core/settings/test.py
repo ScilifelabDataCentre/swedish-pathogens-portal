@@ -23,7 +23,8 @@ MEDIA_URL = "/media/test/"
 # Private visitor DE session payloads (must stay outside MEDIA_ROOT).
 LIVER_SESSION_ROOT = BASE_DIR / "private" / "test" / "liver_resource_sessions"  # noqa: F405
 
-# Wagtail site name.
+# Test settings for Wagtail.
 WAGTAIL_SITE_NAME = "Test Portal"
+WAGTAILADMIN_BASE_URL = "http://localhost:8000"
 
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.MD5PasswordHasher"]
