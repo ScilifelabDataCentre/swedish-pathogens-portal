@@ -23,8 +23,11 @@ from cms.forms.contact import (
 from cms.pages import ContactPage, HomePage
 from cms.tests.test_navigation_menu import TestCaseWithSite
 
-BEFORE_FORM_STREAM = [("text", "<p>Get in touch with the Portal team.</p>")]
-AFTER_FORM_STREAM = [("text", "<p>We process your data lawfully under GDPR.</p>")]
+CONTENT_STREAM = [
+    ("text", "<p>Get in touch with the Portal team.</p>"),
+    ("contact_form", {}),
+    ("text", "<p>We process your data lawfully under GDPR.</p>"),
+]
 
 NAME_LITERAL = "AliceUniqueAgentLiteral"
 EMAIL_LITERAL = "alice.unique.literal@example.org"
@@ -74,8 +77,7 @@ class ContactPageTests(TestCaseWithSite):
         self.page = ContactPage(
             title="Contact",
             slug="contact",
-            before_form=BEFORE_FORM_STREAM,
-            after_form=AFTER_FORM_STREAM,
+            content=CONTENT_STREAM,
         )
         self.home.add_child(instance=self.page)
         self.page.save_revision().publish()
@@ -564,18 +566,17 @@ class ContactPageTests(TestCaseWithSite):
     # ------------------------------------------------------------------
 
     def test_admin_editable_streamfields_render(self):
-        """The rendered GET body contains text-block content from both StreamFields."""
+        """The rendered GET body contains text-block content from the ``content`` stream."""
         response = self.client.get(self.page_url)
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Get in touch with the Portal team.")
         self.assertContains(response, "We process your data lawfully under GDPR.")
 
-    def test_admin_form_exposes_before_and_after_form(self):
-        """The Wagtail edit handler exposes ``before_form`` and ``after_form`` fields."""
+    def test_admin_form_exposes_content(self):
+        """The Wagtail edit handler exposes the ``content`` StreamField."""
         edit_handler = ContactPage.get_edit_handler()
         form_class = edit_handler.get_form_class()
-        self.assertIn("before_form", form_class.base_fields)
-        self.assertIn("after_form", form_class.base_fields)
+        self.assertIn("content", form_class.base_fields)
 
     # ------------------------------------------------------------------
     # Wagtail preview path

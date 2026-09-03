@@ -1,4 +1,4 @@
-"""Singleton contact page model with anti-spam tokens and editor-managed streams."""
+"""Singleton contact page model with anti-spam tokens and an editor-managed stream."""
 
 from __future__ import annotations
 
@@ -23,20 +23,19 @@ class ContactPage(Page):
     The page is a thin Wagtail wrapper over :class:`cms.forms.contact.ContactForm`.
     Submissions are never persisted — the POST handler emails one message via
     the configured email backend and re-renders the bound form on validation or
-    send errors. Editors manage two StreamFields surrounding the form
-    (``before_form`` and ``after_form``); both accept ``text`` (rich text) and
-    ``alert`` (styled callout) blocks. The form's position is fixed in the
-    middle of the template.
+    send errors. Editors manage a single StreamField (``content``) accepting
+    ``text`` (rich text), ``alert`` (styled callout), and exactly one
+    ``contact_form`` block — a :class:`~wagtail.blocks.StaticBlock` that renders
+    the form partial. The form is placed anywhere in the stream; text and alert
+    blocks flow above or below it.
 
     Attributes:
-        before_form (StreamField): Editor-managed content rendered above the
-            form. Accepts ``text`` and ``alert`` blocks.
-        after_form (StreamField): Editor-managed content rendered below the
-            form. Accepts ``text`` and ``alert`` blocks (e.g. GDPR / privacy
-            notice).
+        content (StreamField): Editor-managed body. Accepts ``text`` and
+            ``alert`` blocks and requires exactly one ``contact_form`` block,
+            which renders the anti-spam contact form from its partial template.
     """
 
-    template = "cms/pages/contact.html"
+    template = "cms/pages/contact/index.html"
     parent_page_types = ["cms.HomePage"]
     subpage_types: list[str] = []
     max_count = 1
@@ -47,24 +46,24 @@ class ContactPage(Page):
     # contact_submit log.
     allowed_http_methods = [HTTPMethod.GET, HTTPMethod.HEAD, HTTPMethod.POST]
 
-    before_form = StreamField(
+    content = StreamField(
         [
             ("text", blocks.RichTextBlock(features=["bold", "italic", "link"])),
             ("alert", AlertBlock()),
+            (
+                "contact_form",
+                blocks.StaticBlock(
+                    admin_text="Contact form rendered from a template.",
+                    template="cms/pages/contact/partials/contact_form.html",
+                ),
+            ),
         ],
-        blank=True,
-    )
-    after_form = StreamField(
-        [
-            ("text", blocks.RichTextBlock(features=["bold", "italic", "link"])),
-            ("alert", AlertBlock()),
-        ],
-        blank=True,
+        blank=False,
+        block_counts={"contact_form": {"min_num": 1, "max_num": 1}},
     )
 
     content_panels = Page.content_panels + [
-        FieldPanel("before_form"),
-        FieldPanel("after_form"),
+        FieldPanel("content"),
     ]
 
     def _build_get_context(self, request: HttpRequest) -> dict[str, Any]:
@@ -81,8 +80,10 @@ class ContactPage(Page):
 
         Returns:
             A context dict containing ``page``, ``form``, ``signed_ts``, and
-            ``dsc_token``. The two ``StreamField`` streams are reached through
-            ``page.before_form`` / ``page.after_form`` in the template.
+            ``dsc_token``. The ``content`` stream is reached through
+            ``page.content`` in the template; the ``contact_form`` StaticBlock
+            partial receives ``form`` / ``signed_ts`` / ``dsc_token`` via
+            ``include_block``'s parent-context pass-through.
         """
         signed_ts, dsc_token = generate_tokens()
         form = ContactForm(request=request)

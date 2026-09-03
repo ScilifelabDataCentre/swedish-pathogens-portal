@@ -59,14 +59,7 @@ class ContactForm(forms.Form):
             ("dm_support", "Request for help with data management or data sharing questions"),
             ("other", "Other"),
         ],
-        widget=forms.CheckboxSelectMultiple(
-            attrs={
-                "class": (
-                    "h-4 w-4 rounded border-gray-300 text-teal-600 "
-                    "cursor-pointer focus:ring-2 focus:ring-teal-500"
-                )
-            }
-        ),
+        widget=forms.CheckboxSelectMultiple(attrs={"class": "checkbox checkbox-primary"}),
         error_messages={"required": "Please select at least one alternative."},
     )
     # Anti-spam fields (Honeypot, TimestampSigner token, Double-submit cookie)
