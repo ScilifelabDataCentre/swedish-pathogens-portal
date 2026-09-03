@@ -1,0 +1,64 @@
+# .github/workflows/test.yaml
+# Tests: the only CI gate that executes application code.
+#
+# No path filter, on purpose. Dependency updates change pyproject.toml and
+# uv.lock and no Python file at all, and those are exactly the changes this
+# workflow exists to verify -- ruff.yaml's '*/**.py' filter is the reason
+# they went unverified.
+#
+# Two steps below look redundant and are not. Either one missing fails the
+# job before a single test runs:
+#   SECRET_KEY   core/settings/base.py reads it with no default, and CI has
+#                no .env for environ.Env.read_env to find.
+#   --group dev  django.contrib.postgres is in INSTALLED_APPS and needs
+#                psycopg, which lives only in the dev and prod groups
+#                because pyproject.toml sets [tool.uv] default-groups = [].
+---
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: tests-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  SECRET_KEY: ci-not-a-secret  # A test key, not a credential
+
+jobs:
+  test:
+    name: Django test suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout the repo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      # uv reads .python-version and provisions CPython itself, so no
+      # separate actions/setup-python step is needed.
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          enable-cache: true  # Default is 'auto'; explicit for PR events
+          cache-dependency-glob: uv.lock
+
+      - name: Install Python dependencies
+        run: uv sync --frozen --group dev
+
+      - name: Run the test suite
+        run: uv run python manage.py test --settings=core.settings.test
+
+      # Last, and not gated on the suite passing, so one run always reports
+      # both facts. Ordered after the tests because the suite is the primary
+      # signal and should not be withheld by a secondary check.
+      #
+      # --settings is required here too: without it manage.py falls back to
+      # core.settings.development, which needs a reachable database.
+      - name: Check for missing migrations
+        if: ${{ !cancelled() }}
+        run: uv run python manage.py makemigrations --check --dry-run --settings=core.settings.test
