@@ -56,7 +56,6 @@ class OutbreaksIndexPage(Page):
                 .public()
                 .filter(outbreakpage__status=_type)
                 .specific()
-                .order_by("title")
             )
             if fetched_outbreaks:
                 all_outbreaks[_type] = fetched_outbreaks
