@@ -10,7 +10,10 @@ from cms.pages.dashboard import DashboardPage
 from cms.pages.dashboard_index import DashboardIndexPage
 from cms.pages.liver_resource import LiverResourceDashboardPage
 from cms.snippets.dashboard_data import DashboardData
-from cms.tests.liver_helpers import create_published_liver_resource_page, liver_route_url
+from cms.tests.liver_resource.liver_helpers import (
+    create_published_liver_resource_page,
+    liver_route_url,
+)
 from cms.tests.utils import create_test_image
 from dashboard_visualisation.liver_resource.computation import VALID_CUTOFFS
 from dashboard_visualisation.liver_resource.examples import list_example_slugs, list_examples

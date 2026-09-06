@@ -6,7 +6,7 @@ id travels as a query parameter because Wagtail's page-serving pattern admits
 neither the dots of a ``.csv`` suffix nor the brackets of a control placeholder.
 """
 
-from cms.tests.test_drr_downloads import DrrDownloadRouteTestCase
+from cms.tests.drr.test_drr_downloads import DrrDownloadRouteTestCase
 
 
 class TestDrrCompoundDownload(DrrDownloadRouteTestCase):

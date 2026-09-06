@@ -14,7 +14,7 @@ from dashboard_visualisation.liver_resource.reference_data import (
     get_data_root,
 )
 
-FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures" / "liver" / "expected"
+FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures" / "liver" / "expected"
 
 
 class TestLiverExports(SimpleTestCase):

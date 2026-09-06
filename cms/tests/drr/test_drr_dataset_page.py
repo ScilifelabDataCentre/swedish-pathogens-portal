@@ -21,7 +21,7 @@ from cms.pages.topics import TopicPage
 from cms.pages.topics_index import TopicsIndexPage
 from cms.snippets.dashboard_data import DashboardData
 from cms.snippets.drr_dataset_data import DrrDatasetData
-from cms.tests.test_drr_precompute import FEATURE_CSV, METADATA_TSV
+from cms.tests.drr.test_drr_precompute import FEATURE_CSV, METADATA_TSV
 from cms.tests.utils import create_test_image, use_temp_media_root
 
 # A representative, fully-populated summary payload mirroring spec section 7 plus
