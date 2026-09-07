@@ -9,8 +9,6 @@ Expects, in the same directory as this script:
         comma-separated list of authors in "Lastname Initials" form
         (e.g. "Keller T, Etana A, Bosch Y"). Unique author names are
         extracted across all rows and searched individually.
-        This file was obtained from https://publications.scilifelab.se/publications/csv
-        All settings at default except that the "Complete list" box was ticked.
     pathogen_infectious_disease_keywords_just_keywords.csv
         One keyword per line, used to filter results by title/abstract
         content.
@@ -105,13 +103,15 @@ def extract_metabolights_accessions(paper: dict) -> list[str]:
 
 
 def format_lftp_target(accession: str) -> str:
-    """Format a single MTBLS accession as an lftp mirror target line.
+    """Format a single MTBLS accession as an lftp target line (remote path only).
 
-    Only the remote path is included; fetch_metabolights.sh decides the
-    local download location (via its DEST_ROOT), so no local path is
-    written here.
+    fetch_metabolights.sh decides the local download location, so no local
+    path is written here. There is also no leading flag: fetch_metabolights.sh
+    fetches a single file (i_Investigation.txt) per study rather than
+    mirroring a whole directory, so a recurse/no-recurse flag no longer
+    applies.
     """
-    return f"--recursive {METABOLIGHTS_FTP_BASE}/{accession}/"
+    return f"{METABOLIGHTS_FTP_BASE}/{accession}/"
 
 
 ANNOTATIONS_API_URL = "https://www.ebi.ac.uk/europepmc/annotations_api/annotationsByArticleIds"
