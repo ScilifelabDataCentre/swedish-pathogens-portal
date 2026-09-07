@@ -6,7 +6,7 @@ from wagtail.blocks import RichTextBlock, StaticBlock
 from wagtail.fields import StreamField
 from wagtail.models import Page
 
-from cms.blocks import AlertBlock, CollapsibleBlock, DataTableBlock
+from cms.blocks import AlertBlock, CardGridBlock, CollapsibleBlock, DataTableBlock
 
 
 class BasicPage(Page):
@@ -37,6 +37,7 @@ class BasicPage(Page):
             ),
             ("alert", AlertBlock()),
             ("data_table", DataTableBlock()),
+            ("card_grid", CardGridBlock()),
             ("collapsible", CollapsibleBlock()),
             (
                 "matomo_opt_out",
