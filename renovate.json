@@ -33,6 +33,12 @@
       "description": "Majors are listed on the Dependency Dashboard rather than arriving unannounced."
     },
     {
+      "matchDatasources": ["github-tags"],
+      "matchPackageNames": ["aquasecurity/trivy-action"],
+      "versioning": "regex:^v(?<major>\\d+)\\.(?<minor>\\d+)\\.(?<patch>\\d+)$",
+      "description": "Upstream carries two tags for the same version, 0.35.0 and v0.35.0 (aquasecurity/trivy-action#573). The collision empties the version set, so every lookup fails with no-result and the action is neither updated nor digest-pinned. Requiring the v prefix makes the unprefixed tag invalid rather than duplicate. Strict by design: a future v0.37 or a pre-release tag would also be excluded, which is the failure mode to check if updates go quiet again."
+    },
+    {
       "matchDatasources": ["docker"],
       "matchPackageNames": ["python"],
       "matchUpdateTypes": ["major", "minor"],
