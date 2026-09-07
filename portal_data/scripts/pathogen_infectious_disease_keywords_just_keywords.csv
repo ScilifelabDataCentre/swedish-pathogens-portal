@@ -1,0 +1,631 @@
+pathogen
+infectious disease
+infection
+communicable disease
+transmissible disease
+outbreak
+epidemic
+pandemic
+endemic
+zoonosis
+zoonotic
+emerging infection
+re-emerging infection
+antimicrobial resistance
+AMR
+drug-resistant infection
+multidrug resistant
+MDR
+extensively drug resistant
+XDR
+virus
+viral
+bacterium
+bacteria
+bacterial
+fungus
+fungi
+fungal
+parasite
+parasitic
+protozoa
+protozoan
+helminth
+worm
+prion
+infectious agent
+microbe
+microorganism
+pathogen family
+strain
+lineage
+clade
+serotype
+subtype
+variant
+acute infection
+chronic infection
+latent infection
+persistent infection
+asymptomatic infection
+symptomatic infection
+co-infection
+superinfection
+reinfection
+primary infection
+secondary infection
+breakthrough infection
+opportunistic infection
+invasive infection
+localized infection
+systemic infection
+sepsis
+septicemia
+septicaemia
+bacteremia
+bacteraemia
+viremia
+viraemia
+fungemia
+parasitemia
+transmission
+transmissibility
+exposure
+spillover
+reservoir
+host
+susceptible host
+vector
+carrier
+incubation period
+infectious period
+chain of infection
+contact tracing
+surveillance
+case
+confirmed case
+probable case
+incidence
+prevalence
+attack rate
+outbreak investigation
+airborne
+droplet
+aerosol
+respiratory transmission
+fecal-oral
+faecal-oral
+bloodborne
+sexually transmitted
+vertical transmission
+mother-to-child transmission
+vector-borne transmission
+direct contact
+indirect contact
+fomite
+environmental transmission
+wastewater surveillance
+respiratory infection
+pneumonia
+influenza-like illness
+febrile illness
+hemorrhagic fever
+haemorrhagic fever
+encephalitis
+meningitis
+gastroenteritis
+diarrheal disease
+diarrhoeal disease
+enteric infection
+bloodstream infection
+urinary tract infection
+skin and soft tissue infection
+sexually transmitted infection
+STI
+tuberculosis
+hepatitis
+febrile rash illness
+Adenoviridae
+Anelloviridae
+Arenaviridae
+Astroviridae
+Bornaviridae
+Coronaviridae
+Filoviridae
+Flaviviridae
+Hantaviridae
+Hepadnaviridae
+Hepeviridae
+Herpesviridae
+Nairoviridae
+Orthomyxoviridae
+Paramyxoviridae
+Parvoviridae
+Phenuiviridae
+Picobirnaviridae
+Picornaviridae
+Pneumoviridae
+Polyomaviridae
+Poxviridae
+Retroviridae
+Rhabdoviridae
+Sedoreoviridae
+Spinareoviridae
+Togaviridae
+Lassa
+mammarenavirus lassense
+MERS
+MERS-CoV
+merbecovirus
+SARS
+SARS-CoV
+SARS-CoV-2
+COVID-19
+COVID
+coronavirus
+sarbecovirus
+Ebola
+ebolavirus
+orthoebolavirus zairense
+Sudan virus
+orthoebolavirus sudanense
+Marburg
+marburgvirus
+orthomarburgvirus marburgense
+yellow fever
+orthoflavivirus flavi
+dengue
+dengue virus
+orthoflavivirus denguei
+Zika
+Zika virus
+orthoflavivirus zikaense
+West Nile
+West Nile virus
+WNV
+Japanese encephalitis
+JEV
+tick-borne encephalitis
+TBE
+TBEV
+Hantaan virus
+orthohantavirus hantanense
+Sin Nombre virus
+orthohantavirus sinnombreense
+hantavirus
+Crimean-Congo hemorrhagic fever
+Crimean-Congo haemorrhagic fever
+CCHF
+orthonairovirus haemorrhagiae
+influenza
+influenza A
+influenza B
+influenza virus
+H1N1
+H2N2
+H3N2
+H5N1
+H5N2
+H5N6
+H5N8
+H6N1
+H7N3
+H7N7
+H7N9
+H9N2
+H10N3
+H10N8
+avian influenza
+highly pathogenic avian influenza
+HPAI
+Nipah
+henipavirus
+henipavirus nipahense
+Hendra
+Dabie bandavirus
+SFTS
+SFTSV
+chikungunya
+chikungunya virus
+alphavirus chikungunya
+Venezuelan equine encephalitis
+alphavirus venezuelan
+Eastern equine encephalitis
+Western equine encephalitis
+mpox
+monkeypox
+variola
+smallpox
+enterovirus
+enterovirus coxsackie
+coxsackievirus
+EV71
+EV-D68
+echovirus
+poliovirus
+polio
+poliomyelitis
+rotavirus
+norovirus
+Norwalk
+HIV
+HIV-1
+HIV-2
+AIDS
+antiretroviral
+hepatitis A
+hepatitis B
+hepatitis C
+hepatitis D
+hepatitis E
+HAV
+HBV
+HCV
+HDV
+HEV
+HSV
+herpes simplex
+herpes
+HPV
+human papillomavirus
+EBV
+Epstein-Barr
+CMV
+cytomegalovirus
+RSV
+respiratory syncytial virus
+adenovirus
+parvovirus
+B19
+measles
+rubeola
+mumps
+rubella
+varicella
+varicella-zoster
+VZV
+chickenpox
+shingles
+rabies
+lyssavirus
+Vibrio cholerae
+Vibrio
+cholera
+Yersinia pestis
+Yersinia
+Yersinia enterocolitica
+yersiniosis
+plague
+Shigella
+Shigella dysenteriae serotype 1
+shigellosis
+Salmonella
+Salmonella enterica
+Salmonella typhimurium
+Salmonella enterica invasive non-typhoidal serovars
+iNTS
+typhoid
+typhoid fever
+salmonellosis
+Escherichia
+Escherichia coli
+E. coli
+ETEC
+EHEC
+EPEC
+STEC
+UPEC
+Staphylococcus
+Staphylococcus aureus
+S. aureus
+MRSA
+methicillin-resistant
+VISA
+VRSA
+Streptococcus
+Streptococcus pneumoniae
+S. pneumoniae
+pneumococcus
+pneumococcal
+Streptococcus pyogenes
+S. pyogenes
+group A streptococcus
+GAS
+group B streptococcus
+GBS
+Streptococcus agalactiae
+Pseudomonas
+Pseudomonas aeruginosa
+P. aeruginosa
+Mycobacterium
+Mycobacterium tuberculosis
+M. tuberculosis
+MTB
+Mtb
+mycobacterial
+Mycobacterium leprae
+leprosy
+Mycobacterium avium
+MAC
+Listeria
+Listeria monocytogenes
+L. monocytogenes
+listeriosis
+Campylobacter
+Campylobacter jejuni
+C. jejuni
+campylobacteriosis
+Helicobacter
+Helicobacter pylori
+H. pylori
+Neisseria
+Neisseria gonorrhoeae
+gonorrhea
+gonorrhoea
+Neisseria meningitidis
+meningococcus
+meningococcal
+Bordetella
+Bordetella pertussis
+pertussis
+whooping cough
+Chlamydia
+Chlamydia trachomatis
+chlamydial
+Treponema
+Treponema pallidum
+syphilis
+Borrelia
+Borrelia burgdorferi
+Lyme disease
+Lyme borreliosis
+Lyme
+Bacillus
+Bacillus anthracis
+anthrax
+Bacillus cereus
+Clostridium
+Clostridioides
+Clostridioides difficile
+Clostridium difficile
+C. difficile
+C. diff
+CDI
+Clostridium botulinum
+botulism
+Clostridium tetani
+tetanus
+Clostridium perfringens
+Legionella
+Legionella pneumophila
+Legionnaires
+legionellosis
+Enterococcus
+Enterococcus faecalis
+Enterococcus faecium
+VRE
+vancomycin-resistant
+Klebsiella pneumoniae
+Klebsiella
+multidrug-resistant Klebsiella
+Acinetobacter
+Acinetobacter baumannii
+Burkholderia
+Burkholderia cepacia
+Burkholderia pseudomallei
+melioidosis
+Francisella
+Francisella tularensis
+tularemia
+Brucella
+brucellosis
+Coxiella
+Coxiella burnetii
+Q fever
+Rickettsia
+rickettsial
+typhus
+Rocky Mountain spotted fever
+Mycoplasma
+Mycoplasma pneumoniae
+Haemophilus
+Haemophilus influenzae
+Hib
+Plasmodium
+Plasmodium falciparum
+Plasmodium vivax
+Plasmodium ovale
+Plasmodium malariae
+malaria
+malarial
+Toxoplasma
+Toxoplasma gondii
+toxoplasmosis
+Leishmania
+leishmaniasis
+visceral leishmaniasis
+kala-azar
+Trypanosoma
+Trypanosoma cruzi
+Trypanosoma brucei
+trypanosomiasis
+sleeping sickness
+African trypanosomiasis
+Chagas
+Chagas disease
+Schistosoma
+Schistosoma mansoni
+Schistosoma haematobium
+schistosomiasis
+bilharzia
+Giardia
+Giardia lamblia
+giardiasis
+Entamoeba
+Entamoeba histolytica
+amoebiasis
+amebiasis
+Cryptosporidium
+Cryptosporidium parvum
+cryptosporidiosis
+Onchocerca
+Onchocerca volvulus
+onchocerciasis
+river blindness
+filaria
+filariasis
+lymphatic filariasis
+elephantiasis
+Wuchereria
+Strongyloides
+strongyloidiasis
+Ascaris
+Ascaris lumbricoides
+ascariasis
+Trichuris
+trichuriasis
+whipworm
+hookworm
+Necator
+Ancylostoma
+Taenia
+taeniasis
+tapeworm
+cysticercosis
+Echinococcus
+echinococcosis
+hydatid
+Candida
+Candida albicans
+candidiasis
+candidemia
+thrush
+Aspergillus
+Aspergillus fumigatus
+aspergillosis
+Cryptococcus
+Cryptococcus neoformans
+cryptococcosis
+Pneumocystis
+Pneumocystis jirovecii
+PCP
+PJP
+Pneumocystis pneumonia
+Histoplasma
+Histoplasma capsulatum
+histoplasmosis
+Coccidioides
+coccidioidomycosis
+valley fever
+Blastomyces
+blastomycosis
+Mucor
+Mucorales
+mucormycosis
+dermatophyte
+ringworm
+tinea
+Trichophyton
+Microsporum
+antimicrobial-resistant bacteria
+bacterial priority pathogens
+mosquito-borne
+tick-borne
+rodent-borne
+bat-borne
+avian
+swine
+animal reservoir
+wildlife reservoir
+human-animal interface
+spillback
+One Health
+pathogen genomics
+genomic surveillance
+metagenomics
+amplicon sequencing
+consensus sequence
+assembly
+variant calling
+lineage assignment
+phylogeny
+phylogenetics
+serotyping
+virulence
+virulence gene
+resistance gene
+antimicrobial resistance gene
+pathogen characterisation
+pathogen surveillance
+outbreak surveillance
+sentinel surveillance
+case surveillance
+clinical metadata
+epidemiological metadata
+linked host-pathogen data
+data sharing
+GISAID
+pathogen portal
+vaccine
+vaccines
+vaccination
+vaccinated
+immunization
+immunisation
+antibody
+neutralizing antibody
+monoclonal antibody
+antigen
+antigenic
+antibiotic
+antibiotics
+antiviral
+antifungal
+antiparasitic
+microbiome
+microbiota
+gut microbiome
+gut microbiota
+oral microbiome
+skin microbiome
+virome
+mycobiome
+nosocomial
+hospital-acquired
+hospital-acquired infection
+HAI
+healthcare-associated infection
+HCAI
+community-acquired
+immunocompromised
+immunosuppressed
+immunodeficiency
+viral load
+bacterial load
+RT-PCR
+serology
+seroprevalence
+seropositive
+biofilm
+bioterrorism
+biothreat
+biosafety
+BSL-3
+BSL-4
+isolation
+quarantine
+containment
+public health
+vaccine-preventable
+WHO priority pathogen
+BPPL
+FPPL
+antimicrobial stewardship
+carbapenem-resistant
+CRE
+CRAB
+CRPA
+ESBL
+extended-spectrum beta-lactamase
+colistin resistance
+mcr-1
