@@ -4,6 +4,7 @@
   "timezone": "Europe/Stockholm",
   "schedule": ["* * * * SUN"],
   "ignoreDeps": ["swedish_pathogens_portal"],
+  "addLabels": ["dependencies"],
   "lockFileMaintenance": {
     "enabled": true,
     "schedule": ["* * * * SUN"]
