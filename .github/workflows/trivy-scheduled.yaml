@@ -34,7 +34,10 @@ jobs:
         env:
           TRIVY_DB_REPOSITORY: >-
             ghcr.io/aquasecurity/trivy-db,public.ecr.aws/aquasecurity/trivy-db
-        uses: aquasecurity/trivy-action@v0.35.0
+        # Pinned by hand: Renovate can't resolve this action (duplicate
+        # 0.35.0/v0.35.0 tags upstream, aquasecurity/trivy-action#573), so it
+        # never generates a digest. Update this SHA manually.
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: ghcr.io/scilifelabdatacentre/swedish-pathogens-portal:main
           scanners: "vuln,secret"  # Default but being explicit
