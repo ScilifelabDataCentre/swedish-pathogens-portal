@@ -10,7 +10,7 @@ Expects, in the same directory as this script:
         (e.g. "Keller T, Etana A, Bosch Y"). Unique author names are
         extracted across all rows and searched individually.
         This file was obtained from https://publications.scilifelab.se/publications/csv
-        All settings at default except that the "Complete list" box was ticked. 
+        All settings at default except that the "Complete list" box was ticked.
     pathogen_infectious_disease_keywords_just_keywords.csv
         One keyword per line, used to filter results by title/abstract
         content.
