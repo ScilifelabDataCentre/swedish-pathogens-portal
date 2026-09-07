@@ -9,7 +9,10 @@ from unittest.mock import patch
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, RequestFactory, TestCase
 
-from cms.tests.liver_helpers import create_published_liver_resource_page, liver_route_url
+from cms.tests.liver_resource.liver_helpers import (
+    create_published_liver_resource_page,
+    liver_route_url,
+)
 from dashboard_visualisation.liver_resource.reference_data import (
     EXPECTED_MODULE_COUNT,
     get_data_root,
@@ -173,7 +176,7 @@ class TestLiverViews(TestCase):
 
         rows = list(csv.DictReader(io.StringIO(response.content.decode())))
         fixture_path = (
-            Path(__file__).resolve().parent
+            Path(__file__).resolve().parent.parent
             / "fixtures"
             / "liver"
             / "expected"

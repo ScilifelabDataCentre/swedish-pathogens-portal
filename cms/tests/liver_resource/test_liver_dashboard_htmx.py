@@ -3,7 +3,10 @@
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase
 
-from cms.tests.liver_helpers import create_published_liver_resource_page, liver_route_url
+from cms.tests.liver_resource.liver_helpers import (
+    create_published_liver_resource_page,
+    liver_route_url,
+)
 from dashboard_visualisation.liver_resource.reference_data import get_data_root
 from dashboard_visualisation.liver_resource.session import SESSION_KEY
 

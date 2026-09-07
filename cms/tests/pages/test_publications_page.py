@@ -7,8 +7,7 @@ from wagtail.models import Page, Site
 from wagtail.test.utils import WagtailPageTestCase
 
 from cms.pages import HomePage, PublicationsPage
-
-from .test_publications_services import mock_europe_pmc_json
+from cms.tests.services.test_publications_services import mock_europe_pmc_json
 
 
 class TestPublicationsPage(WagtailPageTestCase):

@@ -9,7 +9,10 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django.http import HttpResponse
 from django.test import Client, SimpleTestCase, TestCase
 
-from cms.tests.liver_helpers import create_published_liver_resource_page, liver_route_url
+from cms.tests.liver_resource.liver_helpers import (
+    create_published_liver_resource_page,
+    liver_route_url,
+)
 from dashboard_visualisation.liver_resource.analysis import analyse_de_data
 from dashboard_visualisation.liver_resource.computation import parse_de_file
 from dashboard_visualisation.liver_resource.reference_data import EXPECTED_MODULE_COUNT

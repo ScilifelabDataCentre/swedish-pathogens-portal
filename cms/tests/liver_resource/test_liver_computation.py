@@ -19,7 +19,7 @@ from dashboard_visualisation.liver_resource.reference_data import (
     get_data_root,
 )
 
-FIXTURES_DIR = Path(__file__).resolve().parent / "fixtures" / "liver"
+FIXTURES_DIR = Path(__file__).resolve().parent.parent / "fixtures" / "liver"
 EXPECTED_DIR = FIXTURES_DIR / "expected"
 TOLERANCE = 1e-6
 
