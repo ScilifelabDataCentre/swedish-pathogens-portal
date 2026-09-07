@@ -114,7 +114,7 @@ class BasicPageContentBlocksTest(SimpleTestCase):
         child_blocks = BasicPage._meta.get_field("content").stream_block.child_blocks
         self.assertEqual(
             set(child_blocks.keys()),
-            {"text", "alert", "data_table", "collapsible", "matomo_opt_out"},
+            {"text", "alert", "data_table", "card_grid", "collapsible", "matomo_opt_out"},
         )
 
 
