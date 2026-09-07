@@ -79,5 +79,6 @@ docker-compose.override.yaml
 # Article finding files
 europepmc_metabolights_papers.csv
 europepmc_metabolights_summary.csv
-
-
+portal_data/scripts/targets.txt
+# Article study data download location
+portal_data/scripts/datasets/
