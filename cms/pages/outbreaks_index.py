@@ -56,10 +56,15 @@ class OutbreaksIndexPage(Page):
                 .public()
                 .filter(outbreakpage__status=_type)
                 .specific()
-                .order_by("title")
             )
+            # historical outbreaks are automatically sorted by title
+            # ongoing outbreaks can be customized in wagtail interface via "sort menu order"
+            if _type == "historical":
+                fetched_outbreaks = fetched_outbreaks.order_by("title")
+
             if fetched_outbreaks:
                 all_outbreaks[_type] = fetched_outbreaks
+
         context["outbreaks"] = all_outbreaks
 
         return context

@@ -77,7 +77,10 @@ class OutbreakPage(Page):
             "status",
             help_text=(
                 "The current status of the outbreak and will be used to "
-                "group outbreaks on the index page."
+                "group outbreaks on the index page. 'Ongoing' outbreaks are "
+                "displayed in the order they appear in the page explorer. "
+                "Click 'sort menu order' to reorder 'Ongoing' outbreaks. "
+                "'Historical' outbreaks are always sorted alphabetically by title."
             ),
         ),
         FieldPanel(
