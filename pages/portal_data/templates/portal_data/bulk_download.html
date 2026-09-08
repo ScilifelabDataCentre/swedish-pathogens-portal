@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}Download selected studies — {% endblock %}
+
+{% block content %}
+<section class="container px-4 lg:px-6">
+  <header class="mb-6 lg:mb-8">
+    <h1>Download selected studies</h1>
+    <p class="text-sm text-pp-dark-grey">
+      Each link below downloads a file directly from MetaboLights - the data never
+      passes through the portal. We start these automatically a moment apart, and
+      try to save each one under a name that includes its study accession, since
+      MetaboLights reuses the same filenames (like "i_Investigation.txt") across
+      every study. If your browser won't let us rename it that way, the file
+      still downloads correctly, just under MetaboLights' own name instead. Your
+      browser may also still block or ask permission for several downloads in a
+      row; if one doesn't start, use its link below.
+    </p>
+    <a href="{% url 'portal_data:index' datatype=datatype %}" class="text-sm underline">Back to list</a>
+  </header>
+
+  <ul class="list-none pl-0 space-y-4">
+    {% for result in results %}
+      <li class="rounded border border-pp-pale-grey bg-white p-4 shadow-sm">
+        <h3 class="text-lg text-pp-almost-black">{{ result.accession }}</h3>
+        {% if result.error %}
+          <p class="mt-2 text-sm text-red-800">{{ result.error }}</p>
+        {% else %}
+          <ul class="mt-2 flex flex-wrap list-none gap-2 pl-0">
+            {% for dl in result.downloads %}
+              <li>
+                <a href="{{ dl.url }}"
+                   data-download-name="{{ dl.filename }}"
+                   class="download-link inline-flex items-center justify-center rounded bg-pp-mid-blue px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-pp-dark-blue/30">
+                  {% if result.downloads|length > 1 %}
+                    Download part {{ forloop.counter }} of {{ result.downloads|length }}
+                  {% else %}
+                    Download {{ result.accession }} data
+                  {% endif %}
+                </a>
+              </li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      </li>
+    {% empty %}
+      <li class="rounded border border-pp-pale-grey bg-white p-4 text-sm text-pp-dark-grey shadow-sm">
+        No studies to download.
+      </li>
+    {% endfor %}
+  </ul>
+</section>
+
+<script>
+// Best-effort auto-start: trigger each download a moment apart so browsers
+// treat them as distinct, user-driven downloads rather than a burst (which most
+// browsers throttle or prompt about). The visible links above are the fallback
+// for whichever downloads a browser declines to start automatically.
+//
+// For the rename-to-include-accession behavior we first try fetching the file
+// ourselves so we control the saved filename - but MetaboLights has to allow
+// our page to read the response cross-origin (CORS) for that to work, which
+// we can't check ahead of time. If the fetch fails for any reason (CORS
+// blocked, network error, ...) we fall straight back to a plain navigation,
+// which still downloads the file correctly, just under MetaboLights' own name.
+async function fetchAndSaveAs(url, filename) {
+  const response = await fetch(url, { mode: 'cors' });
+  if (!response.ok) {
+    throw new Error(`Unexpected response status: ${response.status}`);
+  }
+  const blob = await response.blob();
+  const blobUrl = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = blobUrl;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(function () { URL.revokeObjectURL(blobUrl); }, 30000);
+}
+
+function fallbackDownload(url) {
+  const iframe = document.createElement('iframe');
+  iframe.style.display = 'none';
+  iframe.src = url;
+  document.body.appendChild(iframe);
+}
+
+document.addEventListener('DOMContentLoaded', function () {
+  const links = Array.from(document.querySelectorAll('.download-link'));
+  links.forEach((link, index) => {
+    window.setTimeout(function () {
+      fetchAndSaveAs(link.href, link.dataset.downloadName).catch(function (err) {
+        console.warn('Renamed download failed, falling back to direct download for', link.href, err);
+        fallbackDownload(link.href);
+      });
+    }, index * 800);
+  });
+});
+</script>
+{% endblock %}
