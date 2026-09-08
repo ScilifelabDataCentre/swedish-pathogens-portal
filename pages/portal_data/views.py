@@ -13,9 +13,17 @@ from urllib.parse import unquote
 
 from django.conf import settings
 from django.core.cache import cache
-from django.http import FileResponse, Http404, HttpRequest, HttpResponse
+from django.http import (
+    FileResponse,
+    Http404,
+    HttpRequest,
+    HttpResponse,
+    HttpResponseBadRequest,
+)
 from django.shortcuts import render
 from django.views import View
+
+from .services import build_download_script, build_export_json, build_export_tsv
 
 logger = logging.getLogger("pages.portal_data.views")
 
@@ -246,6 +254,68 @@ class DownloadStudyFile(View):
                 stack.close()
 
         response.close = cleanup_close
+        return response
+
+
+class ExportSelected(View):
+    """Export a user-selected set of studies as TSV or JSON metadata."""
+
+    def post(self, request: HttpRequest, *args: object, **kwargs: object) -> HttpResponse:
+        """Return a TSV or JSON export for the POSTed study accessions."""
+        datatype = str(kwargs["datatype"])
+        if datatype not in SUPPORTED_TYPES:
+            return HttpResponseBadRequest("Unknown data type")
+
+        fmt = request.POST.get("format", "tsv")
+        ids = request.POST.getlist("ids")
+
+        if not ids:
+            return HttpResponseBadRequest("No studies selected")
+
+        all_items = _load_all_items(datatype)
+        selected_ids = set(ids)
+        items = [it for it in all_items if it["id"] in selected_ids]
+
+        if fmt == "json":
+            content, filename, content_type = build_export_json(items, f"{datatype}_selection.json")
+        else:
+            content, filename, content_type = build_export_tsv(items, f"{datatype}_selection.tsv")
+
+        response = HttpResponse(content, content_type=content_type)
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+        return response
+
+
+class BulkDownloadScript(View):
+    """Generate a shell script that bulk-downloads the selected studies' data.
+
+    The script pulls data directly from MetaboLights via their 'mtbls' CLI; no
+    study data is ever streamed through our server.
+    """
+
+    def post(self, request: HttpRequest, *args: object, **kwargs: object) -> HttpResponse:
+        """Return a bulk-download shell script for the POSTed study accessions."""
+        datatype = str(kwargs["datatype"])
+        if datatype not in SUPPORTED_TYPES:
+            return HttpResponseBadRequest("Unknown data type")
+
+        ids = request.POST.getlist("ids")
+        if not ids:
+            return HttpResponseBadRequest("No studies selected")
+
+        all_items = _load_all_items(datatype)
+        known_ids = {it["id"] for it in all_items}
+        # Only accessions we actually recognise, re-validated against ACCESSION_RE,
+        # ever make it into the generated shell script.
+        accessions = sorted({i for i in ids if i in known_ids and ACCESSION_RE.match(i)})
+
+        if not accessions:
+            return HttpResponseBadRequest("No valid studies selected")
+
+        content, filename, content_type = build_download_script(accessions)
+
+        response = HttpResponse(content, content_type=content_type)
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
         return response
 
 

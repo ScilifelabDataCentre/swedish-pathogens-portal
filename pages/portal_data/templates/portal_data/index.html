@@ -142,6 +142,57 @@
           {{ error }}
         </p>
       {% else %}
+          <!-- Bulk selection toolbar (selection persists across pages via localStorage) -->
+          <div class="mb-4 flex flex-wrap items-center justify-between gap-2 rounded border border-pp-pale-grey bg-white p-3 text-sm shadow-sm">
+            <div class="text-pp-dark-grey">
+              {{ total }} results &middot;
+              <span id="selection-count">0</span> selected
+            </div>
+            <div class="flex items-center gap-2">
+              <button type="button"
+                      id="clearSelection"
+                      class="selection-action inline-flex items-center justify-center rounded border border-pp-pale-grey bg-white px-3 py-2 text-sm font-medium text-pp-dark-grey hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-pp-pale-grey/50"
+                      disabled>
+                Clear selection
+              </button>
+              <button type="button"
+                      class="selection-action inline-flex items-center justify-center rounded border border-pp-pale-grey bg-white px-3 py-2 text-sm font-medium text-pp-dark-grey hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-pp-pale-grey/50"
+                      data-target="bulkActionForm"
+                      data-format="tsv"
+                      disabled>
+                Export selected (TSV)
+              </button>
+              <button type="button"
+                      class="selection-action inline-flex items-center justify-center rounded border border-pp-pale-grey bg-white px-3 py-2 text-sm font-medium text-pp-dark-grey hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-pp-pale-grey/50"
+                      data-target="bulkActionForm"
+                      data-format="json"
+                      disabled>
+                Export selected (JSON)
+              </button>
+              <button type="button"
+                      class="selection-action inline-flex items-center justify-center rounded bg-pp-teal px-3 py-2 text-sm font-medium text-black shadow-sm hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-pp-teal/30"
+                      data-target="bulkDownloadForm"
+                      disabled
+                      title="Downloads a shell script that fetches the selected studies' data directly from MetaboLights">
+                Download data
+              </button>
+            </div>
+          </div>
+
+          <!-- Hidden forms used to POST the current selection; JS fills in ids/format before submit -->
+          <form id="bulkActionForm"
+                method="post"
+                action="{% url 'portal_data:data_export' datatype=datatype %}"
+                class="hidden">
+            {% csrf_token %}
+          </form>
+          <form id="bulkDownloadForm"
+                method="post"
+                action="{% url 'portal_data:data_download' datatype=datatype %}"
+                class="hidden">
+            {% csrf_token %}
+          </form>
+
           <!-- Cards -->
            <ul class="list-none pl-0 mt-0 space-y-4">
             {% for it in items %}
@@ -150,7 +201,12 @@
     <h3 class="text-xl text-pp-almost-black">
       {{ it.title }}
     </h3>
-
+    <label class="inline-flex shrink-0 items-center gap-2 text-sm text-pp-dark-grey">
+      <input type="checkbox"
+             class="selectRow h-4 w-4 rounded border-pp-pale-grey text-pp-mid-blue focus:ring-pp-mid-blue/50"
+             data-accession="{{ it.accession }}">
+      <span class="sr-only">Select {{ it.accession }} for bulk actions</span>
+    </label>
     </div>
 
     {#Description with truncation and HTML rendering #}
@@ -251,7 +307,6 @@
       </li>
     {% endfor %}
     </ul>
-    </form>
     {% endif %}
     </main>
     </div>
@@ -327,5 +382,94 @@ document.addEventListener('DOMContentLoaded', function () {
     });
   }
 });
+
+// Bulk selection of studies, persisted across pages/searches via localStorage
+(function () {
+  const STORAGE_KEY = 'portalData:selectedStudies:{{ datatype }}';
+
+  function loadSelection() {
+    try {
+      return new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'));
+    } catch (err) {
+      return new Set();
+    }
+  }
+
+  function saveSelection(selected) {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify([...selected]));
+    } catch (err) {
+      // localStorage unavailable (private browsing, quota, etc.) - selection just won't persist
+    }
+  }
+
+  function updateToolbar(selected) {
+    const countEl = document.getElementById('selection-count');
+    if (countEl) countEl.textContent = selected.size;
+    document.querySelectorAll('.selection-action').forEach((btn) => {
+      btn.disabled = selected.size === 0;
+    });
+  }
+
+  function submitSelection(selected, formId, format) {
+    const form = document.getElementById(formId);
+    if (!form) return;
+    form.querySelectorAll('input[name="ids"], input[name="format"]').forEach((el) => el.remove());
+
+    if (format) {
+      const formatInput = document.createElement('input');
+      formatInput.type = 'hidden';
+      formatInput.name = 'format';
+      formatInput.value = format;
+      form.appendChild(formatInput);
+    }
+
+    selected.forEach((accession) => {
+      const idInput = document.createElement('input');
+      idInput.type = 'hidden';
+      idInput.name = 'ids';
+      idInput.value = accession;
+      form.appendChild(idInput);
+    });
+
+    form.submit();
+  }
+
+  document.addEventListener('DOMContentLoaded', function () {
+    const selected = loadSelection();
+
+    document.querySelectorAll('.selectRow').forEach((cb) => {
+      cb.checked = selected.has(cb.dataset.accession);
+      cb.addEventListener('change', function () {
+        if (cb.checked) {
+          selected.add(cb.dataset.accession);
+        } else {
+          selected.delete(cb.dataset.accession);
+        }
+        saveSelection(selected);
+        updateToolbar(selected);
+      });
+    });
+
+    updateToolbar(selected);
+
+    const clearBtn = document.getElementById('clearSelection');
+    if (clearBtn) {
+      clearBtn.addEventListener('click', function () {
+        selected.clear();
+        saveSelection(selected);
+        document.querySelectorAll('.selectRow').forEach((cb) => { cb.checked = false; });
+        updateToolbar(selected);
+      });
+    }
+
+    document.querySelectorAll('.selection-action[data-target]').forEach((btn) => {
+      btn.addEventListener('click', function () {
+        if (!selected.size) return;
+        submitSelection(selected, btn.dataset.target, btn.dataset.format || null);
+      });
+    });
+  });
+})();
 </script>
 {% endblock %}
