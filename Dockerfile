@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1@sha256:ecfaec9ed6d810b56388c508f4121597bfbba70d41a6dfeee4d8cad5f295fc32
 
-ARG PYTHON_IMAGE=python:3.14-slim-trixie@sha256:cae66f2ef0ec51a9891263eeee7f987dacf0a9879e8aa9353d5606e0530619a5
+ARG PYTHON_IMAGE=python:3.14-slim-trixie@sha256:cad9a2c871761c413caa6fdd6441c783451e740a48aaeba60ae62a8b53525ef6
 
 ###############################################################################
 #                             Base Stage                                      #
@@ -36,11 +36,11 @@ RUN case "${TARGETARCH}" in \
     curl --fail --silent --show-error --location --output /usr/local/bin/tailwindcss \
         "https://github.com/tailwindlabs/tailwindcss/releases/download/v4.3.3/tailwindcss-linux-${TAILWIND_ARCH}" \
  && chmod +x /usr/local/bin/tailwindcss \
- && curl --fail --silent --show-error --location --output /usr/local/lib/daisyui.mjs https://github.com/saadeghi/daisyui/releases/download/v5.7.22/daisyui.mjs \
- && curl --fail --silent --show-error --location --output /usr/local/lib/daisyui-theme.mjs https://github.com/saadeghi/daisyui/releases/download/v5.7.22/daisyui-theme.mjs
+ && curl --fail --silent --show-error --location --output /usr/local/lib/daisyui.mjs https://github.com/saadeghi/daisyui/releases/download/v5.7.28/daisyui.mjs \
+ && curl --fail --silent --show-error --location --output /usr/local/lib/daisyui-theme.mjs https://github.com/saadeghi/daisyui/releases/download/v5.7.28/daisyui-theme.mjs
 
 # Retrieve `uv` from the third-party image (pin version)
-COPY --from=ghcr.io/astral-sh/uv:0.12.7@sha256:95f2aa1fe59274951cfe9b0cbc7972e879ff1004bc8945d130a32eb0dbd85945 /uv /usr/local/bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.12.10@sha256:2bb3ebca0a796a155094a27773d290c4b074572e6107f171d88d086682fd2500 /uv /usr/local/bin/uv
 
 # Set working directory
 WORKDIR /app

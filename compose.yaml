@@ -93,7 +93,7 @@ services:
   # service targets this host by default (EMAIL_HOST above); with the profile
   # off, sends fail gracefully (EMAIL_SEND_ERROR), no crash.
   mailpit:
-    image: axllent/mailpit:v1.30
+    image: axllent/mailpit:v1.31@sha256:98b916bd3c8d61f7633a52d3ea2f58d00620cb01ca57ab59edde68c347a95365
     container_name: spp_mailpit
     profiles:
       - "mailpit"
