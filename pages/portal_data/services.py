@@ -102,28 +102,35 @@ def build_download_script(
         "    exit 1",
         "fi",
         "",
-        "# 'mtbls' being on PATH does not mean it actually runs - metabolights-utils",
-        "# requires Python 3.10+, and an older interpreter (e.g. a conda base env)",
-        "# makes the command exist but crash with a confusing traceback instead.",
-        "if ! mtbls --version >/dev/null 2>&1; then",
-        "    echo \"The 'mtbls' command was found but failed to run.\" >&2",
-        '    echo "This is usually an outdated Python - metabolights-utils" >&2',
-        '    echo "requires Python 3.10+." >&2',
-        r'    echo "Check which Python it uses with: head -1 \$(command -v mtbls)" >&2',
-        '    echo "Then reinstall it into a newer Python, e.g.:" >&2',
+        "# 'mtbls' being on PATH does not mean it actually runs - a broken",
+        "# install (outdated Python, a missing dependency, ...) can make the",
+        "# command exist but crash. Surface the real error instead of letting",
+        "# it happen partway through the downloads below.",
+        "mtbls_version_output=$(mtbls --version 2>&1) || {",
+        "    echo \"The 'mtbls' command was found but failed to run:\" >&2",
+        '    echo "$mtbls_version_output" >&2',
+        '    echo "" >&2',
+        '    echo "metabolights-utils needs Python 3.10+ and all of its" >&2',
+        '    echo "dependencies installed. Try reinstalling it in a fresh" >&2',
+        '    echo "environment, e.g.:" >&2',
         '    echo "  conda create -n mtbls python=3.11 -y" >&2',
         '    echo "  conda activate mtbls" >&2',
-        '    echo "  pip install metabolights-utils" >&2',
+        '    echo "  pip install --upgrade metabolights-utils requests" >&2',
         "    exit 1",
-        "fi",
+        "}",
         "",
+        "# 'mtbls' ignores the shell's cwd by default and writes into its own",
+        "# ~/metabolights_data cache unless told otherwise, so we point --local_path",
+        "# at this folder explicitly below to keep everything in one predictable place.",
         "mkdir -p metabolights_downloads",
         "cd metabolights_downloads",
         "",
     ]
     for accession in accessions:
         lines.append(f'echo "Downloading {accession} ..."')
-        lines.append(f'mtbls public download "{accession}"')
+        lines.append(
+            f'mtbls public download "{accession}" --local_path "$(pwd)" --override_local_files'
+        )
     lines.append("")
     lines.append('echo "Done. Files are in $(pwd)"')
     content = "\n".join(lines) + "\n"
