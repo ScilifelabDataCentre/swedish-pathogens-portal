@@ -21,7 +21,7 @@ from cms.forms.contact import (
     MIN_SUBMIT_SECONDS,
 )
 from cms.pages import ContactPage, HomePage
-from cms.tests.test_navigation_menu import TestCaseWithSite
+from cms.tests.snippets.test_navigation_menu import TestCaseWithSite
 
 CONTENT_STREAM = [
     ("text", "<p>Get in touch with the Portal team.</p>"),
