@@ -3,7 +3,7 @@
 from django.urls import path
 
 from .views import (
-    BulkDownloadScript,
+    BulkDownload,
     DataTypeList,
     DownloadStudyFile,
     ExportSelected,
@@ -19,8 +19,8 @@ urlpatterns = [
     path("", DataTypeList.as_view(), DEFAULT, name="index"),
     # Bulk export of the selected studies' metadata (TSV/JSON)
     path("export/", ExportSelected.as_view(), DEFAULT, name="data_export"),
-    # Bulk download script for the selected studies' MetaboLights data
-    path("download/", BulkDownloadScript.as_view(), DEFAULT, name="data_download"),
+    # Direct MetaboLights download links for the selected studies
+    path("download/", BulkDownload.as_view(), DEFAULT, name="data_download"),
     # Per-study file browser (lists files under the study)
     path(
         "<slug:accession>/files/",

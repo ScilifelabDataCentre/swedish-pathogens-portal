@@ -23,7 +23,7 @@ from django.http import (
 from django.shortcuts import render
 from django.views import View
 
-from .services import build_download_script, build_export_json, build_export_tsv
+from .services import build_export_json, build_export_tsv, resolve_bulk_download
 
 logger = logging.getLogger("pages.portal_data.views")
 
@@ -286,15 +286,16 @@ class ExportSelected(View):
         return response
 
 
-class BulkDownloadScript(View):
-    """Generate a shell script that bulk-downloads the selected studies' data.
+class BulkDownload(View):
+    """Resolve the selected studies to direct MetaboLights download links.
 
-    The script pulls data directly from MetaboLights via their 'mtbls' CLI; no
-    study data is ever streamed through our server.
+    Every link points straight at MetaboLights' own server; the end user's
+    browser downloads the resulting zip(s) directly and no study data is ever
+    streamed through our server.
     """
 
     def post(self, request: HttpRequest, *args: object, **kwargs: object) -> HttpResponse:
-        """Return a bulk-download shell script for the POSTed study accessions."""
+        """Render a page of direct-download links for the POSTed study accessions."""
         datatype = str(kwargs["datatype"])
         if datatype not in SUPPORTED_TYPES:
             return HttpResponseBadRequest("Unknown data type")
@@ -306,17 +307,19 @@ class BulkDownloadScript(View):
         all_items = _load_all_items(datatype)
         known_ids = {it["id"] for it in all_items}
         # Only accessions we actually recognise, re-validated against ACCESSION_RE,
-        # ever make it into the generated shell script.
+        # are ever looked up against MetaboLights.
         accessions = sorted({i for i in ids if i in known_ids and ACCESSION_RE.match(i)})
 
         if not accessions:
             return HttpResponseBadRequest("No valid studies selected")
 
-        content, filename, content_type = build_download_script(accessions)
+        results = resolve_bulk_download(accessions)
 
-        response = HttpResponse(content, content_type=content_type)
-        response["Content-Disposition"] = f'attachment; filename="{filename}"'
-        return response
+        return render(
+            request,
+            "portal_data/bulk_download.html",
+            {"datatype": datatype, "results": results},
+        )
 
 
 # -------------------------------------------------------------------
