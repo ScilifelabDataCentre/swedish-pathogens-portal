@@ -15,9 +15,6 @@ from urllib.request import Request, urlopen
 logger = logging.getLogger("pages.portal_data.services")
 
 METABOLIGHTS_WS_BASE = "https://www.ebi.ac.uk/metabolights/ws"
-# Keep each generated download URL comfortably under common server/proxy URL
-# length limits (typically 2000-8000 chars), even after url-encoding filenames.
-MAX_FILE_QUERY_LENGTH = 1800
 
 # Fields we include in exports:
 # - key in the item dict
@@ -103,8 +100,7 @@ def _list_study_directory(accession: str, directory: str | None = None) -> dict:
     """Return the raw 'files/tree' payload for one level of a public study.
 
     Passing 'directory' lists a named sub-directory (e.g. the raw-data 'FILES'
-    folder) instead of the study root. The root call's payload also carries the
-    study's 'obfuscationCode', which the download endpoint needs.
+    folder) instead of the study root.
     """
     params = {"location": "study", "include_sub_dir": "false"}
     if directory:
@@ -112,19 +108,16 @@ def _list_study_directory(accession: str, directory: str | None = None) -> dict:
     return _metabolights_get(f"/studies/{accession}/files/tree", params=params)
 
 
-def collect_study_download_info(accession: str) -> tuple[str | None, list[str]]:
-    """Return (obfuscation_code, file_paths) for a public study.
+def collect_study_file_paths(accession: str) -> list[str]:
+    """Return every downloadable file's relative path for a public study.
 
     ISA-Tab metadata files sit at the study root; raw/derived data files sit one
     directory down (e.g. under 'FILES'). This walks the root and recurses one
     level into any sub-directory entry found there, matching MetaboLights' usual
     study layout - deeper nesting, if a study happens to have any, is not
-    followed. The obfuscation code comes back alongside the root listing itself
-    - MetaboLights' download endpoint is keyed on it (not on any fixed keyword),
-    even for public studies.
+    followed.
     """
     root = _list_study_directory(accession)
-    obfuscation_code = root.get("obfuscationCode")
 
     paths: list[str] = []
     for entry in root.get("study") or []:
@@ -148,64 +141,68 @@ def collect_study_download_info(accession: str) -> tuple[str | None, list[str]]:
             if path:
                 paths.append(path)
 
-    return obfuscation_code, paths
+    return paths
 
 
-def build_download_urls(
-    accession: str, obfuscation_code: str, file_paths: Iterable[str]
-) -> list[str]:
-    """Build one or more direct MetaboLights zip-download URLs for the given files.
+def _dedupe_filename(filename: str, seen: dict[str, int]) -> str:
+    """Disambiguate a repeated suggested filename within one study's entries.
 
-    MetaboLights' download endpoint takes a comma-separated 'file' query
-    parameter; for studies with many files that list is split across multiple
-    URLs so no single request line gets unreasonably long.
+    Mirrors how browsers themselves handle a name collision, so a second file
+    that would otherwise overwrite the first becomes 'name (1).ext' instead.
     """
-    urls: list[str] = []
-    batch: list[str] = []
-    batch_length = 0
+    count = seen.get(filename, 0)
+    seen[filename] = count + 1
+    if count == 0:
+        return filename
+    stem, dot, ext = filename.rpartition(".")
+    return f"{stem} ({count}){dot}{ext}" if dot else f"{filename} ({count})"
 
-    def flush_batch() -> None:
-        if not batch:
-            return
-        file_param = quote(",".join(batch), safe="")
-        urls.append(
-            f"{METABOLIGHTS_WS_BASE}/studies/{accession}/download/"
-            f"{obfuscation_code}?file={file_param}"
-        )
 
+def build_download_urls(accession: str, file_paths: Iterable[str]) -> list[dict[str, str]]:
+    """Build one direct MetaboLights zip-download entry per given file.
+
+    MetaboLights' download endpoint accepts a comma-separated 'file' query
+    parameter for multiple files, but its server-side implementation uses that
+    raw, comma-joined value as the literal filename of the zip it builds on
+    disk - so combining even a handful of files reliably blows past the ~255
+    byte filename limit most filesystems enforce (confirmed: a real study's 9
+    metadata files alone came to 403 bytes and crashed the endpoint with
+    "File name too long"). Requesting one file per URL sidesteps that
+    regardless of file count or name length, at the cost of more separate
+    downloads per study.
+
+    Each entry also carries a suggested save-as filename prefixed with the
+    study accession. MetaboLights names every study's investigation file
+    'i_Investigation.txt' and reuses other filename patterns across studies
+    too, so with no per-study folder to tell them apart, a browser saving
+    several studies' files into one flat Downloads folder needs some other
+    way to keep them straight.
+    """
+    seen: dict[str, int] = {}
+    entries: list[dict[str, str]] = []
     for path in file_paths:
-        added_length = len(quote(path, safe="")) + 1  # +1 for the comma separator
-        if batch and batch_length + added_length > MAX_FILE_QUERY_LENGTH:
-            flush_batch()
-            batch = []
-            batch_length = 0
-        batch.append(path)
-        batch_length += added_length
-
-    flush_batch()
-    return urls
+        url = f"{METABOLIGHTS_WS_BASE}/studies/{accession}/download?file={quote(path, safe='')}"
+        basename = path.rsplit("/", 1)[-1]
+        filename = _dedupe_filename(f"{accession}_{basename}", seen)
+        entries.append({"url": url, "filename": filename})
+    return entries
 
 
 def _resolve_one_study(accession: str) -> dict:
     """Resolve a single study to its direct MetaboLights download URL(s)."""
-    result: dict = {"accession": accession, "urls": [], "error": None}
+    result: dict = {"accession": accession, "downloads": [], "error": None}
     try:
-        obfuscation_code, file_paths = collect_study_download_info(accession)
+        file_paths = collect_study_file_paths(accession)
     except (HTTPError, URLError, TimeoutError, ValueError, OSError) as err:
         logger.warning("Failed to list files for %s: %s", accession, err)
         result["error"] = "Could not reach MetaboLights to list this study's files."
-        return result
-
-    if not obfuscation_code:
-        logger.warning("No obfuscation code returned by MetaboLights for %s", accession)
-        result["error"] = "MetaboLights did not return a download code for this study."
         return result
 
     if not file_paths:
         result["error"] = "No downloadable files were found for this study."
         return result
 
-    result["urls"] = build_download_urls(accession, obfuscation_code, file_paths)
+    result["downloads"] = build_download_urls(accession, file_paths)
     return result
 
 
