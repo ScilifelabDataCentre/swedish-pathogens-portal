@@ -5,6 +5,7 @@ from wagtail.blocks import StructBlockValidationError
 from wagtail.models import Page, Site
 
 from cms.blocks.cards import (
+    ALLOWED_DESCRIPTION_FEATURES,
     CardBlock,
     CardGridBlock,
     CatalogueCardBlock,
@@ -32,7 +33,7 @@ class TestCardBlock(TestCase):
             {
                 "image": image.id,
                 "title": "Test title",
-                "description": "Test description",
+                "description": "Test <strong>description</strong>",
                 "url": "https://example.com",
             }
         )
@@ -41,7 +42,7 @@ class TestCardBlock(TestCase):
 
         self.assertEqual(result["title"], "Test title")
         self.assertEqual(result["image"].title, "Test image")
-        self.assertEqual(result["description"], "Test description")
+        self.assertEqual(result["description"].source, "Test <strong>description</strong>")
         self.assertEqual(result["url"], "https://example.com")
 
     def test_missing_required_fields(self):
@@ -56,6 +57,58 @@ class TestCardBlock(TestCase):
         self.assertIn("title", errors)
         self.assertIn("description", errors)
         self.assertIn("url", errors)
+
+    def test_description_only_allows_configured_features(self):
+        """Test that only the configured rich-text features are enabled."""
+        description_block = self.block.child_blocks["description"]
+
+        self.assertEqual(description_block.features, ALLOWED_DESCRIPTION_FEATURES)
+
+        # some false positives to check that other features are not enabled
+        self.assertNotIn("h2", description_block.features)
+        self.assertNotIn("ul", description_block.features)
+
+    def test_get_context_defaults_truncate_text_to_true(self):
+        """Test that truncate_text defaults to True."""
+        image = create_test_image(title="Test image", file_name="test.jpg")
+        value = self.block.to_python(
+            {
+                "image": image.id,
+                "title": "Test title",
+                "description": "Test description",
+                "url": "https://example.com",
+            }
+        )
+
+        context = self.block.get_context(value)
+
+        self.assertTrue(context["truncate_text"])
+
+        context = self.block.get_context(value, {})
+
+        self.assertTrue(context["truncate_text"])
+
+    def test_get_context_uses_parent_truncate_text(self):
+        """Test that truncate_text is inherited from the parent context."""
+        image = create_test_image(title="Test image", file_name="test.jpg")
+        value = self.block.to_python(
+            {
+                "image": image.id,
+                "title": "Test title",
+                "description": "Test description",
+                "url": "https://example.com",
+            }
+        )
+
+        parent_context = {"value": {"truncate_text": False}}
+        context = self.block.get_context(value, parent_context)
+
+        self.assertFalse(context["truncate_text"])
+
+        parent_context = {"value": {"truncate_text": True}}
+        context = self.block.get_context(value, parent_context)
+
+        self.assertTrue(context["truncate_text"])
 
 
 #######################################################################
@@ -101,7 +154,7 @@ class TestCardGridBlock(TestCase):
                     {
                         "image": image2.id,
                         "title": "Card 2",
-                        "description": "Description for card 2",
+                        "description": "<p>Description for card 2</p>",
                         "url": "https://example.com/card2",
                     },
                 ]
@@ -113,12 +166,65 @@ class TestCardGridBlock(TestCase):
         self.assertEqual(len(result["cards"]), 2)
         self.assertEqual(result["cards"][0]["title"], "Card 1")
         self.assertEqual(result["cards"][0]["image"].title, "Image 1")
-        self.assertEqual(result["cards"][0]["description"], "Description for card 1")
+        self.assertEqual(result["cards"][0]["description"].source, "Description for card 1")
         self.assertEqual(result["cards"][0]["url"], "https://example.com/card1")
         self.assertEqual(result["cards"][1]["title"], "Card 2")
         self.assertEqual(result["cards"][1]["image"].title, "Image 2")
-        self.assertEqual(result["cards"][1]["description"], "Description for card 2")
+        self.assertEqual(result["cards"][1]["description"].source, "<p>Description for card 2</p>")
         self.assertEqual(result["cards"][1]["url"], "https://example.com/card2")
+
+    def test_truncate_text_defaults_to_true(self):
+        """Test that truncate_text defaults to True."""
+        value = self.block.to_python({})
+
+        self.assertTrue(value["truncate_text"])
+
+    def test_truncate_text_set_value(self):
+        """Test that truncate_text can be set to True."""
+        image = create_test_image(title="Image 1", file_name="image1.jpg")
+        value = {
+            "truncate_text": False,
+            "cards": [
+                {
+                    "image": image.id,
+                    "title": "Card 1",
+                    "description": "Description for card 1",
+                    "url": "https://example.com/card1",
+                }
+            ],
+        }
+        result = self.block.clean(self.block.to_python(value))
+
+        self.assertFalse(result["truncate_text"])
+
+        value["truncate_text"] = True
+        result = self.block.clean(self.block.to_python(value))
+
+        self.assertTrue(result["truncate_text"])
+
+    def test_card_rendering_with_truncate_text(self):
+        """Test that card text is truncated when truncate_text is enabled."""
+        image = create_test_image(title="Test image", file_name="test.jpg")
+        value = {
+            "truncate_text": True,
+            "cards": [
+                {
+                    "image": image.id,
+                    "title": "Card 1",
+                    "description": "Description for card 1",
+                    "url": "https://example.com/card1",
+                }
+            ],
+        }
+
+        html1 = self.block.render(self.block.to_python(value))
+
+        value["truncate_text"] = False
+        html2 = self.block.render(self.block.to_python(value))
+
+        # Tailwind's `line-clamp` class is used to truncate text
+        self.assertIn("line-clamp", html1)
+        self.assertNotIn("line-clamp", html2)
 
 
 ################################################################################
@@ -151,7 +257,7 @@ class TestCatalogueCardBlock(TestCase):
 
         self.assertEqual(result["title"], "Test title")
         self.assertEqual(result["image"].title, "Test image")
-        self.assertEqual(result["description"], "Test description")
+        self.assertEqual(result["description"].source, "Test description")
         self.assertEqual(result["url"], "https://example.com")
         self.assertEqual(result["type"], "test-type")
         self.assertEqual(result["keywords"], "test, catalogue, card")
@@ -209,7 +315,7 @@ class TestCatalogueCardGridBlock(TestCase):
                     {
                         "image": image1.id,
                         "title": "Card 1",
-                        "description": "Description for card 1",
+                        "description": "<p>Description for card 1</p>",
                         "url": "https://example.com/card1",
                         "type": "type1",
                         "keywords": "keyword1, keyword2",
@@ -230,16 +336,71 @@ class TestCatalogueCardGridBlock(TestCase):
         self.assertEqual(len(result["cards"]), 2)
         self.assertEqual(result["cards"][0]["title"], "Card 1")
         self.assertEqual(result["cards"][0]["image"].title, "Image 1")
-        self.assertEqual(result["cards"][0]["description"], "Description for card 1")
+        self.assertEqual(result["cards"][0]["description"].source, "<p>Description for card 1</p>")
         self.assertEqual(result["cards"][0]["url"], "https://example.com/card1")
         self.assertEqual(result["cards"][0]["type"], "type1")
         self.assertEqual(result["cards"][0]["keywords"], "keyword1, keyword2")
         self.assertEqual(result["cards"][1]["title"], "Card 2")
         self.assertEqual(result["cards"][1]["image"].title, "Image 2")
-        self.assertEqual(result["cards"][1]["description"], "Description for card 2")
+        self.assertEqual(result["cards"][1]["description"].source, "Description for card 2")
         self.assertEqual(result["cards"][1]["url"], "https://example.com/card2")
         self.assertEqual(result["cards"][1]["type"], "type2")
         self.assertEqual(result["cards"][1]["keywords"], "")
+
+    def test_truncate_text_defaults_to_true(self):
+        """Test that truncate_text defaults to True."""
+        value = self.block.to_python({})
+
+        self.assertTrue(value["truncate_text"])
+
+    def test_truncate_text_set_value(self):
+        """Test that truncate_text can be set to True."""
+        image = create_test_image(title="Image 1", file_name="image1.jpg")
+        value = {
+            "truncate_text": False,
+            "cards": [
+                {
+                    "image": image.id,
+                    "title": "Card 1",
+                    "description": "Description for card 1",
+                    "url": "https://example.com/card1",
+                    "type": "type1",
+                }
+            ],
+        }
+        result = self.block.clean(self.block.to_python(value))
+
+        self.assertFalse(result["truncate_text"])
+
+        value["truncate_text"] = True
+        result = self.block.clean(self.block.to_python(value))
+
+        self.assertTrue(result["truncate_text"])
+
+    def test_card_rendering_with_truncate_text(self):
+        """Test that card text is truncated when truncate_text is enabled."""
+        image = create_test_image(title="Test image", file_name="test.jpg")
+        value = {
+            "truncate_text": True,
+            "cards": [
+                {
+                    "image": image.id,
+                    "title": "Card 1",
+                    "description": "Description for card 1",
+                    "url": "https://example.com/card1",
+                    "type": "type1",
+                }
+            ],
+        }
+
+        html1 = self.block.render(self.block.to_python(value))
+
+        value["truncate_text"] = False
+        html2 = self.block.render(self.block.to_python(value))
+
+        # Tailwind's `line-clamp` class is used to truncate text
+        self.assertIn("line-clamp", html1)
+        self.assertNotIn("line-clamp", html2)
 
 
 #######################################################################
