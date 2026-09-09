@@ -1,10 +1,13 @@
-# .github/workflows/test.yaml
-# Tests: the only CI gate that executes application code.
+# .github/workflows/django-tests.yaml
+# Django tests: the only CI gate that executes application code.
 #
-# No path filter, on purpose. Dependency updates change pyproject.toml and
-# uv.lock and no Python file at all, and those are exactly the changes this
-# workflow exists to verify -- ruff.yaml's '*/**.py' filter is the reason
-# they went unverified.
+# paths-ignore, not paths, on purpose. An allowlist would have to name every
+# input the suite reads -- 67 templates, the liver reference data, fixture
+# CSVs, core/settings/, manage.py, .python-version -- and anything forgotten
+# is silently untested. Dependency updates are the clearest case: they change
+# pyproject.toml and uv.lock and no Python file at all, and they are exactly
+# what this workflow exists to verify -- ruff.yaml's '*/**.py' filter is the
+# reason they went unverified. Excluding docs keeps the default "run".
 #
 # Two steps below look redundant and are not. Either one missing fails the
 # job before a single test runs:
@@ -14,12 +17,16 @@
 #                psycopg, which lives only in the dev and prod groups
 #                because pyproject.toml sets [tool.uv] default-groups = [].
 ---
-name: Tests
+name: Django Tests
 
 on:
   pull_request:
+    paths-ignore:
+      - '**/*.md'
   push:
     branches: [main]
+    paths-ignore:
+      - '**/*.md'
 
 concurrency:
   group: tests-${{ github.workflow }}-${{ github.ref }}
