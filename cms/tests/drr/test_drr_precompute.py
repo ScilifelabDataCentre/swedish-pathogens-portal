@@ -11,68 +11,88 @@ from pathlib import Path
 import numpy as np
 import polars as pl
 from django.core.management import call_command
+from django.core.management.base import CommandError
 from django.test import TestCase, override_settings
 
 from cms.snippets.drr_dataset_data import DrrDatasetData
+from dashboard_visualisation.drr.channels import channel_map, figure_feature_columns
 from dashboard_visualisation.drr.figures import FEATURE_CATEGORIES
 from dashboard_visualisation.drr.loader import load_feature_table
 
-SLUG = "test-drr-dataset"
+# The registered screen: its channel-to-stain map is what the run resolves, and
+# an unregistered slug is a failure case of its own below (FREYA-2923).
+SLUG = "sars-cov2-a549-ace2-validation"
 
 # Six well-level profiles across two plates, three compounds, and both trt and
-# control perturbations. Feature columns span all three compartments and four
-# channels so summary derivation and category aggregation are exercised. The
-# leading unnamed column mirrors the upstream export's row index, and
-# ``Count_nuclei`` sits where the export carries it: numeric, but QC metadata
-# rather than a feature (spec section 5).
+# control perturbations. Feature columns span all three compartments and **all
+# five** imaging channels, so summary derivation, category aggregation and the
+# channel map are all exercised — and a swapped map cannot pass unnoticed. The
+# two ``illumCONC`` columns are the infection readout: they are the fixture's
+# whole antibody channel, they sit in Intensity and Correlation, and the figure
+# basis leaves them out while the downloads keep them. The leading unnamed
+# column mirrors the upstream export's row index, and ``Count_nuclei`` sits
+# where the export carries it: numeric, but QC metadata rather than a feature
+# (spec section 5).
 FEATURE_CSV = (
     ";Metadata_Barcode;Metadata_Well;comp_conc;pert_type;batch_id;cmpd_conc;cbkid;Count_nuclei;"
     "AreaShape_Area_nuclei;Intensity_MeanIntensity_illumCONC_nuclei;"
     "Granularity_1_illumMITO_cells;Correlation_Correlation_illumCONC_illumHOECHST_cytoplasm;"
     "RadialDistribution_MeanFrac_illumSYTO_1of4_cells;"
-    "Neighbors_FirstClosestDistance_Adjacent_cells\n"
-    "0;P1;A01;10;trt;B1;10;CBK1;1200;1.0;2.0;3.0;0.10;0.50;2.0\n"
-    "1;P1;A02;10;trt;B1;10;CBK1;1250;1.2;2.1;3.4;0.20;0.60;2.1\n"
-    "2;P1;A03;10;ctrl;B1;0;CBK2;1400;0.9;1.8;2.9;0.05;0.40;1.9\n"
-    "3;P2;B01;10;trt;B1;10;CBK3;1150;1.5;2.5;3.9;0.30;0.70;2.4\n"
-    "4;P2;B02;10;ctrl;B1;0;CBK2;1380;0.8;1.7;2.7;0.02;0.35;1.8\n"
-    "5;P2;B03;10;trt;B1;10;CBK3;1100;1.6;2.6;4.1;0.35;0.75;2.5\n"
+    "Neighbors_FirstClosestDistance_Adjacent_cells;"
+    "Intensity_MeanIntensity_illumPHAandWGA_cells;"
+    "Correlation_Correlation_illumHOECHST_illumSYTO_cytoplasm\n"
+    "0;P1;A01;10;trt;B1;10;CBK1;1200;1.0;2.0;3.0;0.10;0.50;2.0;4.0;0.60\n"
+    "1;P1;A02;10;trt;B1;10;CBK1;1250;1.2;2.1;3.4;0.20;0.60;2.1;4.2;0.62\n"
+    "2;P1;A03;10;ctrl;B1;0;CBK2;1400;0.9;1.8;2.9;0.05;0.40;1.9;3.8;0.55\n"
+    "3;P2;B01;10;trt;B1;10;CBK3;1150;1.5;2.5;3.9;0.30;0.70;2.4;4.6;0.70\n"
+    "4;P2;B02;10;ctrl;B1;0;CBK2;1380;0.8;1.7;2.7;0.02;0.35;1.8;3.6;0.52\n"
+    "5;P2;B03;10;trt;B1;10;CBK3;1100;1.6;2.6;4.1;0.35;0.75;2.5;4.8;0.72\n"
 )
 
-# Per-category means of the fixture rows, in the input's own units: the two ctrl
-# rows (the radar's "infected" reference, and CBK2's heatmap row), the four trt
-# rows (the "compound" radar), and the two remaining compounds' heatmap rows.
-# These hold only while the figures run on the values as delivered; standardising
-# the columns again drives each of them to a z-score around -1 to 1 instead.
+# The fixture's own two feature sets: every numeric feature column, and the
+# figure basis with the antibody channel taken out (FREYA-2923).
+N_DOWNLOAD_FEATURES = 8
+N_FIGURE_FEATURES = 6
+
+# Per-category means of the fixture rows **on the figure basis**, in the input's
+# own units: the two ctrl rows (the radar's "infected" reference, and CBK2's
+# heatmap row), the four trt rows (the "compound" radar), and the two remaining
+# compounds' heatmap rows. These hold only while the figures run on the values as
+# delivered; standardising the columns again drives each of them to a z-score
+# around -1 to 1 instead.
+#
+# Only Intensity and Correlation differ from the download basis, because those
+# are the two categories the fixture's antibody columns sit in — so these numbers
+# also say which columns the exclusion touched, and which it left alone.
 CTRL_CATEGORY_MEANS = {
     "AreaShape": 0.85,
-    "Intensity": 1.75,
+    "Intensity": 3.7,
     "Granularity": 2.8,
-    "Correlation": 0.035,
+    "Correlation": 0.535,
     "RadialDistribution": 0.375,
     "Neighbors": 1.85,
 }
 TRT_CATEGORY_MEANS = {
     "AreaShape": 1.325,
-    "Intensity": 2.3,
+    "Intensity": 4.4,
     "Granularity": 3.6,
-    "Correlation": 0.2375,
+    "Correlation": 0.66,
     "RadialDistribution": 0.6375,
     "Neighbors": 2.25,
 }
 CBK1_CATEGORY_MEANS = {
     "AreaShape": 1.1,
-    "Intensity": 2.05,
+    "Intensity": 4.1,
     "Granularity": 3.2,
-    "Correlation": 0.15,
+    "Correlation": 0.61,
     "RadialDistribution": 0.55,
     "Neighbors": 2.05,
 }
 CBK3_CATEGORY_MEANS = {
     "AreaShape": 1.55,
-    "Intensity": 2.55,
+    "Intensity": 4.7,
     "Granularity": 4.0,
-    "Correlation": 0.325,
+    "Correlation": 0.71,
     "RadialDistribution": 0.725,
     "Neighbors": 2.45,
 }
@@ -137,12 +157,12 @@ class DrrPrecomputeTests(TestCase):
             FEATURE_CSV.replace("0;CBK2;1400;0.9;", "0;CBK2;1400;;"), encoding="utf-8"
         )
 
-    def _run(self, **extra: str) -> None:
+    def _run(self, slug: str = SLUG, **extra: str) -> None:
         """Invoke drr_precompute against the fixtures with MEDIA_ROOT overridden."""
         with override_settings(MEDIA_ROOT=str(self.media)):
             call_command(
                 "drr_precompute",
-                slug=SLUG,
+                slug=slug,
                 input=str(self.input_path),
                 metadata=str(self.metadata_path),
                 title="Test DRR",
@@ -177,11 +197,70 @@ class DrrPrecomputeTests(TestCase):
         self.assertEqual(summary["n_plates"], 2)
         self.assertEqual(summary["n_wells"], 6)
         self.assertEqual(summary["n_profiles"], 6)
-        self.assertEqual(summary["n_features"], 6)
+        self.assertEqual(summary["n_features"], N_DOWNLOAD_FEATURES)
         self.assertEqual(summary["pert_type_counts"], {"ctrl": 2, "trt": 4})
         self.assertEqual(summary["compartments"], ["nuclei", "cells", "cytoplasm"])
-        self.assertEqual(summary["channels"], ["CONC", "HOECHST", "MITO", "SYTO"])
         self.assertEqual(summary["source"]["filename"], "features.csv")
+
+    def test_summary_channels_name_stains_not_column_tokens(self) -> None:
+        """The panel payload names stains, and marks the channel the figures exclude."""
+        self._run()
+        summary = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))
+
+        self.assertEqual(
+            [channel["stain"] for channel in summary["channels"]],
+            [
+                "Hoechst 33342",
+                "SYTO 13/14",
+                "Phalloidin + WGA",
+                "Concanavalin A",
+                "SARS-CoV-2 nucleocapsid antibody",
+            ],
+        )
+        # Assert the pairing, not only the set of names: the two screens use these
+        # same two tokens for opposite stains, so a map read the other way round
+        # would publish the same five names against the wrong columns (DS-8).
+        stains = {channel["column_tag"]: channel["stain"] for channel in summary["channels"]}
+        self.assertEqual(stains["illumMITO"], "Concanavalin A")
+        self.assertEqual(stains["illumCONC"], "SARS-CoV-2 nucleocapsid antibody")
+        excluded = [
+            channel["column_tag"] for channel in summary["channels"] if not channel["in_figures"]
+        ]
+        self.assertEqual(excluded, ["illumCONC"])
+
+    def test_summary_records_both_feature_sets(self) -> None:
+        """Both counts are on record, so the two bases cannot be confused later."""
+        self._run()
+        feature_sets = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))[
+            "feature_sets"
+        ]
+
+        self.assertEqual(feature_sets["download"]["n_features"], N_DOWNLOAD_FEATURES)
+        self.assertEqual(feature_sets["figures"]["n_features"], N_FIGURE_FEATURES)
+        self.assertEqual(feature_sets["figures"]["excluded_channels"], ["illumCONC"])
+        self.assertEqual(
+            feature_sets["figures"]["used_by"],
+            ["pca", "heatmap", "radar_compound", "radar_infected"],
+        )
+
+    def test_antibody_columns_stay_in_the_downloads(self) -> None:
+        """The exclusion is a figure basis, not a data change: the files keep every column."""
+        self._run()
+        features = pl.read_parquet(self.out_dir / "features.parquet")
+        antibody = [column for column in features.columns if "illumCONC" in column]
+        header = (self.out_dir / "features.csv").read_text(encoding="utf-8").splitlines()[0]
+
+        self.assertEqual(len(antibody), 2)
+        for column in antibody:
+            self.assertIn(column, header)
+
+    def test_unregistered_slug_writes_nothing(self) -> None:
+        """A screen with no channel map fails the run before any artefact exists."""
+        with self.assertRaisesMessage(CommandError, "no-such-screen"):
+            self._run("no-such-screen")
+
+        self.assertFalse((self.media / "drr" / "no-such-screen").exists())
+        self.assertIsNone(DrrDatasetData.get_data("no-such-screen"))
 
     def test_count_nuclei_is_metadata_not_a_feature(self) -> None:
         """Count_nuclei is QC metadata: out of the feature set, still in the download."""
@@ -191,7 +270,7 @@ class DrrPrecomputeTests(TestCase):
         self.assertNotIn("Count_nuclei", table.feature_columns)
 
         summary = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))
-        self.assertEqual(summary["n_features"], 6)
+        self.assertEqual(summary["n_features"], N_DOWNLOAD_FEATURES)
         features = pl.read_parquet(self.out_dir / "features.parquet")
         self.assertIn("Count_nuclei", features.columns)
 
@@ -232,20 +311,32 @@ class DrrPrecomputeTests(TestCase):
 
         The expected shares come from the eigenvalues of the feature covariance,
         which is the same quantity by a different route: it agrees only while the
-        decomposition is mean-centred and left unscaled.
+        decomposition is mean-centred and left unscaled — and only while it is
+        computed on the figure basis, which the second assertion pins down.
         """
         self._run()
         layout = DrrDatasetData.get_data(SLUG).data["pca"]["layout"]
 
-        matrix = load_feature_table(self.input_path).numeric_matrix()
-        eigenvalues = np.sort(np.linalg.eigvalsh(np.cov(matrix, rowvar=False, bias=True)))[::-1]
-        expected = 100 * eigenvalues[:2] / eigenvalues.sum()
+        table = load_feature_table(self.input_path)
+        figure_columns = figure_feature_columns(table.feature_columns, channel_map(SLUG))
+        expected = self._variance_shares(table.numeric_matrix(figure_columns))
 
         for axis, component, want in (("xaxis", "PC1", expected[0]), ("yaxis", "PC2", expected[1])):
             title = layout[axis]["title"]["text"]
             match = re.fullmatch(rf"{component} \((\d+\.\d)% variance\)", title)
             self.assertIsNotNone(match, title)
             self.assertEqual(match.group(1), f"{want:.1f}", title)
+
+        # The download basis would have annotated a different share, so the
+        # assertion above is sensitive to which basis the figure actually used.
+        on_all_columns = self._variance_shares(table.numeric_matrix())
+        self.assertNotEqual(f"{on_all_columns[0]:.1f}", f"{expected[0]:.1f}")
+
+    @staticmethod
+    def _variance_shares(matrix: np.ndarray) -> np.ndarray:
+        """Return the percent variance of the first two components of a matrix."""
+        eigenvalues = np.sort(np.linalg.eigvalsh(np.cov(matrix, rowvar=False, bias=True)))[::-1]
+        return 100 * eigenvalues[:2] / eigenvalues.sum()
 
     def test_missing_feature_values_are_not_imputed(self) -> None:
         """A gap in the feature matrix fails loudly, naming its column, rather than being filled."""

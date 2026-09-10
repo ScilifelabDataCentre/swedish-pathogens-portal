@@ -8,6 +8,7 @@ at request time, and mirrors the ``liver_resource`` viz-subpackage layout.
 """
 
 from .artefacts import artefact_dir
+from .channels import Channel, channel_map, figure_feature_columns, present_channels
 from .compounds import (
     build_compound_index,
     build_name_lookup,
@@ -20,16 +21,20 @@ from .loader import FeatureTable, load_compound_names, load_feature_table, load_
 from .summary import build_summary
 
 __all__ = [
+    "Channel",
     "FeatureTable",
     "artefact_dir",
     "build_all_figures",
     "build_compound_index",
     "build_name_lookup",
     "build_summary",
+    "channel_map",
+    "figure_feature_columns",
     "load_compound_names",
     "load_feature_table",
     "load_metadata",
     "name_lookup_report",
     "normalize_cbkid",
+    "present_channels",
     "reconciliation_report",
 ]

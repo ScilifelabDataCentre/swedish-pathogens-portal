@@ -56,23 +56,29 @@ class FeatureTable:
     metadata_columns: list[str]
     feature_columns: list[str]
 
-    def numeric_matrix(self) -> np.ndarray:
-        """Return the feature columns as a float64 matrix (rows = profiles).
+    def numeric_matrix(self, columns: list[str] | None = None) -> np.ndarray:
+        """Return feature columns as a float64 matrix (rows = profiles).
+
+        Args:
+            columns: The feature columns to return, defaulting to all of them.
+                The figures pass the morphology-only subset, which excludes the
+                infection-readout channel (spec section 5, FREYA-2923).
 
         Returns:
             The feature values exactly as delivered; nothing is imputed or
             rescaled (spec section 5).
 
         Raises:
-            ValueError: If any feature column carries a missing or non-finite
+            ValueError: If any requested column carries a missing or non-finite
                 value. The screen's export arrives complete, so a gap means the
                 input is wrong rather than that a value needs inventing.
         """
-        matrix = self.frame.select(self.feature_columns).to_numpy().astype(np.float64)
+        selected = self.feature_columns if columns is None else columns
+        matrix = self.frame.select(selected).to_numpy().astype(np.float64)
         if not np.isfinite(matrix).all():
             incomplete = [
                 column
-                for index, column in enumerate(self.feature_columns)
+                for index, column in enumerate(selected)
                 if not np.isfinite(matrix[:, index]).all()
             ]
             raise ValueError(
