@@ -68,8 +68,9 @@ class PortalDataContextTests(TestCase):
         self.assertEqual(context["filters"], {})
         self.assertEqual(context["total"], 1)
         self.assertEqual(context["items"][0]["accession"], "MTBLS1001")
-        self.assertIn("year", context["facets"])
-        self.assertIn("platforms", context["facets"])
+        facet_fields = [facet["field"] for facet in context["facets"]]
+        self.assertIn("year", facet_fields)
+        self.assertIn("platforms", facet_fields)
 
     def test_build_portal_data_context_applies_search(self) -> None:
         """Filter listing context by a free-text search query."""
