@@ -22,6 +22,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "debugpy>=1.8.21",
     "django-browser-reload==1.21.0",
     "django-extensions==4.1",
     "pre-commit==4.6.2",

@@ -45,6 +45,12 @@ coverage.xml
 *.mo
 *.pot
 
+#Docker
+*Dockerfile*override
+*Dockerfile*debug
+*compose*override.yaml
+*compose*debug.yaml
+
 # Visual Studio Code
 .vscode
 *.code-workspace
@@ -70,9 +76,6 @@ Thumbs.db
 
 # Logging 
 *logs/
-
-#Portal data override
-docker-compose.override.yaml
 
 # Article finding files
 europepmc_metabolights_papers.csv
