@@ -3,7 +3,10 @@
 All figures are computed offline from the feature matrix as delivered and
 serialised to Plotly JSON. The input arrives MAD-normalised per plate against
 that plate's DMSO wells, which is the only normalisation applied to it; values
-are therefore in the authors' MAD units throughout (spec section 5). Trace
+are therefore in the authors' MAD units throughout (spec section 5). They are
+computed on the **figure basis** — the morphology columns, with the screen's
+infection-readout channel excluded (``channels``, FREYA-2923) — while the
+downloads carry every column. Trace
 ``uid``s (randomly assigned by Plotly) are stripped so the serialised output is
 byte-stable across identical runs, which the ``drr_precompute`` idempotency
 contract depends on.
@@ -33,6 +36,17 @@ FEATURE_CATEGORIES: list[str] = [
     "Neighbors",
 ]
 
+# The figures computed from the feature matrix, and therefore from the figure
+# basis rather than the download set (spec section 5). ``umap`` is not among them:
+# its coordinates come from a file, not from these columns. ``summary.json`` reads
+# this list, so the two feature sets are recorded where they are used.
+FEATURE_BASIS_FIGURE_IDS: tuple[str, ...] = (
+    "pca",
+    "heatmap",
+    "radar_compound",
+    "radar_infected",
+)
+
 # Treatment perturbation label; anything else is treated as a control/reference.
 _TREATMENT_LABEL = "trt"
 
@@ -46,8 +60,10 @@ class _Prepared:
     """Precomputed inputs shared by every figure builder.
 
     Attributes:
-        matrix: Feature matrix as delivered (rows = profiles, cols = features).
-        feature_columns: Feature column names, aligned with ``matrix`` columns.
+        matrix: Figure-basis feature matrix as delivered (rows = profiles,
+            cols = the figure basis's features).
+        feature_columns: The figure basis's column names, aligned with
+            ``matrix`` columns.
         categories: Feature category per column (``None`` if uncategorised).
         pert_types: Per-row ``pert_type`` label.
         cbkids: Per-row ``cbkid`` label.
@@ -73,17 +89,22 @@ def _column_values(table: FeatureTable, name: str) -> np.ndarray:
     return np.array([""] * table.frame.height)
 
 
-def _prepare(table: FeatureTable) -> _Prepared:
-    """Take the feature matrix as delivered and gather the per-row labels.
+def _prepare(table: FeatureTable, feature_columns: list[str]) -> _Prepared:
+    """Take the figure feature matrix as delivered and gather the per-row labels.
 
     Neither standardisation nor imputation is applied: the values arrive
     MAD-normalised per plate and carry no missing entries (spec section 5).
     ``numeric_matrix`` rejects an incomplete matrix, so no gap reaches a figure.
+
+    ``feature_columns`` is the figure basis, which is narrower than the table's
+    own feature set: the infection-readout channel is excluded, so a morphology
+    figure cannot be computed partly from the assay's own answer (FREYA-2923).
+    The downloads keep every column.
     """
-    categories = [_feature_category(column) for column in table.feature_columns]
+    categories = [_feature_category(column) for column in feature_columns]
     return _Prepared(
-        matrix=table.numeric_matrix(),
-        feature_columns=table.feature_columns,
+        matrix=table.numeric_matrix(feature_columns),
+        feature_columns=feature_columns,
         categories=categories,
         pert_types=_column_values(table, "pert_type"),
         cbkids=_column_values(table, "cbkid"),
@@ -305,21 +326,26 @@ def _to_json(figure: go.Figure) -> dict[str, Any]:
 def build_all_figures(
     table: FeatureTable,
     *,
+    feature_columns: list[str],
     umap_coords: str | Path | None = None,
 ) -> dict[str, Any]:
     """Build every DRR figure and return them keyed by ``figure_id``.
 
     Args:
         table: The loaded feature table.
+        feature_columns: The figure basis — the morphology feature columns, from
+            ``channels.figure_feature_columns``. Required rather than defaulted:
+            silently falling back to every column is the defect FREYA-2923
+            removed, so a caller has to state the basis it means.
         umap_coords: Optional precomputed UMAP coordinates path; when omitted the
             ``umap`` figure is skipped.
 
     Returns:
         A dict mapping ``figure_id`` to serialised Plotly JSON. Always contains
-        ``pca``, ``heatmap``, ``radar_compound`` and ``radar_infected``; adds
-        ``umap`` only when coordinates are supplied.
+        ``FEATURE_BASIS_FIGURE_IDS``; adds ``umap`` only when coordinates are
+        supplied, which come from that file rather than from these columns.
     """
-    prep = _prepare(table)
+    prep = _prepare(table, feature_columns)
     figures: dict[str, Any] = {
         "pca": _to_json(build_pca(prep)),
         "heatmap": _to_json(build_heatmap(prep)),
