@@ -12,8 +12,8 @@ imagery from these terms, so it appears only where imagery is offered.
 from django.test import RequestFactory
 
 from cms.pages.drr_dataset import DrrDatasetPage
-from cms.tests.test_drr_dataset_page import UPSTREAM_BIA_URL, DrrDatasetPageTestCase
-from cms.tests.test_drr_downloads import DrrDownloadRouteTestCase
+from cms.tests.drr.test_drr_dataset_page import UPSTREAM_BIA_URL, DrrDatasetPageTestCase
+from cms.tests.drr.test_drr_downloads import DrrDownloadRouteTestCase
 from cms.tests.utils import create_test_image, use_temp_media_root
 
 CITATION_DOI = "10.1016/j.isci.2026.116673"
