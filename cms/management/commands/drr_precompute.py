@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 import structlog
-from django.core.management.base import BaseCommand, CommandParser
+from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.utils import timezone
 
 from cms.snippets.drr_dataset_data import DrrDatasetData
@@ -25,6 +25,8 @@ from dashboard_visualisation.drr import (
     build_all_figures,
     build_compound_index,
     build_summary,
+    channel_map,
+    figure_feature_columns,
     load_compound_names,
     load_feature_table,
     load_metadata,
@@ -86,6 +88,16 @@ class Command(BaseCommand):
         table = load_feature_table(input_path)
         metadata = load_metadata(metadata_path)
         names = load_compound_names(names_path) if names_path else None
+        # The channel-to-stain map belongs to the screen, and it decides both the
+        # stain names the page publishes and which channel the figures exclude.
+        # An unregistered slug therefore stops the run here — inputs read, and
+        # nothing written — rather than labelling this page from another screen's
+        # vocabulary (FREYA-2923).
+        try:
+            channels = channel_map(slug)
+        except ValueError as error:
+            raise CommandError(str(error)) from error
+        figure_columns = figure_feature_columns(table.feature_columns, channels)
 
         output_dir = artefact_dir(slug)
         figures_dir = output_dir / "figures"
@@ -98,7 +110,9 @@ class Command(BaseCommand):
         table.frame.write_csv(output_dir / "features.csv")
         table.frame.write_parquet(output_dir / "features.parquet")
 
-        figures = build_all_figures(table, umap_coords=options["umap_coords"])
+        figures = build_all_figures(
+            table, feature_columns=figure_columns, umap_coords=options["umap_coords"]
+        )
         self._write_figures(figures_dir, figures)
 
         feature_hash = self._hash_file(input_path)
@@ -115,6 +129,8 @@ class Command(BaseCommand):
         generated_at = timezone.now()
         summary = build_summary(
             table,
+            channels=channels,
+            figure_feature_columns=figure_columns,
             source_filename=input_path.name,
             source_hash=feature_hash,
             generated_at=generated_at.isoformat(),
@@ -145,17 +161,22 @@ class Command(BaseCommand):
             figures=sorted(figures),
             compounds=compound_index.height,
             profiles=summary["n_profiles"],
+            download_features=summary["n_features"],
+            figure_features=len(figure_columns),
             matched=reconciliation["n_annotated"],
             unmatched=reconciliation["n_unannotated"],
             controls=reconciliation["n_control_ids"],
         )
+        excluded_channels = ", ".join(summary["feature_sets"]["figures"]["excluded_channels"])
         report = (
             f"Precomputed DRR dataset '{slug}': {summary['n_compounds']} compounds, "
             f"{summary['n_profiles']} profiles, {len(figures)} figures -> {output_dir}\n"
             f"  cbkid join: {reconciliation['n_annotated']} annotated "
             f"({reconciliation['n_recovered']} via normalization), "
             f"{reconciliation['n_unannotated']} unannotated, "
-            f"{reconciliation['n_control_ids']} controls"
+            f"{reconciliation['n_control_ids']} controls\n"
+            f"  features: {summary['n_features']} for download, {len(figure_columns)} for the "
+            f"figures (excluding {excluded_channels})"
         )
         if names_path:
             name_lookup = summary["name_lookup"]

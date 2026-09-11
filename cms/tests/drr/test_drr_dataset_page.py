@@ -40,7 +40,53 @@ FULL_SUMMARY = {
     "n_features": 1467,
     "pert_type_counts": {"trt": 6800, "negcon": 900, "poscon": 598},
     "compartments": ["nuclei", "cells", "cytoplasm"],
-    "channels": ["CONC", "HOECHST", "MITO", "PHAandWGA", "SYTO"],
+    # Channels as precompute reports them: the stain, not the column token, with
+    # the antibody marked out of the figure basis (FREYA-2923, spec section 7).
+    "channels": [
+        {
+            "column_tag": "illumHOECHST",
+            "label": "HOECHST",
+            "stain": "Hoechst 33342",
+            "measures": "nuclei (DNA)",
+            "in_figures": True,
+        },
+        {
+            "column_tag": "illumSYTO",
+            "label": "SYTO",
+            "stain": "SYTO 13/14",
+            "measures": "nucleoli / cytoplasmic RNA",
+            "in_figures": True,
+        },
+        {
+            "column_tag": "illumPHAandWGA",
+            "label": "PHAandWGA",
+            "stain": "Phalloidin + WGA",
+            "measures": "actin, Golgi, membrane (AGP)",
+            "in_figures": True,
+        },
+        {
+            "column_tag": "illumMITO",
+            "label": "CONC",
+            "stain": "Concanavalin A",
+            "measures": "endoplasmic reticulum (ER)",
+            "in_figures": True,
+        },
+        {
+            "column_tag": "illumCONC",
+            "label": "SARS-CoV-2-N-Ab",
+            "stain": "SARS-CoV-2 nucleocapsid antibody",
+            "measures": "infection marker",
+            "in_figures": False,
+        },
+    ],
+    "feature_sets": {
+        "download": {"n_features": 1467, "used_by": ["features.csv", "features.parquet"]},
+        "figures": {
+            "n_features": 1144,
+            "excluded_channels": ["illumCONC"],
+            "used_by": ["pca", "heatmap", "radar_compound", "radar_infected"],
+        },
+    },
     "compound_reconciliation": {
         "n_compound_ids": 816,
         "n_control_ids": 5,
@@ -227,7 +273,20 @@ class TestDrrDatasetPageRender(DrrDatasetPageTestCase):
         self.assertContains(response, "Perturbation types")
         self.assertContains(response, "6,800")  # trt count
         self.assertContains(response, "nuclei, cells, cytoplasm")
-        self.assertContains(response, "CONC, HOECHST, MITO, PHAandWGA, SYTO")
+
+        # Channels name their stains and say which one the figures leave out.
+        self.assertContains(response, "Hoechst 33342")
+        self.assertContains(response, "SYTO 13/14")
+        self.assertContains(response, "Phalloidin + WGA")
+        self.assertContains(response, "Concanavalin A")
+        self.assertContains(response, "SARS-CoV-2 nucleocapsid antibody")
+        self.assertContains(response, "excluded from figures")
+        self.assertContains(response, "1,144")  # the figure basis, beside the 1,467 downloaded
+
+        # No column token reaches a reader: they are the authors' internal slot
+        # names, and they mean opposite stains on the two screens (FREYA-2923).
+        self.assertNotContains(response, "illumCONC")
+        self.assertNotContains(response, "illumMITO")
 
         # Compound-metadata reconciliation block (FREYA-2557).
         self.assertContains(response, "Compound metadata reconciliation")
@@ -865,7 +924,9 @@ class TestDrrDatasetSliceAcceptance(DrrDatasetPageTestCase):
         metadata_path.write_text(METADATA_TSV, encoding="utf-8")
         media = base / "media"
 
-        slug = "drr-acceptance-slice"
+        # The registered screen: the fixture is this screen's data in miniature,
+        # and precompute resolves its channel map by slug (FREYA-2923).
+        slug = "sars-cov2-a549-ace2-validation"
         with override_settings(MEDIA_ROOT=str(media)):
             call_command(
                 "drr_precompute",
