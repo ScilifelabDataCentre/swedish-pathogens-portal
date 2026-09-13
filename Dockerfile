@@ -36,11 +36,11 @@ RUN case "${TARGETARCH}" in \
     curl --fail --silent --show-error --location --output /usr/local/bin/tailwindcss \
         "https://github.com/tailwindlabs/tailwindcss/releases/download/v4.3.3/tailwindcss-linux-${TAILWIND_ARCH}" \
  && chmod +x /usr/local/bin/tailwindcss \
- && curl --fail --silent --show-error --location --output /usr/local/lib/daisyui.mjs https://github.com/saadeghi/daisyui/releases/download/v5.7.28/daisyui.mjs \
- && curl --fail --silent --show-error --location --output /usr/local/lib/daisyui-theme.mjs https://github.com/saadeghi/daisyui/releases/download/v5.7.28/daisyui-theme.mjs
+ && curl --fail --silent --show-error --location --output /usr/local/lib/daisyui.mjs https://github.com/saadeghi/daisyui/releases/download/v5.7.37/daisyui.mjs \
+ && curl --fail --silent --show-error --location --output /usr/local/lib/daisyui-theme.mjs https://github.com/saadeghi/daisyui/releases/download/v5.7.37/daisyui-theme.mjs
 
 # Retrieve `uv` from the third-party image (pin version)
-COPY --from=ghcr.io/astral-sh/uv:0.12.10@sha256:2bb3ebca0a796a155094a27773d290c4b074572e6107f171d88d086682fd2500 /uv /usr/local/bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.12.13@sha256:b485bd65cc2cf1c9a93b3554012c9c3778cf7b1b5fd3d3096ce9e1226c97e1e6 /uv /usr/local/bin/uv
 
 # Set working directory
 WORKDIR /app
