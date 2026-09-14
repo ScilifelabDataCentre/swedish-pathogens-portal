@@ -108,18 +108,20 @@ def _list_study_directory(accession: str, directory: str | None = None) -> dict:
     return _metabolights_get(f"/studies/{accession}/files/tree", params=params)
 
 
-def collect_study_file_paths(accession: str) -> list[str]:
-    """Return every downloadable file's relative path for a public study.
+def collect_study_file_paths(accession: str) -> list[dict[str, str]]:
+    """Return every downloadable file for a public study, tagged by category.
 
-    ISA-Tab metadata files sit at the study root; raw/derived data files sit one
-    directory down (e.g. under 'FILES'). This walks the root and recurses one
-    level into any sub-directory entry found there, matching MetaboLights' usual
-    study layout - deeper nesting, if a study happens to have any, is not
-    followed.
+    ISA-Tab metadata files sit at the study root and are tagged 'metadata';
+    raw/derived data files sit one directory down (e.g. under 'FILES') and are
+    tagged 'raw'. This walks the root and recurses one level into any
+    sub-directory entry found there, matching MetaboLights' usual study layout
+    - deeper nesting, if a study happens to have any, is not followed. The
+    category lets the page group a study's links instead of showing one flat
+    list, since a study's metadata and raw data serve different purposes.
     """
     root = _list_study_directory(accession)
 
-    paths: list[str] = []
+    files: list[dict[str, str]] = []
     for entry in root.get("study") or []:
         if entry.get("status") == "unreferenced":
             continue
@@ -135,13 +137,13 @@ def collect_study_file_paths(accession: str) -> list[str]:
                     continue
                 sub_path = sub_entry.get("relative_path") or sub_entry.get("file")
                 if sub_path:
-                    paths.append(sub_path)
+                    files.append({"path": sub_path, "category": "raw"})
         else:
             path = entry.get("relative_path") or name
             if path:
-                paths.append(path)
+                files.append({"path": path, "category": "metadata"})
 
-    return paths
+    return files
 
 
 def _dedupe_filename(filename: str, seen: dict[str, int]) -> str:
@@ -158,7 +160,7 @@ def _dedupe_filename(filename: str, seen: dict[str, int]) -> str:
     return f"{stem} ({count}){dot}{ext}" if dot else f"{filename} ({count})"
 
 
-def build_download_urls(accession: str, file_paths: Iterable[str]) -> list[dict[str, str]]:
+def build_download_urls(accession: str, files: Iterable[Mapping[str, str]]) -> list[dict[str, str]]:
     """Build one direct MetaboLights zip-download entry per given file.
 
     MetaboLights' download endpoint accepts a comma-separated 'file' query
@@ -176,33 +178,43 @@ def build_download_urls(accession: str, file_paths: Iterable[str]) -> list[dict[
     'i_Investigation.txt' and reuses other filename patterns across studies
     too, so with no per-study folder to tell them apart, a browser saving
     several studies' files into one flat Downloads folder needs some other
-    way to keep them straight.
+    way to keep them straight. The 'category' passed in on each file (see
+    collect_study_file_paths) rides along unchanged so the page can group
+    metadata and raw data separately.
     """
     seen: dict[str, int] = {}
     entries: list[dict[str, str]] = []
-    for path in file_paths:
+    for file_info in files:
+        path = file_info["path"]
         url = f"{METABOLIGHTS_WS_BASE}/studies/{accession}/download?file={quote(path, safe='')}"
         basename = path.rsplit("/", 1)[-1]
         filename = _dedupe_filename(f"{accession}_{basename}", seen)
-        entries.append({"url": url, "filename": filename})
+        entries.append({"url": url, "filename": filename, "category": file_info["category"]})
     return entries
 
 
 def _resolve_one_study(accession: str) -> dict:
-    """Resolve a single study to its direct MetaboLights download URL(s)."""
-    result: dict = {"accession": accession, "downloads": [], "error": None}
+    """Resolve a single study to its direct MetaboLights download URL(s), grouped by type."""
+    result: dict = {
+        "accession": accession,
+        "metadata_downloads": [],
+        "raw_downloads": [],
+        "error": None,
+    }
     try:
-        file_paths = collect_study_file_paths(accession)
+        files = collect_study_file_paths(accession)
     except (HTTPError, URLError, TimeoutError, ValueError, OSError) as err:
         logger.warning("Failed to list files for %s: %s", accession, err)
         result["error"] = "Could not reach MetaboLights to list this study's files."
         return result
 
-    if not file_paths:
+    if not files:
         result["error"] = "No downloadable files were found for this study."
         return result
 
-    result["downloads"] = build_download_urls(accession, file_paths)
+    entries = build_download_urls(accession, files)
+    result["metadata_downloads"] = [e for e in entries if e["category"] == "metadata"]
+    result["raw_downloads"] = [e for e in entries if e["category"] == "raw"]
     return result
 
 
