@@ -265,16 +265,9 @@
         </a>
     {% endif %}
 
-    <!-- Local PVC download -->
-    <a href="{% url 'portal_data:data_files' datatype=datatype accession=it.accession %}"
-        class="ml-auto inline-flex items-center justify-center rounded bg-pp-mid-blue 
-        px-3 py-1.5 text-sm font-medium text-white shadow-sm hover:opacity-90 focus:outline-none focus:ring-2 focus:ring-pp-dark-blue/30">
-        Download data
-    </a>
-
-    <!-- Optional: keep a link back to MetaboLights -->
+    <!-- Link back to MetaboLights (bulk download now happens via the selection toolbar above) -->
     <a href="{{ it.repo_url }}" target="_blank" rel="noopener"
-       class="inline-flex items-center justify-center rounded border border-pp-pale-grey bg-pp-teal 
+       class="ml-auto inline-flex items-center justify-center rounded border border-pp-pale-grey bg-pp-teal 
        px-3 py-1.5 text-sm font-medium text-black hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-pp-pale-grey/50">
        View in MetaboLights
     </a>
