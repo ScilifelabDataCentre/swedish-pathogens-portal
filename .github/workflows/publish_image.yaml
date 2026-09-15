@@ -42,6 +42,21 @@ jobs:
              type=semver,pattern={{version}}
              type=semver,pattern={{major}}.{{minor}}
              type=semver,pattern={{major}}
+      - name: EBI envelope build-args
+        id: ebi
+        run: |
+          RELEASE="${{ github.event.release.tag_name }}"
+          DATE="${{ github.event.release.published_at }}"
+          if [ -z "${RELEASE}" ]; then
+            RELEASE="${{ github.ref_name }}"
+          fi
+          if [ -z "${DATE}" ]; then
+            DATE="$(date -u +%Y-%m-%d)"
+          else
+            DATE="${DATE%%T*}"
+          fi
+          echo "release=${RELEASE}" >> "${GITHUB_OUTPUT}"
+          echo "date=${DATE}" >> "${GITHUB_OUTPUT}"
       - name: Build and publish backend
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
         with:
@@ -52,5 +67,5 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64
           build-args: |
-            EBI_RELEASE=${{ github.event.release.tag_name || github.ref_name }}
-            EBI_RELEASE_DATE=${{ github.event.release.published_at }}
+            EBI_RELEASE=${{ steps.ebi.outputs.release }}
+            EBI_RELEASE_DATE=${{ steps.ebi.outputs.date }}
