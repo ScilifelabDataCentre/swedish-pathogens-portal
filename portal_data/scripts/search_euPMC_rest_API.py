@@ -11,16 +11,31 @@ Expects, in the same directory as this script:
         extracted across all rows and searched individually.
     pathogen_infectious_disease_keywords_just_keywords.csv
         One keyword per line, used to filter results by title/abstract
-        content.
+        content. A handful of overly generic keywords (see WEAK_KEYWORDS)
+        are only counted as a match when they co-occur with a more
+        specific keyword, since on their own they show up across
+        unrelated fields (plant genomics, yeast biology, cardiology, ...).
 
 Writes, to the current working directory:
-    europepmc_metabolights_papers.csv   One row per matched paper.
+    europepmc_metabolights_papers.csv   One row per matched paper. Includes
+                                         a metabolights_accessions column
+                                         listing any MetaboLights accession(s)
+                                         (curated or text-mined) found for
+                                         that paper, if any -- empty means
+                                         the paper matched on author +
+                                         keyword only, with no confirmed
+                                         MetaboLights dataset link.
     europepmc_metabolights_summary.csv  One row per author, with match counts.
     targets.txt                         lftp mirror targets for any
                                          MetaboLights accessions found.
                                          Consumed by fetch_metabolights.sh,
                                          which controls the local download
                                          location.
+
+Requests to Europe PMC are throttled by a shared RateLimiter to stay within
+their documented per-IP limits (10 requests/second, 500 requests/minute),
+and reuse a single requests.Session (with automatic retry/backoff on
+429/5xx responses) instead of opening a new connection per call.
 """
 
 from __future__ import annotations
@@ -31,6 +46,8 @@ import time
 from pathlib import Path
 
 import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
 BASE_URL = "https://www.ebi.ac.uk/europepmc/webservices/rest/search"
 BASE_FILTER = '((ACCESSION_TYPE:"metabolights") OR (LABS_PUBS:"1782"))'
@@ -44,7 +61,71 @@ def build_query(author_name: str) -> str:
     return f'{BASE_FILTER} AND AUTH:"{author_name}"'
 
 
-def search_europe_pmc(query: str, page_size: int = 1000, sleep_s: float = 0.1) -> list[dict]:
+# Europe PMC's documented per-IP limits: 10 requests/second, 500 requests/minute.
+EUROPEPMC_MAX_PER_SECOND = 10
+EUROPEPMC_MAX_PER_MINUTE = 500
+
+
+class RateLimiter:
+    """Throttles calls to at most `max_per_second`/`max_per_minute`.
+
+    Tracks recent call timestamps and sleeps only the shortfall needed to
+    stay under whichever window (1s or 60s) is tighter at the moment --
+    unlike a fixed per-call sleep, this adds no delay at all when normal
+    request latency already keeps you under the limit, and only slows
+    down once you're actually approaching it.
+    """
+
+    def __init__(self, max_per_second: int, max_per_minute: int):
+        self._max_per_second = max_per_second
+        self._max_per_minute = max_per_minute
+        self._recent_calls: list[float] = []
+
+    def wait(self) -> None:
+        now = time.monotonic()
+        self._recent_calls = [t for t in self._recent_calls if now - t < 60]
+
+        wait_for = 0.0
+        last_second = [t for t in self._recent_calls if now - t < 1]
+        if len(last_second) >= self._max_per_second:
+            wait_for = max(wait_for, 1 - (now - last_second[0]))
+        if len(self._recent_calls) >= self._max_per_minute:
+            wait_for = max(wait_for, 60 - (now - self._recent_calls[0]))
+
+        if wait_for > 0:
+            time.sleep(wait_for)
+            now = time.monotonic()
+
+        self._recent_calls.append(now)
+
+
+RATE_LIMITER = RateLimiter(EUROPEPMC_MAX_PER_SECOND, EUROPEPMC_MAX_PER_MINUTE)
+
+
+def _build_session() -> requests.Session:
+    """A requests.Session reused for every call: keeps the TCP/TLS connection
+    alive instead of renegotiating it per request, and automatically retries
+    (with backoff, honouring Retry-After) on 429/5xx instead of losing an
+    author's results to a transient throttle or server error.
+    """
+    session = requests.Session()
+    retry = Retry(
+        total=5,
+        backoff_factor=1.0,
+        status_forcelist=[429, 500, 502, 503, 504],
+        respect_retry_after_header=True,
+        allowed_methods=["GET"],
+    )
+    adapter = HTTPAdapter(max_retries=retry)
+    session.mount("https://", adapter)
+    session.mount("http://", adapter)
+    return session
+
+
+SESSION = _build_session()
+
+
+def search_europe_pmc(query: str, page_size: int = 1000) -> list[dict]:
     """Retrieve all Europe PMC results for a query using cursor pagination.
 
     Returns a list of result records.
@@ -61,7 +142,8 @@ def search_europe_pmc(query: str, page_size: int = 1000, sleep_s: float = 0.1) -
             "resultType": "core",
         }
 
-        response = requests.get(BASE_URL, params=params, timeout=60)
+        RATE_LIMITER.wait()
+        response = SESSION.get(BASE_URL, params=params, timeout=60)
         response.raise_for_status()
         data = response.json()
 
@@ -73,7 +155,6 @@ def search_europe_pmc(query: str, page_size: int = 1000, sleep_s: float = 0.1) -
             break
 
         cursor_mark = next_cursor
-        time.sleep(sleep_s)
 
     return all_results
 
@@ -81,6 +162,20 @@ def search_europe_pmc(query: str, page_size: int = 1000, sleep_s: float = 0.1) -
 def safe_get(record: dict, key: str) -> str:
     """Return record[key] as a string, or an empty string if missing or None."""
     value = record.get(key, "")
+    if value is None:
+        return ""
+    return value
+
+
+def safe_get_nested(record: dict, *keys: str) -> str:
+    """Return a nested value as a string, or an empty string if any level is
+    missing or None. E.g. safe_get_nested(paper, "journalInfo", "journal", "title").
+    """
+    value: object = record
+    for key in keys:
+        if not isinstance(value, dict):
+            return ""
+        value = value.get(key)
     if value is None:
         return ""
     return value
@@ -117,14 +212,13 @@ def format_lftp_target(accession: str) -> str:
 ANNOTATIONS_API_URL = "https://www.ebi.ac.uk/europepmc/annotations_api/annotationsByArticleIds"
 
 
-def fetch_textmined_metabolights_accessions(
-    source: str, ext_id: str, sleep_s: float = 0.1
-) -> list[str]:
+def fetch_textmined_metabolights_accessions(source: str, ext_id: str) -> list[str]:
     """Fetch text-mined MetaboLights accessions via the Europe PMC annotations API."""
     if not source or not ext_id:
         return []
 
-    response = requests.get(
+    RATE_LIMITER.wait()
+    response = SESSION.get(
         ANNOTATIONS_API_URL,
         params={
             "articleIds": f"{source}:{ext_id}",
@@ -135,7 +229,6 @@ def fetch_textmined_metabolights_accessions(
     )
     response.raise_for_status()
     payload = response.json()
-    time.sleep(sleep_s)
 
     accessions = []
     seen = set()
@@ -150,7 +243,7 @@ def fetch_textmined_metabolights_accessions(
     return accessions
 
 
-def get_metabolights_accessions(paper: dict, sleep_s: float = 0.1) -> list[str]:
+def get_metabolights_accessions(paper: dict) -> list[str]:
     """Get all MetaboLights accessions for a paper.
 
     Checks curated cross-references first (no API call). Falls back to the
@@ -164,7 +257,7 @@ def get_metabolights_accessions(paper: dict, sleep_s: float = 0.1) -> list[str]:
         return []
     source = paper.get("source") or ""
     ext_id = paper.get("id") or paper.get("pmid") or ""
-    return fetch_textmined_metabolights_accessions(source, ext_id, sleep_s)
+    return fetch_textmined_metabolights_accessions(source, ext_id)
 
 
 def flatten_paper(
@@ -172,6 +265,7 @@ def flatten_paper(
     query: str,
     paper: dict,
     matched_keywords: list[str] | None = None,
+    metabolights_accessions: list[str] | None = None,
 ) -> dict:
     """Flatten a Europe PMC result record into a row dict for CSV output."""
     return {
@@ -184,18 +278,17 @@ def flatten_paper(
         "doi": safe_get(paper, "doi"),
         "title": safe_get(paper, "title"),
         "author_string": safe_get(paper, "authorString"),
-        "journal": safe_get(paper, "journalTitle"),
+        "journal": safe_get_nested(paper, "journalInfo", "journal", "title"),
         "pub_year": safe_get(paper, "pubYear"),
         "first_publication_date": safe_get(paper, "firstPublicationDate"),
         "cited_by_count": safe_get(paper, "citedByCount"),
         "is_open_access": safe_get(paper, "isOpenAccess"),
         "matched_keywords": "; ".join(matched_keywords or []),
+        "metabolights_accessions": "; ".join(metabolights_accessions or []),
     }
 
 
-def read_authors_from_publications_csv(
-    input_csv: str, authors_column: str = "Authors"
-) -> list[str]:
+def read_authors_from_publications_csv(input_csv: str, authors_column: str = "Authors") -> list[str]:
     """Read unique, non-empty author names out of a publications CSV file.
 
     Each row's `authors_column` holds a comma-separated list of authors in
@@ -291,6 +384,21 @@ def find_keyword_matches(text: str, pattern: re.Pattern[str]) -> list[str]:
     return found
 
 
+# These keywords are too generic on their own to reliably indicate
+# pathogen/infectious-disease relevance -- they show up constantly in
+# unrelated fields (e.g. "host" in plant biology, "strain" in yeast
+# genetics, "assembly" in any genome paper, "exposure" in toxicology,
+# "case" in "case study"/"case-control"). A paper matched on nothing but
+# these is treated as a non-match; combined with a more specific keyword
+# (e.g. "host" + "bacteria") it's still counted as a real hit.
+WEAK_KEYWORDS = {"host", "exposure", "case", "assembly", "strain"}
+
+
+def has_strong_match(matches: list[str]) -> bool:
+    """Return True if at least one match is not in WEAK_KEYWORDS."""
+    return any(m.lower() not in WEAK_KEYWORDS for m in matches)
+
+
 def main() -> None:
     """Run the Europe PMC author search and write results to CSV files."""
     input_csv = "publications.csv"
@@ -319,10 +427,9 @@ def main() -> None:
             for paper in results:
                 text = " ".join([safe_get(paper, "title"), safe_get(paper, "abstractText")])
                 matches = find_keyword_matches(text, keyword_pattern)
-                if not matches:
+                if not matches or not has_strong_match(matches):
                     continue
                 filtered_count += 1
-                paper_rows.append(flatten_paper(author_name, query, paper, matches))
 
                 try:
                     accessions = get_metabolights_accessions(paper)
@@ -331,6 +438,8 @@ def main() -> None:
                     pid = paper.get("id", "?")
                     print(f"    annotation lookup failed for {src}:{pid}: {e}")
                     accessions = []
+
+                paper_rows.append(flatten_paper(author_name, query, paper, matches, accessions))
 
                 for acc in accessions:
                     if acc not in seen_accessions:
@@ -379,6 +488,7 @@ def main() -> None:
         "cited_by_count",
         "is_open_access",
         "matched_keywords",
+        "metabolights_accessions",
     ]
 
     with Path(papers_output_csv).open("w", newline="", encoding="utf-8") as f:
