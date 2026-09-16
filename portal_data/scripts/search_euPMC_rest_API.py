@@ -17,9 +17,21 @@ Expects, in the same directory as this script:
         unrelated fields (plant genomics, yeast biology, cardiology, ...).
 
 Writes, to the current working directory:
-    europepmc_metabolights_papers.csv   One row per matched paper. Includes
-                                         a metabolights_accessions column
-                                         listing any MetaboLights accession(s)
+    europepmc_metabolights_papers.csv   One row per unique paper (deduplicated
+                                         across every author query that found
+                                         it). matching_authors lists every
+                                         distinct input author that matched,
+                                         and matching_author_count is how many
+                                         -- a high count usually means a large
+                                         multi-author paper matched through a
+                                         common-surname collision rather than
+                                         a genuinely stronger hit (Europe
+                                         PMC's AUTH filter matches on name
+                                         text alone, with no affiliation
+                                         check), so it's worth a closer look
+                                         before treating the paper as
+                                         confirmed. metabolights_accessions
+                                         lists any MetaboLights accession(s)
                                          (curated or text-mined) found for
                                          that paper, if any -- empty means
                                          the paper matched on author +
@@ -288,6 +300,49 @@ def flatten_paper(
     }
 
 
+def dedupe_paper_rows(paper_rows: list[dict]) -> list[dict]:
+    """Collapse rows for the same paper into one row per paper.
+
+    The same paper can be found once per matching input author (a
+    large multi-author paper may match dozens of them), which both
+    inflates the row count and buries a useful signal: when a paper
+    matches many distinct author names, that's often a common-surname
+    collision (e.g. "Li X", "Wang X") rather than a genuinely stronger
+    hit, since Europe PMC's AUTH filter matches on name text alone with
+    no affiliation check. This groups by (source, epmc_id), keeps the
+    paper-level fields as-is (they don't vary between duplicate rows of
+    the same paper), and replaces the single `input_author`/`query`
+    fields with `matching_authors` (all distinct authors that matched,
+    in order of first appearance) and `matching_author_count` -- a high
+    count is worth a closer look before treating the paper as a
+    genuine hit.
+    """
+    grouped: dict[tuple[str, str], dict] = {}
+    order: list[tuple[str, str]] = []
+
+    for row in paper_rows:
+        key = (row["source"], row["epmc_id"])
+        if key not in grouped:
+            new_row = dict(row)
+            new_row.pop("query", None)
+            author = new_row.pop("input_author")
+            new_row["matching_authors"] = [author]
+            grouped[key] = new_row
+            order.append(key)
+        else:
+            grouped[key]["matching_authors"].append(row["input_author"])
+
+    deduped = []
+    for key in order:
+        row = grouped[key]
+        authors = row.pop("matching_authors")
+        row["matching_author_count"] = len(authors)
+        row["matching_authors"] = "; ".join(authors)
+        deduped.append(row)
+
+    return deduped
+
+
 def read_authors_from_publications_csv(input_csv: str, authors_column: str = "Authors") -> list[str]:
     """Read unique, non-empty author names out of a publications CSV file.
 
@@ -472,9 +527,11 @@ def main() -> None:
                 }
             )
 
+    deduped_paper_rows = dedupe_paper_rows(paper_rows)
+
     paper_fieldnames = [
-        "input_author",
-        "query",
+        "matching_authors",
+        "matching_author_count",
         "epmc_id",
         "source",
         "pmid",
@@ -494,7 +551,7 @@ def main() -> None:
     with Path(papers_output_csv).open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=paper_fieldnames)
         writer.writeheader()
-        writer.writerows(paper_rows)
+        writer.writerows(deduped_paper_rows)
 
     summary_fieldnames = ["input_author", "query", "match_count", "filtered_count", "error"]
     with Path(summary_output_csv).open("w", newline="", encoding="utf-8") as f:
@@ -508,7 +565,10 @@ def main() -> None:
             f.write("\n")
 
     print()
-    print(f"Wrote {len(paper_rows)} paper rows to {papers_output_csv}")
+    print(
+        f"Wrote {len(deduped_paper_rows)} unique papers "
+        f"(from {len(paper_rows)} author-paper matches) to {papers_output_csv}"
+    )
     print(f"Wrote {len(summary_rows)} summary rows to {summary_output_csv}")
     print(f"Wrote {len(accession_targets)} lftp targets to {targets_output_txt}")
 
