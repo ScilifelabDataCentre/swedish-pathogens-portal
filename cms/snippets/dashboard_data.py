@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable, Collection
 from typing import TYPE_CHECKING
 
 import structlog
@@ -9,18 +10,27 @@ from django.contrib.contenttypes.fields import GenericRelation
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files.uploadedfile import UploadedFile
 from django.db import models
-from django.http import HttpRequest
+from django.http import HttpRequest, HttpResponse
 from django.shortcuts import redirect
 from django.utils import timezone
+from django.utils.functional import cached_property
 from wagtail.admin import messages as admin_messages
+from wagtail.admin.auth import user_passes_test
 from wagtail.admin.forms import WagtailAdminModelForm
-from wagtail.admin.panels import FieldPanel, MultiFieldPanel
+from wagtail.admin.panels import FieldPanel, MultiFieldPanel, ObjectList, Panel
+from wagtail.admin.ui.components import MediaContainer
+from wagtail.admin.ui.tables import BaseColumn, BulkActionsCheckboxColumn
 from wagtail.models import RevisionMixin
+from wagtail.permission_policies import ModelPermissionPolicy
+from wagtail.permissions import register_permission_policy
+from wagtail.snippets.bulk_actions.delete import DeleteBulkAction
 from wagtail.snippets.models import register_snippet
+from wagtail.snippets.views.chooser import SnippetChooserViewSet
 from wagtail.snippets.views.snippets import (
     CreateView,
     EditView,
     HistoryView,
+    IndexView,
     RevisionsCompareView,
     SnippetViewSet,
     UsageView,
@@ -40,6 +50,10 @@ LOGGER = structlog.get_logger(__name__)
 
 _SKIP_FILE_HOOK_ATTR = "_dashboard_data_skip_file_hook"
 _UNSUPPORTED_SOURCE_EXTENSIONS = {".numbers", ".xlsx", ".xls", ".ods"}
+_SOURCE_FILE_HELP_TEXT = (
+    "Source data file for this dashboard. Upload CSV only "
+    "(export from Numbers/Excel as CSV — .numbers files are not supported)."
+)
 
 
 def _is_new_source_file_upload(source_file: object) -> bool:
@@ -65,6 +79,7 @@ def _user_can_access_dashboard_data(user: User | None, obj: DashboardData) -> bo
         return True
     return bool(
         user is not None
+        and user.is_authenticated
         and obj.research_group_id
         and user.groups.filter(pk=obj.research_group_id).exists()
     )
@@ -74,14 +89,14 @@ class DashboardDataForm(WagtailAdminModelForm):
     """Validate dashboard source uploads before save."""
 
     def __init__(self, *args: object, **kwargs: object) -> None:
-        """Initialize the form and store the original source file for comparison."""
+        """Limit researchers to replacing the source file, including on POST."""
         super().__init__(*args, **kwargs)
 
         for_user = kwargs.get("for_user")
-        # Only superusers and internal editors can see the option
-        # and assign a research group to a dashboard data instance.
         if not _is_internal_user(for_user):
-            self.fields.pop("research_group", None)
+            self.fields = {
+                name: field for name, field in self.fields.items() if name == "source_file"
+            }
 
     def clean_source_file(self) -> object:
         """Validate the source upload (custom viz-module checks, else CSV)."""
@@ -197,10 +212,7 @@ class DashboardData(RevisionMixin, models.Model):
         ),
         FieldPanel(
             "source_file",
-            help_text=(
-                "Source data file for this dashboard. Upload CSV only "
-                "(export from Numbers/Excel as CSV — .numbers files are not supported)."
-            ),
+            help_text=_SOURCE_FILE_HELP_TEXT,
         ),
         FieldPanel("data_updated_at"),
         FieldPanel(
@@ -211,6 +223,11 @@ class DashboardData(RevisionMixin, models.Model):
                 "or paste JSON directly for historic dashboards."
             ),
         ),
+    ]
+
+    researcher_panels = [
+        FieldPanel("dashboard_title", read_only=True),
+        FieldPanel("source_file", help_text=_SOURCE_FILE_HELP_TEXT),
     ]
 
     class Meta:
@@ -341,7 +358,9 @@ class DashboardData(RevisionMixin, models.Model):
             )
 
 
-def get_dashboard_data_save_feedback(instance: DashboardData) -> tuple[str | None, str]:
+def get_dashboard_data_save_feedback(
+    instance: DashboardData, *, include_internal_details: bool = True
+) -> tuple[str | None, str]:
     """Return custom admin feedback text and Wagtail message level, if any."""
     if getattr(instance, "_duplicate_source_upload", False):
         return (
@@ -351,6 +370,12 @@ def get_dashboard_data_save_feedback(instance: DashboardData) -> tuple[str | Non
         )
 
     if error := getattr(instance, "_regeneration_error", None):
+        if not include_internal_details:
+            return (
+                "The source file was saved but figure generation failed. "
+                "The data-updated date was not changed. Please contact an editor.",
+                "error",
+            )
         return (
             "The source file was saved but figure generation failed: "
             f"{error}. The data-updated date was not changed.",
@@ -358,6 +383,12 @@ def get_dashboard_data_save_feedback(instance: DashboardData) -> tuple[str | Non
         )
 
     if getattr(instance, "_regeneration_empty", False):
+        if not include_internal_details:
+            return (
+                "The source file was saved but no figures were generated. "
+                "Please contact an editor to check the dashboard configuration.",
+                "warning",
+            )
         return (
             "The source file was saved but no figures were generated "
             f'(no viz service registered for slug "{instance.dashboard_slug}").',
@@ -399,6 +430,61 @@ class DashboardDataObjectPermissionMixin:
         return obj
 
 
+class DashboardDataPermissionPolicy(ModelPermissionPolicy):
+    """Keep researchers edit-only and restrict objects to their assigned groups.
+
+    Register this policy centrally so snippet actions, menus, and bulk actions
+    all apply the same restrictions, including when extra permissions are granted.
+    """
+
+    def user_has_permission(self, user: User, action: str) -> bool:
+        """Require Django permissions and reserve administrative actions for editors."""
+        if not _is_internal_user(user) and action not in {"change", "view"}:
+            return False
+        return super().user_has_permission(user, action)
+
+    def user_has_permission_for_instance(
+        self, user: User, action: str, instance: DashboardData
+    ) -> bool:
+        """Also require membership in the upload's assigned research group."""
+        return self.user_has_permission(user, action) and _user_can_access_dashboard_data(
+            user, instance
+        )
+
+    def instances_user_has_any_permission_for(
+        self, user: User, actions: Collection[str]
+    ) -> models.QuerySet:
+        """Return only the uploads the user may access."""
+        queryset = super().instances_user_has_any_permission_for(user, actions)
+        if _is_internal_user(user):
+            return queryset
+        return queryset.filter(research_group__in=user.groups.all())
+
+    def users_with_any_permission(self, actions: Collection[str]) -> models.QuerySet:
+        """Apply the role restriction when Wagtail looks up permitted users."""
+        researcher_actions = set(actions) & {"change", "view"}
+        researchers = super().users_with_any_permission(researcher_actions)
+        return (
+            super()
+            .users_with_any_permission(actions)
+            .filter(
+                models.Q(is_superuser=True)
+                | models.Q(groups__name="Editors")
+                | models.Q(pk__in=researchers)
+            )
+            .distinct()
+        )
+
+    def users_with_any_permission_for_instance(
+        self, actions: Collection[str], instance: DashboardData
+    ) -> models.QuerySet:
+        """Restrict user lookups to internal staff and the assigned group."""
+        allowed = models.Q(is_superuser=True) | models.Q(groups__name="Editors")
+        if instance.research_group_id:
+            allowed |= models.Q(groups__pk=instance.research_group_id)
+        return self.users_with_any_permission(actions).filter(allowed).distinct()
+
+
 class DashboardDataUploadedByMixin:
     """Record which editor uploaded (or re-uploaded) the source file."""
 
@@ -427,7 +513,9 @@ class DashboardDataSnippetSaveMessagesMixin:
 
     def save_action(self) -> object:
         """Show upload/regeneration feedback instead of the default success message."""
-        message, level = get_dashboard_data_save_feedback(self.object)
+        message, level = get_dashboard_data_save_feedback(
+            self.object, include_internal_details=_is_internal_user(self.request.user)
+        )
         if message is not None:
             method = getattr(admin_messages, level, admin_messages.success)
             buttons = self.get_success_buttons() if level == "success" else None
@@ -454,6 +542,45 @@ class DashboardDataEditView(
 ):
     """Edit view with dashboard upload feedback."""
 
+    def setup(self, request: HttpRequest, *args: object, **kwargs: object) -> None:
+        """Keep researcher saves from overwriting historical revisions."""
+        if not _is_internal_user(request.user):
+            if request.POST.get("overwrite_revision_id"):
+                raise PermissionDenied
+            self.history_url_name = None
+            self.usage_url_name = None
+        super().setup(request, *args, **kwargs)
+
+    def get_panel(self) -> Panel:
+        """Choose the upload-only editor without changing the shared panels."""
+        if _is_internal_user(self.request.user):
+            return super().get_panel()
+        return ObjectList(self.model.researcher_panels).bind_to_model(self.model)
+
+    def get_form_class(self) -> type[WagtailAdminModelForm]:
+        """Use the researcher panel's form instead of the viewset's full form."""
+        if _is_internal_user(self.request.user):
+            return super().get_form_class()
+        return self.panel.get_form_class()
+
+    def get_side_panels(self) -> MediaContainer:
+        """Keep administrative history and usage controls out of the upload screen."""
+        if _is_internal_user(self.request.user):
+            return super().get_side_panels()
+        return MediaContainer([])
+
+    def get_page_subtitle(self) -> str:
+        """Use the configured title rather than a slug fallback for researchers."""
+        if _is_internal_user(self.request.user):
+            return super().get_page_subtitle()
+        return self.object.dashboard_title
+
+    def get_success_message(self) -> str:
+        """Keep the default save message free of internal identifiers."""
+        if _is_internal_user(self.request.user):
+            return super().get_success_message()
+        return "Dashboard data upload saved."
+
 
 class DashboardDataHistoryView(
     DashboardDataObjectPermissionMixin,
@@ -476,6 +603,53 @@ class DashboardDataUsageView(
     """Usage view with object-level permission checks."""
 
 
+class DashboardDataIndexView(IndexView):
+    """Show researchers their dashboard titles and data-updated dates."""
+
+    def setup(self, request: HttpRequest, *args: object, **kwargs: object) -> None:
+        """Limit this request's columns, filters, and ordering before they are cached."""
+        if not _is_internal_user(request.user):
+            self.list_display = ["dashboard_title", "data_updated_at"]
+            self.list_filter = []
+            self.filterset_class = None
+            self.default_ordering = ["dashboard_title", "pk"]
+        super().setup(request, *args, **kwargs)
+
+    @cached_property
+    def columns(self) -> list[BaseColumn]:
+        """Remove selection checkboxes when there are no permitted bulk actions."""
+        columns = super().columns
+        if _is_internal_user(self.request.user):
+            return columns
+        return [column for column in columns if not isinstance(column, BulkActionsCheckboxColumn)]
+
+    def get_list_buttons(self, instance: DashboardData) -> list:
+        """Researchers open uploads through their title links only."""
+        if _is_internal_user(self.request.user):
+            return super().get_list_buttons(instance)
+        return []
+
+
+class DashboardDataChooserViewSet(SnippetChooserViewSet):
+    """Reserve all chooser endpoints for internal dashboard configuration."""
+
+    def construct_view(self, view_class: type, **kwargs: object) -> Callable[..., HttpResponse]:
+        """Guard listing, single/multiple selections, and chooser creation alike."""
+        return user_passes_test(_is_internal_user)(super().construct_view(view_class, **kwargs))
+
+
+class DashboardDataDeleteBulkAction(DeleteBulkAction):
+    """Reject researcher bulk requests before any object details are rendered."""
+
+    models = [DashboardData]
+
+    def dispatch(self, request: HttpRequest, *args: object, **kwargs: object) -> HttpResponse:
+        """Reserve dashboard bulk deletion for internal users."""
+        if not _is_internal_user(request.user):
+            raise PermissionDenied
+        return super().dispatch(request, *args, **kwargs)
+
+
 class DashboardDataViewSet(SnippetViewSet):
     """Wagtail admin viewset for the Dashboard Data Upload snippet."""
 
@@ -484,11 +658,13 @@ class DashboardDataViewSet(SnippetViewSet):
     menu_label = "Dashboard Data Upload"
     menu_name = "dashboard-data-upload"
     ordering = ["dashboard_slug"]
+    index_view_class = DashboardDataIndexView
     add_view_class = DashboardDataCreateView
     edit_view_class = DashboardDataEditView
     history_view_class = DashboardDataHistoryView
     revisions_compare_view_class = DashboardDataRevisionsCompareView
     usage_view_class = DashboardDataUsageView
+    chooser_viewset_class = DashboardDataChooserViewSet
     list_display = [
         "dashboard_title",
         "dashboard_slug",
@@ -496,6 +672,17 @@ class DashboardDataViewSet(SnippetViewSet):
         "uploaded_by",
     ]
     list_filter = ["dashboard_slug"]
+
+    def construct_view(self, view_class: type, **kwargs: object) -> Callable[..., HttpResponse]:
+        """Expose only the listing and current upload editor to researchers.
+
+        Wagtail creates restoration views dynamically from the edit view. Check
+        view_name so these cannot inherit researcher access to the current row.
+        """
+        view = super().construct_view(view_class, **kwargs)
+        if getattr(view_class, "view_name", None) in {"list", "edit"}:
+            return view
+        return user_passes_test(_is_internal_user)(view)
 
     def get_queryset(self, request: HttpRequest) -> models.QuerySet:
         """Return a queryset of DashboardData instances based on the user's permissions."""
@@ -508,4 +695,5 @@ class DashboardDataViewSet(SnippetViewSet):
         return queryset.filter(research_group__in=user.groups.all())
 
 
+register_permission_policy(DashboardData, DashboardDataPermissionPolicy(DashboardData))
 register_snippet(DashboardDataViewSet)
