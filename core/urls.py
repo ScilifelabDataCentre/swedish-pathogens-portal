@@ -27,7 +27,7 @@ from wagtail.contrib.sitemaps.views import sitemap
 from wagtail.documents import urls as wagtaildocs_urls
 
 # Local imports
-from core.views import healthz
+from core.views import ebi_index, healthz
 
 urlpatterns = []
 
@@ -40,6 +40,7 @@ if settings.INCLUDE_DJANGO_ADMIN:
 # General URLs for health checks and sitemap.
 urlpatterns += [
     path("healthz/", healthz, name="healthz"),
+    path("ebi-index.json", ebi_index, name="ebi_index"),
     path("sitemap.xml", sitemap, name="sitemap"),
 ]
 
