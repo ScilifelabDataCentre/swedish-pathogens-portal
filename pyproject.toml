@@ -13,10 +13,10 @@ dependencies = [
     "httpx==0.28.1",
     "markdown==3.10.3",
     "nh3==0.3.7",
-    "numpy==2.5.2",
+    "numpy==2.5.3",
     "pillow==12.3.0",
     "plotly==7.0.0",
-    "polars==1.44.1",
+    "polars==1.44.2",
     "wagtail==8.0",
 ]
 
