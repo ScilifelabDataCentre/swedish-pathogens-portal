@@ -2,6 +2,13 @@
 
 Usage:
     python search_euPMC_rest_API.py
+    python search_euPMC_rest_API.py --retry-errors
+
+--retry-errors re-runs the search only for authors whose row in
+europepmc_metabolights_summary.csv has a non-empty error (e.g. a
+transient "too many 503 error responses" from Europe PMC), and merges
+the results into the existing papers/summary/targets output files
+instead of doing a full re-run. Safe to run repeatedly.
 
 Expects, in the same directory as this script:
     publications.csv
@@ -68,6 +75,7 @@ and reuse a single requests.Session (with automatic retry/backoff on
 
 from __future__ import annotations
 
+import argparse
 import csv
 import re
 import time
@@ -80,6 +88,34 @@ from urllib3.util.retry import Retry
 
 BASE_URL = "https://www.ebi.ac.uk/europepmc/webservices/rest/search"
 BASE_FILTER = '((ACCESSION_TYPE:"metabolights") OR (LABS_PUBS:"1782"))'
+
+PAPERS_OUTPUT_CSV = "europepmc_metabolights_papers.csv"
+SUMMARY_OUTPUT_CSV = "europepmc_metabolights_summary.csv"
+TARGETS_OUTPUT_TXT = "targets.txt"
+KEYWORDS_CSV = "pathogen_infectious_disease_keywords_just_keywords.csv"
+
+PAPER_FIELDNAMES = [
+    "matching_authors",
+    "matching_author_count",
+    "sweden_affiliated_matching_authors",
+    "non_sweden_affiliated_matching_authors",
+    "epmc_id",
+    "source",
+    "pmid",
+    "pmcid",
+    "doi",
+    "title",
+    "author_string",
+    "journal",
+    "pub_year",
+    "first_publication_date",
+    "cited_by_count",
+    "is_open_access",
+    "matched_keywords",
+    "metabolights_accessions",
+    "matching_authors_affiliations",
+]
+SUMMARY_FIELDNAMES = ["input_author", "query", "match_count", "filtered_count", "error"]
 
 
 def build_query(author_name: str) -> str:
@@ -447,6 +483,144 @@ def dedupe_paper_rows(paper_rows: list[dict]) -> list[dict]:
     return deduped
 
 
+def _parse_affiliation_detail(field: str) -> dict[str, str]:
+    """Parse a matching_authors_affiliations field ("Name: affiliation |
+    Name: affiliation") back into a dict of author name -> affiliation.
+    """
+    result: dict[str, str] = {}
+    for part in (field or "").split(" | "):
+        if ": " in part:
+            name, aff = part.split(": ", 1)
+            result[name.strip()] = aff.strip()
+    return result
+
+
+def expand_deduped_row_to_author_rows(row: dict) -> list[dict]:
+    """Reverse dedupe_paper_rows for one already-deduped paper row: rebuild
+    one row per matched author, in flatten_paper's per-author-match shape.
+
+    Used so a retry run can merge newly found matches into an existing
+    deduped papers CSV (and re-run dedupe_paper_rows over the combination)
+    without needing to keep the original pre-dedup rows around between runs.
+    """
+    sweden_authors = {a.strip() for a in (row.get("sweden_affiliated_matching_authors") or "").split(";") if a.strip()}
+    non_sweden_authors = {
+        a.strip() for a in (row.get("non_sweden_affiliated_matching_authors") or "").split(";") if a.strip()
+    }
+    affiliations = _parse_affiliation_detail(row.get("matching_authors_affiliations") or "")
+
+    shared_fields = {
+        k: v
+        for k, v in row.items()
+        if k
+        not in (
+            "matching_authors",
+            "matching_author_count",
+            "sweden_affiliated_matching_authors",
+            "non_sweden_affiliated_matching_authors",
+            "matching_authors_affiliations",
+        )
+    }
+
+    expanded = []
+    for name in (row.get("matching_authors") or "").split(";"):
+        name = name.strip()
+        if not name:
+            continue
+        if name in sweden_authors:
+            flag = "Y"
+        elif name in non_sweden_authors:
+            flag = "N"
+        else:
+            flag = ""
+        expanded_row = dict(shared_fields)
+        expanded_row["input_author"] = name
+        expanded_row["author_sweden_affiliation"] = flag
+        expanded_row["author_affiliation"] = affiliations.get(name, "")
+        expanded.append(expanded_row)
+    return expanded
+
+
+def load_errored_authors(summary_csv: str) -> list[str]:
+    """Read a previous run's summary CSV and return the authors whose row
+    has a non-empty error (e.g. a transient network/server failure), in
+    order of first appearance, deduplicated.
+    """
+    authors = []
+    seen = set()
+    with Path(summary_csv).open(newline="", encoding="utf-8-sig") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            author = (row.get("input_author") or "").strip()
+            error = (row.get("error") or "").strip()
+            if author and error and author not in seen:
+                seen.add(author)
+                authors.append(author)
+    return authors
+
+
+def retry_errored_authors(
+    papers_csv: str = PAPERS_OUTPUT_CSV,
+    summary_csv: str = SUMMARY_OUTPUT_CSV,
+    targets_txt: str = TARGETS_OUTPUT_TXT,
+    keywords_csv: str = KEYWORDS_CSV,
+) -> None:
+    """Re-run the search for only the authors that errored in a previous
+    run, and merge the results into the existing output files instead of
+    starting over. Safe to run repeatedly -- authors that still error stay
+    marked as errored for the next retry.
+    """
+    errored_authors = load_errored_authors(summary_csv)
+    if not errored_authors:
+        print(f"No errored authors found in {summary_csv}. Nothing to retry.")
+        return
+
+    print(f"Retrying {len(errored_authors)} previously-errored author(s)...")
+    keywords = load_keywords(keywords_csv)
+    keyword_pattern = build_keyword_pattern(keywords)
+
+    new_paper_rows, new_summary_rows = search_authors(errored_authors, keyword_pattern)
+
+    existing_paper_rows = []
+    if Path(papers_csv).exists():
+        with Path(papers_csv).open(newline="", encoding="utf-8-sig") as f:
+            existing_paper_rows = list(csv.DictReader(f))
+
+    expanded_existing = [r for row in existing_paper_rows for r in expand_deduped_row_to_author_rows(row)]
+    deduped_paper_rows = dedupe_paper_rows(expanded_existing + new_paper_rows)
+
+    with Path(papers_csv).open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=PAPER_FIELDNAMES)
+        writer.writeheader()
+        writer.writerows(deduped_paper_rows)
+
+    existing_summary_rows = []
+    if Path(summary_csv).exists():
+        with Path(summary_csv).open(newline="", encoding="utf-8-sig") as f:
+            existing_summary_rows = list(csv.DictReader(f))
+
+    retried_set = set(errored_authors)
+    merged_summary_rows = [r for r in existing_summary_rows if r.get("input_author") not in retried_set]
+    merged_summary_rows.extend(new_summary_rows)
+
+    with Path(summary_csv).open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=SUMMARY_FIELDNAMES)
+        writer.writeheader()
+        writer.writerows(merged_summary_rows)
+
+    accession_targets = accession_targets_from_paper_rows(deduped_paper_rows)
+    with Path(targets_txt).open("w", encoding="utf-8") as f:
+        f.write("\n".join(accession_targets))
+        if accession_targets:
+            f.write("\n")
+
+    still_errored = sum(1 for r in new_summary_rows if r.get("error"))
+    print()
+    print(f"Retried {len(errored_authors)} author(s); {still_errored} still errored.")
+    print(f"Merged papers CSV now has {len(deduped_paper_rows)} unique papers ({papers_csv}).")
+    print(f"Rewrote {summary_csv} and {targets_txt}.")
+
+
 def read_authors_from_publications_csv(input_csv: str, authors_column: str = "Authors") -> list[str]:
     """Read unique, non-empty author names out of a publications CSV file.
 
@@ -558,24 +732,16 @@ def has_strong_match(matches: list[str]) -> bool:
     return any(m.lower() not in WEAK_KEYWORDS for m in matches)
 
 
-def main() -> None:
-    """Run the Europe PMC author search and write results to CSV files."""
-    input_csv = "publications.csv"
-    authors_column = "Authors"
-    keywords_csv = "pathogen_infectious_disease_keywords_just_keywords.csv"
-    papers_output_csv = "europepmc_metabolights_papers.csv"
-    summary_output_csv = "europepmc_metabolights_summary.csv"
-    targets_output_txt = "targets.txt"
+def search_authors(authors: list[str], keyword_pattern: re.Pattern[str]) -> tuple[list[dict], list[dict]]:
+    """Search Europe PMC for each author in turn.
 
-    authors = read_authors_from_publications_csv(input_csv, authors_column)
-    keywords = load_keywords(keywords_csv)
-    keyword_pattern = build_keyword_pattern(keywords)
-    print(f"Loaded {len(keywords)} keywords from {keywords_csv}")
-
+    Returns (paper_rows, summary_rows): paper_rows are per-(author, paper)
+    match dicts in flatten_paper's shape (not yet deduped -- see
+    dedupe_paper_rows), and summary_rows are one dict per author with its
+    match/filtered counts, or an "error" key if the search itself failed.
+    """
     paper_rows = []
     summary_rows = []
-    seen_accessions: set[str] = set()
-    accession_targets: list[str] = []
 
     for idx, author_name in enumerate(authors, start=1):
         try:
@@ -605,11 +771,6 @@ def main() -> None:
                     flatten_paper(author_name, query, paper, matches, accessions, author_affils)
                 )
 
-                for acc in accessions:
-                    if acc not in seen_accessions:
-                        seen_accessions.add(acc)
-                        accession_targets.append(format_lftp_target(acc))
-
             print(
                 f"[{idx}/{len(authors)}] {author_name}: "
                 f"{len(results)} matches, {filtered_count} after keyword filter"
@@ -636,42 +797,66 @@ def main() -> None:
                 }
             )
 
+    return paper_rows, summary_rows
+
+
+def accession_targets_from_paper_rows(paper_rows: list[dict]) -> list[str]:
+    """Collect unique lftp target lines from a list of (deduped) paper rows'
+    metabolights_accessions fields, in order of first appearance.
+    """
+    seen: set[str] = set()
+    targets: list[str] = []
+    for row in paper_rows:
+        for acc in (row.get("metabolights_accessions") or "").split(";"):
+            acc = acc.strip()
+            if acc and acc not in seen:
+                seen.add(acc)
+                targets.append(format_lftp_target(acc))
+    return targets
+
+
+def main() -> None:
+    """Run the Europe PMC author search and write results to CSV files."""
+    parser = argparse.ArgumentParser(description="Search Europe PMC for MetaboLights-linked publications.")
+    parser.add_argument(
+        "--retry-errors",
+        action="store_true",
+        help=(
+            "Instead of a full run, re-run the search only for authors that "
+            f"errored in the previous run (per the error column in "
+            f"{SUMMARY_OUTPUT_CSV}), and merge the results into the existing "
+            "output files rather than starting over."
+        ),
+    )
+    args = parser.parse_args()
+
+    if args.retry_errors:
+        retry_errored_authors()
+        return
+
+    input_csv = "publications.csv"
+    authors_column = "Authors"
+
+    authors = read_authors_from_publications_csv(input_csv, authors_column)
+    keywords = load_keywords(KEYWORDS_CSV)
+    keyword_pattern = build_keyword_pattern(keywords)
+    print(f"Loaded {len(keywords)} keywords from {KEYWORDS_CSV}")
+
+    paper_rows, summary_rows = search_authors(authors, keyword_pattern)
     deduped_paper_rows = dedupe_paper_rows(paper_rows)
 
-    paper_fieldnames = [
-        "matching_authors",
-        "matching_author_count",
-        "sweden_affiliated_matching_authors",
-        "non_sweden_affiliated_matching_authors",
-        "epmc_id",
-        "source",
-        "pmid",
-        "pmcid",
-        "doi",
-        "title",
-        "author_string",
-        "journal",
-        "pub_year",
-        "first_publication_date",
-        "cited_by_count",
-        "is_open_access",
-        "matched_keywords",
-        "metabolights_accessions",
-        "matching_authors_affiliations",
-    ]
-
-    with Path(papers_output_csv).open("w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=paper_fieldnames)
+    with Path(PAPERS_OUTPUT_CSV).open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=PAPER_FIELDNAMES)
         writer.writeheader()
         writer.writerows(deduped_paper_rows)
 
-    summary_fieldnames = ["input_author", "query", "match_count", "filtered_count", "error"]
-    with Path(summary_output_csv).open("w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=summary_fieldnames)
+    with Path(SUMMARY_OUTPUT_CSV).open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=SUMMARY_FIELDNAMES)
         writer.writeheader()
         writer.writerows(summary_rows)
 
-    with Path(targets_output_txt).open("w", encoding="utf-8") as f:
+    accession_targets = accession_targets_from_paper_rows(deduped_paper_rows)
+    with Path(TARGETS_OUTPUT_TXT).open("w", encoding="utf-8") as f:
         f.write("\n".join(accession_targets))
         if accession_targets:
             f.write("\n")
@@ -679,10 +864,10 @@ def main() -> None:
     print()
     print(
         f"Wrote {len(deduped_paper_rows)} unique papers "
-        f"(from {len(paper_rows)} author-paper matches) to {papers_output_csv}"
+        f"(from {len(paper_rows)} author-paper matches) to {PAPERS_OUTPUT_CSV}"
     )
-    print(f"Wrote {len(summary_rows)} summary rows to {summary_output_csv}")
-    print(f"Wrote {len(accession_targets)} lftp targets to {targets_output_txt}")
+    print(f"Wrote {len(summary_rows)} summary rows to {SUMMARY_OUTPUT_CSV}")
+    print(f"Wrote {len(accession_targets)} lftp targets to {TARGETS_OUTPUT_TXT}")
 
 
 if __name__ == "__main__":
