@@ -28,9 +28,25 @@ Writes, to the current working directory:
                                          a genuinely stronger hit (Europe
                                          PMC's AUTH filter matches on name
                                          text alone, with no affiliation
-                                         check), so it's worth a closer look
-                                         before treating the paper as
-                                         confirmed. metabolights_accessions
+                                         check). sweden_affiliated_matching_authors
+                                         and non_sweden_affiliated_matching_authors
+                                         split those matched names by whether
+                                         Europe PMC's per-author affiliation
+                                         data (available for MEDLINE records
+                                         from 2014 on) mentions Sweden -- if
+                                         a paper's matches are all in the
+                                         "non_sweden" column and none in
+                                         "sweden", especially alongside a
+                                         high matching_author_count, that's a
+                                         strong sign of a surname collision
+                                         rather than a real hit. Both columns
+                                         can be empty if no affiliation data
+                                         was available at all (unknown, not
+                                         necessarily non-Swedish).
+                                         matching_authors_affiliations gives
+                                         the raw "Name: affiliation" text for
+                                         every matched author with data, for
+                                         manual review. metabolights_accessions
                                          lists any MetaboLights accession(s)
                                          (curated or text-mined) found for
                                          that paper, if any -- empty means
@@ -55,6 +71,7 @@ from __future__ import annotations
 import csv
 import re
 import time
+import unicodedata
 from pathlib import Path
 
 import requests
@@ -272,14 +289,75 @@ def get_metabolights_accessions(paper: dict) -> list[str]:
     return fetch_textmined_metabolights_accessions(source, ext_id)
 
 
+def _normalize_name(name: str) -> str:
+    """Fold a name to a comparable form: strip diacritics, collapse
+    whitespace, lowercase. Used to match our own "Lastname Initials"
+    strings against Europe PMC's authorList fullName field, which should
+    normally already be in the same format but may differ slightly in
+    accenting or spacing.
+    """
+    name = unicodedata.normalize("NFKD", name or "")
+    name = "".join(c for c in name if not unicodedata.combining(c))
+    return re.sub(r"\s+", " ", name).strip().casefold()
+
+
+def get_author_affiliations(paper: dict) -> dict[str, list[str]]:
+    """Map each author's fullName to their list of affiliation strings.
+
+    Only populated for resultType=core records, and only for MEDLINE
+    records from 2014 onward (per Europe PMC's docs) -- a paper with no
+    affiliation data at all doesn't necessarily mean its authors lack one.
+    Keys are normalized via _normalize_name for reliable lookup.
+    """
+    affiliations: dict[str, list[str]] = {}
+    authors = paper.get("authorList", {}).get("author", [])
+    for author in authors:
+        full_name = (author.get("fullName") or "").strip()
+        if not full_name:
+            continue
+        details = author.get("authorAffiliationDetailsList", {}).get("authorAffiliation", [])
+        author_affils = [
+            (d.get("affiliation") or "").strip() for d in details if (d.get("affiliation") or "").strip()
+        ]
+        if author_affils:
+            key = _normalize_name(full_name)
+            affiliations.setdefault(key, []).extend(author_affils)
+    return affiliations
+
+
+def get_affiliation_for_author(affiliations: dict[str, list[str]], author_name: str) -> list[str]:
+    """Look up the specific matched author's affiliation(s) on this paper
+    (not just any co-author's), by normalized name. Returns [] if no
+    affiliation data was found for that author on this paper.
+    """
+    return affiliations.get(_normalize_name(author_name), [])
+
+
+def _sweden_flag(author_affiliations: list[str]) -> str:
+    """"Y" if any affiliation mentions Sweden, "N" if affiliation data
+    exists but none does, "" if no affiliation data was found at all for
+    that author on this paper (unknown, not necessarily non-Swedish).
+    """
+    if not author_affiliations:
+        return ""
+    return "Y" if any("sweden" in a.lower() for a in author_affiliations) else "N"
+
+
 def flatten_paper(
     author_name: str,
     query: str,
     paper: dict,
     matched_keywords: list[str] | None = None,
     metabolights_accessions: list[str] | None = None,
+    author_affiliations: list[str] | None = None,
 ) -> dict:
-    """Flatten a Europe PMC result record into a row dict for CSV output."""
+    """Flatten a Europe PMC result record into a row dict for CSV output.
+
+    author_affiliations should be the specific matched author's own
+    affiliation string(s) on this paper (see get_affiliation_for_author),
+    not just any co-author's -- empty means no affiliation data was found
+    for that author on this record.
+    """
     return {
         "input_author": author_name,
         "query": query,
@@ -297,6 +375,8 @@ def flatten_paper(
         "is_open_access": safe_get(paper, "isOpenAccess"),
         "matched_keywords": "; ".join(matched_keywords or []),
         "metabolights_accessions": "; ".join(metabolights_accessions or []),
+        "author_affiliation": "; ".join(author_affiliations or []),
+        "author_sweden_affiliation": _sweden_flag(author_affiliations or []),
     }
 
 
@@ -311,33 +391,57 @@ def dedupe_paper_rows(paper_rows: list[dict]) -> list[dict]:
     hit, since Europe PMC's AUTH filter matches on name text alone with
     no affiliation check. This groups by (source, epmc_id), keeps the
     paper-level fields as-is (they don't vary between duplicate rows of
-    the same paper), and replaces the single `input_author`/`query`
-    fields with `matching_authors` (all distinct authors that matched,
-    in order of first appearance) and `matching_author_count` -- a high
-    count is worth a closer look before treating the paper as a
-    genuine hit.
+    the same paper), and replaces the per-author `input_author`/`query`/
+    `author_affiliation`/`author_sweden_affiliation` fields with:
+      - matching_authors / matching_author_count: every distinct author
+        that matched, in order of first appearance, and how many.
+      - sweden_affiliated_matching_authors: which of those specifically
+        have a Sweden-mentioning affiliation on this paper -- empty means
+        none of the matched names look genuinely Swedish here, a strong
+        signal (especially combined with a high matching_author_count)
+        that the match is a surname collision rather than a real hit.
+      - non_sweden_affiliated_matching_authors: matched authors whose
+        affiliation is known and does NOT mention Sweden (as opposed to
+        no affiliation data being available at all).
+      - matching_authors_affiliations: "Name: affiliation" for every
+        matched author where affiliation data was found, for manual
+        review.
     """
     grouped: dict[tuple[str, str], dict] = {}
     order: list[tuple[str, str]] = []
+    author_matches: dict[tuple[str, str], list[tuple[str, str, str]]] = {}
 
     for row in paper_rows:
         key = (row["source"], row["epmc_id"])
+        author_matches.setdefault(key, []).append(
+            (row["input_author"], row.get("author_sweden_affiliation", ""), row.get("author_affiliation", ""))
+        )
         if key not in grouped:
             new_row = dict(row)
-            new_row.pop("query", None)
-            author = new_row.pop("input_author")
-            new_row["matching_authors"] = [author]
+            for field in ("query", "input_author", "author_affiliation", "author_sweden_affiliation"):
+                new_row.pop(field, None)
             grouped[key] = new_row
             order.append(key)
-        else:
-            grouped[key]["matching_authors"].append(row["input_author"])
 
     deduped = []
     for key in order:
         row = grouped[key]
-        authors = row.pop("matching_authors")
-        row["matching_author_count"] = len(authors)
-        row["matching_authors"] = "; ".join(authors)
+        matches = author_matches[key]
+
+        seen_authors: list[str] = []
+        for author, _flag, _aff in matches:
+            if author not in seen_authors:
+                seen_authors.append(author)
+
+        sweden_authors = list(dict.fromkeys(a for a, flag, _ in matches if flag == "Y"))
+        non_sweden_authors = list(dict.fromkeys(a for a, flag, _ in matches if flag == "N"))
+        affiliation_detail = [f"{a}: {aff}" for a, _flag, aff in matches if aff]
+
+        row["matching_authors"] = "; ".join(seen_authors)
+        row["matching_author_count"] = len(seen_authors)
+        row["sweden_affiliated_matching_authors"] = "; ".join(sweden_authors)
+        row["non_sweden_affiliated_matching_authors"] = "; ".join(non_sweden_authors)
+        row["matching_authors_affiliations"] = " | ".join(affiliation_detail)
         deduped.append(row)
 
     return deduped
@@ -494,7 +598,12 @@ def main() -> None:
                     print(f"    annotation lookup failed for {src}:{pid}: {e}")
                     accessions = []
 
-                paper_rows.append(flatten_paper(author_name, query, paper, matches, accessions))
+                affiliations = get_author_affiliations(paper)
+                author_affils = get_affiliation_for_author(affiliations, author_name)
+
+                paper_rows.append(
+                    flatten_paper(author_name, query, paper, matches, accessions, author_affils)
+                )
 
                 for acc in accessions:
                     if acc not in seen_accessions:
@@ -532,6 +641,8 @@ def main() -> None:
     paper_fieldnames = [
         "matching_authors",
         "matching_author_count",
+        "sweden_affiliated_matching_authors",
+        "non_sweden_affiliated_matching_authors",
         "epmc_id",
         "source",
         "pmid",
@@ -546,6 +657,7 @@ def main() -> None:
         "is_open_access",
         "matched_keywords",
         "metabolights_accessions",
+        "matching_authors_affiliations",
     ]
 
     with Path(papers_output_csv).open("w", newline="", encoding="utf-8") as f:
