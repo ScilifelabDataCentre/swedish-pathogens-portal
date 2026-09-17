@@ -1,0 +1,41 @@
+{% comment %}
+    This file is used to display the dataset information on the SLU wastewater "overview" page.
+    This template is passed via "StaticBlock" in "SLUDashboardPage" model and is rendered when
+    the editor includes it in the page via wagtail admin panel.
+{% endcomment %}
+
+<div id="dataset-info" class="my-5">
+<details
+    class="group bg-white rounded-lg border border-pp-pale-grey/30 shadow-sm overflow-hidden transition-all duration-300">
+    <!-- Collapsible header -->
+    <summary
+        class="p-4 font-bold text-lg cursor-pointer flex items-center justify-between list-none hover:bg-pp-pale-grey/10 transition-colors">
+        Dataset
+        <span class="transition-transform duration-300 group-open:rotate-180">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24"
+                stroke="currentColor" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+        </span>
+    </summary>
+    <!-- Collapsible content -->
+    <div class="border-t border-pp-pale-grey/20 p-4">
+        {% if dashboard_data and dashboard_data.source_file %}
+        <p class="mt-1">
+            <strong>Download the data:</strong> <a href="{{ dashboard_data.source_file.url }}">
+            Respiratory viruses in wastewater (multiple normalisation methods)</a>.
+        </p>
+        {% endif %}
+
+        <p><strong>Contact: </strong><a href="mailto:SEEC@slu.se">SEEC@slu.se</a></p>
+
+        <p class="mb-1">
+            <strong>How to cite the dataset:</strong><br>
+            Székely, A. J., Malmberg, M., Coker, S., Vargas, J., Mohamed, N., Dafalla, I., Petrini, F., Davies, L., Cekol, A. (2026).
+            Dataset of SARS-CoV-2, influenza A and influenza B virus content in wastewater samples from wastewater
+            treatment plants in Sweden. <a href="https://doi.org/10.17044/scilifelab.14256317" target="_blank"
+            rel="noopener noreferrer">https://doi.org/10.17044/scilifelab.14256317</a>.
+        </p>
+    </div>
+</details>
+</div>

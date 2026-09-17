@@ -57,6 +57,16 @@ class SLUDashboardPage(DashboardPage):
             ("last_updated", LastUpdatedBlock()),
             ("plotly_figure", PlotlyFigureBlock()),
             (
+                "dataset_info",
+                StaticBlock(
+                    admin_text=(
+                        "A static block that displays a information about the dataset and "
+                        "a download link as a collapsible section."
+                    ),
+                    template="cms/pages/slu_wastewater/partials/dataset_info.html",
+                ),
+            ),
+            (
                 "recent_data_info",
                 StaticBlock(
                     admin_text=(
