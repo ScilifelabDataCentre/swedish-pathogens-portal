@@ -113,12 +113,13 @@ class DashboardDataResearcherTests(TestCase):
                 self.assertNotContains(response, self.url("copy", self.own.pk))
                 self.assertNotContains(response, self.url("delete", self.own.pk))
 
-    def test_edit_has_read_only_title_and_only_source_file_input(self) -> None:
+    def test_edit_has_title_in_header_and_only_source_file_input(self) -> None:
         """Hidden fields are absent from both the form and serialized panel data."""
         response = self.client.get(self.url("edit", self.own.pk))
         self.assertEqual(set(response.context["form"].fields), {"source_file"})
         self.assertContains(response, self.own.dashboard_title)
         self.assertNotContains(response, 'name="dashboard_title"')
+        self.assertNotContains(response, 'id="panel-dashboard_title"')
         for hidden in ("dashboard_slug", "research_group", "data_updated_at", "private_figure_key"):
             self.assertNotContains(response, hidden)
         self.assertNotContains(response, 'name="data"')

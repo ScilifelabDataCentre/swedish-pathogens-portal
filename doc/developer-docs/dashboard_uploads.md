@@ -29,7 +29,8 @@ This technical classification does not assign dashboard setup to editors.
 
 Researchers see only uploads assigned to one of their groups. The listing shows
 the dashboard title and data-updated date, both read-only. Opening an upload shows
-its read-only title and the source-file control. Researchers replace the file and
+the title in the page header and only the source-file control in the form.
+Researchers replace the file and
 click **Save** to update their dashboard immediately.
 
 Researchers cannot create pages or upload rows through this workflow. Creation,

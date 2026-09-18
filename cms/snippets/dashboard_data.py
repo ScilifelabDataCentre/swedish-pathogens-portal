@@ -226,7 +226,6 @@ class DashboardData(RevisionMixin, models.Model):
     ]
 
     researcher_panels = [
-        FieldPanel("dashboard_title", read_only=True),
         FieldPanel("source_file", help_text=_SOURCE_FILE_HELP_TEXT),
     ]
 
