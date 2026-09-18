@@ -6,6 +6,8 @@ from django import forms
 from wagtail import blocks
 from wagtail.images.blocks import ImageChooserBlock
 
+ALLOWED_CARD_DESCRIPTION_FEATURES = ["bold", "italic"]
+
 
 class CardBlock(blocks.StructBlock):
     """Single teaser card that links to an external URL (new tab).
@@ -19,9 +21,6 @@ class CardBlock(blocks.StructBlock):
         url: Destination URL (full ``https://`` URL; opens in a new tab).
     """
 
-    # TODO: Depending on the design, we might want to add more optional fields
-    # here like a date, topic, etc.
-
     image = ImageChooserBlock(
         required=True,
         help_text="Image shown at the top of the card (required).",
@@ -31,10 +30,11 @@ class CardBlock(blocks.StructBlock):
         max_length=120,
         help_text="Card heading (max 120 characters).",
     )
-    description = blocks.TextBlock(
+    description = blocks.RichTextBlock(
         required=True,
-        max_length=300,
-        help_text="Short supporting text under the title (max 300 characters).",
+        features=ALLOWED_CARD_DESCRIPTION_FEATURES,
+        max_length=255,
+        help_text="Short supporting text under the title (max 255 characters).",
     )
     url = blocks.URLBlock(
         required=True,
