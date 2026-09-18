@@ -6,6 +6,8 @@ from django import forms
 from wagtail import blocks
 from wagtail.images.blocks import ImageChooserBlock
 
+ALLOWED_DESCRIPTION_FEATURES = ["bold", "italic", "link"]
+
 
 class CardBlock(blocks.StructBlock):
     """Single teaser card that links to an external URL (new tab).
@@ -19,9 +21,6 @@ class CardBlock(blocks.StructBlock):
         url: Destination URL (full ``https://`` URL; opens in a new tab).
     """
 
-    # TODO: Depending on the design, we might want to add more optional fields
-    # here like a date, topic, etc.
-
     image = ImageChooserBlock(
         required=True,
         help_text="Image shown at the top of the card (required).",
@@ -31,8 +30,9 @@ class CardBlock(blocks.StructBlock):
         max_length=120,
         help_text="Card heading (max 120 characters).",
     )
-    description = blocks.TextBlock(
+    description = blocks.RichTextBlock(
         required=True,
+        features=ALLOWED_DESCRIPTION_FEATURES,
         max_length=300,
         help_text="Short supporting text under the title (max 300 characters).",
     )
@@ -40,6 +40,23 @@ class CardBlock(blocks.StructBlock):
         required=True,
         help_text="Full URL (https://…). Opens in a new browser tab.",
     )
+
+    def get_context(
+        self, value: dict[str, Any], parent_context: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
+        """Include `truncate_text` in the context for the card template."""
+
+        # get the value of truncate_text from the parent context before calling
+        # super().get_context, this is important because in nested blocks, the
+        # parent context may not be available after calling super().get_context
+        truncate_text = (
+            parent_context.get("value", {}).get("truncate_text", True) if parent_context else True
+        )
+
+        context = super().get_context(value, parent_context)
+        context["truncate_text"] = truncate_text
+
+        return context
 
     class Meta:
         """Set meta values."""
@@ -59,8 +76,18 @@ class CardGridBlock(blocks.StructBlock):
 
     Attributes:
         cards: Ordered list of card blocks (minimum one).
+        truncate_text: If checked, the title and description text in the cards will
+            be truncated to fit the card layout.
     """
 
+    truncate_text = blocks.BooleanBlock(
+        required=False,
+        default=True,
+        help_text=(
+            "If checked, the title and description text in the card "
+            "will be truncated to fit the card layout."
+        ),
+    )
     cards = blocks.ListBlock(
         CardBlock(),
         min_num=1,
@@ -124,8 +151,18 @@ class CatalogueCardGridBlock(blocks.StructBlock):
 
     Attributes:
         cards: Ordered list of catalogue card blocks (minimum one).
+        truncate_text: If checked, the title and description text in the cards will
+            be truncated to fit the card layout.
     """
 
+    truncate_text = blocks.BooleanBlock(
+        required=False,
+        default=True,
+        help_text=(
+            "If checked, the title and description text in the card "
+            "will be truncated to fit the card layout."
+        ),
+    )
     cards = blocks.ListBlock(
         CatalogueCardBlock(),
         min_num=1,

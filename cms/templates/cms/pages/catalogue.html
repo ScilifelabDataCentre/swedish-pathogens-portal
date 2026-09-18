@@ -67,7 +67,7 @@
                                 <!-- Render each card -->
                                 <div class="card">
                                     {% image card.image format-webp as thumbnail %}
-                                    {% include "cms/components/content_card.html#content_card" with url=card.url image=thumbnail.url title=card.title description=card.description external_url=True only %}
+                                    {% include "cms/components/content_card.html#content_card" with image=thumbnail.url title=card.title description=card.description truncate_text=card.truncate_text url=card.url external_url=True only %}
                                 </div>
                             {% endfor %}
                         </div>

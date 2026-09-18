@@ -1,6 +1,6 @@
 {# Required: url, image, title, description. Optional: image_alt, external_url, date (j F Y), badge_text, topics. #}
 
-{% load static %}
+{% load static wagtailcore_tags %}
 
 {% partialdef content_card %}
 
@@ -39,13 +39,21 @@
                 {% endif %}
 
                 <!-- Title -->
-                <div class="text-lg font-bold tracking-tight text-pp-dark-blue group-hover:text-pp-teal
-                transition-colors line-clamp-2">
+                <div class="text-lg font-bold tracking-tight text-pp-dark-blue group-hover:text-pp-teal transition-colors
+                {% if truncate_text|default_if_none:True %}line-clamp-2{% endif %}">
                     {{ title }}
                 </div>
 
                 <!-- Description -->
-                <div class="text-pp-dark-grey text-sm line-clamp-3">{{ description }}</div>
+                <div class="text-pp-dark-grey text-sm [&_p]:m-0
+                {% if truncate_text|default_if_none:True %}line-clamp-3{% endif %}">
+                    {% comment %}
+                    This component is used both by blocks and pages, `description` is not always a rich text and
+                    it may be plain text. But `richtext` filter is safe to use on plain text, it will just wrap
+                    it in a <p> tag. Thus added `[&_p]` styling in the wrapper `div` for consistent rendering.
+                    {% endcomment %}
+                    {{ description|richtext }}
+                </div>
             </div>
         </a>
 
