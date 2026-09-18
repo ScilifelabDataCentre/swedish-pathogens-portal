@@ -1,66 +1,52 @@
 # Pa11y: A tool to check accessibility issues on a webpage
-# The config file and sitemap file used by this workflow
-# are in the ".github" directory of the repository
 #
-# This runs against a local instance of the app
-# since we don't have a live url to test against.
-# We can change this later if wanted / needed
+# The config file used by this workflow is in the ".github"
+# directory of the repository.
 #
-# TODO: Schedule scans against live site
+# The sitemap.xml is provided via live instance URL.
+#
+# This workflow is scheduled to run every Monday at 12:12 UTC,
+# it can also be run manually from repo's GitHub action page.
+
 ---
 name: Pa11y Accessibility Check
 
 on:
   workflow_dispatch:
-
-env:
-  SECRET_KEY: ci-not-a-secret
-  DEBUG: "1"
-  DATABASE_URL: sqlite:///db.sqlite3
-  ALLOWED_HOSTS: 127.0.0.1,localhost
-  EUROPE_PMC_API_URL: http://localhost:8000/example
-  EUROPE_PMC_WEB_URL: http://localhost:8000/example
+  # TODO: Uncomment the following lines to enable scheduled runs
+  # schedule:
+  #   - cron: '12 12 * * MON'
 
 jobs:
   pa11y:
-    name: Pa11y Test
+    name: Pa11y Check
     runs-on: ubuntu-latest
 
     steps:
       - name: Check out the repo
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - name: Setup Python
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
-        with:
-          python-version-file: .python-version
-
-      - name: Install uv
-        run: pipx install uv
-
-      - name: Install Python deps
-        run: uv sync --group dev
-
       - name: Set up Node.js 24
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
           node-version: 24
 
-      - name: Install Pa11y CI and wait-on
-        run: npm install -g pa11y-ci wait-on
+      - name: Install Pa11y CI
+        run: npm install -g pa11y-ci
 
-      - name: Prepare DB
-        run: |
-          uv run python manage.py migrate --noinput
-
-      - name: Start app and wait until ready
-        run: |
-          uv run python manage.py runserver 127.0.0.1:8000 &
-          npx wait-on http://127.0.0.1:8000
-
+      # TODO: Update sitemap URL to main site after hard launch
       - name: Run Pa11y CI
         run: |
           pa11y-ci \
-            --config ${GITHUB_WORKSPACE}/.github/pa11y.config \
-            --sitemap http://127.0.0.1:8000/sitemap.xml \
-            --sitemap-exclude 'pdf$'
+            --config ${GITHUB_WORKSPACE}/.github/pa11y/pa11y.config \
+            --sitemap https://swedish-pathogens-portal.scilifelab-2-dev.sys.kth.se/sitemap.xml
+
+      - name: Generate Pa11y summary
+        if: always()
+        run: |
+          if [[ -f pa11y-results.json ]]; then
+            bash \
+              "${GITHUB_WORKSPACE}/.github/pa11y/generate_summary.sh" \
+              pa11y-results.json \
+            >> "$GITHUB_STEP_SUMMARY"
+          fi
