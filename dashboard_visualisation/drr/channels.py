@@ -30,6 +30,10 @@ class Channel:
         label: The channel name the authors use today, after their own rename.
         stain: The dye or antibody imaged in that channel.
         measures: What it reports, in the paper's own vocabulary.
+        stain_group: The short name the published radar labels this channel's
+            axes with (``DNA``, ``ER``, ``AGP``, ``RNA``); empty for a channel
+            the radar rings no group for. It lives here so the ring follows this
+            screen's own map rather than restating it (FREYA-2636, DS-8).
         in_figures: Whether its columns belong in the morphology feature basis.
             ``False`` for an infection readout: a figure computed on it would
             carry the assay's own answer as morphology (spec section 5).
@@ -39,6 +43,7 @@ class Channel:
     label: str
     stain: str
     measures: str
+    stain_group: str
     in_figures: bool
 
 
@@ -50,6 +55,7 @@ A549_ACE2_VALIDATION_CHANNELS: tuple[Channel, ...] = (
         label="HOECHST",
         stain="Hoechst 33342",
         measures="nuclei (DNA)",
+        stain_group="DNA",
         in_figures=True,
     ),
     Channel(
@@ -57,6 +63,7 @@ A549_ACE2_VALIDATION_CHANNELS: tuple[Channel, ...] = (
         label="SYTO",
         stain="SYTO 13/14",
         measures="nucleoli / cytoplasmic RNA",
+        stain_group="RNA",
         in_figures=True,
     ),
     Channel(
@@ -64,6 +71,7 @@ A549_ACE2_VALIDATION_CHANNELS: tuple[Channel, ...] = (
         label="PHAandWGA",
         stain="Phalloidin + WGA",
         measures="actin, Golgi, membrane (AGP)",
+        stain_group="AGP",
         in_figures=True,
     ),
     Channel(
@@ -71,6 +79,7 @@ A549_ACE2_VALIDATION_CHANNELS: tuple[Channel, ...] = (
         label="CONC",
         stain="Concanavalin A",
         measures="endoplasmic reticulum (ER)",
+        stain_group="ER",
         in_figures=True,
     ),
     Channel(
@@ -78,6 +87,7 @@ A549_ACE2_VALIDATION_CHANNELS: tuple[Channel, ...] = (
         label="SARS-CoV-2-N-Ab",
         stain="SARS-CoV-2 nucleocapsid antibody",
         measures="infection marker",
+        stain_group="",
         in_figures=False,
     ),
 )

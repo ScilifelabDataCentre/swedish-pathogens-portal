@@ -1,6 +1,11 @@
 {% load plotly_js wagtailcore_tags %}
 
-<figure class="my-8" role="img" aria-label="{{ value.alt_text }}">
+{% comment %}
+The id is what an on-page control swaps: one figure per figure_id is placed on a
+page, and a partial re-rendered through this same template carries the id again,
+so repeated swaps keep working (DRR spec section 8.3).
+{% endcomment %}
+<figure id="figure-{{ value.figure_id }}" class="my-8" role="img" aria-label="{{ value.alt_text }}">
     {% if plot_html %}
     {% plotlyjs_once %}
     <div class="plotly-figure" style="height: {{ value.height }}px;">

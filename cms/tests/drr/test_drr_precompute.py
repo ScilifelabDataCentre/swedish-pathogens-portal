@@ -22,6 +22,7 @@ from dashboard_visualisation.drr.channels import channel_map, figure_feature_col
 from dashboard_visualisation.drr.figures import (
     FEATURE_CATEGORIES,
     FIGURE_CLIP_BOUND,
+    SNIPPET_FIGURE_BYTE_CEILING,
     clip_figure_values,
 )
 from dashboard_visualisation.drr.loader import load_feature_table
@@ -50,11 +51,17 @@ FEATURE_CSV = (
     "Correlation_Correlation_illumHOECHST_illumSYTO_cytoplasm\n"
     "0;P1;A01;10;trt;B1;10;CBK1;1200;1.0;2.0;3.0;0.10;0.50;2.0;4.0;0.60\n"
     "1;P1;A02;10;trt;B1;10;CBK1;1250;1.2;2.1;3.4;0.20;0.60;2.1;4.2;0.62\n"
-    "2;P1;A03;10;ctrl;B1;0;CBK2;1400;0.9;1.8;2.9;0.05;0.40;1.9;3.8;0.55\n"
+    "2;P1;A03;10;non-inf;B1;0;CBK2;1400;0.9;1.8;2.9;0.05;0.40;1.9;3.8;0.55\n"
     "3;P2;B01;10;trt;B1;10;CBK3;1150;1.5;2.5;3.9;0.30;0.70;2.4;4.6;0.70\n"
-    "4;P2;B02;10;ctrl;B1;0;CBK2;1380;0.8;1.7;2.7;0.02;0.35;1.8;3.6;0.52\n"
+    "4;P2;B02;10;negcon;B1;0;CBK2;1380;0.8;1.7;2.7;0.02;0.35;1.8;3.6;0.52\n"
     "5;P2;B03;10;trt;B1;10;CBK3;1100;1.6;2.6;4.1;0.35;0.75;2.5;4.8;0.72\n"
 )
+
+# The fixture's control rows are the two populations the radars contrast: the
+# uninfected wells the infection radar plots, and the infected DMSO baseline the
+# values are already normalised against. A table missing either fails the run
+# (FREYA-2636 criterion 6), which is asserted below.
+NON_INFECTED_ROW = "2;P1;A03;10;non-inf;B1;0;CBK2;1400;0.9;1.8;2.9;0.05;0.40;1.9;3.8;0.55\n"
 
 # The fixture's own two feature sets: every numeric feature column, and the
 # figure basis with the antibody channel taken out (FREYA-2923).
@@ -62,15 +69,35 @@ N_DOWNLOAD_FEATURES = 8
 N_FIGURE_FEATURES = 6
 
 # Per-category means of the fixture rows **on the figure basis**, in the input's
-# own units: the two ctrl rows (the radar's "infected" reference, and CBK2's
-# heatmap row), the four trt rows (the "compound" radar), and the two remaining
-# compounds' heatmap rows. These hold only while the figures run on the values as
-# delivered; standardising the columns again drives each of them to a z-score
-# around -1 to 1 instead.
+# own units: the two control rows (CBK2's heatmap row), the four trt rows (the
+# default "compound" radar), the uninfected row alone (the infection radar's own
+# condition), and the two remaining compounds' heatmap rows. These hold only
+# while the figures run on the values as delivered; standardising the columns
+# again drives each of them to a z-score around -1 to 1 instead.
 #
 # Only Intensity and Correlation differ from the download basis, because those
 # are the two categories the fixture's antibody columns sit in — so these numbers
 # also say which columns the exclusion touched, and which it left alone.
+#
+# Each category holds exactly one figure-basis column here, so the same numbers
+# describe the radar's 24-axis ring: ``RADAR_AXIS_OF_CATEGORY`` names which axis
+# each one lands on, and the ring's other 18 axes have no column at all.
+RADAR_AXIS_OF_CATEGORY = {
+    "AreaShape": "Area/shape N",
+    "Intensity": "AGP I",
+    "Granularity": "ER G",
+    "Correlation": "DNA-RNA",
+    "RadialDistribution": "RNA RD",
+    "Neighbors": "Neighbors C",
+}
+NON_INFECTED_CATEGORY_MEANS = {
+    "AreaShape": 0.9,
+    "Intensity": 3.8,
+    "Granularity": 2.9,
+    "Correlation": 0.55,
+    "RadialDistribution": 0.40,
+    "Neighbors": 1.9,
+}
 CTRL_CATEGORY_MEANS = {
     "AreaShape": 0.85,
     "Intensity": 3.7,
@@ -124,6 +151,9 @@ NAME_LOOKUP_ROWS = {
 EXPECTED_FIGURE_IDS = {"pca", "heatmap", "radar_compound", "radar_infected"}
 ARTEFACT_SUFFIXES = {".csv", ".parquet", ".json"}
 
+# Figure 3C's ring for a screen with four morphology channels (DS-8 item 2).
+RING_AXES = 24
+
 
 def _decode_array(payload: dict | list) -> np.ndarray:
     """Return a numeric array from figure JSON, decoding Plotly's base64 form."""
@@ -132,6 +162,12 @@ def _decode_array(payload: dict | list) -> np.ndarray:
     shape = tuple(int(part) for part in payload["shape"].split(","))
     buffer = base64.b64decode(payload["bdata"])
     return np.frombuffer(buffer, dtype=payload["dtype"]).reshape(shape)
+
+
+def _radar_axes(figure: dict) -> dict[str, float | None]:
+    """Return a radar's values keyed by axis label, minus the closing point."""
+    trace = figure["data"][0]
+    return dict(zip(trace["theta"][:-1], trace["r"][:-1], strict=True))
 
 
 class DrrPrecomputeTests(TestCase):
@@ -159,13 +195,13 @@ class DrrPrecomputeTests(TestCase):
         return path
 
     def _write_incomplete_input(self) -> None:
-        """Blank one ctrl row's AreaShape value, leaving a gap in the feature matrix."""
+        """Blank the uninfected row's AreaShape value, leaving a gap in the feature matrix."""
         self.input_path.write_text(
             FEATURE_CSV.replace("0;CBK2;1400;0.9;", "0;CBK2;1400;;"), encoding="utf-8"
         )
 
     def _write_out_of_range_input(self) -> None:
-        """Push one ctrl row past the clip bound in both directions.
+        """Push the uninfected row past the clip bound in both directions.
 
         Its AreaShape and Granularity values become the real table's own measured
         extremes (``plans/DRR/reference/data-sources.md`` DS-3), and both columns
@@ -220,7 +256,7 @@ class DrrPrecomputeTests(TestCase):
         self.assertEqual(summary["n_wells"], 6)
         self.assertEqual(summary["n_profiles"], 6)
         self.assertEqual(summary["n_features"], N_DOWNLOAD_FEATURES)
-        self.assertEqual(summary["pert_type_counts"], {"ctrl": 2, "trt": 4})
+        self.assertEqual(summary["pert_type_counts"], {"negcon": 1, "non-inf": 1, "trt": 4})
         self.assertEqual(summary["compartments"], ["nuclei", "cells", "cytoplasm"])
         self.assertEqual(summary["source"]["filename"], "features.csv")
 
@@ -310,15 +346,18 @@ class DrrPrecomputeTests(TestCase):
         )
 
     def test_an_out_of_range_value_cannot_reach_a_figure(self) -> None:
-        """The control radar averages 50 and -50, not 1814.14 and -210.76."""
+        """The infection radar plots 50, not 1814.14, and 50 rather than -210.76.
+
+        Both bounds are exercised on the one row that radar's condition selects,
+        and the second also shows the statistic taking the absolute value before
+        it averages (DS-8 item 4).
+        """
         self._write_out_of_range_input()
         self._run()
-        radii = DrrDatasetData.get_data(SLUG).data["radar_infected"]["data"][0]["r"]
-        axes = dict(zip(FEATURE_CATEGORIES, radii, strict=False))
+        axes = _radar_axes(DrrDatasetData.get_data(SLUG).data["radar_infected"])
 
-        # The two ctrl rows: the clipped one, then the fixture's 0.8 and 2.7.
-        self.assertAlmostEqual(axes["AreaShape"], (FIGURE_CLIP_BOUND + 0.8) / 2, places=6)
-        self.assertAlmostEqual(axes["Granularity"], (-FIGURE_CLIP_BOUND + 2.7) / 2, places=6)
+        self.assertAlmostEqual(axes["Area/shape N"], FIGURE_CLIP_BOUND, places=6)
+        self.assertAlmostEqual(axes["ER G"], FIGURE_CLIP_BOUND, places=6)
 
     def test_the_clip_report_is_reproducible(self) -> None:
         """Re-running the same input reports the same columns in the same order."""
@@ -420,20 +459,178 @@ class DrrPrecomputeTests(TestCase):
         self.assertIn("Count_nuclei", features.columns)
 
     def test_radars_are_not_standardised(self) -> None:
-        """Both radar modes plot category means in the values' own units (spec section 5)."""
+        """Both radar modes plot axis means in the values' own units (spec section 5)."""
         self._run()
         figures = DrrDatasetData.get_data(SLUG).data
 
         for figure_id, expected in (
-            ("radar_infected", CTRL_CATEGORY_MEANS),
+            ("radar_infected", NON_INFECTED_CATEGORY_MEANS),
             ("radar_compound", TRT_CATEGORY_MEANS),
         ):
-            radii = figures[figure_id]["data"][0]["r"]
-            self.assertEqual(len(radii), len(FEATURE_CATEGORIES) + 1, figure_id)
-            for index, category in enumerate(FEATURE_CATEGORIES):
-                self.assertAlmostEqual(radii[index], expected[category], places=6, msg=figure_id)
+            trace = figures[figure_id]["data"][0]
+            axes = _radar_axes(figures[figure_id])
+            self.assertEqual(len(trace["r"]), RING_AXES + 1, figure_id)
+            for category, axis in RADAR_AXIS_OF_CATEGORY.items():
+                self.assertAlmostEqual(axes[axis], expected[category], places=6, msg=figure_id)
             # The ring closes on its first axis.
-            self.assertAlmostEqual(radii[-1], radii[0], places=6, msg=figure_id)
+            self.assertEqual(trace["theta"][-1], trace["theta"][0], figure_id)
+            self.assertEqual(trace["r"][-1], trace["r"][0], figure_id)
+
+    def test_the_two_radars_plot_different_populations_on_one_ring(self) -> None:
+        """The infection radar takes ``non-inf`` alone, not both control rows.
+
+        The distinction is the whole point of the contrast: the ``negcon`` wells
+        are the baseline the input is normalised against, so averaging them in
+        would pull every axis toward the baseline (FREYA-2636, DS-8 item 4).
+        """
+        self._run()
+        figures = DrrDatasetData.get_data(SLUG).data
+        infected = _radar_axes(figures["radar_infected"])
+
+        self.assertAlmostEqual(infected["Area/shape N"], 0.9, places=6)
+        self.assertNotAlmostEqual(infected["Area/shape N"], CTRL_CATEGORY_MEANS["AreaShape"])
+        self.assertEqual(
+            _radar_axes(figures["radar_compound"]).keys(),
+            infected.keys(),
+        )
+
+    def test_an_axis_with_no_column_is_a_gap_rather_than_a_zero(self) -> None:
+        """18 of the ring's 24 axes have no column in this fixture, and plot none."""
+        self._run()
+        axes = _radar_axes(DrrDatasetData.get_data(SLUG).data["radar_compound"])
+
+        empty = [label for label, value in axes.items() if value is None]
+
+        self.assertEqual(len(axes), RING_AXES)
+        self.assertEqual(len(empty), RING_AXES - len(RADAR_AXIS_OF_CATEGORY))
+        self.assertNotIn("Area/shape N", empty)
+
+    def test_every_radar_states_which_basis_it_was_computed_on(self) -> None:
+        """Both bases, in the payload, so an htmx-swapped figure carries it too."""
+        self._run()
+        figures = DrrDatasetData.get_data(SLUG).data
+
+        for figure_id in ("radar_infected", "radar_compound"):
+            caveat = figures[figure_id]["layout"]["annotations"][0]["text"]
+
+            self.assertIn(f"{N_FIGURE_FEATURES:,} morphology features", caveat, figure_id)
+            self.assertIn(f"±{FIGURE_CLIP_BOUND:g}", caveat, figure_id)
+            self.assertIn(f"all {N_DOWNLOAD_FEATURES:,} features, unclipped", caveat, figure_id)
+
+    def test_a_radar_is_written_for_every_treated_compound(self) -> None:
+        """One file per compound with treated wells; the control id gets none."""
+        self._run()
+        written = sorted(path.stem for path in (self.out_dir / "figures" / "radar").glob("*.json"))
+
+        self.assertEqual(written, ["CBK1", "CBK3"])
+
+    def test_the_per_compound_radars_stay_off_the_snippet(self) -> None:
+        """They are on disk and not in ``DrrDatasetData.data`` (spec section 4).
+
+        Present on disk is not the assertion that matters: the snippet is one
+        ``JSONField`` deserialised whole to render a single figure, and a
+        ``RevisionMixin`` that would snapshot the set on every re-run.
+        """
+        self._run()
+        row = DrrDatasetData.get_data(SLUG)
+
+        self.assertEqual(set(row.data), EXPECTED_FIGURE_IDS)
+        self.assertNotIn("CBK1", row.data)
+        self.assertTrue((self.out_dir / "figures" / "radar" / "CBK1.json").is_file())
+
+    def test_each_per_compound_radar_is_deterministic_and_uid_free(self) -> None:
+        """A re-run reproduces the set byte for byte, and no trace carries a uid."""
+        self._run()
+        path = self.out_dir / "figures" / "radar" / "CBK1.json"
+        first = path.read_bytes()
+
+        self._run()
+
+        self.assertEqual(path.read_bytes(), first)
+        self.assertNotIn("uid", json.loads(first)["data"][0])
+
+    def test_a_per_compound_radar_plots_only_that_compound(self) -> None:
+        """CBK1's radar is CBK1's treated wells, with its doses pooled."""
+        self._run()
+        axes = _radar_axes(
+            json.loads(
+                (self.out_dir / "figures" / "radar" / "CBK1.json").read_text(encoding="utf-8")
+            )
+        )
+
+        for category, axis in RADAR_AXIS_OF_CATEGORY.items():
+            self.assertAlmostEqual(axes[axis], CBK1_CATEGORY_MEANS[category], places=6, msg=axis)
+
+    def test_a_radar_names_its_compound_the_way_the_picker_does(self) -> None:
+        """One label rule, so the control and the figure it swaps in agree."""
+        self._run(compound_names=str(self._write_names()))
+        payload = json.loads(
+            (self.out_dir / "figures" / "radar" / "CBK1.json").read_text(encoding="utf-8")
+        )
+
+        self.assertIn("compoundA (CBK1)", payload["layout"]["title"]["text"])
+
+    def test_the_index_records_each_radars_artefact_key(self) -> None:
+        """The route resolves a reader's cbkid through this column, never by hand."""
+        self._run()
+        index = pl.read_parquet(self.out_dir / "compounds.parquet")
+
+        keys = dict(zip(index["cbkid"].to_list(), index["radar_key"].to_list(), strict=True))
+        self.assertEqual(keys, {"CBK1": "CBK1", "CBK2": None, "CBK3": "CBK3"})
+
+    def test_a_stale_radar_does_not_survive_a_re_run(self) -> None:
+        """The set describes this generation, as ``figures/*.json`` already does."""
+        self._run()
+        stale = self.out_dir / "figures" / "radar" / "CBK404.json"
+        stale.write_text("{}", encoding="utf-8")
+
+        self._run()
+
+        self.assertFalse(stale.exists())
+
+    def test_every_snippet_figure_stays_under_the_byte_ceiling(self) -> None:
+        """Size is asserted, not assumed: the 33.9 MB panel passed every value test.
+
+        The ceiling is generous against this fixture on purpose — what it pins
+        is that a figure whose payload grows by orders of magnitude fails here
+        rather than in production (spec section 10).
+        """
+        self._run()
+        row = DrrDatasetData.get_data(SLUG)
+
+        for figure_id, payload in row.data.items():
+            size = len(json.dumps(payload).encode("utf-8"))
+            self.assertLess(size, SNIPPET_FIGURE_BYTE_CEILING, f"{figure_id}: {size} bytes")
+
+    def test_a_missing_control_population_fails_before_anything_is_written(self) -> None:
+        """No uninfected wells, no contrast — and no half-written generation either."""
+        self.input_path.write_text(FEATURE_CSV.replace(NON_INFECTED_ROW, ""), encoding="utf-8")
+
+        with self.assertRaisesMessage(CommandError, "non-inf"):
+            self._run()
+
+        self.assertFalse(self.out_dir.exists())
+        self.assertIsNone(DrrDatasetData.get_data(SLUG))
+
+    def test_a_missing_baseline_population_fails_the_run(self) -> None:
+        """The baseline is what the plotted values are deviations from."""
+        self.input_path.write_text(FEATURE_CSV.replace(";negcon;", ";trt;"), encoding="utf-8")
+
+        with self.assertRaisesMessage(CommandError, "negcon"):
+            self._run()
+
+    def test_a_failed_radar_leaves_the_previous_generation_intact(self) -> None:
+        """A second run that cannot build its figures must not replace the first."""
+        self._run()
+        first = (self.out_dir / "figures" / "radar_infected.json").read_bytes()
+        features = (self.out_dir / "features.csv").read_bytes()
+
+        self.input_path.write_text(FEATURE_CSV.replace(NON_INFECTED_ROW, ""), encoding="utf-8")
+        with self.assertRaises(CommandError):
+            self._run()
+
+        self.assertEqual((self.out_dir / "figures" / "radar_infected.json").read_bytes(), first)
+        self.assertEqual((self.out_dir / "features.csv").read_bytes(), features)
 
     def test_heatmap_cells_are_not_standardised(self) -> None:
         """Heatmap cells are per-compound category means, one row per compound."""
@@ -537,6 +734,7 @@ class DrrPrecomputeTests(TestCase):
                 "name",
                 "broad_moa",
                 "broad_target",
+                "radar_key",
             ],
         )
         self.assertEqual(compounds["cbkid_normalized"].to_list(), ["CBK1", "CBK2", "CBK3"])
@@ -558,6 +756,7 @@ class DrrPrecomputeTests(TestCase):
                 "broad_moa",
                 "broad_target",
                 "pert_iname",
+                "radar_key",
             ],
         )
         self.assertEqual(compounds["pert_iname"].to_list(), ["remdesivir", None, None])

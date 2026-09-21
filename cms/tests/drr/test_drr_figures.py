@@ -23,7 +23,6 @@ from dashboard_visualisation.drr.channels import (
 )
 from dashboard_visualisation.drr.figures import (
     FEATURE_BASIS_FIGURE_IDS,
-    FEATURE_CATEGORIES,
     FIGURE_CLIP_BOUND,
     build_all_figures,
     clip_figure_values,
@@ -106,11 +105,16 @@ def _decode_array(payload: dict | list) -> np.ndarray:
 
 
 def _feature_table(values: dict[str, float] | None = None) -> FeatureTable:
-    """Return a four-profile table: two ``trt`` rows, then two halved controls."""
+    """Return a four-profile table: two ``trt`` rows, then both halved controls.
+
+    The two control rows are the populations the radars contrast — the infected
+    DMSO baseline and the uninfected wells — because a table missing either now
+    fails the run rather than widening to every profile (FREYA-2636).
+    """
     row_values = {**TRT_VALUES, **(values or {})}
     frame = pl.DataFrame(
         {
-            "pert_type": ["trt", "trt", "ctrl", "ctrl"],
+            "pert_type": ["trt", "trt", "negcon", "non-inf"],
             "cbkid": ["CBK1", "CBK1", "CBK2", "CBK2"],
             **{
                 column: [value, value, value / 2, value / 2] for column, value in row_values.items()
@@ -220,37 +224,51 @@ class DrrFigureBuildTests(SimpleTestCase):
         """Build every figure on the figure basis of the fixture table."""
         table = _feature_table()
         columns = figure_feature_columns(table.feature_columns, channel_map(SLUG))
-        self.figures = build_all_figures(table, feature_columns=columns)
+        self.figures = build_all_figures(table, feature_columns=columns, channels=channel_map(SLUG))
 
-    def _radar_axes(self, figure_id: str) -> dict[str, float]:
-        """Return one radar's per-category values, keyed by category."""
-        radii = self.figures[figure_id]["data"][0]["r"]
-        return dict(zip(FEATURE_CATEGORIES, radii, strict=False))
+    def _radar_axes(self, figure_id: str) -> dict[str, float | None]:
+        """Return one radar's values, keyed by axis label and minus the closing point."""
+        trace = self.figures[figure_id]["data"][0]
+        return dict(zip(trace["theta"][:-1], trace["r"][:-1], strict=True))
 
     def test_every_feature_basis_figure_is_built(self) -> None:
         """The four feature-derived figures are built; umap needs its own coordinates."""
         self.assertEqual(set(self.figures), set(FEATURE_BASIS_FIGURE_IDS))
 
     def test_the_radar_averages_the_figure_basis_only(self) -> None:
-        """Intensity is the mean of the three kept channels; the antibody's 100.0 is gone."""
+        """Each stain keeps its own axis, and the antibody's 100.0 is on none of them."""
         axes = self._radar_axes("radar_compound")
 
-        self.assertAlmostEqual(axes["Intensity"], 2.0, places=6)
-        self.assertAlmostEqual(axes["AreaShape"], 5.0, places=6)
-        self.assertAlmostEqual(axes["Granularity"], 7.0, places=6)
-        self.assertAlmostEqual(axes["RadialDistribution"], 11.0, places=6)
-        self.assertAlmostEqual(axes["Neighbors"], 9.0, places=6)
+        self.assertAlmostEqual(axes["DNA I"], 1.0, places=6)
+        self.assertAlmostEqual(axes["RNA I"], 2.0, places=6)
+        self.assertAlmostEqual(axes["AGP I"], 3.0, places=6)
+        self.assertAlmostEqual(axes["Area/shape N"], 5.0, places=6)
+        self.assertAlmostEqual(axes["ER G"], 7.0, places=6)
+        self.assertAlmostEqual(axes["RNA RD"], 11.0, places=6)
+        self.assertAlmostEqual(axes["Neighbors C"], 9.0, places=6)
 
-    def test_a_category_left_with_no_column_reports_nothing_not_the_antibody(self) -> None:
-        """Correlation holds only an antibody pair here, so its axis is empty, not 50.0."""
-        self.assertAlmostEqual(self._radar_axes("radar_compound")["Correlation"], 0.0, places=6)
+    def test_an_axis_left_with_no_column_reports_nothing_not_the_antibody(self) -> None:
+        """The only Correlation column here names the antibody, so every pair is a gap.
 
-    def test_the_control_radar_uses_the_same_basis(self) -> None:
-        """The infected-reference radar averages the halved control rows, antibody-free."""
+        A gap, not a zero: on a ring of 24 axes a plotted 0.0 reads as a measured
+        absence of signal, which is a different claim from having no column.
+        """
+        axes = self._radar_axes("radar_compound")
+
+        self.assertIsNone(axes["DNA-RNA"])
+        self.assertEqual([label for label, value in axes.items() if value is None].count("ER I"), 1)
+
+    def test_the_infection_radar_plots_the_uninfected_wells(self) -> None:
+        """Its condition is ``non-inf``, on the same ring and the same basis.
+
+        The input is MAD-normalised against each plate's infected DMSO, so those
+        wells sit at ~0 by construction and are the baseline rather than the
+        plotted condition (DS-8 item 4). Here that is the halved control row.
+        """
         axes = self._radar_axes("radar_infected")
 
-        self.assertAlmostEqual(axes["Intensity"], 1.0, places=6)
-        self.assertAlmostEqual(axes["Granularity"], 3.5, places=6)
+        self.assertAlmostEqual(axes["DNA I"], 0.5, places=6)
+        self.assertAlmostEqual(axes["ER G"], 3.5, places=6)
 
 
 class DrrFigureClipTests(SimpleTestCase):
@@ -264,9 +282,19 @@ class DrrFigureClipTests(SimpleTestCase):
     def _figures(self, bound: float | None = None) -> dict:
         """Build every figure, optionally against a different clip bound."""
         if bound is None:
-            return build_all_figures(self.table, feature_columns=self.columns)
+            return build_all_figures(
+                self.table, feature_columns=self.columns, channels=channel_map(SLUG)
+            )
         with patch("dashboard_visualisation.drr.figures.FIGURE_CLIP_BOUND", bound):
-            return build_all_figures(self.table, feature_columns=self.columns)
+            return build_all_figures(
+                self.table, feature_columns=self.columns, channels=channel_map(SLUG)
+            )
+
+    @staticmethod
+    def _radar_axes(figures: dict, figure_id: str) -> dict[str, float | None]:
+        """Return one radar's values, keyed by axis label and minus the closing point."""
+        trace = figures[figure_id]["data"][0]
+        return dict(zip(trace["theta"][:-1], trace["r"][:-1], strict=True))
 
     @staticmethod
     def _pc1_spread(figures: dict) -> float:
@@ -294,18 +322,16 @@ class DrrFigureClipTests(SimpleTestCase):
 
     def test_the_clip_reaches_the_figure_matrix_and_not_the_frame(self) -> None:
         """The radar sees 50; the frame the downloads are written from still sees 1814."""
-        radii = self._figures()["radar_compound"]["data"][0]["r"]
-        axes = dict(zip(FEATURE_CATEGORIES, radii, strict=False))
+        axes = self._radar_axes(self._figures(), "radar_compound")
 
-        self.assertAlmostEqual(axes["AreaShape"], FIGURE_CLIP_BOUND, places=6)
+        self.assertAlmostEqual(axes["Area/shape N"], FIGURE_CLIP_BOUND, places=6)
         self.assertEqual(self.table.frame[AREA_SHAPE_COLUMN].to_list()[0], 1814.135748)
 
     def test_a_value_on_the_bound_is_not_moved(self) -> None:
         """The range is closed: the Neighbors axis keeps its 50.0 rather than reporting less."""
-        radii = self._figures()["radar_compound"]["data"][0]["r"]
-        axes = dict(zip(FEATURE_CATEGORIES, radii, strict=False))
+        axes = self._radar_axes(self._figures(), "radar_compound")
 
-        self.assertAlmostEqual(axes["Neighbors"], 50.0, places=6)
+        self.assertAlmostEqual(axes["Neighbors C"], 50.0, places=6)
 
     def test_no_out_of_range_value_reaches_a_radar_or_the_heatmap(self) -> None:
         """Every plotted mean is a mean of clipped values, so none can exceed the bound."""
@@ -313,6 +339,8 @@ class DrrFigureClipTests(SimpleTestCase):
 
         for figure_id in ("radar_compound", "radar_infected"):
             for radius in figures[figure_id]["data"][0]["r"]:
+                if radius is None:
+                    continue
                 self.assertLessEqual(abs(float(radius)), FIGURE_CLIP_BOUND, figure_id)
         cells = _decode_array(figures["heatmap"]["data"][0]["z"])
         self.assertLessEqual(float(np.abs(cells).max()), FIGURE_CLIP_BOUND)

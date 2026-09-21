@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 from typing import TYPE_CHECKING, Any
 
@@ -9,13 +10,15 @@ import polars as pl
 import structlog
 from django.db import models
 from django.http import FileResponse, Http404, HttpRequest, HttpResponse, HttpResponseRedirect
+from django.shortcuts import render
 from django.utils.functional import cached_property
 from wagtail.admin.panels import FieldPanel, MultiFieldPanel
 from wagtail.contrib.routable_page.models import RoutablePageMixin, path
 
+from cms.blocks.plotly_figure import cached_plot_html
 from cms.pages.dashboard import DashboardPage
-from cms.services.file_downloads import serve_file_from_directory
-from dashboard_visualisation.drr import artefact_dir
+from cms.services.file_downloads import resolve_file_in_directory, serve_file_from_directory
+from dashboard_visualisation.drr import artefact_dir, compound_label
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -29,10 +32,24 @@ LOGGER = structlog.get_logger(__name__)
 # legitimate ``cbkid`` values — so this sanitises the header only.
 _UNSAFE_FILENAME_CHARS = re.compile(r"[^A-Za-z0-9._-]")
 
-# The compound-index columns the picker labels from. ``name`` and ``kind`` are
+# The compound-index columns the pickers label from. ``name`` and ``kind`` are
 # read when present rather than required: an index built without CBCS metadata
 # carries neither, and the picker still has to offer every downloadable id.
-_COMPOUND_OPTION_COLUMNS = ("cbkid", "name", "kind")
+# ``radar_key`` names the compound's per-compound radar on disk (FREYA-2636).
+_COMPOUND_OPTION_COLUMNS = ("cbkid", "name", "kind", "radar_key")
+
+# The figure ids the section 8.3 route may serve, which is what keeps a request
+# value out of every path it builds. Only ``radar_compound`` takes a ``cbkid``:
+# it is the one figure precomputed as a set. FREYA-2586 adds its three heatmap
+# views here when they replace the single placeholder.
+_SWAPPABLE_FIGURE_IDS = frozenset({"pca", "umap", "heatmap", "radar_compound", "radar_infected"})
+_COMPOUND_FIGURE_ID = "radar_compound"
+
+# Where the per-compound radar set lives inside the artefact directory.
+_RADAR_SET_DIR = "figures/radar"
+
+# Fallback height for a swapped figure whose block sets none.
+_DEFAULT_FIGURE_HEIGHT = 500
 
 
 class DrrDatasetPage(RoutablePageMixin, DashboardPage):
@@ -97,7 +114,7 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
         return DrrDatasetData.get_data(self.slug)
 
     def get_context(self, request: HttpRequest) -> dict[str, Any]:
-        """Add the DRR summary payload, the download URLs and the compound picker."""
+        """Add the DRR summary payload, the download URLs and both compound pickers."""
         context = super().get_context(request)
         context["summary"] = getattr(self.dashboard_data, "summary", {})
 
@@ -105,12 +122,21 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
         if download_urls:
             context["download_urls"] = download_urls
 
-        # The picker exists to submit to the per-compound slice, so it is
-        # withheld unless that route can serve — otherwise every option 404s.
-        if "compound_base" in download_urls:
-            compounds = self._compound_options()
-            if compounds:
-                context["compounds"] = compounds
+        options = self._compound_options()
+
+        # The download picker exists to submit to the per-compound slice, so it
+        # is withheld unless that route can serve — otherwise every option 404s.
+        if "compound_base" in download_urls and options:
+            context["compounds"] = options
+
+        # The radar picker is the other half of the same rule: it offers only
+        # the compounds precompute wrote a radar for, so no option can 404 and
+        # no reader is shown a control that does nothing (spec section 8.3).
+        radar_options = [option for option in options if option["radar_key"]]
+        if radar_options:
+            context["radar_compounds"] = radar_options
+            context["figure_url"] = (self.url or "") + self.reverse_subpage("figure")
+            context["radar_figure_id"] = _COMPOUND_FIGURE_ID
 
         return context
 
@@ -176,8 +202,10 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
         the same failure posture the figures already take.
 
         Returns:
-            list[dict[str, str]]: ``cbkid`` / ``label`` pairs, compounds before
-                controls and then by label; empty when no index is readable.
+            list[dict[str, str]]: ``cbkid`` / ``label`` / ``radar_key`` triples,
+                compounds before controls and then by label; empty when no index
+                is readable. ``radar_key`` is empty for a compound precompute
+                wrote no radar for, which is what the figure picker filters on.
         """
         index = self._artefact_dir() / "compounds.parquet"
         if not index.is_file():
@@ -199,13 +227,21 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
         # compound, and mixing None into the sort key would raise instead.
         options = sorted(
             (
-                (row.get("kind") == "control", self._compound_label(row), row["cbkid"])
+                (
+                    row.get("kind") == "control",
+                    self._compound_label(row),
+                    row["cbkid"],
+                    row.get("radar_key") or "",
+                )
                 for row in rows
                 if isinstance(row.get("cbkid"), str) and row["cbkid"].strip()
             ),
             key=lambda option: (option[0], option[1].casefold(), option[2]),
         )
-        return [{"cbkid": cbkid, "label": label} for _, label, cbkid in options]
+        return [
+            {"cbkid": cbkid, "label": label, "radar_key": radar_key}
+            for _, label, cbkid, radar_key in options
+        ]
 
     @staticmethod
     def _compound_label(row: dict[str, Any]) -> str:
@@ -218,14 +254,11 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
         Returns:
             str: ``<name> (<cbkid>)`` once the CBCS join annotated the compound,
                 ``<cbkid> (control)`` for a non-CBCS control id, and the bare
-                ``cbkid`` for a compound the join did not annotate.
+                ``cbkid`` for a compound the join did not annotate. The rule is
+                the precompute package's, so a swapped-in radar's title names
+                the compound exactly as the control that asked for it does.
         """
-        cbkid = row["cbkid"]
-        if row.get("kind") == "control":
-            return f"{cbkid} (control)"
-
-        name = row.get("name")
-        return f"{name} ({cbkid})" if name and str(name).strip() else cbkid
+        return compound_label(row["cbkid"], name=row.get("name"), kind=row.get("kind"))
 
     def _serve_artefact(self, request: HttpRequest, filename: str) -> FileResponse:
         """Serve one derived artefact from this dataset's directory.
@@ -301,6 +334,116 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
             f'attachment; filename="{self._attachment_filename(cbkid)}"'
         )
         return response
+
+    # ------------------------------------------------------------------ #
+    # Figure swap (spec section 8.3)                                     #
+    # ------------------------------------------------------------------ #
+
+    def _placed_figure_block(self, figure_id: str) -> dict[str, Any]:
+        """Return the editorial settings of the placed block for one figure.
+
+        A swapped figure inherits the alt text, caption and height an editor
+        gave the block it replaces, so the page does not change shape or lose
+        its accessible description when a reader uses a control.
+
+        Args:
+            figure_id: The figure whose block to look for.
+
+        Returns:
+            dict[str, Any]: The block's value, or defaults when the figure is
+                not placed on this page.
+        """
+        for block in self.content:
+            if block.block_type == "plotly_figure" and block.value.get("figure_id") == figure_id:
+                return dict(block.value)
+        return {"figure_id": figure_id, "alt_text": figure_id, "height": _DEFAULT_FIGURE_HEIGHT}
+
+    def _radar_payload(self, cbkid: str) -> dict[str, Any]:
+        """Read one compound's precomputed radar from disk.
+
+        The filename is the key precompute derived and recorded on the compound
+        index; the request's ``cbkid`` only ever looks that key up, so no
+        request value reaches a path. The lookup then goes through the same
+        traversal guard the downloads use.
+
+        Args:
+            cbkid: The compound id from the query string.
+
+        Returns:
+            dict[str, Any]: The figure's Plotly JSON.
+
+        Raises:
+            Http404: If the index is missing or unreadable, the compound has no
+                radar, or the artefact is not on disk.
+        """
+        match = next(
+            (option for option in self._compound_options() if option["cbkid"] == cbkid),
+            None,
+        )
+        if match is None or not match["radar_key"]:
+            raise Http404("No radar has been precomputed for this compound")
+
+        artefact = resolve_file_in_directory(
+            self._artefact_dir(), f"{_RADAR_SET_DIR}/{match['radar_key']}.json"
+        )
+        try:
+            return json.loads(artefact.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as error:
+            LOGGER.warning("drr.figure.unreadable_radar", path=str(artefact), error=str(error))
+            raise Http404("Radar artefact is not readable") from error
+
+    @path("figure/")
+    def figure(self, request: HttpRequest) -> HttpResponse:
+        """Serve one server-rendered figure partial for an htmx swap.
+
+        Both section 9 controls are the same operation: return one figure's
+        body, rendered on the server exactly as the page renders it. The
+        ``figure_id`` is validated against a fixed allow-list and never used to
+        build a path; only ``radar_compound`` accepts a ``cbkid``, which travels
+        in the query string because control ids such as ``[stau]`` cannot sit in
+        a path segment.
+
+        Args:
+            request: The incoming request; ``?figure_id=`` names the figure and
+                ``?cbkid=`` the compound, for the per-compound radar only.
+
+        Returns:
+            HttpResponse: The figure partial.
+
+        Raises:
+            Http404: If the figure is not allow-listed, is not available, or a
+                named compound has no radar. The page then keeps the figure it
+                already rendered.
+        """
+        figure_id = request.GET.get("figure_id", "").strip()
+        if figure_id not in _SWAPPABLE_FIGURE_IDS:
+            raise Http404("Unknown figure")
+
+        cbkid = request.GET.get("cbkid", "").strip()
+        if cbkid and figure_id != _COMPOUND_FIGURE_ID:
+            raise Http404("This figure takes no compound")
+
+        if cbkid:
+            figure_json = self._radar_payload(cbkid)
+        else:
+            figure_json = getattr(self.dashboard_data, "data", {}).get(figure_id)
+            if figure_json is None:
+                raise Http404("No such figure has been precomputed for this dataset")
+
+        value = self._placed_figure_block(figure_id)
+        plot_html = cached_plot_html(
+            figure_json,
+            slug=self.slug,
+            figure_id=figure_id,
+            file_hash=getattr(self.dashboard_data, "source_file_hash", "") or "",
+            height_px=int(value.get("height") or _DEFAULT_FIGURE_HEIGHT),
+            variant=cbkid,
+        )
+        return render(
+            request,
+            "cms/blocks/plotly_figure.html",
+            {"value": value, "plot_html": plot_html},
+        )
 
     @path("raw-images/")
     def raw_images(self, request: HttpRequest) -> HttpResponseRedirect:
