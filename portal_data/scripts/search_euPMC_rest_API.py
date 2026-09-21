@@ -359,7 +359,9 @@ def get_author_affiliations(paper: dict) -> dict[str, list[str]]:
             continue
         details = author.get("authorAffiliationDetailsList", {}).get("authorAffiliation", [])
         author_affils = [
-            (d.get("affiliation") or "").strip() for d in details if (d.get("affiliation") or "").strip()
+            (d.get("affiliation") or "").strip()
+            for d in details
+            if (d.get("affiliation") or "").strip()
         ]
         if author_affils:
             key = _normalize_name(full_name)
@@ -460,11 +462,20 @@ def dedupe_paper_rows(paper_rows: list[dict]) -> list[dict]:
     for row in paper_rows:
         key = (row["source"], row["epmc_id"])
         author_matches.setdefault(key, []).append(
-            (row["input_author"], row.get("author_sweden_affiliation", ""), row.get("author_affiliation", ""))
+            (
+                row["input_author"],
+                row.get("author_sweden_affiliation", ""),
+                row.get("author_affiliation", ""),
+            )
         )
         if key not in grouped:
             new_row = dict(row)
-            for field in ("query", "input_author", "author_affiliation", "author_sweden_affiliation"):
+            for field in (
+                "query",
+                "input_author",
+                "author_affiliation",
+                "author_sweden_affiliation",
+            ):
                 new_row.pop(field, None)
             grouped[key] = new_row
             order.append(key)
@@ -516,9 +527,15 @@ def expand_deduped_row_to_author_rows(row: dict) -> list[dict]:
     combination) without needing to keep the original pre-dedup rows
     around between runs.
     """
-    sweden_authors = {a.strip() for a in (row.get("sweden_affiliated_matching_authors") or "").split(";") if a.strip()}
+    sweden_authors = {
+        a.strip()
+        for a in (row.get("sweden_affiliated_matching_authors") or "").split(";")
+        if a.strip()
+    }
     non_sweden_authors = {
-        a.strip() for a in (row.get("non_sweden_affiliated_matching_authors") or "").split(";") if a.strip()
+        a.strip()
+        for a in (row.get("non_sweden_affiliated_matching_authors") or "").split(";")
+        if a.strip()
     }
     affiliations = _parse_affiliation_detail(row.get("matching_authors_affiliations") or "")
 
@@ -601,7 +618,9 @@ def retry_errored_authors(
         with Path(papers_csv).open(newline="", encoding="utf-8-sig") as f:
             existing_paper_rows = list(csv.DictReader(f))
 
-    expanded_existing = [r for row in existing_paper_rows for r in expand_deduped_row_to_author_rows(row)]
+    expanded_existing = [
+        r for row in existing_paper_rows for r in expand_deduped_row_to_author_rows(row)
+    ]
     deduped_paper_rows = dedupe_paper_rows(expanded_existing + new_paper_rows)
 
     with Path(papers_csv).open("w", newline="", encoding="utf-8") as f:
@@ -615,7 +634,9 @@ def retry_errored_authors(
             existing_summary_rows = list(csv.DictReader(f))
 
     retried_set = set(errored_authors)
-    merged_summary_rows = [r for r in existing_summary_rows if r.get("input_author") not in retried_set]
+    merged_summary_rows = [
+        r for r in existing_summary_rows if r.get("input_author") not in retried_set
+    ]
     merged_summary_rows.extend(new_summary_rows)
 
     with Path(summary_csv).open("w", newline="", encoding="utf-8") as f:
@@ -636,7 +657,9 @@ def retry_errored_authors(
     print(f"Rewrote {summary_csv} and {targets_txt}.")
 
 
-def read_authors_from_publications_csv(input_csv: str, authors_column: str = "Authors") -> list[str]:
+def read_authors_from_publications_csv(
+    input_csv: str, authors_column: str = "Authors"
+) -> list[str]:
     """Read unique, non-empty author names out of a publications CSV file.
 
     Each row's `authors_column` holds a comma-separated list of authors in
@@ -747,7 +770,9 @@ def has_strong_match(matches: list[str]) -> bool:
     return any(m.lower() not in WEAK_KEYWORDS for m in matches)
 
 
-def search_authors(authors: list[str], keyword_pattern: re.Pattern[str]) -> tuple[list[dict], list[dict]]:
+def search_authors(
+    authors: list[str], keyword_pattern: re.Pattern[str]
+) -> tuple[list[dict], list[dict]]:
     """Search Europe PMC for each author in turn.
 
     Returns (paper_rows, summary_rows): paper_rows are per-(author, paper)
@@ -834,7 +859,9 @@ def accession_targets_from_paper_rows(paper_rows: list[dict]) -> list[str]:
 
 def main() -> None:
     """Run the Europe PMC author search and write results to CSV files."""
-    parser = argparse.ArgumentParser(description="Search Europe PMC for MetaboLights-linked publications.")
+    parser = argparse.ArgumentParser(
+        description="Search Europe PMC for MetaboLights-linked publications."
+    )
     parser.add_argument(
         "--retry-errors",
         action="store_true",
