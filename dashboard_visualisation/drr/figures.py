@@ -321,6 +321,11 @@ def _radar_caveat(prep: _Prepared) -> str:
     neither is the basis the published radar uses, so every visible radar says
     so in its own payload — which means it keeps saying so after an htmx swap
     (FREYA-2636 criterion 9).
+
+    It is carried in ``layout.meta`` rather than as a Plotly annotation, and
+    the page renders it as text beneath the chart: annotation text does not
+    wrap, so a sentence this long is clipped at the plot's edge on a narrow
+    viewport, and a caveat a reader cannot finish is not a caveat.
     """
     return (
         f"Approximation: computed on this portal's figure basis of "
@@ -368,18 +373,7 @@ def build_radar(
     figure.update_layout(
         title=title,
         showlegend=True,
-        annotations=[
-            {
-                "text": _radar_caveat(prep),
-                "showarrow": False,
-                "xref": "paper",
-                "yref": "paper",
-                "x": 0,
-                "y": -0.12,
-                "align": "left",
-                "font": {"size": 11},
-            }
-        ],
+        meta={"caveat": _radar_caveat(prep)},
     )
     return figure
 

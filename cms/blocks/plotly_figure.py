@@ -10,6 +10,27 @@ from dashboard_visualisation.utils import plot_html_from_json
 CACHE_TIMEOUT_SECONDS = 60 * 60 * 24
 
 
+def figure_caveat(figure_json: dict[str, Any] | None) -> str:
+    """Return a qualification the figure's payload carries about itself, if any.
+
+    Read from ``layout.meta.caveat``, so whatever computed the figure states
+    the caveat once, beside the values it applies to, and every surface that
+    renders the figure renders it too. It is page text rather than a Plotly
+    annotation because annotation text does not wrap and is clipped at the
+    plot's edge on a narrow viewport.
+
+    Args:
+        figure_json: The precomputed Plotly JSON, or ``None``.
+
+    Returns:
+        The caveat, or an empty string when the figure declares none.
+    """
+    if not figure_json:
+        return ""
+    meta = figure_json.get("layout", {}).get("meta") or {}
+    return str(meta.get("caveat", "")) if isinstance(meta, dict) else ""
+
+
 def cached_plot_html(
     figure_json: dict[str, Any] | None,
     *,
@@ -109,14 +130,16 @@ class PlotlyFigureBlock(StructBlock):
 
         figure_id = value["figure_id"]
         page = parent_context.get("page")
+        figure_json = parent_context.get("figures", {}).get(figure_id)
 
         context["plot_html"] = cached_plot_html(
-            parent_context.get("figures", {}).get(figure_id),
+            figure_json,
             slug=getattr(page, "slug", "unknown"),
             figure_id=figure_id,
             file_hash=parent_context.get("source_file_hash") or "",
             height_px=int(value.get("height") or 500),
         )
+        context["figure_caveat"] = figure_caveat(figure_json)
         return context
 
     class Meta:

@@ -15,6 +15,15 @@ so repeated swaps keep working (DRR spec section 8.3).
     <p class="text-sm text-gray-500">Chart data is not available for this figure.</p>
     {% endif %}
 
+    {% if figure_caveat %}
+    {% comment %}
+    A qualification the figure's own payload carries (layout.meta.caveat). It is
+    rendered here rather than inside the chart so it wraps with the page instead
+    of being clipped at the plot's edge on a narrow viewport.
+    {% endcomment %}
+    <p class="text-sm text-pp-dark-grey mt-2">{{ figure_caveat }}</p>
+    {% endif %}
+
     {% if value.caption %}
     <figcaption class="text-sm italic text-gray-500 mt-2 text-center">
         {{ value.caption }}

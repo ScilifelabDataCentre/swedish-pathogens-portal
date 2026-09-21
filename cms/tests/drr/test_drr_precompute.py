@@ -506,16 +506,22 @@ class DrrPrecomputeTests(TestCase):
         self.assertNotIn("Area/shape N", empty)
 
     def test_every_radar_states_which_basis_it_was_computed_on(self) -> None:
-        """Both bases, in the payload, so an htmx-swapped figure carries it too."""
+        """Both bases, in the payload, so every surface rendering it says so too.
+
+        It sits in ``layout.meta`` rather than in an annotation: the page draws
+        it as text under the chart, where it wraps instead of being clipped at
+        the plot's edge on a narrow viewport.
+        """
         self._run()
         figures = DrrDatasetData.get_data(SLUG).data
 
         for figure_id in ("radar_infected", "radar_compound"):
-            caveat = figures[figure_id]["layout"]["annotations"][0]["text"]
+            caveat = figures[figure_id]["layout"]["meta"]["caveat"]
 
             self.assertIn(f"{N_FIGURE_FEATURES:,} morphology features", caveat, figure_id)
             self.assertIn(f"±{FIGURE_CLIP_BOUND:g}", caveat, figure_id)
             self.assertIn(f"all {N_DOWNLOAD_FEATURES:,} features, unclipped", caveat, figure_id)
+            self.assertNotIn("annotations", figures[figure_id]["layout"], figure_id)
 
     def test_a_radar_is_written_for_every_treated_compound(self) -> None:
         """One file per compound with treated wells; the control id gets none."""

@@ -37,9 +37,17 @@ SNIPPET_FIGURES = {
         "layout": {},
     },
 }
+RADAR_CAVEAT = (
+    "Approximation: computed on this portal's figure basis of 1,144 morphology features, "
+    "clipped to ±50, not on the published consensus profiles. The downloads carry all "
+    "1,467 features, unclipped."
+)
 RADAR_ON_DISK = {
     "data": [{"type": "scatterpolar", "r": [9.0], "theta": ["DNA I"]}],
-    "layout": {"title": {"text": "Radar: Remdesivir (CBK1) vs infected DMSO baseline"}},
+    "layout": {
+        "title": {"text": "Radar: Remdesivir (CBK1) vs infected DMSO baseline"},
+        "meta": {"caveat": RADAR_CAVEAT},
+    },
 }
 CONTROL_RADAR_ON_DISK = {
     "data": [{"type": "scatterpolar", "r": [3.0], "theta": ["DNA I"]}],
@@ -149,6 +157,28 @@ class DrrFigureRouteTests(DrrFigureRouteTestCase):
         self.assertIn("Radar of morphological change", body)
         self.assertIn("Both radars share one axis ring.", body)
         self.assertIn("640px", body)
+
+    def test_the_swapped_figure_carries_its_basis_caveat_as_page_text(self) -> None:
+        """The qualification survives the swap, and as wrapping text rather than chart ink.
+
+        Inside the chart it would be a Plotly annotation, which does not wrap
+        and is clipped at the plot's edge on a narrow viewport — so the reader
+        who most needs the sentence is the one who cannot finish it.
+        """
+        response = self.figure(figure_id="radar_compound", cbkid="CBK1")
+
+        self.assertContains(response, "1,144 morphology features")
+        self.assertContains(response, "all 1,467 features, unclipped")
+        self.assertInHTML(
+            f'<p class="text-sm text-pp-dark-grey mt-2">{RADAR_CAVEAT}</p>',
+            response.content.decode(),
+        )
+
+    def test_a_figure_without_a_caveat_renders_no_empty_paragraph(self) -> None:
+        """Only a payload that declares one gets the line; the PCA declares none."""
+        response = self.figure(figure_id="pca")
+
+        self.assertNotContains(response, "text-sm text-pp-dark-grey mt-2")
 
     def test_a_figure_id_outside_the_allow_list_is_404_not_a_path_lookup(self) -> None:
         """The id names a key, never a file: an unknown one is refused before any read."""
@@ -308,3 +338,35 @@ class DrrRadarPickerTests(DrrFigureRouteTestCase):
 
         self.assertNotIn("radar_compounds", self.page.get_context(response.wsgi_request))
         self.assertNotContains(response, "Radar: choose a compound")
+
+    def test_no_picker_when_the_radar_block_is_not_placed(self) -> None:
+        """A control needs the figure it swaps: without the block there is no target.
+
+        The set can be fully precomputed and the editor still not have placed
+        the radar. Offering the picker anyway would give the reader a control
+        whose ``hx-target`` does not exist, which fails in the browser and
+        shows nothing — a worse outcome than no control at all.
+        """
+        page = DrrDatasetPage.objects.get(pk=self.page.pk)
+        page.content = [
+            {
+                "type": "plotly_figure",
+                "value": {"figure_id": "pca", "alt_text": "PCA", "height": 500},
+            }
+        ]
+        page.save_revision().publish()
+
+        response = self.client.get(page.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("radar_compounds", page.get_context(response.wsgi_request))
+        self.assertNotContains(response, "Radar: choose a compound")
+        self.assertNotContains(response, 'hx-target="#figure-radar_compound"')
+
+    def test_the_route_still_serves_a_figure_the_page_does_not_place(self) -> None:
+        """What may be served follows from what was precomputed, not from the layout."""
+        page = DrrDatasetPage.objects.get(pk=self.page.pk)
+        page.content = []
+        page.save_revision().publish()
+
+        self.assertEqual(self.figure(figure_id="radar_compound", cbkid="CBK1").status_code, 200)

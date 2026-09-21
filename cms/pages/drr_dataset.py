@@ -15,7 +15,7 @@ from django.utils.functional import cached_property
 from wagtail.admin.panels import FieldPanel, MultiFieldPanel
 from wagtail.contrib.routable_page.models import RoutablePageMixin, path
 
-from cms.blocks.plotly_figure import cached_plot_html
+from cms.blocks.plotly_figure import cached_plot_html, figure_caveat
 from cms.pages.dashboard import DashboardPage
 from cms.services.file_downloads import resolve_file_in_directory, serve_file_from_directory
 from dashboard_visualisation.drr import artefact_dir, compound_label
@@ -132,8 +132,12 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
         # The radar picker is the other half of the same rule: it offers only
         # the compounds precompute wrote a radar for, so no option can 404 and
         # no reader is shown a control that does nothing (spec section 8.3).
+        # It also needs the block it swaps to be on the page: the control
+        # targets that figure's element, so an editor who never placed the
+        # radar — or who removed it — would otherwise be given a control whose
+        # target does not exist, which fails silently in the browser.
         radar_options = [option for option in options if option["radar_key"]]
-        if radar_options:
+        if radar_options and self._placed_figure_block(_COMPOUND_FIGURE_ID):
             context["radar_compounds"] = radar_options
             context["figure_url"] = (self.url or "") + self.reverse_subpage("figure")
             context["radar_figure_id"] = _COMPOUND_FIGURE_ID
@@ -339,24 +343,26 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
     # Figure swap (spec section 8.3)                                     #
     # ------------------------------------------------------------------ #
 
-    def _placed_figure_block(self, figure_id: str) -> dict[str, Any]:
+    def _placed_figure_block(self, figure_id: str) -> dict[str, Any] | None:
         """Return the editorial settings of the placed block for one figure.
 
         A swapped figure inherits the alt text, caption and height an editor
         gave the block it replaces, so the page does not change shape or lose
-        its accessible description when a reader uses a control.
+        its accessible description when a reader uses a control. Whether a
+        block is placed at all is also what decides that a control may be
+        offered for it (see ``get_context``).
 
         Args:
             figure_id: The figure whose block to look for.
 
         Returns:
-            dict[str, Any]: The block's value, or defaults when the figure is
-                not placed on this page.
+            dict[str, Any] | None: The block's value, or ``None`` when this
+                figure is not placed on the page.
         """
         for block in self.content:
             if block.block_type == "plotly_figure" and block.value.get("figure_id") == figure_id:
                 return dict(block.value)
-        return {"figure_id": figure_id, "alt_text": figure_id, "height": _DEFAULT_FIGURE_HEIGHT}
+        return None
 
     def _radar_payload(self, cbkid: str) -> dict[str, Any]:
         """Read one compound's precomputed radar from disk.
@@ -430,7 +436,14 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
             if figure_json is None:
                 raise Http404("No such figure has been precomputed for this dataset")
 
-        value = self._placed_figure_block(figure_id)
+        # A figure the page does not place can still be rendered: the partial
+        # is complete in itself, and refusing it would make the route depend on
+        # editorial state rather than on what was precomputed.
+        value = self._placed_figure_block(figure_id) or {
+            "figure_id": figure_id,
+            "alt_text": figure_id,
+            "height": _DEFAULT_FIGURE_HEIGHT,
+        }
         plot_html = cached_plot_html(
             figure_json,
             slug=self.slug,
@@ -442,7 +455,11 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
         return render(
             request,
             "cms/blocks/plotly_figure.html",
-            {"value": value, "plot_html": plot_html},
+            {
+                "value": value,
+                "plot_html": plot_html,
+                "figure_caveat": figure_caveat(figure_json),
+            },
         )
 
     @path("raw-images/")
