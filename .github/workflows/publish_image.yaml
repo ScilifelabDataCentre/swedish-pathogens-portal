@@ -42,8 +42,8 @@ jobs:
              type=semver,pattern={{version}}
              type=semver,pattern={{major}}.{{minor}}
              type=semver,pattern={{major}}
-      - name: EBI envelope build-args
-        id: ebi
+      - name: Git release build-args
+        id: git
         run: |
           RELEASE="${{ github.event.release.tag_name }}"
           DATE="${{ github.event.release.published_at }}"
@@ -67,5 +67,5 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           platforms: linux/amd64
           build-args: |
-            EBI_RELEASE=${{ steps.ebi.outputs.release }}
-            EBI_RELEASE_DATE=${{ steps.ebi.outputs.date }}
+            GIT_RELEASE=${{ steps.git.outputs.release }}
+            GIT_RELEASE_DATE=${{ steps.git.outputs.date }}

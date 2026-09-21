@@ -92,8 +92,8 @@ def build_index() -> dict[str, Any]:
     ]
     return {
         "name": settings.EBI_INDEX_NAME,
-        "release": settings.EBI_RELEASE,
-        "release_date": settings.EBI_RELEASE_DATE,
+        "release": settings.GIT_RELEASE,
+        "release_date": settings.GIT_RELEASE_DATE,
         "entry_count": len(entries),
         "entries": entries,
     }

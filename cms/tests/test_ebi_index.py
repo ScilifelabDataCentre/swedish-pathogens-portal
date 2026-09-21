@@ -26,7 +26,7 @@ class EbiIndexEnvelopeTestCase(TestCase):
         self.assertNotIn("(Dev)", payload["name"])
         self.assertNotIn("Test Portal", payload["name"])
 
-    @override_settings(EBI_RELEASE="v9.9.9", EBI_RELEASE_DATE="2026-01-15")
+    @override_settings(GIT_RELEASE="v9.9.9", GIT_RELEASE_DATE="2026-01-15")
     def test_release_fields_come_from_django_settings(self) -> None:
         """`release` and `release_date` follow env-backed Django settings."""
         payload = build_index()

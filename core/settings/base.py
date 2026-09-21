@@ -30,12 +30,12 @@ environ.Env.read_env(BASE_DIR / ".env")
 SECRET_KEY = env("SECRET_KEY")
 
 # EBI catalogue envelope for `/ebi-index.json` (not a Wagtail Settings form).
-# `name` is fixed. `release` / `release_date` are env vars, baked into the
-# production image at GitHub release (Dockerfile ARG → ENV).
+# `name` is fixed. `release` / `release_date` come from git metadata env vars,
+# baked into the production image (Dockerfile ARG → ENV).
 EBI_INDEX_NAME = "Swedish Pathogens Portal"
-EBI_RELEASE = env("EBI_RELEASE", default="dev")
-_ebi_release_date = env("EBI_RELEASE_DATE", default="")
-EBI_RELEASE_DATE = _ebi_release_date[:10] if len(_ebi_release_date) >= 10 else _ebi_release_date
+GIT_RELEASE = env("GIT_RELEASE", default="dev")
+_git_release_date = env("GIT_RELEASE_DATE", default="")
+GIT_RELEASE_DATE = _git_release_date[:10] if len(_git_release_date) >= 10 else _git_release_date
 
 # INTERNATIONALISATION (https://docs.djangoproject.com/en/5.2/topics/i18n/)
 # ------------------------------------------------------------------------------
