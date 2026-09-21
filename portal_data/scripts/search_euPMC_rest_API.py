@@ -141,12 +141,14 @@ class RateLimiter:
     down once you're actually approaching it.
     """
 
-    def __init__(self, max_per_second: int, max_per_minute: int):
+    def __init__(self, max_per_second: int, max_per_minute: int) -> None:
+        """Set the two throttling windows to enforce."""
         self._max_per_second = max_per_second
         self._max_per_minute = max_per_minute
         self._recent_calls: list[float] = []
 
     def wait(self) -> None:
+        """Block, if needed, until another call is allowed under both windows."""
         now = time.monotonic()
         self._recent_calls = [t for t in self._recent_calls if now - t < 60]
 
@@ -168,10 +170,12 @@ RATE_LIMITER = RateLimiter(EUROPEPMC_MAX_PER_SECOND, EUROPEPMC_MAX_PER_MINUTE)
 
 
 def _build_session() -> requests.Session:
-    """A requests.Session reused for every call: keeps the TCP/TLS connection
-    alive instead of renegotiating it per request, and automatically retries
-    (with backoff, honouring Retry-After) on 429/5xx instead of losing an
-    author's results to a transient throttle or server error.
+    """Build a requests.Session reused for every call.
+
+    Keeps the TCP/TLS connection alive instead of renegotiating it per
+    request, and automatically retries (with backoff, honouring
+    Retry-After) on 429/5xx instead of losing an author's results to a
+    transient throttle or server error.
     """
     session = requests.Session()
     retry = Retry(
@@ -233,8 +237,10 @@ def safe_get(record: dict, key: str) -> str:
 
 
 def safe_get_nested(record: dict, *keys: str) -> str:
-    """Return a nested value as a string, or an empty string if any level is
-    missing or None. E.g. safe_get_nested(paper, "journalInfo", "journal", "title").
+    """Return a nested value as a string, or an empty string if missing.
+
+    Returns "" if any level along the path is missing or None, e.g.
+    safe_get_nested(paper, "journalInfo", "journal", "title").
     """
     value: object = record
     for key in keys:
@@ -326,11 +332,11 @@ def get_metabolights_accessions(paper: dict) -> list[str]:
 
 
 def _normalize_name(name: str) -> str:
-    """Fold a name to a comparable form: strip diacritics, collapse
-    whitespace, lowercase. Used to match our own "Lastname Initials"
-    strings against Europe PMC's authorList fullName field, which should
-    normally already be in the same format but may differ slightly in
-    accenting or spacing.
+    """Fold a name to a comparable form: strip diacritics, collapse whitespace, lowercase.
+
+    Used to match our own "Lastname Initials" strings against Europe
+    PMC's authorList fullName field, which should normally already be in
+    the same format but may differ slightly in accenting or spacing.
     """
     name = unicodedata.normalize("NFKD", name or "")
     name = "".join(c for c in name if not unicodedata.combining(c))
@@ -362,15 +368,19 @@ def get_author_affiliations(paper: dict) -> dict[str, list[str]]:
 
 
 def get_affiliation_for_author(affiliations: dict[str, list[str]], author_name: str) -> list[str]:
-    """Look up the specific matched author's affiliation(s) on this paper
-    (not just any co-author's), by normalized name. Returns [] if no
-    affiliation data was found for that author on this paper.
+    """Look up the specific matched author's affiliation(s) on this paper.
+
+    Looks up by normalized name, and only that author (not just any
+    co-author's). Returns [] if no affiliation data was found for that
+    author on this paper.
     """
     return affiliations.get(_normalize_name(author_name), [])
 
 
 def _sweden_flag(author_affiliations: list[str]) -> str:
-    """"Y" if any affiliation mentions Sweden, "N" if affiliation data
+    """Return "Y"/"N"/"" for whether the affiliations mention Sweden.
+
+    "Y" if any affiliation mentions Sweden, "N" if affiliation data
     exists but none does, "" if no affiliation data was found at all for
     that author on this paper (unknown, not necessarily non-Swedish).
     """
@@ -484,8 +494,10 @@ def dedupe_paper_rows(paper_rows: list[dict]) -> list[dict]:
 
 
 def _parse_affiliation_detail(field: str) -> dict[str, str]:
-    """Parse a matching_authors_affiliations field ("Name: affiliation |
-    Name: affiliation") back into a dict of author name -> affiliation.
+    """Parse a matching_authors_affiliations field back into a dict.
+
+    The field looks like "Name: affiliation | Name: affiliation"; this
+    returns {name: affiliation}.
     """
     result: dict[str, str] = {}
     for part in (field or "").split(" | "):
@@ -496,12 +508,13 @@ def _parse_affiliation_detail(field: str) -> dict[str, str]:
 
 
 def expand_deduped_row_to_author_rows(row: dict) -> list[dict]:
-    """Reverse dedupe_paper_rows for one already-deduped paper row: rebuild
-    one row per matched author, in flatten_paper's per-author-match shape.
+    """Reverse dedupe_paper_rows for one already-deduped paper row.
 
-    Used so a retry run can merge newly found matches into an existing
-    deduped papers CSV (and re-run dedupe_paper_rows over the combination)
-    without needing to keep the original pre-dedup rows around between runs.
+    Rebuilds one row per matched author, in flatten_paper's per-author-match
+    shape. Used so a retry run can merge newly found matches into an
+    existing deduped papers CSV (and re-run dedupe_paper_rows over the
+    combination) without needing to keep the original pre-dedup rows
+    around between runs.
     """
     sweden_authors = {a.strip() for a in (row.get("sweden_affiliated_matching_authors") or "").split(";") if a.strip()}
     non_sweden_authors = {
@@ -542,9 +555,10 @@ def expand_deduped_row_to_author_rows(row: dict) -> list[dict]:
 
 
 def load_errored_authors(summary_csv: str) -> list[str]:
-    """Read a previous run's summary CSV and return the authors whose row
-    has a non-empty error (e.g. a transient network/server failure), in
-    order of first appearance, deduplicated.
+    """Return authors whose row in a previous run's summary CSV has an error.
+
+    E.g. a transient network/server failure. Returned in order of first
+    appearance, deduplicated.
     """
     authors = []
     seen = set()
@@ -565,10 +579,11 @@ def retry_errored_authors(
     targets_txt: str = TARGETS_OUTPUT_TXT,
     keywords_csv: str = KEYWORDS_CSV,
 ) -> None:
-    """Re-run the search for only the authors that errored in a previous
-    run, and merge the results into the existing output files instead of
-    starting over. Safe to run repeatedly -- authors that still error stay
-    marked as errored for the next retry.
+    """Re-run the search for authors that errored in a previous run.
+
+    Merges the results into the existing output files instead of starting
+    over. Safe to run repeatedly -- authors that still error stay marked
+    as errored for the next retry.
     """
     errored_authors = load_errored_authors(summary_csv)
     if not errored_authors:
@@ -801,8 +816,10 @@ def search_authors(authors: list[str], keyword_pattern: re.Pattern[str]) -> tupl
 
 
 def accession_targets_from_paper_rows(paper_rows: list[dict]) -> list[str]:
-    """Collect unique lftp target lines from a list of (deduped) paper rows'
-    metabolights_accessions fields, in order of first appearance.
+    """Collect unique lftp target lines from a list of paper rows.
+
+    Reads each (deduped) row's metabolights_accessions field, in order of
+    first appearance.
     """
     seen: set[str] = set()
     targets: list[str] = []
