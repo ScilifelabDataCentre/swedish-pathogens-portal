@@ -333,6 +333,37 @@ class TestDrrDatasetPageRender(DrrDatasetPageTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, "Summary statistics")
 
+    def test_a_pre_2923_channel_summary_is_withheld_rather_than_rendered_blank(self) -> None:
+        """A summary precomputed before FREYA-2923 lists tokens, not stain entries.
+
+        Its strings carry neither ``stain`` nor ``in_figures``, so the stain loop
+        would print empty names and badge every channel "excluded from figures".
+        The section is withheld until precompute is re-run, which is visible
+        rather than wrong; the rest of the panel still renders.
+        """
+        DrrDatasetData.objects.create(
+            dataset_slug="sars-cov2-a549-ace2-validation",
+            data={"pca": {"data": [], "layout": {}}},
+            summary={
+                **FULL_SUMMARY,
+                "channels": ["HOECHST", "SYTO", "PHAandWGA", "MITO", "CONC"],
+                "feature_sets": {},
+            },
+            source_file_hash="deadbeefcafe0001",
+        )
+
+        response = self.client.get(self.page.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, ">Channels<")
+        self.assertNotContains(response, "excluded from figures")
+        self.assertNotContains(response, "The figures are computed on")
+        # A token must never reach a reader, least of all as a stain name.
+        self.assertNotContains(response, "PHAandWGA")
+        # The panel is otherwise intact, so the gap is legible as a stale artefact.
+        self.assertContains(response, "Summary statistics")
+        self.assertContains(response, "nuclei, cells, cytoplasm")
+
 
 class TestDrrDatasetDownloadsWired(DrrDatasetPageTestCase):
     """Inverts the transitional contract now that FREYA-2580 wires ``download_urls``.
