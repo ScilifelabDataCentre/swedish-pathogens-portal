@@ -154,9 +154,10 @@ LIVER_RESOURCE_DATA_ROOT = Path(
 ).resolve()
 
 # EBI catalogue envelope for `/ebi-index.json` (not a Wagtail Settings form).
-# `name` is fixed. `release` / `release_date` come from git metadata env vars,
-# baked into the production image (Dockerfile ARG → ENV).
-EBI_INDEX_NAME = "Swedish Pathogens Portal"
+# `name` is `EBI_INDEX_NAME` when set, else `WAGTAIL_SITE_NAME`.
+# `release` / `release_date` come from git metadata env vars, baked into the
+# production image (Dockerfile ARG → ENV).
+EBI_INDEX_NAME = env("EBI_INDEX_NAME", default="")
 GIT_RELEASE = env("GIT_RELEASE", default="dev")
 _git_release_date = env("GIT_RELEASE_DATE", default="")
 GIT_RELEASE_DATE = _git_release_date[:10] if len(_git_release_date) >= 10 else _git_release_date

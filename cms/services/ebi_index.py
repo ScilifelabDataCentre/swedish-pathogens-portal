@@ -83,15 +83,16 @@ def entry_fields(page: DashboardPage, dataset_number: int) -> list[dict[str, str
 def build_index() -> dict[str, Any]:
     """Return the EBI catalogue envelope plus computed entries.
 
-    Envelope `name` is fixed. `release` and `release_date` come from Django
-    settings (env / image bake). Entries are live dashboards with EBI fields.
+    Envelope `name` is `EBI_INDEX_NAME` or `WAGTAIL_SITE_NAME`. `release` and
+    `release_date` come from Django settings (git env / image bake). Entries
+    are live dashboards with EBI fields.
     """
     entries = [
         {"fields": entry_fields(page, number)}
         for number, page in enumerate(catalogue_pages(), start=1)
     ]
     return {
-        "name": settings.EBI_INDEX_NAME,
+        "name": settings.EBI_INDEX_NAME or settings.WAGTAIL_SITE_NAME,
         "release": settings.GIT_RELEASE,
         "release_date": settings.GIT_RELEASE_DATE,
         "entry_count": len(entries),

@@ -2,6 +2,7 @@
 
 from datetime import timedelta
 
+from django.conf import settings
 from django.test import TestCase, override_settings
 from django.utils import timezone
 from wagtail.models import Page, Site
@@ -13,18 +14,21 @@ from cms.pages.home import HomePage
 from cms.services.ebi_index import build_index
 from cms.tests.utils import create_test_image
 
-FIXED_CATALOGUE_NAME = "Swedish Pathogens Portal"
-
 
 class EbiIndexEnvelopeTestCase(TestCase):
     """Envelope comes from Django settings, not a Wagtail form."""
 
-    def test_name_is_fixed(self) -> None:
-        """Catalogue name is not WAGTAIL_SITE_NAME and is not editable."""
+    def test_name_falls_back_to_wagtail_site_name(self) -> None:
+        """Empty `EBI_INDEX_NAME` uses `WAGTAIL_SITE_NAME`."""
         payload = build_index()
-        self.assertEqual(payload["name"], FIXED_CATALOGUE_NAME)
-        self.assertNotIn("(Dev)", payload["name"])
-        self.assertNotIn("Test Portal", payload["name"])
+        self.assertEqual(payload["name"], settings.WAGTAIL_SITE_NAME)
+
+    @override_settings(EBI_INDEX_NAME="Custom EBI Catalogue")
+    def test_name_uses_ebi_index_name_when_set(self) -> None:
+        """Non-empty `EBI_INDEX_NAME` wins over `WAGTAIL_SITE_NAME`."""
+        payload = build_index()
+        self.assertEqual(payload["name"], "Custom EBI Catalogue")
+        self.assertNotEqual(payload["name"], settings.WAGTAIL_SITE_NAME)
 
     @override_settings(GIT_RELEASE="v9.9.9", GIT_RELEASE_DATE="2026-01-15")
     def test_release_fields_come_from_django_settings(self) -> None:
@@ -132,7 +136,7 @@ class EbiIndexBuilderTestCase(WagtailPageTestCase):
         DashboardEbiPathogen.objects.create(page=newer, ebi_type_of_pathogen="SARS-CoV-2")
 
         payload = build_index()
-        self.assertEqual(payload["name"], FIXED_CATALOGUE_NAME)
+        self.assertEqual(payload["name"], settings.WAGTAIL_SITE_NAME)
         self.assertEqual(payload["entry_count"], 2)
 
         first, second = payload["entries"]
