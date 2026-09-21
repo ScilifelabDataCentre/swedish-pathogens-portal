@@ -29,14 +29,6 @@ environ.Env.read_env(BASE_DIR / ".env")
 
 SECRET_KEY = env("SECRET_KEY")
 
-# EBI catalogue envelope for `/ebi-index.json` (not a Wagtail Settings form).
-# `name` is fixed. `release` / `release_date` come from git metadata env vars,
-# baked into the production image (Dockerfile ARG → ENV).
-EBI_INDEX_NAME = "Swedish Pathogens Portal"
-GIT_RELEASE = env("GIT_RELEASE", default="dev")
-_git_release_date = env("GIT_RELEASE_DATE", default="")
-GIT_RELEASE_DATE = _git_release_date[:10] if len(_git_release_date) >= 10 else _git_release_date
-
 # INTERNATIONALISATION (https://docs.djangoproject.com/en/5.2/topics/i18n/)
 # ------------------------------------------------------------------------------
 LANGUAGE_CODE = "en-gb"
@@ -160,6 +152,14 @@ LIVER_RESOURCE_DATA_ROOT = Path(
         default=str(BASE_DIR / "dashboard_visualisation" / "liver_resource" / "data"),
     )
 ).resolve()
+
+# EBI catalogue envelope for `/ebi-index.json` (not a Wagtail Settings form).
+# `name` is fixed. `release` / `release_date` come from git metadata env vars,
+# baked into the production image (Dockerfile ARG → ENV).
+EBI_INDEX_NAME = "Swedish Pathogens Portal"
+GIT_RELEASE = env("GIT_RELEASE", default="dev")
+_git_release_date = env("GIT_RELEASE_DATE", default="")
+GIT_RELEASE_DATE = _git_release_date[:10] if len(_git_release_date) >= 10 else _git_release_date
 
 
 # PASSWORDS (https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators)
