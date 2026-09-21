@@ -16,11 +16,18 @@ from .compounds import (
     normalize_cbkid,
     reconciliation_report,
 )
-from .figures import build_all_figures
+from .figures import (
+    FIGURE_CLIP_BOUND,
+    build_all_figures,
+    clip_figure_values,
+    clip_report,
+    figure_basis_token,
+)
 from .loader import FeatureTable, load_compound_names, load_feature_table, load_metadata
 from .summary import build_summary
 
 __all__ = [
+    "FIGURE_CLIP_BOUND",
     "Channel",
     "FeatureTable",
     "artefact_dir",
@@ -29,6 +36,9 @@ __all__ = [
     "build_name_lookup",
     "build_summary",
     "channel_map",
+    "clip_figure_values",
+    "clip_report",
+    "figure_basis_token",
     "figure_feature_columns",
     "load_compound_names",
     "load_feature_table",

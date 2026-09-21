@@ -26,6 +26,7 @@ from dashboard_visualisation.drr import (
     build_compound_index,
     build_summary,
     channel_map,
+    figure_basis_token,
     figure_feature_columns,
     load_compound_names,
     load_feature_table,
@@ -118,14 +119,18 @@ class Command(BaseCommand):
         feature_hash = self._hash_file(input_path)
         names_hash = self._hash_file(names_path) if names_path else None
         # Fixed order — feature table, metadata, name lookup, UMAP coordinates —
-        # so the combined digest depends on the inputs and not on the order the
-        # optional ones were passed in.
+        # so the digest depends on the inputs and not on the order the optional
+        # ones were passed in. Two digests come out of it, and they answer
+        # different questions: the inputs-only one says whether the *data* moved,
+        # and the one with the figure-basis token appended says whether anything
+        # a rendered figure depends on moved.
         input_hashes = [feature_hash, self._hash_file(metadata_path)]
         if names_hash:
             input_hashes.append(names_hash)
         if options["umap_coords"]:
             input_hashes.append(self._hash_file(Path(options["umap_coords"])))
-        source_hash = self._combine_hashes(input_hashes)
+        inputs_hash = self._combine_hashes(input_hashes)
+        source_hash = self._combine_hashes([*input_hashes, figure_basis_token(figure_columns)])
         generated_at = timezone.now()
         summary = build_summary(
             table,
@@ -133,6 +138,7 @@ class Command(BaseCommand):
             figure_feature_columns=figure_columns,
             source_filename=input_path.name,
             source_hash=feature_hash,
+            inputs_hash=inputs_hash,
             generated_at=generated_at.isoformat(),
         )
         summary["compound_reconciliation"] = reconciliation
@@ -144,7 +150,7 @@ class Command(BaseCommand):
         )
         (output_dir / "summary.json").write_text(json.dumps(summary, indent=2), encoding="utf-8")
 
-        data_updated_at = self._resolve_updated_date(slug, source_hash, options["data_updated_at"])
+        data_updated_at = self._resolve_updated_date(slug, inputs_hash, options["data_updated_at"])
         self._upsert_data_row(
             slug=slug,
             title=title,
@@ -163,11 +169,14 @@ class Command(BaseCommand):
             profiles=summary["n_profiles"],
             download_features=summary["n_features"],
             figure_features=len(figure_columns),
+            figure_values_clipped=summary["feature_sets"]["figures"]["clip"]["n_values_clipped"],
             matched=reconciliation["n_annotated"],
             unmatched=reconciliation["n_unannotated"],
             controls=reconciliation["n_control_ids"],
         )
-        excluded_channels = ", ".join(summary["feature_sets"]["figures"]["excluded_channels"])
+        figure_basis = summary["feature_sets"]["figures"]
+        excluded_channels = ", ".join(figure_basis["excluded_channels"])
+        clip = figure_basis["clip"]
         report = (
             f"Precomputed DRR dataset '{slug}': {summary['n_compounds']} compounds, "
             f"{summary['n_profiles']} profiles, {len(figures)} figures -> {output_dir}\n"
@@ -176,7 +185,10 @@ class Command(BaseCommand):
             f"{reconciliation['n_unannotated']} unannotated, "
             f"{reconciliation['n_control_ids']} controls\n"
             f"  features: {summary['n_features']} for download, {len(figure_columns)} for the "
-            f"figures (excluding {excluded_channels})"
+            f"figures (excluding {excluded_channels})\n"
+            f"  figure clip: {clip['n_values_clipped']} of {clip['n_values']} values in "
+            f"{clip['n_columns_clipped']} column(s) brought to "
+            f"{clip['lower']:g}..{clip['upper']:g}; the downloads keep every value"
         )
         if names_path:
             name_lookup = summary["name_lookup"]
@@ -203,27 +215,51 @@ class Command(BaseCommand):
             return calculate_file_hash(handle)
 
     @staticmethod
-    def _combine_hashes(hex_digests: list[str]) -> str:
-        """Combine per-input SHA-256 digests into one stable cache-busting hash.
+    def _combine_hashes(tokens: list[str]) -> str:
+        """Combine per-input digests and the figure-basis token into one hash.
 
         Folding every precompute input (feature table, metadata, and any UMAP
         coordinates) into ``source_file_hash`` ensures the ``PlotlyFigureBlock``
         render cache (keyed by slug + figure_id + source_file_hash) is busted
-        whenever any input that affects the figures changes.
+        whenever any input that affects the figures changes. The last token
+        describes the figure basis instead of an input: a change to *how* the
+        figures are computed moves no input digest, and the cache holds for 24
+        hours, so without it the page would serve the previous render for a day
+        (FREYA-2968).
         """
         hasher = hashlib.sha256()
-        for digest in hex_digests:
-            hasher.update(digest.encode("ascii"))
+        for token in tokens:
+            hasher.update(token.encode("ascii"))
             hasher.update(b"\0")
         return hasher.hexdigest()
 
     @staticmethod
-    def _resolve_updated_date(slug: str, source_hash: str, override: str | None) -> date:
-        """Pick the data-updated date, keeping it stable when the source is unchanged."""
+    def _resolve_updated_date(slug: str, inputs_hash: str, override: str | None) -> date:
+        """Pick the data-updated date, keeping it stable when the inputs are unchanged.
+
+        The comparison is against the **inputs** digest rather than
+        ``source_file_hash``, which also covers the figure basis: otherwise a
+        figure-only correction — a changed clip bound, a changed channel
+        exclusion — would move this date and advertise source data that nobody
+        updated (FREYA-2968).
+
+        Args:
+            slug: The dataset slug.
+            inputs_hash: The combined digest over this run's input files.
+            override: An explicit ISO date, which always wins.
+
+        Returns:
+            The previous date when the inputs are unchanged, else today. A row
+            written before the inputs digest existed carries no previous value
+            to compare, so it takes today's date rather than a guess.
+        """
         if override:
             return date.fromisoformat(override)
         existing = DrrDatasetData.get_data(slug)
-        if existing and existing.source_file_hash == source_hash and existing.data_updated_at:
+        if not existing or not existing.data_updated_at:
+            return timezone.localdate()
+        previous = ((existing.summary or {}).get("source") or {}).get("inputs_sha256")
+        if previous == inputs_hash:
             return existing.data_updated_at
         return timezone.localdate()
 
