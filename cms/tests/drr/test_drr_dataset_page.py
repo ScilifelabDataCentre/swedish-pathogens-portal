@@ -84,6 +84,18 @@ FULL_SUMMARY = {
         "figures": {
             "n_features": 1144,
             "excluded_channels": ["illumCONC"],
+            # The figure basis is clipped where the paper's pipeline clips, and the
+            # downloads are not, so the panel has to say so (FREYA-2968).
+            "clip": {
+                "lower": -50.0,
+                "upper": 50.0,
+                "n_values": 9492912,
+                "n_values_clipped": 1933,
+                "n_columns_clipped": 42,
+                "most_affected_columns": [
+                    {"column": "AreaShape_FormFactor_nuclei", "n_clipped": 311}
+                ],
+            },
             "used_by": ["pca", "heatmap", "radar_compound", "radar_infected"],
         },
     },
@@ -282,6 +294,11 @@ class TestDrrDatasetPageRender(DrrDatasetPageTestCase):
         self.assertContains(response, "SARS-CoV-2 nucleocapsid antibody")
         self.assertContains(response, "excluded from figures")
         self.assertContains(response, "1,144")  # the figure basis, beside the 1,467 downloaded
+
+        # The figure basis is clipped and the downloads are not, so the panel
+        # states the bound rather than implying the two agree (FREYA-2968).
+        self.assertContains(response, "clipped to &plusmn;50")
+        self.assertContains(response, "the downloads carry all of them, as delivered")
 
         # No column token reaches a reader: they are the authors' internal slot
         # names, and they mean opposite stains on the two screens (FREYA-2923).

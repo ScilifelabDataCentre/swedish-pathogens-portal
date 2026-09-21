@@ -108,11 +108,12 @@
                                 </li>
                             {% endfor %}
                         </ul>
-                        {% with figure_features=summary.feature_sets.figures.n_features %}
+                        {% with figure_features=summary.feature_sets.figures.n_features clip=summary.feature_sets.figures.clip %}
                             {% if figure_features %}
                                 <p class="mt-2 text-sm text-pp-dark-grey">
                                     The figures are computed on {{ figure_features|intcomma }} of the
-                                    {{ summary.n_features|intcomma }} feature columns; the downloads carry all of them.
+                                    {{ summary.n_features|intcomma }} feature columns{% if clip.upper %}, clipped to &plusmn;{{ clip.upper|floatformat }} as the published pipeline does{% endif %};
+                                    the downloads carry all of them, as delivered.
                                 </p>
                             {% endif %}
                         {% endwith %}

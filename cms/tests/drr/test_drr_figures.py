@@ -1,4 +1,4 @@
-"""Tests for the per-screen channel map and the figure feature basis (FREYA-2923).
+"""Tests for the channel map, the figure feature basis and its clip (FREYA-2923, 2968).
 
 Every fixture here carries a column in **each of the five** imaging channels. That
 is deliberate: the A549-ACE2 and Vero E6 screens name opposite stains with the same
@@ -9,6 +9,10 @@ these figures (``plans/DRR/reference/data-sources.md`` DS-8).
 
 from __future__ import annotations
 
+import base64
+from unittest.mock import patch
+
+import numpy as np
 import polars as pl
 from django.test import SimpleTestCase
 
@@ -20,7 +24,11 @@ from dashboard_visualisation.drr.channels import (
 from dashboard_visualisation.drr.figures import (
     FEATURE_BASIS_FIGURE_IDS,
     FEATURE_CATEGORIES,
+    FIGURE_CLIP_BOUND,
     build_all_figures,
+    clip_figure_values,
+    clip_report,
+    figure_basis_token,
 )
 from dashboard_visualisation.drr.loader import FeatureTable
 
@@ -70,14 +78,42 @@ TRT_VALUES = {
 }
 
 
-def _feature_table() -> FeatureTable:
+# Three morphology columns pushed to the clip's three cases: the feature table's
+# own measured maximum and minimum (DS-3), and a value sitting exactly on the
+# bound, which the closed range must leave alone. The halved control rows stay
+# out of range too, so every row of both columns is clipped.
+OUT_OF_RANGE_VALUES = {
+    AREA_SHAPE_COLUMN: 1814.135748,
+    INTENSITY_COLUMNS[0]: -210.759515,
+    NEIGHBORS_COLUMN: 50.0,
+}
+
+
+def _decode_array(payload: dict | list) -> np.ndarray:
+    """Return a numeric array from figure JSON, decoding Plotly's base64 form.
+
+    Plotly serialises a 2-D array to base64 with a ``shape`` key and a 1-D one
+    without, and a small enough array as a plain list, so all three forms are
+    handled rather than assumed (spec section 10).
+    """
+    if isinstance(payload, list):
+        return np.asarray(payload)
+    array = np.frombuffer(base64.b64decode(payload["bdata"]), dtype=payload["dtype"])
+    shape = payload.get("shape")
+    if shape:
+        return array.reshape(tuple(int(part) for part in shape.split(",")))
+    return array
+
+
+def _feature_table(values: dict[str, float] | None = None) -> FeatureTable:
     """Return a four-profile table: two ``trt`` rows, then two halved controls."""
+    row_values = {**TRT_VALUES, **(values or {})}
     frame = pl.DataFrame(
         {
             "pert_type": ["trt", "trt", "ctrl", "ctrl"],
             "cbkid": ["CBK1", "CBK1", "CBK2", "CBK2"],
             **{
-                column: [value, value, value / 2, value / 2] for column, value in TRT_VALUES.items()
+                column: [value, value, value / 2, value / 2] for column, value in row_values.items()
             },
         }
     )
@@ -215,3 +251,118 @@ class DrrFigureBuildTests(SimpleTestCase):
 
         self.assertAlmostEqual(axes["Intensity"], 1.0, places=6)
         self.assertAlmostEqual(axes["Granularity"], 3.5, places=6)
+
+
+class DrrFigureClipTests(SimpleTestCase):
+    """The clip the authors' pipeline applies, on the figure path only (FREYA-2968)."""
+
+    def setUp(self) -> None:
+        """Take a table whose morphology values run past the bound in both directions."""
+        self.table = _feature_table(OUT_OF_RANGE_VALUES)
+        self.columns = figure_feature_columns(self.table.feature_columns, channel_map(SLUG))
+
+    def _figures(self, bound: float | None = None) -> dict:
+        """Build every figure, optionally against a different clip bound."""
+        if bound is None:
+            return build_all_figures(self.table, feature_columns=self.columns)
+        with patch("dashboard_visualisation.drr.figures.FIGURE_CLIP_BOUND", bound):
+            return build_all_figures(self.table, feature_columns=self.columns)
+
+    @staticmethod
+    def _pc1_spread(figures: dict) -> float:
+        """Return the largest absolute PC1 score across a PCA figure's traces."""
+        return max(
+            float(np.abs(_decode_array(trace["x"])).max()) for trace in figures["pca"]["data"]
+        )
+
+    def test_the_bound_is_the_published_one(self) -> None:
+        """50 in MAD units, which is where the paper's pipeline clips (DS-3)."""
+        self.assertEqual(FIGURE_CLIP_BOUND, 50.0)
+
+    def test_each_of_the_three_cases_lands_where_it_should(self) -> None:
+        """Above the bound, below it, and inside: 50, -50 and the value itself."""
+        clipped = clip_figure_values(np.array([[1814.135748, -210.759515, 7.0, 50.0, -50.0]]))
+
+        self.assertEqual(clipped.tolist(), [[50.0, -50.0, 7.0, 50.0, -50.0]])
+
+    def test_the_callers_own_array_is_left_alone(self) -> None:
+        """The clip returns a new array, so nothing upstream of it is rewritten."""
+        matrix = np.array([[1814.135748]])
+        clip_figure_values(matrix)
+
+        self.assertEqual(matrix.tolist(), [[1814.135748]])
+
+    def test_the_clip_reaches_the_figure_matrix_and_not_the_frame(self) -> None:
+        """The radar sees 50; the frame the downloads are written from still sees 1814."""
+        radii = self._figures()["radar_compound"]["data"][0]["r"]
+        axes = dict(zip(FEATURE_CATEGORIES, radii, strict=False))
+
+        self.assertAlmostEqual(axes["AreaShape"], FIGURE_CLIP_BOUND, places=6)
+        self.assertEqual(self.table.frame[AREA_SHAPE_COLUMN].to_list()[0], 1814.135748)
+
+    def test_a_value_on_the_bound_is_not_moved(self) -> None:
+        """The range is closed: the Neighbors axis keeps its 50.0 rather than reporting less."""
+        radii = self._figures()["radar_compound"]["data"][0]["r"]
+        axes = dict(zip(FEATURE_CATEGORIES, radii, strict=False))
+
+        self.assertAlmostEqual(axes["Neighbors"], 50.0, places=6)
+
+    def test_no_out_of_range_value_reaches_a_radar_or_the_heatmap(self) -> None:
+        """Every plotted mean is a mean of clipped values, so none can exceed the bound."""
+        figures = self._figures()
+
+        for figure_id in ("radar_compound", "radar_infected"):
+            for radius in figures[figure_id]["data"][0]["r"]:
+                self.assertLessEqual(abs(float(radius)), FIGURE_CLIP_BOUND, figure_id)
+        cells = _decode_array(figures["heatmap"]["data"][0]["z"])
+        self.assertLessEqual(float(np.abs(cells).max()), FIGURE_CLIP_BOUND)
+
+    def test_the_pca_is_computed_on_the_clipped_values(self) -> None:
+        """The outlier stops driving the spread once the bound applies.
+
+        The percent-variance annotation cannot show this on a fixture whose rows
+        are proportional — PC1 explains everything either way — so the scores
+        themselves are what say which values the decomposition saw.
+        """
+        clipped = self._pc1_spread(self._figures())
+        unclipped = self._pc1_spread(self._figures(bound=1e9))
+
+        self.assertLess(clipped * 5, unclipped)
+
+    def test_the_report_counts_what_moved_and_names_the_worst_columns(self) -> None:
+        """Both out-of-range columns, all four rows each; the on-bound column is absent."""
+        report = clip_report(self.table, self.columns)
+
+        self.assertEqual(report["lower"], -FIGURE_CLIP_BOUND)
+        self.assertEqual(report["upper"], FIGURE_CLIP_BOUND)
+        self.assertEqual(report["n_values"], 4 * len(self.columns))
+        self.assertEqual(report["n_values_clipped"], 8)
+        self.assertEqual(report["n_columns_clipped"], 2)
+        self.assertEqual(
+            report["most_affected_columns"],
+            [
+                {"column": AREA_SHAPE_COLUMN, "n_clipped": 4},
+                {"column": INTENSITY_COLUMNS[0], "n_clipped": 4},
+            ],
+        )
+
+    def test_a_table_inside_the_bound_reports_nothing_clipped(self) -> None:
+        """The report describes this run, not the possibility of clipping."""
+        report = clip_report(_feature_table(), self.columns)
+
+        self.assertEqual(report["n_values_clipped"], 0)
+        self.assertEqual(report["most_affected_columns"], [])
+
+    def test_the_basis_token_carries_the_column_count_then_the_bound(self) -> None:
+        """A fixed order, so the digest it feeds is stable across runs."""
+        self.assertEqual(figure_basis_token(self.columns), "figure-basis:7:50.0")
+
+    def test_the_basis_token_moves_with_the_bound_and_with_the_basis(self) -> None:
+        """Either half of "how the figures were computed" busts the render cache."""
+        with patch("dashboard_visualisation.drr.figures.FIGURE_CLIP_BOUND", 25.0):
+            self.assertEqual(figure_basis_token(self.columns), "figure-basis:7:25.0")
+
+        self.assertNotEqual(
+            figure_basis_token(self.columns),
+            figure_basis_token(self.columns[:-1]),
+        )

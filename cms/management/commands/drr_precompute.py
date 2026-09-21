@@ -26,6 +26,7 @@ from dashboard_visualisation.drr import (
     build_compound_index,
     build_summary,
     channel_map,
+    figure_basis_token,
     figure_feature_columns,
     load_compound_names,
     load_feature_table,
@@ -117,14 +118,15 @@ class Command(BaseCommand):
 
         feature_hash = self._hash_file(input_path)
         names_hash = self._hash_file(names_path) if names_path else None
-        # Fixed order — feature table, metadata, name lookup, UMAP coordinates —
-        # so the combined digest depends on the inputs and not on the order the
-        # optional ones were passed in.
+        # Fixed order — feature table, metadata, name lookup, UMAP coordinates,
+        # then the figure basis — so the combined digest depends on the inputs and
+        # the computation, and not on the order the optional ones were passed in.
         input_hashes = [feature_hash, self._hash_file(metadata_path)]
         if names_hash:
             input_hashes.append(names_hash)
         if options["umap_coords"]:
             input_hashes.append(self._hash_file(Path(options["umap_coords"])))
+        input_hashes.append(figure_basis_token(figure_columns))
         source_hash = self._combine_hashes(input_hashes)
         generated_at = timezone.now()
         summary = build_summary(
@@ -163,11 +165,14 @@ class Command(BaseCommand):
             profiles=summary["n_profiles"],
             download_features=summary["n_features"],
             figure_features=len(figure_columns),
+            figure_values_clipped=summary["feature_sets"]["figures"]["clip"]["n_values_clipped"],
             matched=reconciliation["n_annotated"],
             unmatched=reconciliation["n_unannotated"],
             controls=reconciliation["n_control_ids"],
         )
-        excluded_channels = ", ".join(summary["feature_sets"]["figures"]["excluded_channels"])
+        figure_basis = summary["feature_sets"]["figures"]
+        excluded_channels = ", ".join(figure_basis["excluded_channels"])
+        clip = figure_basis["clip"]
         report = (
             f"Precomputed DRR dataset '{slug}': {summary['n_compounds']} compounds, "
             f"{summary['n_profiles']} profiles, {len(figures)} figures -> {output_dir}\n"
@@ -176,7 +181,10 @@ class Command(BaseCommand):
             f"{reconciliation['n_unannotated']} unannotated, "
             f"{reconciliation['n_control_ids']} controls\n"
             f"  features: {summary['n_features']} for download, {len(figure_columns)} for the "
-            f"figures (excluding {excluded_channels})"
+            f"figures (excluding {excluded_channels})\n"
+            f"  figure clip: {clip['n_values_clipped']} of {clip['n_values']} values in "
+            f"{clip['n_columns_clipped']} column(s) brought to "
+            f"{clip['lower']:g}..{clip['upper']:g}; the downloads keep every value"
         )
         if names_path:
             name_lookup = summary["name_lookup"]
@@ -203,17 +211,21 @@ class Command(BaseCommand):
             return calculate_file_hash(handle)
 
     @staticmethod
-    def _combine_hashes(hex_digests: list[str]) -> str:
-        """Combine per-input SHA-256 digests into one stable cache-busting hash.
+    def _combine_hashes(tokens: list[str]) -> str:
+        """Combine per-input digests and the figure-basis token into one hash.
 
         Folding every precompute input (feature table, metadata, and any UMAP
         coordinates) into ``source_file_hash`` ensures the ``PlotlyFigureBlock``
         render cache (keyed by slug + figure_id + source_file_hash) is busted
-        whenever any input that affects the figures changes.
+        whenever any input that affects the figures changes. The last token
+        describes the figure basis instead of an input: a change to *how* the
+        figures are computed moves no input digest, and the cache holds for 24
+        hours, so without it the page would serve the previous render for a day
+        (FREYA-2968).
         """
         hasher = hashlib.sha256()
-        for digest in hex_digests:
-            hasher.update(digest.encode("ascii"))
+        for token in tokens:
+            hasher.update(token.encode("ascii"))
             hasher.update(b"\0")
         return hasher.hexdigest()
 

@@ -1,12 +1,13 @@
 """Server-side Plotly figures for a DRR dataset (spec section 6, ADR-0004).
 
-All figures are computed offline from the feature matrix as delivered and
-serialised to Plotly JSON. The input arrives MAD-normalised per plate against
-that plate's DMSO wells, which is the only normalisation applied to it; values
-are therefore in the authors' MAD units throughout (spec section 5). They are
-computed on the **figure basis** — the morphology columns, with the screen's
-infection-readout channel excluded (``channels``, FREYA-2923) — while the
-downloads carry every column. Trace
+All figures are computed offline from the feature matrix and serialised to Plotly
+JSON. The input arrives MAD-normalised per plate against that plate's DMSO wells,
+which is the only normalisation applied to it; values are therefore in the
+authors' MAD units throughout (spec section 5). They are computed on the **figure
+basis** — the morphology columns, with the screen's infection-readout channel
+excluded (``channels``, FREYA-2923), clipped to ``FIGURE_CLIP_BOUND`` as the
+published pipeline does (FREYA-2968) — while the downloads carry every column
+exactly as delivered. Trace
 ``uid``s (randomly assigned by Plotly) are stripped so the serialised output is
 byte-stable across identical runs, which the ``drr_precompute`` idempotency
 contract depends on.
@@ -47,6 +48,17 @@ FEATURE_BASIS_FIGURE_IDS: tuple[str, ...] = (
     "radar_infected",
 )
 
+# The authors' pipeline clips every feature value to this bound immediately after
+# MAD normalisation and before any modelling, and our input predates that step
+# (``plans/DRR/reference/data-sources.md`` DS-3). The figure path therefore clips
+# to it; the downloads publish the table as delivered (spec section 5). It belongs
+# to the upstream pipeline rather than to one screen, so it is stated here and not
+# in the per-screen ``channels`` map.
+FIGURE_CLIP_BOUND = 50.0
+
+# How many of the worst-affected columns ``clip_report`` names.
+_CLIP_REPORT_COLUMNS = 5
+
 # Treatment perturbation label; anything else is treated as a control/reference.
 _TREATMENT_LABEL = "trt"
 
@@ -60,7 +72,7 @@ class _Prepared:
     """Precomputed inputs shared by every figure builder.
 
     Attributes:
-        matrix: Figure-basis feature matrix as delivered (rows = profiles,
+        matrix: Figure-basis feature matrix, clipped (rows = profiles,
             cols = the figure basis's features).
         feature_columns: The figure basis's column names, aligned with
             ``matrix`` columns.
@@ -89,21 +101,90 @@ def _column_values(table: FeatureTable, name: str) -> np.ndarray:
     return np.array([""] * table.frame.height)
 
 
+def clip_figure_values(matrix: np.ndarray) -> np.ndarray:
+    """Return the feature matrix clipped to the figure range.
+
+    Args:
+        matrix: Figure-basis feature values as delivered.
+
+    Returns:
+        The same values with anything beyond ``±FIGURE_CLIP_BOUND`` brought to
+        the bound, which is where the authors' pipeline puts this step. The
+        caller's array is left alone, so the frame the downloads are written
+        from never sees the clip (spec section 5, FREYA-2968).
+    """
+    return np.clip(matrix, -FIGURE_CLIP_BOUND, FIGURE_CLIP_BOUND)
+
+
+def clip_report(table: FeatureTable, feature_columns: list[str]) -> dict[str, Any]:
+    """Describe what clipping the figure basis changed, for ``summary.json``.
+
+    Args:
+        table: The loaded feature table.
+        feature_columns: The figure basis's column names.
+
+    Returns:
+        The bound, how many values it moved out of how many, and the
+        worst-affected columns — so the page can state the figure basis rather
+        than implying that it and the download set agree (spec section 7).
+        Columns are ordered by descending count, then by name, so a re-run on
+        the same input reports them identically.
+    """
+    matrix = table.numeric_matrix(feature_columns)
+    outside = np.abs(matrix) > FIGURE_CLIP_BOUND
+    per_column = outside.sum(axis=0)
+    affected = sorted(
+        (
+            {"column": column, "n_clipped": int(count)}
+            for column, count in zip(feature_columns, per_column, strict=True)
+            if count
+        ),
+        key=lambda entry: (-entry["n_clipped"], entry["column"]),
+    )
+    return {
+        "lower": -FIGURE_CLIP_BOUND,
+        "upper": FIGURE_CLIP_BOUND,
+        "n_values": int(matrix.size),
+        "n_values_clipped": int(outside.sum()),
+        "n_columns_clipped": len(affected),
+        "most_affected_columns": affected[:_CLIP_REPORT_COLUMNS],
+    }
+
+
+def figure_basis_token(feature_columns: list[str]) -> str:
+    """Return a token naming how the figures were computed, for the digest.
+
+    The ``PlotlyFigureBlock`` render cache is keyed on the *inputs*, so a change
+    to the computation — the channel exclusion, the clip bound — would otherwise
+    leave the key identical while the figures move, and the page would serve the
+    previous render for a day (spec section 5 step 6).
+
+    Args:
+        feature_columns: The figure basis's column names.
+
+    Returns:
+        The figure column count and the clip bound, in that fixed order.
+    """
+    return f"figure-basis:{len(feature_columns)}:{FIGURE_CLIP_BOUND}"
+
+
 def _prepare(table: FeatureTable, feature_columns: list[str]) -> _Prepared:
-    """Take the figure feature matrix as delivered and gather the per-row labels.
+    """Clip the figure feature matrix and gather the per-row labels.
 
     Neither standardisation nor imputation is applied: the values arrive
     MAD-normalised per plate and carry no missing entries (spec section 5).
     ``numeric_matrix`` rejects an incomplete matrix, so no gap reaches a figure.
+    The clip is the one transform applied here, and it happens after load and
+    before any figure is computed — where the paper's methods put it.
 
     ``feature_columns`` is the figure basis, which is narrower than the table's
     own feature set: the infection-readout channel is excluded, so a morphology
     figure cannot be computed partly from the assay's own answer (FREYA-2923).
-    The downloads keep every column.
+    The downloads keep every column, unclipped.
     """
     categories = [_feature_category(column) for column in feature_columns]
     return _Prepared(
-        matrix=table.numeric_matrix(feature_columns),
+        matrix=clip_figure_values(table.numeric_matrix(feature_columns)),
         feature_columns=feature_columns,
         categories=categories,
         pert_types=_column_values(table, "pert_type"),
@@ -122,7 +203,7 @@ def _category_indices(prep: _Prepared) -> dict[str, list[int]]:
 def build_pca(prep: _Prepared) -> go.Figure:
     """Build a PC1/PC2 scatter of well-level profiles coloured by ``pert_type``.
 
-    PCA is computed via numpy SVD on the values as delivered (no sklearn). Only
+    PCA is computed via numpy SVD on the clipped figure basis (no sklearn). Only
     the column means are removed, which is what makes the decomposition a PCA
     and what the percent-variance annotation is measured against; the per-column
     scaling is not reapplied, matching the authors' ``PLSRegression(scale=False)``
@@ -334,9 +415,10 @@ def build_all_figures(
     Args:
         table: The loaded feature table.
         feature_columns: The figure basis — the morphology feature columns, from
-            ``channels.figure_feature_columns``. Required rather than defaulted:
-            silently falling back to every column is the defect FREYA-2923
-            removed, so a caller has to state the basis it means.
+            ``channels.figure_feature_columns``, whose values are clipped to
+            ``FIGURE_CLIP_BOUND`` before any figure sees them. Required rather
+            than defaulted: silently falling back to every column is the defect
+            FREYA-2923 removed, so a caller has to state the basis it means.
         umap_coords: Optional precomputed UMAP coordinates path; when omitted the
             ``umap`` figure is skipped.
 
