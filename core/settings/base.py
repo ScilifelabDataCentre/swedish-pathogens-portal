@@ -159,8 +159,7 @@ LIVER_RESOURCE_DATA_ROOT = Path(
 # production image (Dockerfile ARG → ENV).
 EBI_INDEX_NAME = env("EBI_INDEX_NAME", default="")
 GIT_RELEASE = env("GIT_RELEASE", default="dev")
-_git_release_date = env("GIT_RELEASE_DATE", default="")
-GIT_RELEASE_DATE = _git_release_date[:10] if len(_git_release_date) >= 10 else _git_release_date
+GIT_RELEASE_DATE = env("GIT_RELEASE_DATE", default="")[:10]
 
 
 # PASSWORDS (https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators)
