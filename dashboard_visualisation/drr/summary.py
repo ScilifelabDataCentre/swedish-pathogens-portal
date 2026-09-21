@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from .channels import Channel, present_channels
-from .figures import FEATURE_BASIS_FIGURE_IDS
+from .figures import FEATURE_BASIS_FIGURE_IDS, clip_report
 from .loader import FeatureTable
 
 # Canonical display order for CellProfiler segmentation compartments.
@@ -39,10 +39,11 @@ def _feature_sets(
 ) -> dict[str, Any]:
     """Report both feature sets, so a reader cannot confuse one for the other.
 
-    The download set is every numeric feature column; the figure set excludes the
-    infection-readout channel. Recording both counts, and which figures used the
-    figure set, is what keeps a later session from re-deriving the wrong basis
-    (spec section 5, FREYA-2923 criterion 5).
+    The download set is every numeric feature column, as delivered; the figure set
+    excludes the infection-readout channel and is clipped. Recording both counts,
+    the clip, and which figures used the figure set is what keeps a later session
+    from re-deriving the wrong basis (spec section 5, FREYA-2923 criterion 5,
+    FREYA-2968 criterion 3).
     """
     excluded = [channel.column_tag for channel in channels if not channel.in_figures]
     return {
@@ -53,6 +54,7 @@ def _feature_sets(
         "figures": {
             "n_features": len(figure_feature_columns),
             "excluded_channels": excluded,
+            "clip": clip_report(table, figure_feature_columns),
             "used_by": list(FEATURE_BASIS_FIGURE_IDS),
         },
     }
@@ -65,6 +67,7 @@ def build_summary(
     figure_feature_columns: list[str],
     source_filename: str,
     source_hash: str,
+    inputs_hash: str,
     generated_at: str,
 ) -> dict[str, Any]:
     """Build the summary-statistics panel payload for a DRR dataset.
@@ -76,6 +79,9 @@ def build_summary(
         figure_feature_columns: The feature columns the figures computed on.
         source_filename: Base name of the source feature file, for provenance.
         source_hash: SHA-256 hex digest of the source feature file.
+        inputs_hash: Combined digest over every input file. It is what decides
+            whether the data-updated date moves, so it deliberately excludes the
+            figure basis: that is a computation, not data (FREYA-2968).
         generated_at: ISO-8601 timestamp of the precompute run.
 
     Returns:
@@ -101,6 +107,7 @@ def build_summary(
         "source": {
             "filename": source_filename,
             "sha256": source_hash,
+            "inputs_sha256": inputs_hash,
             "generated_at": generated_at,
         },
     }

@@ -6,17 +6,24 @@ import base64
 import json
 import re
 import tempfile
+from datetime import date
 from pathlib import Path
+from unittest.mock import patch
 
 import numpy as np
 import polars as pl
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.test import TestCase, override_settings
+from django.utils import timezone
 
 from cms.snippets.drr_dataset_data import DrrDatasetData
 from dashboard_visualisation.drr.channels import channel_map, figure_feature_columns
-from dashboard_visualisation.drr.figures import FEATURE_CATEGORIES
+from dashboard_visualisation.drr.figures import (
+    FEATURE_CATEGORIES,
+    FIGURE_CLIP_BOUND,
+    clip_figure_values,
+)
 from dashboard_visualisation.drr.loader import load_feature_table
 
 # The registered screen: its channel-to-stain map is what the run resolves, and
@@ -157,6 +164,21 @@ class DrrPrecomputeTests(TestCase):
             FEATURE_CSV.replace("0;CBK2;1400;0.9;", "0;CBK2;1400;;"), encoding="utf-8"
         )
 
+    def _write_out_of_range_input(self) -> None:
+        """Push one ctrl row past the clip bound in both directions.
+
+        Its AreaShape and Granularity values become the real table's own measured
+        extremes (``plans/DRR/reference/data-sources.md`` DS-3), and both columns
+        are in the figure basis. Only this row moves, so every other expectation
+        in this module still describes the fixture it was written for.
+        """
+        self.input_path.write_text(
+            FEATURE_CSV.replace(
+                "0;CBK2;1400;0.9;1.8;2.9;", "0;CBK2;1400;1814.135748;1.8;-210.759515;"
+            ),
+            encoding="utf-8",
+        )
+
     def _run(self, slug: str = SLUG, **extra: str) -> None:
         """Invoke drr_precompute against the fixtures with MEDIA_ROOT overridden."""
         with override_settings(MEDIA_ROOT=str(self.media)):
@@ -254,6 +276,129 @@ class DrrPrecomputeTests(TestCase):
         for column in antibody:
             self.assertIn(column, header)
 
+    def test_out_of_range_values_stay_in_the_downloads(self) -> None:
+        """The clip is a figure-basis transform, not an input rewrite (FREYA-2968)."""
+        self._write_out_of_range_input()
+        self._run()
+
+        rows = (self.out_dir / "features.csv").read_text(encoding="utf-8").splitlines()
+        self.assertTrue(any("1814.135748" in row for row in rows[1:]))
+        self.assertTrue(any("-210.759515" in row for row in rows[1:]))
+        features = pl.read_parquet(self.out_dir / "features.parquet")
+        self.assertEqual(features["AreaShape_Area_nuclei"].max(), 1814.135748)
+        self.assertEqual(features["Granularity_1_illumMITO_cells"].min(), -210.759515)
+
+    def test_summary_states_the_clip_within_the_figure_basis(self) -> None:
+        """The bound, what it moved, and the columns it moved most (spec section 7)."""
+        self._write_out_of_range_input()
+        self._run()
+        clip = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))[
+            "feature_sets"
+        ]["figures"]["clip"]
+
+        self.assertEqual(clip["lower"], -FIGURE_CLIP_BOUND)
+        self.assertEqual(clip["upper"], FIGURE_CLIP_BOUND)
+        self.assertEqual(clip["n_values"], 6 * N_FIGURE_FEATURES)
+        self.assertEqual(clip["n_values_clipped"], 2)
+        self.assertEqual(clip["n_columns_clipped"], 2)
+        self.assertEqual(
+            clip["most_affected_columns"],
+            [
+                {"column": "AreaShape_Area_nuclei", "n_clipped": 1},
+                {"column": "Granularity_1_illumMITO_cells", "n_clipped": 1},
+            ],
+        )
+
+    def test_an_out_of_range_value_cannot_reach_a_figure(self) -> None:
+        """The control radar averages 50 and -50, not 1814.14 and -210.76."""
+        self._write_out_of_range_input()
+        self._run()
+        radii = DrrDatasetData.get_data(SLUG).data["radar_infected"]["data"][0]["r"]
+        axes = dict(zip(FEATURE_CATEGORIES, radii, strict=False))
+
+        # The two ctrl rows: the clipped one, then the fixture's 0.8 and 2.7.
+        self.assertAlmostEqual(axes["AreaShape"], (FIGURE_CLIP_BOUND + 0.8) / 2, places=6)
+        self.assertAlmostEqual(axes["Granularity"], (-FIGURE_CLIP_BOUND + 2.7) / 2, places=6)
+
+    def test_the_clip_report_is_reproducible(self) -> None:
+        """Re-running the same input reports the same columns in the same order."""
+        self._write_out_of_range_input()
+        self._run()
+        summary_path = self.out_dir / "summary.json"
+        first = json.loads(summary_path.read_text(encoding="utf-8"))["feature_sets"]["figures"]
+        first_hash = DrrDatasetData.get_data(SLUG).source_file_hash
+
+        self._run()
+        second = json.loads(summary_path.read_text(encoding="utf-8"))["feature_sets"]["figures"]
+
+        self.assertEqual(second, first)
+        self.assertEqual(DrrDatasetData.get_data(SLUG).source_file_hash, first_hash)
+
+    def test_the_digest_covers_the_figure_basis_not_only_the_inputs(self) -> None:
+        """A computation change busts the render cache though no input moved.
+
+        ``PlotlyFigureBlock`` caches rendered HTML on the input digest for 24
+        hours, so without the basis token the page would serve the previous
+        figures for a day (FREYA-2968 criterion 4).
+        """
+        self._run()
+        first = DrrDatasetData.get_data(SLUG)
+        first_source = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))[
+            "source"
+        ]
+
+        with patch("dashboard_visualisation.drr.figures.FIGURE_CLIP_BOUND", 25.0):
+            self._run()
+        second = DrrDatasetData.get_data(SLUG)
+        second_summary = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))
+
+        self.assertNotEqual(second.source_file_hash, first.source_file_hash)
+        # No input moved, and both input-side digests are there to say so.
+        self.assertEqual(second_summary["source"]["sha256"], first_source["sha256"])
+        self.assertEqual(second_summary["source"]["inputs_sha256"], first_source["inputs_sha256"])
+        self.assertEqual(second_summary["feature_sets"]["figures"]["clip"]["upper"], 25.0)
+
+    def test_summary_carries_an_inputs_digest_beside_the_feature_digest(self) -> None:
+        """Three provenance digests, each answering a different question."""
+        self._run(compound_names=str(self._write_names()))
+        summary = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))
+        row = DrrDatasetData.get_data(SLUG)
+
+        inputs_sha = summary["source"]["inputs_sha256"]
+        self.assertEqual(len(inputs_sha), 64)
+        # The feature file alone, every input, and every input plus the basis.
+        self.assertNotEqual(inputs_sha, summary["source"]["sha256"])
+        self.assertNotEqual(inputs_sha, row.source_file_hash)
+
+    def test_a_figure_only_change_leaves_the_data_updated_date_alone(self) -> None:
+        """A changed clip bound is not new source data, so the date must not move.
+
+        ``source_file_hash`` covers the figure basis by design, so it cannot also
+        decide this date without a figure correction advertising a data update
+        (FREYA-2968).
+        """
+        self._run(data_updated_at="2023-11-24")
+        first = DrrDatasetData.get_data(SLUG)
+
+        with patch("dashboard_visualisation.drr.figures.FIGURE_CLIP_BOUND", 25.0):
+            self._run()
+        second = DrrDatasetData.get_data(SLUG)
+
+        self.assertEqual(second.data_updated_at, date(2023, 11, 24))
+        self.assertNotEqual(second.source_file_hash, first.source_file_hash)
+
+    def test_an_input_change_still_moves_the_data_updated_date(self) -> None:
+        """The date tracks the inputs, which is the behaviour being preserved."""
+        self._run(data_updated_at="2023-11-24")
+
+        self.metadata_path.write_text(
+            METADATA_TSV + "CBK3\tcompoundC\tnull\tnull\tcovid-repurpose/c.ome.zarr.zip\n",
+            encoding="utf-8",
+        )
+        self._run()
+
+        self.assertEqual(DrrDatasetData.get_data(SLUG).data_updated_at, timezone.localdate())
+
     def test_unregistered_slug_writes_nothing(self) -> None:
         """A screen with no channel map fails the run before any artefact exists."""
         with self.assertRaisesMessage(CommandError, "no-such-screen"):
@@ -312,14 +457,14 @@ class DrrPrecomputeTests(TestCase):
         The expected shares come from the eigenvalues of the feature covariance,
         which is the same quantity by a different route: it agrees only while the
         decomposition is mean-centred and left unscaled — and only while it is
-        computed on the figure basis, which the second assertion pins down.
+        computed on the clipped figure basis, which the second assertion pins down.
         """
         self._run()
         layout = DrrDatasetData.get_data(SLUG).data["pca"]["layout"]
 
         table = load_feature_table(self.input_path)
         figure_columns = figure_feature_columns(table.feature_columns, channel_map(SLUG))
-        expected = self._variance_shares(table.numeric_matrix(figure_columns))
+        expected = self._variance_shares(clip_figure_values(table.numeric_matrix(figure_columns)))
 
         for axis, component, want in (("xaxis", "PC1", expected[0]), ("yaxis", "PC2", expected[1])):
             title = layout[axis]["title"]["text"]
