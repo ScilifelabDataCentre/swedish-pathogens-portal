@@ -39,8 +39,8 @@ if settings.INCLUDE_DJANGO_ADMIN:
 
 # General URLs for health checks and sitemap.
 urlpatterns += [
-    path("healthz/", healthz, name="healthz"),
     path("ebi-index.json", ebi_index, name="ebi_index"),
+    path("healthz/", healthz, name="healthz"),
     path("sitemap.xml", sitemap, name="sitemap"),
 ]
 
