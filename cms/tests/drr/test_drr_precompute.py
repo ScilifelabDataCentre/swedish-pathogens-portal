@@ -6,6 +6,7 @@ import base64
 import json
 import re
 import tempfile
+from datetime import date
 from pathlib import Path
 from unittest.mock import patch
 
@@ -14,6 +15,7 @@ import polars as pl
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.test import TestCase, override_settings
+from django.utils import timezone
 
 from cms.snippets.drr_dataset_data import DrrDatasetData
 from dashboard_visualisation.drr.channels import channel_map, figure_feature_columns
@@ -341,9 +343,9 @@ class DrrPrecomputeTests(TestCase):
         """
         self._run()
         first = DrrDatasetData.get_data(SLUG)
-        first_summary_sha = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))[
+        first_source = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))[
             "source"
-        ]["sha256"]
+        ]
 
         with patch("dashboard_visualisation.drr.figures.FIGURE_CLIP_BOUND", 25.0):
             self._run()
@@ -351,9 +353,51 @@ class DrrPrecomputeTests(TestCase):
         second_summary = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))
 
         self.assertNotEqual(second.source_file_hash, first.source_file_hash)
-        # The inputs are untouched, and the feature file's own digest says so.
-        self.assertEqual(second_summary["source"]["sha256"], first_summary_sha)
+        # No input moved, and both input-side digests are there to say so.
+        self.assertEqual(second_summary["source"]["sha256"], first_source["sha256"])
+        self.assertEqual(second_summary["source"]["inputs_sha256"], first_source["inputs_sha256"])
         self.assertEqual(second_summary["feature_sets"]["figures"]["clip"]["upper"], 25.0)
+
+    def test_summary_carries_an_inputs_digest_beside_the_feature_digest(self) -> None:
+        """Three provenance digests, each answering a different question."""
+        self._run(compound_names=str(self._write_names()))
+        summary = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))
+        row = DrrDatasetData.get_data(SLUG)
+
+        inputs_sha = summary["source"]["inputs_sha256"]
+        self.assertEqual(len(inputs_sha), 64)
+        # The feature file alone, every input, and every input plus the basis.
+        self.assertNotEqual(inputs_sha, summary["source"]["sha256"])
+        self.assertNotEqual(inputs_sha, row.source_file_hash)
+
+    def test_a_figure_only_change_leaves_the_data_updated_date_alone(self) -> None:
+        """A changed clip bound is not new source data, so the date must not move.
+
+        ``source_file_hash`` covers the figure basis by design, so it cannot also
+        decide this date without a figure correction advertising a data update
+        (FREYA-2968).
+        """
+        self._run(data_updated_at="2023-11-24")
+        first = DrrDatasetData.get_data(SLUG)
+
+        with patch("dashboard_visualisation.drr.figures.FIGURE_CLIP_BOUND", 25.0):
+            self._run()
+        second = DrrDatasetData.get_data(SLUG)
+
+        self.assertEqual(second.data_updated_at, date(2023, 11, 24))
+        self.assertNotEqual(second.source_file_hash, first.source_file_hash)
+
+    def test_an_input_change_still_moves_the_data_updated_date(self) -> None:
+        """The date tracks the inputs, which is the behaviour being preserved."""
+        self._run(data_updated_at="2023-11-24")
+
+        self.metadata_path.write_text(
+            METADATA_TSV + "CBK3\tcompoundC\tnull\tnull\tcovid-repurpose/c.ome.zarr.zip\n",
+            encoding="utf-8",
+        )
+        self._run()
+
+        self.assertEqual(DrrDatasetData.get_data(SLUG).data_updated_at, timezone.localdate())
 
     def test_unregistered_slug_writes_nothing(self) -> None:
         """A screen with no channel map fails the run before any artefact exists."""
