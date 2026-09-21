@@ -165,6 +165,40 @@
 {% endif %}
 
 {% comment %}
+Figure controls (FREYA-2636, spec sections 8.3 and 9): the radar's compound
+picker, offered only for the compounds precompute wrote a radar for, so no
+option can 404. It is progressive enhancement — the block below already holds
+the default radar over every treated compound, so the page is complete before
+the control is touched, and a 404 leaves that figure standing.
+
+The request is an ordinary GET answered with server-rendered HTML, which is what
+ADR-0004 permits: no client-side Plotly callback is involved. Final placement of
+this control belongs to FREYA-2934's presentation pass.
+{% endcomment %}
+{% if radar_compounds %}
+    <section aria-labelledby="drr-radar-picker-heading" class="mt-10">
+        <h4 id="drr-radar-picker-heading" class="text-base">Radar: choose a compound</h4>
+        <form
+            class="mt-3 flex w-full flex-col gap-3 sm:flex-row sm:items-center"
+            hx-get="{{ figure_url }}"
+            hx-target="#figure-{{ radar_figure_id }}"
+            hx-swap="outerHTML"
+            hx-indicator="#drr-radar-indicator"
+        >
+            <input type="hidden" name="figure_id" value="{{ radar_figure_id }}">
+            <label for="drr-radar-compound" class="sr-only">Compound</label>
+            <select id="drr-radar-compound" name="cbkid" class="select select-bordered w-full sm:w-auto">
+                {% for compound in radar_compounds %}
+                    <option value="{{ compound.cbkid }}">{{ compound.label|default:compound.cbkid }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-primary btn-sm">Show radar</button>
+            <span id="drr-radar-indicator" class="htmx-indicator loading loading-spinner loading-sm"></span>
+        </form>
+    </section>
+{% endif %}
+
+{% comment %}
 Figures: server-side PlotlyFigureBlocks render via the inherited context
 (figures + source_file_hash set by DashboardPage.get_context).
 {% endcomment %}

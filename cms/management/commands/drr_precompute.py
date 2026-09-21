@@ -15,24 +15,30 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
+import polars as pl
 import structlog
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 from django.utils import timezone
 
 from cms.snippets.drr_dataset_data import DrrDatasetData
 from dashboard_visualisation.drr import (
+    SNIPPET_FIGURE_BYTE_CEILING,
     artefact_dir,
-    build_all_figures,
+    artefact_key,
     build_compound_index,
+    build_figure_bundle,
     build_summary,
     channel_map,
+    compound_label,
     figure_basis_token,
     figure_feature_columns,
     load_compound_names,
     load_feature_table,
     load_metadata,
     name_lookup_report,
+    oversized_figures,
     reconciliation_report,
+    require_populations,
 )
 from dashboard_visualisation.utils.uploads import calculate_file_hash
 
@@ -99,22 +105,52 @@ class Command(BaseCommand):
         except ValueError as error:
             raise CommandError(str(error)) from error
         figure_columns = figure_feature_columns(table.feature_columns, channels)
+        # Both radars are contrasts, so a table missing one of the populations
+        # they contrast cannot produce them. Checked here, before anything is
+        # written, rather than by widening the condition to every profile and
+        # publishing a different figure under the published one's name
+        # (FREYA-2636 criterion 6).
+        try:
+            require_populations(table.frame["pert_type"].to_list())
+        except (ValueError, pl.exceptions.ColumnNotFoundError) as error:
+            raise CommandError(str(error)) from error
+
+        compound_index = build_compound_index(table, metadata, names)
+        reconciliation = reconciliation_report(compound_index)
+
+        # Everything is computed before the first write: a figure that cannot be
+        # built must leave the generation already on disk intact, rather than
+        # replacing half of it (spec section 10).
+        bundle = build_figure_bundle(
+            table,
+            feature_columns=figure_columns,
+            channels=channels,
+            compound_labels=self._compound_labels(compound_index),
+            umap_coords=options["umap_coords"],
+        )
+        figures = bundle.figures
+        oversized = oversized_figures(figures)
+        if oversized:
+            raise CommandError(
+                "These figures are too large for the snippet, which is read whole to render "
+                f"any one of them: {oversized} bytes against a ceiling of "
+                f"{SNIPPET_FIGURE_BYTE_CEILING}. A figure this size belongs on disk as a set "
+                "(spec section 4), not in DrrDatasetData.data."
+            )
+        radar_keys = {cbkid: artefact_key(cbkid) for cbkid in bundle.radars}
+        compound_index = self._with_radar_keys(compound_index, radar_keys)
 
         output_dir = artefact_dir(slug)
         figures_dir = output_dir / "figures"
         figures_dir.mkdir(parents=True, exist_ok=True)
 
-        compound_index = build_compound_index(table, metadata, names)
         compound_index.write_parquet(output_dir / "compounds.parquet")
-        reconciliation = reconciliation_report(compound_index)
 
         table.frame.write_csv(output_dir / "features.csv")
         table.frame.write_parquet(output_dir / "features.parquet")
 
-        figures = build_all_figures(
-            table, feature_columns=figure_columns, umap_coords=options["umap_coords"]
-        )
         self._write_figures(figures_dir, figures)
+        self._write_radar_set(figures_dir / "radar", bundle.radars, radar_keys)
 
         feature_hash = self._hash_file(input_path)
         names_hash = self._hash_file(names_path) if names_path else None
@@ -169,6 +205,9 @@ class Command(BaseCommand):
             profiles=summary["n_profiles"],
             download_features=summary["n_features"],
             figure_features=len(figure_columns),
+            radar_axes=len(bundle.axes),
+            radar_files=len(bundle.radars),
+            radar_unplotted_columns=len(bundle.unplotted_columns),
             figure_values_clipped=summary["feature_sets"]["figures"]["clip"]["n_values_clipped"],
             matched=reconciliation["n_annotated"],
             unmatched=reconciliation["n_unannotated"],
@@ -188,7 +227,9 @@ class Command(BaseCommand):
             f"figures (excluding {excluded_channels})\n"
             f"  figure clip: {clip['n_values_clipped']} of {clip['n_values']} values in "
             f"{clip['n_columns_clipped']} column(s) brought to "
-            f"{clip['lower']:g}..{clip['upper']:g}; the downloads keep every value"
+            f"{clip['lower']:g}..{clip['upper']:g}; the downloads keep every value\n"
+            f"  radar: {len(bundle.axes)} axes, {len(bundle.radars)} per-compound file(s) under "
+            f"figures/radar/, {len(bundle.unplotted_columns)} figure-basis column(s) on no axis"
         )
         if names_path:
             name_lookup = summary["name_lookup"]
@@ -201,12 +242,59 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(report))
 
     @staticmethod
+    def _compound_labels(compound_index: pl.DataFrame) -> dict[str, str]:
+        """Map each compound id to the name a reader sees, for the radar titles."""
+        columns = [
+            column for column in ("cbkid", "name", "kind") if column in compound_index.columns
+        ]
+        return {
+            row["cbkid"]: compound_label(row["cbkid"], name=row.get("name"), kind=row.get("kind"))
+            for row in compound_index.select(columns).to_dicts()
+        }
+
+    @staticmethod
+    def _with_radar_keys(compound_index: pl.DataFrame, radar_keys: dict[str, str]) -> pl.DataFrame:
+        """Record each compound's radar artefact key on the index.
+
+        The key is derived here, from the compound id, and never from a request
+        value: the section 8.3 route resolves a reader's ``cbkid`` by looking it
+        up in this column. A compound with no treated well has no radar and
+        carries a null, which is also what keeps the figure picker from offering
+        an option that would 404 (FREYA-2636 criterion 5).
+        """
+        return compound_index.with_columns(
+            pl.col("cbkid")
+            .replace_strict(radar_keys, default=None, return_dtype=pl.String)
+            .alias("radar_key")
+        )
+
+    @staticmethod
     def _write_figures(figures_dir: Path, figures: dict[str, Any]) -> None:
         """Write each figure JSON to disk, clearing any stale figures first."""
         for stale in figures_dir.glob("*.json"):
             stale.unlink()
         for figure_id, payload in figures.items():
             (figures_dir / f"{figure_id}.json").write_text(json.dumps(payload), encoding="utf-8")
+
+    @staticmethod
+    def _write_radar_set(
+        radar_dir: Path,
+        radars: dict[str, Any],
+        radar_keys: dict[str, str],
+    ) -> None:
+        """Write one radar per compound, keyed by its sanitised artefact key.
+
+        The set stays on disk and out of ``DrrDatasetData.data``: the snippet is
+        a single ``JSONField`` deserialised whole to render one figure, and a
+        ``RevisionMixin`` that would snapshot every re-run (spec section 4).
+        """
+        radar_dir.mkdir(parents=True, exist_ok=True)
+        for stale in radar_dir.glob("*.json"):
+            stale.unlink()
+        for cbkid, payload in radars.items():
+            (radar_dir / f"{radar_keys[cbkid]}.json").write_text(
+                json.dumps(payload), encoding="utf-8"
+            )
 
     @staticmethod
     def _hash_file(path: Path) -> str:

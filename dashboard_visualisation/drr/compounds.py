@@ -156,6 +156,28 @@ def build_name_lookup(names: pl.DataFrame) -> pl.DataFrame:
     )
 
 
+def compound_label(cbkid: str, *, name: str | None = None, kind: str | None = None) -> str:
+    """Return one compound's display name.
+
+    One rule, used wherever a compound is named to a reader: the on-page picker
+    (FREYA-2583) and each per-compound radar's title (FREYA-2636), so the
+    control and the figure it swaps in cannot name the same compound
+    differently.
+
+    Args:
+        cbkid: The compound id.
+        name: The CBCS annotation's name, when the join found one.
+        kind: ``"control"`` for a non-CBCS control id.
+
+    Returns:
+        ``<name> (<cbkid>)`` once annotated, ``<cbkid> (control)`` for a control
+        id, and the bare id for a compound the join did not annotate.
+    """
+    if kind == "control":
+        return f"{cbkid} (control)"
+    return f"{name} ({cbkid})" if name and str(name).strip() else cbkid
+
+
 def _drop_condition_rows(names: pl.DataFrame) -> pl.DataFrame:
     """Drop the lookup rows whose ``pert_iname`` names a condition, not a compound.
 
