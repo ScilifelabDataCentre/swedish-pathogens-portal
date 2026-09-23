@@ -1,5 +1,5 @@
 {% extends "cms/base.html" %}
-{% load wagtailcore_tags %}
+{% load wagtailcore_tags wagtailroutablepage_tags %}
 
 {% block title %}{{ datatype_label }} data{% endblock %}
 
@@ -22,7 +22,7 @@
         hx-push-url="true"
         hx-trigger="
         input changed delay:400ms from:#searchForm input[name='q'],
-        change from:#portal-data-listing input[type='checkbox'],
+        change from:#portal-data-listing input.facet-checkbox,
         submit
         "
     >
@@ -70,9 +70,57 @@
             </div>
         </header>
 
+        <!--
+            Bulk selection toolbar. This sits outside #portal-data-listing so it
+            survives every HTMX partial swap of the listing (search, facet change,
+            pagination) - the selection itself is tracked in localStorage and
+            rehydrated onto whichever study checkboxes are currently rendered.
+        -->
+        <div
+            id="bulk-download-toolbar"
+            class="mb-4 flex flex-wrap items-center justify-between gap-2 rounded border border-pp-pale-grey bg-white p-3 text-sm shadow-sm"
+        >
+            <div class="text-pp-dark-grey">
+                <span id="selection-count">0</span> selected
+            </div>
+
+            <div class="flex items-center gap-2">
+                <button
+                    type="button"
+                    id="clearSelection"
+                    class="selection-action btn btn-outline btn-sm"
+                    disabled
+                >
+                    Clear selection
+                </button>
+
+                <button
+                    type="button"
+                    class="selection-action btn btn-primary btn-sm"
+                    data-target="bulkDownloadForm"
+                    disabled
+                    title="Opens direct download links for the selected datasets' files"
+                >
+                    Download data for selected datasets (<span id="download-count">0</span>)
+                </button>
+            </div>
+        </div>
+
         <div id="portal-data-listing">
             {% include "cms/pages/portal_data/partials/listing.html" %}
         </div>
+    </form>
+
+    <!-- Hidden form used to POST the current selection; JS fills in ids before submit.
+         Kept as a sibling of #searchForm (rather than nested inside it) since HTML
+         does not allow a <form> inside another <form>. -->
+    <form
+        id="bulkDownloadForm"
+        method="post"
+        action="{% routablepageurl page 'bulk_download' %}"
+        class="hidden"
+    >
+        {% csrf_token %}
     </form>
 
     <script>
@@ -104,6 +152,105 @@
                 descBtn.textContent = isClamped ? 'Show less' : 'Show more';
             }
         });
+
+        // ── Bulk selection of studies, persisted across searches/pages via localStorage ──
+        //
+        // The toolbar above lives outside #portal-data-listing, so it is never
+        // destroyed by an HTMX swap - but the .selectRow checkboxes it counts live
+        // *inside* that region, so they're recreated on every search, facet change
+        // and page navigation. rebindSelectRows() re-applies the stored selection
+        // and re-attaches listeners each time; it runs once on load and again after
+        // every htmx:afterSwap of the listing.
+        (function () {
+            const STORAGE_KEY = 'portalData:selectedStudies:{{ datatype }}';
+
+            function loadSelection() {
+                try {
+                    return new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'));
+                } catch (err) {
+                    return new Set();
+                }
+            }
+
+            function saveSelection(selected) {
+                try {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify([...selected]));
+                } catch (err) {
+                    // localStorage unavailable (private browsing, quota, etc.) - selection just won't persist
+                }
+            }
+
+            function updateToolbar(selected) {
+                const countEl = document.getElementById('selection-count');
+                if (countEl) countEl.textContent = selected.size;
+                const downloadCountEl = document.getElementById('download-count');
+                if (downloadCountEl) downloadCountEl.textContent = selected.size;
+                document.querySelectorAll('.selection-action').forEach((btn) => {
+                    btn.disabled = selected.size === 0;
+                });
+            }
+
+            function submitSelection(selected, formId) {
+                const form = document.getElementById(formId);
+                if (!form) return;
+                form.querySelectorAll('input[name="ids"]').forEach((el) => el.remove());
+
+                selected.forEach((accession) => {
+                    const idInput = document.createElement('input');
+                    idInput.type = 'hidden';
+                    idInput.name = 'ids';
+                    idInput.value = accession;
+                    form.appendChild(idInput);
+                });
+
+                form.submit();
+            }
+
+            const selected = loadSelection();
+
+            function rebindSelectRows() {
+                document.querySelectorAll('.selectRow').forEach((cb) => {
+                    cb.checked = selected.has(cb.dataset.accession);
+                    cb.addEventListener('change', function () {
+                        if (cb.checked) {
+                            selected.add(cb.dataset.accession);
+                        } else {
+                            selected.delete(cb.dataset.accession);
+                        }
+                        saveSelection(selected);
+                        updateToolbar(selected);
+                    });
+                });
+                updateToolbar(selected);
+            }
+
+            document.addEventListener('DOMContentLoaded', rebindSelectRows);
+
+            document.body.addEventListener('htmx:afterSwap', function (evt) {
+                if (evt.target && evt.target.id === 'portal-data-listing') {
+                    rebindSelectRows();
+                }
+            });
+
+            document.addEventListener('DOMContentLoaded', function () {
+                const clearBtn = document.getElementById('clearSelection');
+                if (clearBtn) {
+                    clearBtn.addEventListener('click', function () {
+                        selected.clear();
+                        saveSelection(selected);
+                        document.querySelectorAll('.selectRow').forEach((cb) => { cb.checked = false; });
+                        updateToolbar(selected);
+                    });
+                }
+
+                document.querySelectorAll('.selection-action[data-target]').forEach((btn) => {
+                    btn.addEventListener('click', function () {
+                        if (!selected.size) return;
+                        submitSelection(selected, btn.dataset.target);
+                    });
+                });
+            });
+        })();
     </script>
 </section>
 {% endblock %}

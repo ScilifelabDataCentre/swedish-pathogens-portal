@@ -518,6 +518,92 @@ def list_study_files(study_dir: Path) -> list[dict[str, Any]]:
     return files
 
 
+def _dedupe_filename(filename: str, seen: dict[str, int]) -> str:
+    """Disambiguate a repeated suggested filename within one study's entries.
+
+    Mirrors how browsers themselves handle a name collision, so a second file
+    that would otherwise overwrite the first becomes 'name (1).ext' instead.
+    """
+    count = seen.get(filename, 0)
+    seen[filename] = count + 1
+    if count == 0:
+        return filename
+    stem, dot, ext = filename.rpartition(".")
+    return f"{stem} ({count}){dot}{ext}" if dot else f"{filename} ({count})"
+
+
+def _categorize_relpath(relpath: str) -> str:
+    """Classify a study file as 'metadata' (study root) or 'raw' (any subdirectory).
+
+    ISA-Tab metadata files (i_/s_/a_/m_ prefixed) sit directly in the study
+    directory; raw/derived data files sit in a subdirectory such as RAW_FILES,
+    DERIVED_FILES or FILES, so a relpath containing "/" is raw/derived data.
+    """
+    return "raw" if "/" in relpath else "metadata"
+
+
+def resolve_bulk_download(accessions: Iterable[str]) -> list[dict[str, Any]]:
+    """Resolve each selected study to its local files, grouped by category.
+
+    Every file already lives on this node's PVC-mounted DATASETS_ROOT, so this
+    reuses the same listing used by the single-study file browser
+    (list_study_files) - no external calls are made. Each file entry also
+    carries a suggested save-as filename prefixed with the study accession,
+    since plain filenames like 'i_Investigation.txt' repeat across studies and
+    a browser saving several studies' files into one flat Downloads folder
+    needs some other way to keep them straight.
+    """
+    data_root = get_data_root()
+    results: list[dict[str, Any]] = []
+
+    for accession in accessions:
+        result: dict[str, Any] = {
+            "accession": accession,
+            "metadata_files": [],
+            "raw_files": [],
+            "error": None,
+        }
+
+        if not ACCESSION_RE.match(accession):
+            result["error"] = "Invalid accession."
+            results.append(result)
+            continue
+
+        study_dir = data_root / accession
+        if not study_dir.is_dir():
+            result["error"] = "Study not found on this node."
+            results.append(result)
+            continue
+
+        try:
+            files = list_study_files(study_dir)
+        except OSError as err:
+            logger.warning("Failed to list files for %s: %s", accession, err)
+            result["error"] = "Could not list this study's files."
+            results.append(result)
+            continue
+
+        if not files:
+            result["error"] = "No downloadable files were found for this study."
+            results.append(result)
+            continue
+
+        seen: dict[str, int] = {}
+        for f in files:
+            entry = {
+                "relpath": f["relpath"],
+                "filename": _dedupe_filename(f"{accession}_{f['name']}", seen),
+            }
+            if _categorize_relpath(f["relpath"]) == "metadata":
+                result["metadata_files"].append(entry)
+            else:
+                result["raw_files"].append(entry)
+
+        results.append(result)
+
+    return results
+
+
 def apply_text_search(items: list[dict], query: str) -> list[dict]:
     """Apply text search to dataset listing items."""
     if not query:

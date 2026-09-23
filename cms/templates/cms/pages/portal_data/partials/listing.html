@@ -40,7 +40,7 @@
                                                 name="{{ facet.field }}"
                                                 value="{{ b.value }}"
                                                 {% if b.checked %}checked{% endif %}
-                                                class="checkbox checkbox-accent checkbox-sm"
+                                                class="checkbox checkbox-accent checkbox-sm facet-checkbox"
                                             >
                                             <span class="text-sm">{{ b.value }}</span>
                                             <span class="badge badge-ghost badge-sm ml-auto">{{ b.count }}</span>
@@ -59,7 +59,7 @@
                                                     name="{{ facet.field }}"
                                                     value="{{ b.value }}"
                                                     {% if b.checked %}checked{% endif %}
-                                                    class="checkbox checkbox-accent checkbox-sm"
+                                                    class="checkbox checkbox-accent checkbox-sm facet-checkbox"
                                                 >
                                                 <span class="text-sm">{{ b.value }}</span>
                                                 <span class="badge badge-ghost badge-sm ml-auto">{{ b.count }}</span>
@@ -105,6 +105,14 @@
                             <h3 class="text-xl text-pp-almost-black">
                                 {{ it.title }}
                             </h3>
+                            <label class="inline-flex shrink-0 items-center gap-2 text-sm text-pp-dark-grey">
+                                <input
+                                    type="checkbox"
+                                    class="selectRow checkbox checkbox-accent checkbox-sm"
+                                    data-accession="{{ it.accession }}"
+                                >
+                                <span class="sr-only">Select {{ it.accession }} for bulk download</span>
+                            </label>
                         </div>
 
                         {% if it.description %}

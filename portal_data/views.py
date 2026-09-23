@@ -8,10 +8,23 @@ from contextlib import ExitStack
 from pathlib import Path
 from urllib.parse import unquote
 
-from django.http import FileResponse, Http404, HttpRequest, HttpResponse
+from django.http import (
+    FileResponse,
+    Http404,
+    HttpRequest,
+    HttpResponse,
+    HttpResponseBadRequest,
+    HttpResponseNotAllowed,
+)
 from django.shortcuts import render
 
-from portal_data.services import ACCESSION_RE, get_data_root, get_datatype_config, list_study_files
+from portal_data.services import (
+    ACCESSION_RE,
+    get_data_root,
+    get_datatype_config,
+    list_study_files,
+    resolve_bulk_download,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -48,6 +61,28 @@ def serve_study_files(
         "page": page,
         "portal_data_index_url": page.url,
     }
+    return render(request, template, context)
+
+
+def serve_bulk_download(
+    request: HttpRequest, page: object, datatype: str, template: str
+) -> HttpResponse:
+    """Resolve the POSTed study accessions to this node's local download links."""
+    if get_datatype_config(datatype) is None:
+        raise Http404("Unknown data type")
+
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+
+    ids = request.POST.getlist("ids")
+    accessions = sorted({i for i in ids if ACCESSION_RE.match(i)})
+
+    if not accessions:
+        return HttpResponseBadRequest("No studies selected")
+
+    results = resolve_bulk_download(accessions)
+
+    context = {"results": results, "page": page}
     return render(request, template, context)
 
 
