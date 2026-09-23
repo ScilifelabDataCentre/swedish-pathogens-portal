@@ -659,9 +659,12 @@ def _list_study_files(study_dir: Path) -> list[dict[str, Any]]:
                     # produce a relative path with forward slashes
                     rel = str(full.relative_to(study_dir)).replace(os.sep, "/")
                     stat = full.stat()
-                except (OSError, ValueError):
+                except (OSError, ValueError) as err:
                     # skip files we can't access or relativize
-                    logger.debug("Skipping file during listing: %s", full, exc_info=True)
+                    # (adding "as err" here works around a ruff 0.16.6 formatter bug
+                    # that otherwise strips the required parens around this tuple,
+                    # producing invalid syntax - see astral-sh/ruff upstream)
+                    logger.debug("Skipping file during listing: %s (%s)", full, err, exc_info=True)
                     continue
 
                 files.append(
