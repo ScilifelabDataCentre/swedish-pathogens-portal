@@ -58,9 +58,6 @@ urlpatterns += [
     path("documents/", include(wagtaildocs_urls)),
     # Our own URLs
     path("cms/", include("cms.urls")),
-    # Old standalone portal data app from FREYA-2928, kept alongside the
-    # current cms-based portal data page while the two get reconciled.
-    path("portal-data/", include("pages.portal_data.urls")),
     # Any URL that was not matched by an explicit URL above are tried and handled by Wagtail.
     # Wagtail raises 404, if it couldn't find a Page or Route handler for the URL
     path("", include(wagtail_urls)),
