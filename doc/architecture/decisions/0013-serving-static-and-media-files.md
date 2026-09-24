@@ -27,11 +27,15 @@ The `Django` and `NGINX` containers will mount the same PVC, allowing `Django` t
 We will use the following approach:
 
 - `WhiteNoise` will serve `Django` static files in both local development and production.
-- Static files will not be stored on any PVC and they will reside in the repo and be served through `WhiteNoise`.
+- `collectstatic` command will be run to collect the file to `STATIC_ROOT` and use `WhiteNoise` to serve the resulting files from `STATIC_ROOT`.
+- In production `STATIC_ROOT` will use ephemeral per-pod storage rather than a PVC. It must be populated before the application starts accepting traffic.
 - `NGINX` will serve uploaded media files in production.
 - `NGINX` will initially run as a sidecar container in the same pod as the `Django` application.
 - Uploaded media files will be stored on a PersistentVolumeClaim (PVC).
 - The `Django` and `NGINX` containers will mount the same PVC and use a shared media directory.
+- `MEDIA_ROOT` is a public file tree: requests under `MEDIA_URL` are served directly by `NGINX` and do not pass through `Django` authentication or authorization.
+- The media PVC will be mounted read/write by `Django` and read-only by `NGINX`.
+- Private, embargoed, session-specific, or otherwise access-controlled files must be stored outside `MEDIA_ROOT`, on storage that is not mounted into the `NGINX` container, and delivered through an authorized application endpoint or another access-controlled mechanism.
 - `Django` will remain responsible for handling application requests and media uploads, while `NGINX` will handle serving the uploaded media files.
 - If media-serving requirements grow independently of the `Django` application—for example, due to increased traffic, resource consumption, or scaling requirements—we may move `NGINX` to a separate deployment/pod.
 
@@ -43,7 +47,7 @@ This gives us a simple initial architecture while retaining a clear path to inde
 
 - Consistent static-file handling — `WhiteNoise` provides the same static-file serving approach in local development and production.
 - Persistent media storage — uploaded files survive `Django` container and pod restarts as long as the PVC remains available.
-- Simple deployment — the initial production setup requires only one pod for `Django` and `NGINX`.
+- Simple deployment — `Django` and `NGINX` are co-located in each application pod, so the initial setup does not require a separate media-proxy deployment.
 - Reduced infrastructure complexity — a separate reverse-proxy/static-file deployment is not required for static assets.
 - Efficient media serving — `NGINX` is better suited than `Django` for serving potentially large uploaded files.
 - Independent responsibilities — `Django` handles uploads and application logic while `NGINX` handles media delivery.
@@ -56,12 +60,14 @@ This gives us a simple initial architecture while retaining a clear path to inde
 - Scaling limitations — scaling the `Django` deployment also scales the `NGINX` sidecar, even when only one of them requires additional capacity.
 - Operational complexity — the application deployment now contains two containers that must be configured to share media storage correctly.
 - `WhiteNoise` is not a replacement for a dedicated CDN/object-storage setup for very large volumes of static or media traffic.
+- Public-by-location media — every file under `MEDIA_ROOT` is publicly retrievable through `MEDIA_URL`; the directory must not be used as generic storage for private uploads.
 
 ### Mitigation
 
 - Define appropriate CPU and memory requests/limits for both `Django` and `NGINX`.
 - Keep the `NGINX` configuration focused on serving media and avoid coupling it to `Django` application behavior.
 - Use shared storage with clearly defined mount paths and permissions for media files.
+- Treat the `MEDIA_ROOT` / private-storage boundary as a security invariant in application and deployment reviews: mount the media PVC read-only in `NGINX`, and never mount private storage into that container.
 - Monitor media traffic and `NGINX` resource consumption independently from `Django`.
 - Revisit the architecture if media traffic becomes significant enough that `NGINX` needs independent scaling.
 - If independent scaling becomes necessary, move `NGINX` from the sidecar into a separate deployment/pod without changing the `Django` application's media storage contract.
