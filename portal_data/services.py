@@ -9,14 +9,18 @@ import logging
 import os
 import re
 from collections.abc import Iterable, Mapping
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 import nh3
 from django.conf import settings
 from django.utils import timezone
+
+from cms.services.api_client import fetch_json
 
 logger = logging.getLogger(__name__)
 
@@ -516,6 +520,159 @@ def list_study_files(study_dir: Path) -> list[dict[str, Any]]:
 
     files.sort(key=lambda file: file["relpath"])
     return files
+
+
+def _dedupe_filename(filename: str, seen: dict[str, int]) -> str:
+    """Disambiguate a repeated suggested filename within one study's entries.
+
+    Mirrors how browsers themselves handle a name collision, so a second file
+    that would otherwise overwrite the first becomes 'name (1).ext' instead.
+    """
+    count = seen.get(filename, 0)
+    seen[filename] = count + 1
+    if count == 0:
+        return filename
+    stem, dot, ext = filename.rpartition(".")
+    return f"{stem} ({count}){dot}{ext}" if dot else f"{filename} ({count})"
+
+
+METABOLIGHTS_WS_BASE = "https://www.ebi.ac.uk/metabolights/ws"
+
+
+def _list_study_directory(accession: str, directory: str | None = None) -> dict[str, Any] | None:
+    """Return the raw 'files/tree' payload for one level of a public study.
+
+    Passing 'directory' lists a named sub-directory (e.g. the raw-data 'FILES'
+    folder) instead of the study root. Returns None if MetaboLights could not
+    be reached or returned an invalid response.
+    """
+    params = {"location": "study", "include_sub_dir": "false"}
+    if directory:
+        params["directory"] = directory
+    return fetch_json(f"{METABOLIGHTS_WS_BASE}/studies/{accession}/files/tree", params=params)
+
+
+def _collect_study_file_paths(accession: str) -> list[dict[str, str]] | None:
+    """Return every downloadable file for a public study, tagged by category.
+
+    ISA-Tab metadata files sit at the study root and are tagged 'metadata';
+    raw/derived data files sit one directory down (e.g. under 'FILES') and are
+    tagged 'raw'. This walks the root and recurses one level into any
+    sub-directory entry found there, matching MetaboLights' usual study layout
+    - deeper nesting, if a study happens to have any, is not followed. The
+    category lets the page group a study's links instead of showing one flat
+    list, since a study's metadata and raw data serve different purposes.
+
+    Returns None if MetaboLights could not be reached to list the study root.
+    """
+    root = _list_study_directory(accession)
+    if root is None:
+        return None
+
+    files: list[dict[str, str]] = []
+    for entry in root.get("study") or []:
+        if entry.get("status") == "unreferenced":
+            continue
+        name = entry.get("file")
+        if entry.get("type") == "directory":
+            if not name:
+                continue
+            sub_data = _list_study_directory(accession, directory=name)
+            if sub_data is None:
+                continue
+            for sub_entry in sub_data.get("study") or []:
+                if sub_entry.get("status") == "unreferenced":
+                    continue
+                if sub_entry.get("type") == "directory":
+                    continue
+                sub_path = sub_entry.get("relative_path") or sub_entry.get("file")
+                if sub_path:
+                    files.append({"path": sub_path, "category": "raw"})
+        else:
+            path = entry.get("relative_path") or name
+            if path:
+                files.append({"path": path, "category": "metadata"})
+
+    return files
+
+
+def _build_download_urls(
+    accession: str, files: Iterable[Mapping[str, str]]
+) -> list[dict[str, str]]:
+    """Build one direct MetaboLights zip-download entry per given file, tagged by category.
+
+    MetaboLights' download endpoint accepts a comma-separated 'file' query
+    parameter for multiple files, but its server-side implementation uses that
+    raw, comma-joined value as the literal filename of the zip it builds on
+    disk - so combining even a handful of files reliably blows past the ~255
+    byte filename limit most filesystems enforce (confirmed: a real study's 9
+    metadata files alone came to 403 bytes and crashed the endpoint with
+    "File name too long"). Requesting one file per URL sidesteps that
+    regardless of file count or name length, at the cost of more separate
+    downloads per study.
+
+    Each entry also carries a suggested save-as filename prefixed with the
+    study accession. MetaboLights names every study's investigation file
+    'i_Investigation.txt' and reuses other filename patterns across studies
+    too, so with no per-study folder to tell them apart, a browser saving
+    several studies' files into one flat Downloads folder needs some other
+    way to keep them straight.
+    """
+    seen: dict[str, int] = {}
+    entries: list[dict[str, str]] = []
+    for file_info in files:
+        path = file_info["path"]
+        url = f"{METABOLIGHTS_WS_BASE}/studies/{accession}/download?file={quote(path, safe='')}"
+        basename = path.rsplit("/", 1)[-1]
+        filename = _dedupe_filename(f"{accession}_{basename}", seen)
+        entries.append({"url": url, "filename": filename, "category": file_info["category"]})
+    return entries
+
+
+def _resolve_one_study(accession: str) -> dict[str, Any]:
+    """Resolve a single study to its direct MetaboLights download URL(s), grouped by category."""
+    result: dict[str, Any] = {
+        "accession": accession,
+        "metadata_files": [],
+        "raw_files": [],
+        "error": None,
+    }
+
+    if not ACCESSION_RE.match(accession):
+        result["error"] = "Invalid accession."
+        return result
+
+    files = _collect_study_file_paths(accession)
+    if files is None:
+        result["error"] = "Could not reach MetaboLights to list this study's files."
+        return result
+
+    if not files:
+        result["error"] = "No downloadable files were found for this study."
+        return result
+
+    for entry in _build_download_urls(accession, files):
+        target = (
+            result["metadata_files"] if entry["category"] == "metadata" else result["raw_files"]
+        )
+        target.append({"url": entry["url"], "filename": entry["filename"]})
+
+    return result
+
+
+def resolve_bulk_download(accessions: Iterable[str]) -> list[dict[str, Any]]:
+    """Resolve each selected study to one or more direct MetaboLights download URLs.
+
+    Every URL points straight at MetaboLights' own server: the end user's
+    browser downloads the resulting file(s) directly and no study data passes
+    through this portal. Studies are resolved concurrently since each one
+    needs its own (small, metadata-only) round trip to MetaboLights.
+    """
+    accessions = list(accessions)
+    with ThreadPoolExecutor(max_workers=min(8, len(accessions)) or 1) as pool:
+        results = list(pool.map(_resolve_one_study, accessions))
+    by_accession = {r["accession"]: r for r in results}
+    return [by_accession[accession] for accession in accessions]
 
 
 def apply_text_search(items: list[dict], query: str) -> list[dict]:
