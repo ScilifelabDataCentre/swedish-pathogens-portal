@@ -8,14 +8,15 @@
     <header class="mb-6 lg:mb-8">
         <h1>Download selected studies</h1>
         <p class="text-sm text-pp-dark-grey">
-            Each link below downloads a file directly from this node. We start these
-            automatically a moment apart, and try to save each one under a name that
-            includes its study accession, since datasets often reuse the same
-            filenames (like "i_Investigation.txt") across studies. If your browser
-            won't let us rename it that way, the file still downloads correctly,
-            just under its original name instead. Your browser may also still block
-            or ask permission for several downloads in a row; if one doesn't start,
-            use its link below.
+            Each link below downloads a file directly from MetaboLights - the data
+            never passes through the portal. We start these automatically a moment
+            apart, and try to save each one under a name that includes its study
+            accession, since MetaboLights reuses the same filenames (like
+            "i_Investigation.txt") across every study. If your browser won't let us
+            rename it that way, the file still downloads correctly, just under
+            MetaboLights' own name instead. Your browser may also still block or ask
+            permission for several downloads in a row; if one doesn't start, use its
+            link below.
         </p>
         <a href="{% routablepageurl page 'index' %}" class="btn btn-outline btn-sm mt-3">
             Back to list
@@ -38,7 +39,7 @@
                             {% for entry in result.metadata_files %}
                                 <li>
                                     <a
-                                        href="{% routablepageurl page 'download_file' result.accession entry.relpath %}"
+                                        href="{{ entry.url }}"
                                         data-download-name="{{ entry.filename }}"
                                         title="{{ entry.filename }}"
                                         class="download-link flex items-center gap-2 px-3 py-2 text-sm text-pp-dark-blue hover:bg-pp-pale-grey hover:underline focus:outline-none focus:ring-2 focus:ring-pp-dark-blue/30"
@@ -59,7 +60,7 @@
                             {% for entry in result.raw_files %}
                                 <li>
                                     <a
-                                        href="{% routablepageurl page 'download_file' result.accession entry.relpath %}"
+                                        href="{{ entry.url }}"
                                         data-download-name="{{ entry.filename }}"
                                         title="{{ entry.filename }}"
                                         class="download-link flex items-center gap-2 px-3 py-2 text-sm text-pp-dark-blue hover:bg-pp-pale-grey hover:underline focus:outline-none focus:ring-2 focus:ring-pp-dark-blue/30"
@@ -87,12 +88,14 @@
     // browsers throttle or prompt about). The visible links above are the fallback
     // for whichever downloads a browser declines to start automatically.
     //
-    // These files are served from this same origin (unlike the earlier
-    // direct-to-MetaboLights version), so the rename-to-include-accession fetch
-    // below is reliable rather than depending on the remote host allowing
-    // cross-origin reads.
+    // For the rename-to-include-accession behavior we first try fetching the file
+    // ourselves so we control the saved filename - but MetaboLights has to allow
+    // our page to read the response cross-origin (CORS) for that to work, which
+    // we can't check ahead of time. If the fetch fails for any reason (CORS
+    // blocked, network error, ...) we fall straight back to a plain navigation,
+    // which still downloads the file correctly, just under MetaboLights' own name.
     async function fetchAndSaveAs(url, filename) {
-        const response = await fetch(url);
+        const response = await fetch(url, { mode: 'cors' });
         if (!response.ok) {
             throw new Error(`Unexpected response status: ${response.status}`);
         }
