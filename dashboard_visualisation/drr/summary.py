@@ -4,14 +4,12 @@ from __future__ import annotations
 
 from typing import Any
 
+from .channels import Channel, present_channels
+from .figures import FEATURE_BASIS_FIGURE_IDS, clip_report
 from .loader import FeatureTable
 
 # Canonical display order for CellProfiler segmentation compartments.
 COMPARTMENTS: list[str] = ["nuclei", "cells", "cytoplasm"]
-
-# Canonical display order for the five Cell Painting imaging channels. The
-# feature columns embed these as ``illum<CHANNEL>`` tokens.
-CHANNELS: list[str] = ["CONC", "HOECHST", "MITO", "PHAandWGA", "SYTO"]
 
 
 def _present_compartments(feature_columns: list[str]) -> list[str]:
@@ -20,15 +18,6 @@ def _present_compartments(feature_columns: list[str]) -> list[str]:
         compartment
         for compartment in COMPARTMENTS
         if any(column.endswith(f"_{compartment}") for column in feature_columns)
-    ]
-
-
-def _present_channels(feature_columns: list[str]) -> list[str]:
-    """Return the imaging channels that appear as ``illum<CHANNEL>`` tokens."""
-    return [
-        channel
-        for channel in CHANNELS
-        if any(f"illum{channel}" in column for column in feature_columns)
     ]
 
 
@@ -43,19 +32,56 @@ def _pert_type_counts(table: FeatureTable) -> dict[str, int]:
     return dict(sorted(counts.items()))
 
 
+def _feature_sets(
+    table: FeatureTable,
+    figure_feature_columns: list[str],
+    channels: tuple[Channel, ...],
+) -> dict[str, Any]:
+    """Report both feature sets, so a reader cannot confuse one for the other.
+
+    The download set is every numeric feature column, as delivered; the figure set
+    excludes the infection-readout channel and is clipped. Recording both counts,
+    the clip, and which figures used the figure set is what keeps a later session
+    from re-deriving the wrong basis (spec section 5, FREYA-2923 criterion 5,
+    FREYA-2968 criterion 3).
+    """
+    excluded = [channel.column_tag for channel in channels if not channel.in_figures]
+    return {
+        "download": {
+            "n_features": len(table.feature_columns),
+            "used_by": ["features.csv", "features.parquet"],
+        },
+        "figures": {
+            "n_features": len(figure_feature_columns),
+            "excluded_channels": excluded,
+            "clip": clip_report(table, figure_feature_columns),
+            "used_by": list(FEATURE_BASIS_FIGURE_IDS),
+        },
+    }
+
+
 def build_summary(
     table: FeatureTable,
     *,
+    channels: tuple[Channel, ...],
+    figure_feature_columns: list[str],
     source_filename: str,
     source_hash: str,
+    inputs_hash: str,
     generated_at: str,
 ) -> dict[str, Any]:
     """Build the summary-statistics panel payload for a DRR dataset.
 
     Args:
         table: The loaded feature table.
+        channels: This screen's channel map, which decides both the stain names
+            the page publishes and which channel the figures exclude.
+        figure_feature_columns: The feature columns the figures computed on.
         source_filename: Base name of the source feature file, for provenance.
         source_hash: SHA-256 hex digest of the source feature file.
+        inputs_hash: Combined digest over every input file. It is what decides
+            whether the data-updated date moves, so it deliberately excludes the
+            figure basis: that is a computation, not data (FREYA-2968).
         generated_at: ISO-8601 timestamp of the precompute run.
 
     Returns:
@@ -76,10 +102,12 @@ def build_summary(
         "n_features": len(table.feature_columns),
         "pert_type_counts": _pert_type_counts(table),
         "compartments": _present_compartments(table.feature_columns),
-        "channels": _present_channels(table.feature_columns),
+        "channels": present_channels(table.feature_columns, channels),
+        "feature_sets": _feature_sets(table, figure_feature_columns, channels),
         "source": {
             "filename": source_filename,
             "sha256": source_hash,
+            "inputs_sha256": inputs_hash,
             "generated_at": generated_at,
         },
     }

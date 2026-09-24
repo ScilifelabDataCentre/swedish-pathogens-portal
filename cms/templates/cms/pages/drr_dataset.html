@@ -89,15 +89,38 @@
                 </div>
             {% endif %}
 
-            {% if summary.compartments or summary.channels %}
+            {% if summary.compartments or summary.channels.0.stain %}
                 <div>
                     {% if summary.compartments %}
                         <h5 class="text-sm font-semibold text-pp-almost-black">Compartments</h5>
                         <p class="mt-1 text-pp-dark-grey">{{ summary.compartments|join:", " }}</p>
                     {% endif %}
-                    {% if summary.channels %}
+                    {# Channels name their stains, never the column tokens: the tokens are the #}
+                    {# authors' internal slot names and mean different stains on different #}
+                    {# screens (FREYA-2923; summary.channels is built from the screen's map). #}
+                    {# The guard is on the payload's shape, not just its presence: a summary #}
+                    {# precomputed before FREYA-2923 lists plain tokens, and rendering those #}
+                    {# through this loop would print empty names and badge every channel as #}
+                    {# excluded. Withhold the section until precompute is re-run. #}
+                    {% if summary.channels.0.stain %}
                         <h5 class="mt-3 text-sm font-semibold text-pp-almost-black">Channels</h5>
-                        <p class="mt-1 text-pp-dark-grey">{{ summary.channels|join:", " }}</p>
+                        <ul class="mt-1 space-y-1 text-pp-dark-grey">
+                            {% for channel in summary.channels %}
+                                <li>
+                                    <span class="text-pp-almost-black">{{ channel.stain }}</span> &mdash; {{ channel.measures }}
+                                    {% if not channel.in_figures %}<span class="badge badge-outline">excluded from figures</span>{% endif %}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                        {% with figure_features=summary.feature_sets.figures.n_features clip=summary.feature_sets.figures.clip %}
+                            {% if figure_features %}
+                                <p class="mt-2 text-sm text-pp-dark-grey">
+                                    The figures are computed on {{ figure_features|intcomma }} of the
+                                    {{ summary.n_features|intcomma }} feature columns{% if clip.upper %}, clipped to &plusmn;{{ clip.upper|floatformat }} as the published pipeline does{% endif %};
+                                    the downloads carry all of them, as delivered.
+                                </p>
+                            {% endif %}
+                        {% endwith %}
                     {% endif %}
                 </div>
             {% endif %}
@@ -142,6 +165,40 @@
 {% endif %}
 
 {% comment %}
+Figure controls (FREYA-2636, spec sections 8.3 and 9): the radar's compound
+picker, offered only for the compounds precompute wrote a radar for, so no
+option can 404. It is progressive enhancement — the block below already holds
+the default radar over every treated compound, so the page is complete before
+the control is touched, and a 404 leaves that figure standing.
+
+The request is an ordinary GET answered with server-rendered HTML, which is what
+ADR-0004 permits: no client-side Plotly callback is involved. Final placement of
+this control belongs to FREYA-2934's presentation pass.
+{% endcomment %}
+{% if radar_compounds %}
+    <section aria-labelledby="drr-radar-picker-heading" class="mt-10">
+        <h4 id="drr-radar-picker-heading" class="text-base">Radar: choose a compound</h4>
+        <form
+            class="mt-3 flex w-full flex-col gap-3 sm:flex-row sm:items-center"
+            hx-get="{{ figure_url }}"
+            hx-target="#figure-{{ radar_figure_id }}"
+            hx-swap="outerHTML"
+            hx-indicator="#drr-radar-indicator"
+        >
+            <input type="hidden" name="figure_id" value="{{ radar_figure_id }}">
+            <label for="drr-radar-compound" class="sr-only">Compound</label>
+            <select id="drr-radar-compound" name="cbkid" class="select select-bordered w-full sm:w-auto">
+                {% for compound in radar_compounds %}
+                    <option value="{{ compound.cbkid }}">{{ compound.label|default:compound.cbkid }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-primary btn-sm">Show radar</button>
+            <span id="drr-radar-indicator" class="htmx-indicator loading loading-spinner loading-sm"></span>
+        </form>
+    </section>
+{% endif %}
+
+{% comment %}
 Figures: server-side PlotlyFigureBlocks render via the inherited context
 (figures + source_file_hash set by DashboardPage.get_context).
 {% endcomment %}
@@ -153,10 +210,9 @@ Figures: server-side PlotlyFigureBlocks render via the inherited context
 
 {% comment %}
 Downloads: the bulk CSV / Parquet links are live (FREYA-2580), each rendered only
-when its artefact has been precomputed, and the raw-image link-out (FREYA-2581 /
-2539) whenever the page names an upstream study. Still pending: the compound picker
-that fills `compounds` (FREYA-2583), and the licence + citation statement this
-surface needs (FREYA-2588, blocked on DT-7).
+when its artefact has been precomputed, the raw-image link-out (FREYA-2581 / 2539)
+whenever the page names an upstream study, and the compound picker (FREYA-2583)
+whenever the per-compound slice can serve.
 
 Long notes use this block tag deliberately: Django's hash-comment form is
 single-line only, and a multi-line one renders verbatim into the page.
@@ -195,13 +251,15 @@ single-line only, and a multi-line one renders verbatim into the page.
         {% endif %}
 
         {% comment %}
-        Per-compound slice: compound picker populated from compounds.parquet
-        when the download route lands (FREYA-2537).
+        Per-compound slice (FREYA-2583): options come from compounds.parquet, so
+        the picker offers exactly the ids the route can serve. A plain GET form
+        is enough — the id travels in the query string — so the control needs no
+        JavaScript and no htmx.
         {% endcomment %}
         {% if compounds %}
             <form method="get" action="{{ download_urls.compound_base }}" class="mt-4 flex w-full flex-col gap-3 sm:flex-row sm:items-center">
                 <label for="drr-compound" class="sr-only">Compound</label>
-                <select id="drr-compound" name="cbkid" class="input input-bordered w-full sm:w-auto">
+                <select id="drr-compound" name="cbkid" class="select select-bordered w-full sm:w-auto">
                     {% for compound in compounds %}
                         <option value="{{ compound.cbkid }}">{{ compound.label|default:compound.cbkid }}</option>
                     {% endfor %}
@@ -209,6 +267,45 @@ single-line only, and a multi-line one renders verbatim into the page.
                 <button type="submit" class="btn btn-primary btn-sm">Download compound (CSV)</button>
             </form>
         {% endif %}
+
+        {% comment %}
+        Reuse terms + citation (FREYA-2588, spec sections 8-9): covers every
+        surface in this section, so it closes the section rather than sitting in
+        any one surface's block — it must render even for a page offering only
+        the raw-image link-out. The Data Centre has no portal-wide licence policy
+        yet, so this states only what the portal can stand behind: the underlying
+        data as openly reusable (no licence name is invented for it), and only
+        the slice of it published in the article as CC BY 4.0 — not every bulk
+        feature download, which can exceed what that article covers.
+
+        The imagery paragraph is scoped to the link-out, so it is withheld on a
+        page that offers no imagery. It states the terms the FREYA-2581 note
+        above does not; that note owns the hosting fact, and repeating it here
+        would say the same thing twice in one section.
+        {% endcomment %}
+        <div class="mt-6 rounded border border-pp-pale-grey bg-white p-4 text-xs text-pp-dark-grey">
+            <h5 class="text-sm font-semibold text-pp-almost-black">Reuse and citation</h5>
+            <p class="mt-2">
+                If you reuse these data, please cite Asp et al., 2026,
+                <span class="italic">iScience</span> 29, 116673 (21 August 2026),
+                "A host-centric morphological profiling approach to identify repurposed
+                antiviral drugs", DOI
+                <a href="https://doi.org/10.1016/j.isci.2026.116673" class="link" target="_blank" rel="noopener noreferrer">10.1016/j.isci.2026.116673</a>.
+                The article is open access under CC BY 4.0.
+            </p>
+            <p class="mt-2">
+                The Data Centre has not yet published a portal-wide data licence policy.
+                Until it does, the portal's interim position is that the underlying
+                screening data is openly reusable, and the slice of it published in
+                that article is licensed CC BY 4.0.
+            </p>
+            {% if download_urls.raw_images %}
+                <p class="mt-2">
+                    Raw imagery is not covered by this statement. It stays with the upstream
+                    EMBL-EBI BioImage Archive study, governed by that repository's own terms.
+                </p>
+            {% endif %}
+        </div>
     </section>
 {% endif %}
 
