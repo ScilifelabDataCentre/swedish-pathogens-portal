@@ -39,37 +39,37 @@
     {{ form.contact_dsc }}
 
     <div>
-      <label for="id_name" class="label">
-        <span class="font-medium text-base-content">Name <span class="text-error">*</span></span>
+      <label for="id_name" class="label mb-2">
+        <span class="font-medium text-base-content">Name <span class="text-red-600">*</span></span>
       </label>
       <input type="text" name="name" id="id_name" value="{{ form.name.value|default_if_none:'' }}"
              class="input w-full{% if form.name.errors %} input-error{% endif %}"
              {% if form.name.errors %}aria-invalid="true" aria-describedby="id_name_error" autofocus{% endif %}
              minlength="2" maxlength="100" required>
       {% if form.name.errors %}
-        <p id="id_name_error" class="mt-1 text-sm text-error">{{ form.name.errors.0 }}</p>
+        <p id="id_name_error" class="mt-2 text-sm text-red-600">{{ form.name.errors.0 }}</p>
       {% endif %}
     </div>
 
     <div>
-      <label for="id_email" class="label">
-        <span class="font-medium text-base-content">Email <span class="text-error">*</span></span>
+      <label for="id_email" class="label mb-2">
+        <span class="font-medium text-base-content">Email <span class="text-red-600">*</span></span>
       </label>
       <input type="email" name="email" id="id_email" value="{{ form.email.value|default_if_none:'' }}"
              class="input w-full{% if form.email.errors %} input-error{% endif %}"
              {% if form.email.errors %}aria-invalid="true" aria-describedby="id_email_error" autofocus{% endif %} required>
       {% if form.email.errors %}
-        <p id="id_email_error" class="mt-1 text-sm text-error">{{ form.email.errors.0 }}</p>
+        <p id="id_email_error" class="mt-2 text-sm text-red-600">{{ form.email.errors.0 }}</p>
       {% endif %}
     </div>
 
     <div>
       <fieldset class="fieldset">
-        <legend class="fieldset-legend">What kind of a question or suggestion do you have?
-          <span class="text-error">*</span></legend>
-        <div class="mt-1 space-y-1">
+        <legend class="fieldset-legend text-base font-medium">What kind of a question or suggestion do you have?
+          <span class="text-red-600">*</span></legend>
+        <div class="flex flex-col gap-2 my-2 [&_input[type=checkbox]]:checkbox-xs">
           {% for checkbox in form.category %}
-          <label class="label cursor-pointer justify-start gap-3 py-1">
+          <label class="label">
             {{ checkbox.tag }}
             <span class="text-base-content">{{ checkbox.choice_label }}</span>
           </label>
@@ -77,24 +77,24 @@
         </div>
       </fieldset>
       {% if form.category.errors %}
-        <p class="mt-1 text-sm text-error">{{ form.category.errors.0 }}</p>
+        <p class="m-0 text-sm text-red-600">{{ form.category.errors.0 }}</p>
       {% endif %}
-      <p class="mt-1 text-sm text-base-content/70">You can ask a question or suggest one or more items using this
+      <p class="mt-2 text-sm text-base-content/70">You can ask a question or suggest one or more items using this
         form.</p>
     </div>
 
     <div>
-      <label for="id_message" class="label">
-        <span class="font-medium text-base-content">Message <span class="text-error">*</span></span>
+      <label for="id_message" class="label mb-2">
+        <span class="font-medium text-base-content">Message <span class="text-red-600">*</span></span>
       </label>
       <textarea name="message" id="id_message"
                 class="textarea w-full min-h-40{% if form.message.errors %} textarea-error{% endif %}"
                 {% if form.message.errors %}aria-invalid="true" aria-describedby="id_message_error" autofocus{% endif %}
                 required minlength="20" maxlength="5000">{{ form.message.value|default_if_none:'' }}</textarea>
       {% if form.message.errors %}
-        <p id="id_message_error" class="mt-1 text-sm text-error">{{ form.message.errors.0 }}</p>
+        <p id="id_message_error" class="mt-2 mb-0 text-sm text-red-600">{{ form.message.errors.0 }}</p>
       {% endif %}
-      <p class="mt-1 text-sm text-base-content/70">Please describe what you need help with (e.g., sharing your own
+      <p class="mt-2 text-sm text-base-content/70">Please describe what you need help with (e.g., sharing your own
         dataset) or provide link(s) and/or DOI(s) to your suggested dataset, project, publication, preprint, etc. and
         anything else that we should know.</p>
     </div>
