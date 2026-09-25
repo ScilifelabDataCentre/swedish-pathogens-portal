@@ -66,13 +66,13 @@ The implementation will be incremental, with the initial phases focused on estab
 
 ### Phase 1 – Adopt `django-allauth`
 
-Switch Wagtail admin sign-in to `django-allauth` using credentials (_username_ and _password_) login. The existing Wagtail groups, users, and permissions will continue to provide the authorization/RBAC model. But account handling (user information updating for example) will be evaluated and implemented. 
+Switch Wagtail admin sign-in to `django-allauth` using credentials (_username_ and _password_) login. The existing Wagtail groups, users, and permissions will continue to provide the authorization/RBAC model. But account handling (user information updating for example) will be evaluated and implemented.
 
 There will be a separate ADR with detailed specifics of the implementation.
 
 ### Phase 2 – Implement MFA
 
-Add MFA to `django-allauth` authentication layer. This phase will cover This phase will define enrolment, challenge, recovery, and user experience. The existing Wagtail permissions from previous phase will continue.
+Add MFA to `django-allauth` authentication layer. This phase will define enrolment, challenge, recovery, and user experience. The existing Wagtail permissions from previous phase will continue.
 
 There will be a separate ADR with detailed specifics of the implementation.
 
