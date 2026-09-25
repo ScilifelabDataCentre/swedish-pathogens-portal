@@ -1,0 +1,15 @@
+[checking]
+timeout=20
+
+[filtering]
+checkextern=1
+
+[output]
+log=text
+fileoutput=csv
+warnings=0
+
+[csv]
+filename=linkchecker-results.csv
+separator=|
+parts=parentname,name,urlname,result
