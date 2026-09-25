@@ -19,15 +19,13 @@ We have different groups of users, including internal editors and groups for ext
 The current setup therefore has two distinct concerns:
 
 - **Authentication** – establishing the identity of a user who wants to access the Wagtail admin.
-- **Authorization / RBAC** – determining what an authenticated user is allowed to access or change within Wagtail, based on Wagtail groups and permissions.
+- **Authorisation / RBAC** – determining what an authenticated user is allowed to access or change within Wagtail, based on Wagtail groups and permissions.
 
-This ADR concerns **authentication only**, the existing Wagtail groups, permissions, or RBAC model will continue.
+This ADR concerns **authentication only** i.e. the decision of selecting `django-allauth` as the authentication solution and the existing Wagtail groups, permissions, and RBAC model will continue. If there is gonna be a change on _authorisation_, there will be a separate ADR.
 
 ### Problem
 
-Our primary goal is to support modern authentication best practices for users accessing the Wagtail admin, starting with Multi-Factor Authentication (MFA).
-
-Django and Wagtail provide built-in authentication, but the current authentication setup does not provide the additional capabilities we want to support, such as:
+Our primary goal is to support modern authentication best practices for users accessing the Wagtail admin. Django and Wagtail provide built-in authentication, but the current authentication setup does not provide the additional capabilities we want to support, such as:
 
 - Multi-Factor Authentication (MFA)
 - Passkeys / WebAuthn
@@ -50,7 +48,7 @@ The following packages were considered:
 
 We will use **`django-allauth` as the authentication framework for the Wagtail admin**.
 
-The immediate goal is to move authentication for Wagtail admin users from the existing Django/Wagtail authentication flow to `django-allauth`, establishing it as the foundation for authentication-related functionality. MFA will be implemented on top of this foundation as the next concrete authentication capability.
+The immediate goal is to move from `Wagtail`'s authentication to `django-allauth`'s authentication, initially with just credentials (_username_ and _password_) login. MFA, passkeys, and organisation-level identity will be added later to the same (`django-allauth`'s) authentication foundation.
 
 `django-allauth` will only be responsible for **authentication**. It will not replace or manage our existing Wagtail authorization/RBAC model.
 
@@ -60,9 +58,7 @@ In particular:
 - Wagtail group permissions will continue to determine what authenticated users can access and modify.
 - The existing Wagtail permission model is not being replaced with an `allauth`-based authorization model.
 
-Passkeys and OIDC are **not part of the current implementation commitment**. They are potential future extensions that can be evaluated and implemented if they become requirements.
-
-If OIDC is introduced later, the expected direction is to integrate with an organisation-level identity provider such as DC's Keycloak and/or LS Sign In.
+The implementation will carried out in planned phases and there will be separate ADRs containing the detailed implementation decisions and approach for each phase. The general scope of each phase are listed in the **Implementation Plan** section.
 
 ## Implementation Plan
 
@@ -70,31 +66,31 @@ The implementation will be incremental, with the initial phases focused on estab
 
 ### Phase 1 – Adopt `django-allauth`
 
-Switch authentication for the Wagtail admin to `django-allauth`. The existing Wagtail groups, users, and permissions should continue to provide the authorization/RBAC model.
+Switch Wagtail admin sign-in to `django-allauth` using credentials (_username_ and _password_) login. The existing Wagtail groups, users, and permissions will continue to provide the authorization/RBAC model. But account handling (user information updating for example) will be evaluated and implemented. 
 
-The goal of this phase is to change the authentication mechanism without changing which users have access to which parts of the Wagtail admin.
+There will be a separate ADR with detailed specifics of the implementation.
 
 ### Phase 2 – Implement MFA
 
-Add MFA for Wagtail admin users using `django-allauth`. This phase will cover the required MFA enrolment, authentication, recovery, and user experience flows.
+Add MFA to `django-allauth` authentication layer. This phase will cover This phase will define enrolment, challenge, recovery, and user experience. The existing Wagtail permissions from previous phase will continue.
 
-The existing Wagtail permissions remain unchanged.
+There will be a separate ADR with detailed specifics of the implementation.
 
 ### Potential Phase 3 – Passkeys
 
-If passkeys become a requirement, evaluate and implement passkey/WebAuthn authentication using the `django-allauth` authentication foundation.
+If passkeys become a requirement, evaluate and implement passkey/WebAuthn authentication using the `django-allauth` authentication foundation. The exact authentication methods and user experience would be defined as part of this phase.
 
-The exact authentication methods and user experience would be defined as part of this phase.
+There will be a separate ADR with detailed specifics of the implementation.
 
 ### Potential Phase 4 – OIDC / Organisation Identity Provider
 
-If organisation-level single sign-on becomes a requirement, evaluate OIDC integration with an external identity provider.
+When organisation-level single sign-on becomes a requirement, evaluate OIDC integration with an external identity provider.
 
 Potential providers include our organisation's **Keycloak and/or LS Sign In**, depending on the identity architecture and requirements at that time.
 
-This phase would allow authentication for Wagtail admin users to be delegated to an organisation-level identity provider rather than relying solely on local application authentication.
+This phase would allow authentication for Wagtail admin users to be delegated to an organisation-level identity provider rather than relying solely on local application authentication. The existing Wagtail permissions from previous phase will continue.
 
-The existing Wagtail groups and permissions would continue to control what authenticated users are allowed to do within the admin.
+There will be a separate ADR with detailed specifics of the implementation.
 
 ## Consequences
 
