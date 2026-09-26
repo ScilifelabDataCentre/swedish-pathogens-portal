@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import base64
 import json
 import re
 import tempfile
@@ -20,7 +19,6 @@ from django.utils import timezone
 from cms.snippets.drr_dataset_data import DrrDatasetData
 from dashboard_visualisation.drr.channels import channel_map, figure_feature_columns
 from dashboard_visualisation.drr.figures import (
-    FEATURE_CATEGORIES,
     FIGURE_CLIP_BOUND,
     SNIPPET_FIGURE_BYTE_CEILING,
     clip_figure_values,
@@ -69,11 +67,11 @@ N_DOWNLOAD_FEATURES = 8
 N_FIGURE_FEATURES = 6
 
 # Per-category means of the fixture rows **on the figure basis**, in the input's
-# own units: the two control rows (CBK2's heatmap row), the four trt rows (the
-# default "compound" radar), the uninfected row alone (the infection radar's own
-# condition), and the two remaining compounds' heatmap rows. These hold only
-# while the figures run on the values as delivered; standardising the columns
-# again drives each of them to a z-score around -1 to 1 instead.
+# own units: the two control rows (the infected DMSO baseline), the four trt
+# rows (the default "compound" radar), and the uninfected row alone (the
+# infection radar's own condition). These hold only while the figures run on
+# the values as delivered; standardising the columns again drives each of them
+# to a z-score around -1 to 1 instead.
 #
 # Only Intensity and Correlation differ from the download basis, because those
 # are the two categories the fixture's antibody columns sit in — so these numbers
@@ -122,14 +120,6 @@ CBK1_CATEGORY_MEANS = {
     "RadialDistribution": 0.55,
     "Neighbors": 2.05,
 }
-CBK3_CATEGORY_MEANS = {
-    "AreaShape": 1.55,
-    "Intensity": 4.7,
-    "Granularity": 4.0,
-    "Correlation": 0.71,
-    "RadialDistribution": 0.725,
-    "Neighbors": 2.45,
-}
 
 # CBK3 is intentionally absent to exercise the unmatched-cbkid path.
 METADATA_TSV = (
@@ -148,20 +138,11 @@ NAME_LOOKUP_ROWS = {
     "pert_type": ["trt", "negcon", "trt"],
 }
 
-EXPECTED_FIGURE_IDS = {"pca", "heatmap", "radar_compound", "radar_infected"}
+EXPECTED_FIGURE_IDS = {"pca", "radar_compound", "radar_infected"}
 ARTEFACT_SUFFIXES = {".csv", ".parquet", ".json"}
 
 # Figure 3C's ring for a screen with four morphology channels (DS-8 item 2).
 RING_AXES = 24
-
-
-def _decode_array(payload: dict | list) -> np.ndarray:
-    """Return a numeric array from figure JSON, decoding Plotly's base64 form."""
-    if isinstance(payload, list):
-        return np.asarray(payload)
-    shape = tuple(int(part) for part in payload["shape"].split(","))
-    buffer = base64.b64decode(payload["bdata"])
-    return np.frombuffer(buffer, dtype=payload["dtype"]).reshape(shape)
 
 
 def _radar_axes(figure: dict) -> dict[str, float | None]:
@@ -228,13 +209,12 @@ class DrrPrecomputeTests(TestCase):
             )
 
     def test_artefacts_written(self) -> None:
-        """All derived files are written; umap is skipped without coordinates."""
+        """All derived figure and download artefacts are written."""
         self._run()
         for name in ("features.csv", "features.parquet", "compounds.parquet", "summary.json"):
             self.assertTrue((self.out_dir / name).is_file(), name)
         for figure_id in EXPECTED_FIGURE_IDS:
             self.assertTrue((self.out_dir / "figures" / f"{figure_id}.json").is_file(), figure_id)
-        self.assertFalse((self.out_dir / "figures" / "umap.json").exists())
 
     def test_data_row_upserted(self) -> None:
         """A DrrDatasetData row is created with figures, summary, and provenance."""
@@ -298,7 +278,7 @@ class DrrPrecomputeTests(TestCase):
         self.assertEqual(feature_sets["figures"]["excluded_channels"], ["illumCONC"])
         self.assertEqual(
             feature_sets["figures"]["used_by"],
-            ["pca", "heatmap", "radar_compound", "radar_infected"],
+            ["pca", "radar_compound", "radar_infected"],
         )
 
     def test_antibody_columns_stay_in_the_downloads(self) -> None:
@@ -638,22 +618,6 @@ class DrrPrecomputeTests(TestCase):
         self.assertEqual((self.out_dir / "figures" / "radar_infected.json").read_bytes(), first)
         self.assertEqual((self.out_dir / "features.csv").read_bytes(), features)
 
-    def test_heatmap_cells_are_not_standardised(self) -> None:
-        """Heatmap cells are per-compound category means, one row per compound."""
-        self._run()
-        trace = DrrDatasetData.get_data(SLUG).data["heatmap"]["data"][0]
-
-        self.assertEqual(trace["y"], ["CBK1", "CBK2", "CBK3"])
-        self.assertEqual(trace["x"], FEATURE_CATEGORIES)
-        cells = _decode_array(trace["z"])
-        for row, expected in enumerate(
-            (CBK1_CATEGORY_MEANS, CTRL_CATEGORY_MEANS, CBK3_CATEGORY_MEANS)
-        ):
-            for column, category in enumerate(FEATURE_CATEGORIES):
-                self.assertAlmostEqual(
-                    float(cells[row][column]), expected[category], places=6, msg=category
-                )
-
     def test_pca_axes_carry_the_variance_they_explain(self) -> None:
         """Each PCA axis states its own share of the variance, as paper Fig 1C does.
 
@@ -864,52 +828,6 @@ class DrrPrecomputeTests(TestCase):
         for path in self.out_dir.rglob("*"):
             if path.is_file():
                 self.assertIn(path.suffix, ARTEFACT_SUFFIXES, str(path))
-
-    def test_umap_included_with_coords(self) -> None:
-        """Supplying UMAP coordinates adds the umap figure and artefact."""
-        coords_path = self.base / "umap.parquet"
-        pl.DataFrame(
-            {
-                "umap_x": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
-                "umap_y": [1.1, 1.2, 1.3, 1.4, 1.5, 1.6],
-                "pert_type": ["trt", "trt", "ctrl", "trt", "ctrl", "trt"],
-            }
-        ).write_parquet(coords_path)
-
-        self._run(umap_coords=str(coords_path))
-
-        self.assertTrue((self.out_dir / "figures" / "umap.json").is_file())
-        row = DrrDatasetData.get_data(SLUG)
-        self.assertIn("umap", row.data)
-
-    def test_umap_coords_change_busts_source_hash(self) -> None:
-        """Changing only the UMAP coords changes source_file_hash (busts the render cache)."""
-        coords_a = self.base / "umap_a.parquet"
-        pl.DataFrame(
-            {
-                "umap_x": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
-                "umap_y": [1.1, 1.2, 1.3, 1.4, 1.5, 1.6],
-                "pert_type": ["trt", "trt", "ctrl", "trt", "ctrl", "trt"],
-            }
-        ).write_parquet(coords_a)
-        self._run(umap_coords=str(coords_a))
-        first = DrrDatasetData.get_data(SLUG)
-        first_hash = first.source_file_hash
-        first_umap = json.dumps(first.data["umap"], sort_keys=True)
-
-        coords_b = self.base / "umap_b.parquet"
-        pl.DataFrame(
-            {
-                "umap_x": [5.1, 5.2, 5.3, 5.4, 5.5, 5.6],
-                "umap_y": [9.1, 9.2, 9.3, 9.4, 9.5, 9.6],
-                "pert_type": ["trt", "trt", "ctrl", "trt", "ctrl", "trt"],
-            }
-        ).write_parquet(coords_b)
-        self._run(umap_coords=str(coords_b))
-        second = DrrDatasetData.get_data(SLUG)
-
-        self.assertNotEqual(second.source_file_hash, first_hash)
-        self.assertNotEqual(json.dumps(second.data["umap"], sort_keys=True), first_umap)
 
     def test_metadata_change_busts_snippet_hash_only(self) -> None:
         """A metadata-only change folds into the snippet hash; summary keeps the feature digest."""

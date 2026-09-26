@@ -96,7 +96,7 @@ FULL_SUMMARY = {
                     {"column": "AreaShape_FormFactor_nuclei", "n_clipped": 311}
                 ],
             },
-            "used_by": ["pca", "heatmap", "radar_compound", "radar_infected"],
+            "used_by": ["pca", "radar_compound", "radar_infected"],
         },
     },
     "compound_reconciliation": {

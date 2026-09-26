@@ -67,12 +67,6 @@ class Command(BaseCommand):
         )
         parser.add_argument("--title", default="", help="Human-readable dataset title.")
         parser.add_argument(
-            "--umap-coords",
-            dest="umap_coords",
-            default=None,
-            help="Optional precomputed UMAP coordinates (parquet/CSV); skipped if omitted.",
-        )
-        parser.add_argument(
             "--data-updated-at",
             dest="data_updated_at",
             default=None,
@@ -126,7 +120,6 @@ class Command(BaseCommand):
             feature_columns=figure_columns,
             channels=channels,
             compound_labels=self._compound_labels(compound_index),
-            umap_coords=options["umap_coords"],
         )
         figures = bundle.figures
         oversized = oversized_figures(figures)
@@ -154,17 +147,15 @@ class Command(BaseCommand):
 
         feature_hash = self._hash_file(input_path)
         names_hash = self._hash_file(names_path) if names_path else None
-        # Fixed order — feature table, metadata, name lookup, UMAP coordinates —
-        # so the digest depends on the inputs and not on the order the optional
-        # ones were passed in. Two digests come out of it, and they answer
-        # different questions: the inputs-only one says whether the *data* moved,
-        # and the one with the figure-basis token appended says whether anything
-        # a rendered figure depends on moved.
+        # Fixed order — feature table, metadata, name lookup — so the digest
+        # depends on the inputs and not on the order the optional ones were
+        # passed in. Two digests come out of it, and they answer different
+        # questions: the inputs-only one says whether the *data* moved, and the
+        # one with the figure-basis token appended says whether anything a
+        # rendered figure depends on moved.
         input_hashes = [feature_hash, self._hash_file(metadata_path)]
         if names_hash:
             input_hashes.append(names_hash)
-        if options["umap_coords"]:
-            input_hashes.append(self._hash_file(Path(options["umap_coords"])))
         inputs_hash = self._combine_hashes(input_hashes)
         source_hash = self._combine_hashes([*input_hashes, figure_basis_token(figure_columns)])
         generated_at = timezone.now()
@@ -306,13 +297,13 @@ class Command(BaseCommand):
     def _combine_hashes(tokens: list[str]) -> str:
         """Combine per-input digests and the figure-basis token into one hash.
 
-        Folding every precompute input (feature table, metadata, and any UMAP
-        coordinates) into ``source_file_hash`` ensures the ``PlotlyFigureBlock``
-        render cache (keyed by slug + figure_id + source_file_hash) is busted
-        whenever any input that affects the figures changes. The last token
-        describes the figure basis instead of an input: a change to *how* the
-        figures are computed moves no input digest, and the cache holds for 24
-        hours, so without it the page would serve the previous render for a day
+        Folding every precompute input (feature table and metadata) into
+        ``source_file_hash`` ensures the ``PlotlyFigureBlock`` render cache
+        (keyed by slug + figure_id + source_file_hash) is busted whenever any
+        input that affects the figures changes. The last token describes the
+        figure basis instead of an input: a change to *how* the figures are
+        computed moves no input digest, and the cache holds for 24 hours, so
+        without it the page would serve the previous render for a day
         (FREYA-2968).
         """
         hasher = hashlib.sha256()
