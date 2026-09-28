@@ -13,6 +13,7 @@ import base64
 from unittest.mock import patch
 
 import numpy as np
+import plotly.graph_objects as go
 import polars as pl
 from django.test import SimpleTestCase
 
@@ -30,6 +31,7 @@ from dashboard_visualisation.drr.figures import (
     figure_basis_token,
 )
 from dashboard_visualisation.drr.loader import FeatureTable
+from dashboard_visualisation.utils.plotly import figure_to_json
 
 SLUG = "sars-cov2-a549-ace2-validation"
 
@@ -232,7 +234,7 @@ class DrrFigureBuildTests(SimpleTestCase):
         return dict(zip(trace["theta"][:-1], trace["r"][:-1], strict=True))
 
     def test_every_feature_basis_figure_is_built(self) -> None:
-        """The four feature-derived figures are built; umap needs its own coordinates."""
+        """Every feature-derived figure is built."""
         self.assertEqual(set(self.figures), set(FEATURE_BASIS_FIGURE_IDS))
 
     def test_the_radar_averages_the_figure_basis_only(self) -> None:
@@ -333,7 +335,7 @@ class DrrFigureClipTests(SimpleTestCase):
 
         self.assertAlmostEqual(axes["Neighbors C"], 50.0, places=6)
 
-    def test_no_out_of_range_value_reaches_a_radar_or_the_heatmap(self) -> None:
+    def test_no_out_of_range_value_reaches_a_radar(self) -> None:
         """Every plotted mean is a mean of clipped values, so none can exceed the bound."""
         figures = self._figures()
 
@@ -342,8 +344,6 @@ class DrrFigureClipTests(SimpleTestCase):
                 if radius is None:
                     continue
                 self.assertLessEqual(abs(float(radius)), FIGURE_CLIP_BOUND, figure_id)
-        cells = _decode_array(figures["heatmap"]["data"][0]["z"])
-        self.assertLessEqual(float(np.abs(cells).max()), FIGURE_CLIP_BOUND)
 
     def test_the_pca_is_computed_on_the_clipped_values(self) -> None:
         """The outlier stops driving the spread once the bound applies.
@@ -394,3 +394,25 @@ class DrrFigureClipTests(SimpleTestCase):
             figure_basis_token(self.columns),
             figure_basis_token(self.columns[:-1]),
         )
+
+
+class DrrTwoDimensionalArraySerialisationTests(SimpleTestCase):
+    """Plotly's base64 ``bdata``/``shape`` form for a 2-D array.
+
+    Every figure this package builds is a 1-D trace now that the heatmap is gone,
+    so nothing else exercises Plotly serialising a 2-D array: it comes back with
+    a ``shape`` key alongside ``bdata``, where a 1-D array carries ``bdata``
+    alone. This pins the decoder's 2-D path directly, independent of any figure.
+    """
+
+    def test_a_two_dimensional_array_keeps_its_shape_key(self) -> None:
+        """A small 2-D array still round-trips through ``bdata`` and ``shape``."""
+        matrix = np.arange(12, dtype=np.float64).reshape(3, 4)
+        figure = go.Figure(go.Heatmap(z=matrix))
+
+        payload = figure_to_json(figure)["data"][0]["z"]
+
+        self.assertIsInstance(payload, dict)
+        self.assertIn("bdata", payload)
+        self.assertIn("shape", payload)
+        self.assertEqual(_decode_array(payload).tolist(), matrix.tolist())

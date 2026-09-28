@@ -17,12 +17,10 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any
 
 import numpy as np
 import plotly.graph_objects as go
-import polars as pl
 
 from dashboard_visualisation.utils.plotly import figure_to_json
 
@@ -37,23 +35,11 @@ from .radar import (
     unplotted_columns,
 )
 
-# Radar / heatmap feature categories (CellProfiler measurement groups).
-FEATURE_CATEGORIES: list[str] = [
-    "AreaShape",
-    "Intensity",
-    "Granularity",
-    "Correlation",
-    "RadialDistribution",
-    "Neighbors",
-]
-
 # The figures computed from the feature matrix, and therefore from the figure
-# basis rather than the download set (spec section 5). ``umap`` is not among them:
-# its coordinates come from a file, not from these columns. ``summary.json`` reads
-# this list, so the two feature sets are recorded where they are used.
+# basis rather than the download set. ``summary.json`` reads this list, so the
+# figure basis is recorded where it is used.
 FEATURE_BASIS_FIGURE_IDS: tuple[str, ...] = (
     "pca",
-    "heatmap",
     "radar_compound",
     "radar_infected",
 )
@@ -72,16 +58,11 @@ _CLIP_REPORT_COLUMNS = 5
 # What one figure may weigh in ``DrrDatasetData.data``. The snippet is a single
 # ``JSONField``, so every figure on it is deserialised to render any one of
 # them, and each precompute run snapshots the lot into a revision. The bound is
-# generous against what the page actually carries — a 816 x 8 heatmap view
-# measured ~104 KB — and exists to catch the other end: the clustered
-# compound-by-feature panel that measured 33.9 MB and forced spec section 4's
-# on-disk set. A figure past it is refused rather than published (spec section
-# 10; a set belongs under ``figures/radar/``, not here).
+# generous against what the page actually carries and exists to catch the other
+# end: the clustered compound-by-feature panel that measured 33.9 MB and forced
+# the move to an on-disk set. A figure past it is refused rather than published
+# (a set belongs under ``figures/radar/``, not here).
 SNIPPET_FIGURE_BYTE_CEILING = 1024 * 1024
-
-# Cap heatmap rows so the serialised figure stays small; compounds are ranked by
-# overall absolute morphological signal. The second axis is Open Item 2.
-_HEATMAP_MAX_COMPOUNDS = 50
 
 
 @dataclass
@@ -93,7 +74,6 @@ class _Prepared:
             cols = the figure basis's features).
         feature_columns: The figure basis's column names, aligned with
             ``matrix`` columns.
-        categories: Feature category per column (``None`` if uncategorised).
         pert_types: Per-row ``pert_type`` label.
         cbkids: Per-row ``cbkid`` label.
         n_download_features: How many features the downloads carry, which the
@@ -102,16 +82,9 @@ class _Prepared:
 
     matrix: np.ndarray
     feature_columns: list[str]
-    categories: list[str | None]
     pert_types: np.ndarray
     cbkids: np.ndarray
     n_download_features: int
-
-
-def _feature_category(column: str) -> str | None:
-    """Return the CellProfiler category prefix of a feature column, if known."""
-    prefix = column.split("_", 1)[0]
-    return prefix if prefix in FEATURE_CATEGORIES else None
 
 
 def _column_values(table: FeatureTable, name: str) -> np.ndarray:
@@ -202,23 +175,13 @@ def _prepare(table: FeatureTable, feature_columns: list[str]) -> _Prepared:
     figure cannot be computed partly from the assay's own answer (FREYA-2923).
     The downloads keep every column, unclipped.
     """
-    categories = [_feature_category(column) for column in feature_columns]
     return _Prepared(
         matrix=clip_figure_values(table.numeric_matrix(feature_columns)),
         feature_columns=feature_columns,
-        categories=categories,
         pert_types=_column_values(table, "pert_type"),
         cbkids=_column_values(table, "cbkid"),
         n_download_features=len(table.feature_columns),
     )
-
-
-def _category_indices(prep: _Prepared) -> dict[str, list[int]]:
-    """Map each feature category to the column indices that belong to it."""
-    return {
-        category: [i for i, value in enumerate(prep.categories) if value == category]
-        for category in FEATURE_CATEGORIES
-    }
 
 
 def build_pca(prep: _Prepared) -> go.Figure:
@@ -265,51 +228,6 @@ def build_pca(prep: _Prepared) -> go.Figure:
         yaxis_title=f"PC2 ({explained[1] * 100:.1f}% variance)",
         legend_title="pert_type",
         plot_bgcolor="white",
-    )
-    return figure
-
-
-def _compound_category_matrix(prep: _Prepared) -> tuple[list[str], np.ndarray]:
-    """Return sorted cbkids and their per-category mean signal, in MAD units."""
-    category_indices = _category_indices(prep)
-    cbkids = sorted(set(prep.cbkids.tolist()))
-    rows = []
-    for cbkid in cbkids:
-        row_mask = prep.cbkids == cbkid
-        subset = prep.matrix[row_mask]
-        rows.append(
-            [
-                float(subset[:, indices].mean()) if indices and subset.size else 0.0
-                for indices in (category_indices[category] for category in FEATURE_CATEGORIES)
-            ]
-        )
-    matrix = np.array(rows) if rows else np.zeros((0, len(FEATURE_CATEGORIES)))
-    return cbkids, matrix
-
-
-def build_heatmap(prep: _Prepared) -> go.Figure:
-    """Build a compound x feature-category heatmap of mean signal in MAD units."""
-    cbkids, matrix = _compound_category_matrix(prep)
-    if matrix.shape[0] > _HEATMAP_MAX_COMPOUNDS:
-        ranked = np.argsort(-np.abs(matrix).sum(axis=1))[:_HEATMAP_MAX_COMPOUNDS]
-        ranked = np.sort(ranked)
-        matrix = matrix[ranked]
-        cbkids = [cbkids[i] for i in ranked]
-
-    figure = go.Figure(
-        go.Heatmap(
-            z=matrix,
-            x=FEATURE_CATEGORIES,
-            y=cbkids,
-            colorscale="RdBu",
-            zmid=0,
-            colorbar={"title": "mean (MAD units)"},
-        )
-    )
-    figure.update_layout(
-        title="Compound x feature-category morphological signal",
-        xaxis_title="Feature category",
-        yaxis_title="Compound (cbkid)",
     )
     return figure
 
@@ -437,64 +355,6 @@ def build_compound_radar(
     )
 
 
-def _read_coords(path: Path) -> pl.DataFrame:
-    """Read a precomputed UMAP coordinates file (parquet or CSV)."""
-    if path.suffix == ".parquet":
-        return pl.read_parquet(path)
-    return pl.read_csv(path)
-
-
-def build_umap(coords_path: str | Path | None) -> go.Figure | None:
-    """Build a UMAP scatter from precomputed coordinates, or ``None`` if absent.
-
-    Phase 1 sources UMAP coordinates offline (no ``umap-learn`` dependency; see
-    FREYA-2560). When no coordinates file is supplied the figure is skipped.
-
-    Args:
-        coords_path: Path to a parquet/CSV with ``umap_x``, ``umap_y`` and an
-            optional ``pert_type`` column, or ``None`` to skip.
-
-    Returns:
-        A Plotly figure, or ``None`` when no coordinates are provided.
-
-    Raises:
-        ValueError: If the coordinates file lacks the required columns.
-    """
-    if coords_path is None:
-        return None
-
-    frame = _read_coords(Path(coords_path))
-    missing = {"umap_x", "umap_y"} - set(frame.columns)
-    if missing:
-        raise ValueError(f"UMAP coords missing columns: {sorted(missing)}")
-
-    x = frame["umap_x"].to_numpy().astype(np.float64)
-    y = frame["umap_y"].to_numpy().astype(np.float64)
-    if "pert_type" in frame.columns:
-        pert_types = np.array([str(value) for value in frame["pert_type"].to_list()])
-    else:
-        pert_types = np.array(["all"] * len(x))
-
-    figure = go.Figure()
-    for level in sorted(set(pert_types.tolist())):
-        mask = pert_types == level
-        figure.add_scatter(
-            x=x[mask],
-            y=y[mask],
-            mode="markers",
-            name=level or "unknown",
-            marker={"size": 5, "opacity": 0.6},
-        )
-    figure.update_layout(
-        title="UMAP embedding (precomputed)",
-        xaxis_title="UMAP-1",
-        yaxis_title="UMAP-2",
-        legend_title="pert_type",
-        plot_bgcolor="white",
-    )
-    return figure
-
-
 def oversized_figures(figures: dict[str, Any]) -> dict[str, int]:
     """Return the serialised size of each figure too large for the snippet.
 
@@ -548,7 +408,6 @@ def build_figure_bundle(
     feature_columns: list[str],
     channels: tuple[Channel, ...],
     compound_labels: dict[str, str] | None = None,
-    umap_coords: str | Path | None = None,
 ) -> FigureBundle:
     """Build the snippet's figures and the per-compound radar set in one pass.
 
@@ -563,13 +422,9 @@ def build_figure_bundle(
             come from.
         compound_labels: Optional ``cbkid`` to display-name map, used for each
             per-compound radar's title.
-        umap_coords: Optional precomputed UMAP coordinates path; when omitted the
-            ``umap`` figure is skipped.
 
     Returns:
-        The bundle. Its ``figures`` always contain ``FEATURE_BASIS_FIGURE_IDS``
-        and add ``umap`` only when coordinates are supplied, which come from that
-        file rather than from these columns.
+        The bundle. Its ``figures`` always contain ``FEATURE_BASIS_FIGURE_IDS``.
 
     Raises:
         ValueError: If a radar population is empty (``radar.axis_values``).
@@ -580,13 +435,9 @@ def build_figure_bundle(
 
     figures: dict[str, Any] = {
         "pca": _to_json(build_pca(prep)),
-        "heatmap": _to_json(build_heatmap(prep)),
         "radar_compound": _to_json(build_compound_radar(prep, axes)),
         "radar_infected": _to_json(build_infected_radar(prep, axes)),
     }
-    umap_figure = build_umap(umap_coords)
-    if umap_figure is not None:
-        figures["umap"] = _to_json(umap_figure)
 
     treated = sorted(set(prep.cbkids[prep.pert_types == TREATMENT_POPULATION].tolist()))
     radars = {
@@ -606,7 +457,6 @@ def build_all_figures(
     *,
     feature_columns: list[str],
     channels: tuple[Channel, ...],
-    umap_coords: str | Path | None = None,
 ) -> dict[str, Any]:
     """Build the snippet's figures, keyed by ``figure_id``.
 
@@ -617,5 +467,4 @@ def build_all_figures(
         table,
         feature_columns=feature_columns,
         channels=channels,
-        umap_coords=umap_coords,
     ).figures
