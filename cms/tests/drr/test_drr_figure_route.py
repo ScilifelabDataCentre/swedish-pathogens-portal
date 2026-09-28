@@ -1,10 +1,11 @@
-"""Tests for the figure swap route and the radar picker (FREYA-2636, spec section 8.3).
+"""Tests for the radar partial, its picker and the swap route (FREYA-2636, spec section 8.3).
 
-One route serves both section 9 controls, because both are the same operation:
-return one server-rendered figure partial. What these assert is the boundary
-around it — an allow-listed ``figure_id`` that never becomes a path, a ``cbkid``
-resolved through the compound index rather than assembled from the request, and
-a 404 that leaves the figure already on the page standing.
+The radars and their compound picker render together from the page's own
+partial, not from editor-placed figure blocks, and the route returns one
+compound's radar through that same partial. What these assert is the boundary
+around it — a ``cbkid`` resolved through the compound index rather than
+assembled from the request, a 404 that leaves the figure already on the page
+standing — and that the page shows each radar once, picker beside it.
 """
 
 from __future__ import annotations
@@ -16,7 +17,7 @@ import polars as pl
 from django.core.cache import cache
 from django.http import HttpResponse
 
-from cms.pages.drr_dataset import DrrDatasetPage
+from cms.pages.drr_dataset import _RADAR_FIGURES, DrrDatasetPage
 from cms.snippets.drr_dataset_data import DrrDatasetData
 from cms.tests.drr.test_drr_dataset_page import DrrDatasetPageTestCase
 from cms.tests.utils import create_test_image, use_temp_media_root
@@ -28,12 +29,16 @@ SLUG = "drr-figure-route"
 # from the sanitiser the run actually uses.
 STAU_KEY = artefact_key("[stau]")
 
-# Two figures on the snippet and one radar on disk, which is the split spec
+# Three figures on the snippet and a radar set on disk, which is the split spec
 # section 4 draws: one figure per figure_id in the snippet, a keyed set on disk.
 SNIPPET_FIGURES = {
     "pca": {"data": [{"type": "scatter", "x": [1.0], "y": [2.0]}], "layout": {}},
     "radar_compound": {
         "data": [{"type": "scatterpolar", "r": [1.0], "theta": ["DNA I"]}],
+        "layout": {},
+    },
+    "radar_infected": {
+        "data": [{"type": "scatterpolar", "r": [2.0], "theta": ["DNA I"]}],
         "layout": {},
     },
 }
@@ -69,7 +74,11 @@ class DrrFigureRouteTestCase(DrrDatasetPageTestCase):
 
     @classmethod
     def setUpTestData(cls) -> None:
-        """Publish a DRR dataset page carrying a placed radar block."""
+        """Publish a DRR dataset page placing the PCA and a leftover radar block.
+
+        The radar block is what every page built before the radar partial
+        still carries, so the fixture keeps one to prove it is not drawn twice.
+        """
         super().setUpTestData()
         cls.image = create_test_image(title="DRR Route", file_name="drr-route.jpg")
         cls.page = DrrDatasetPage(
@@ -81,13 +90,16 @@ class DrrFigureRouteTestCase(DrrDatasetPageTestCase):
             content=[
                 {
                     "type": "plotly_figure",
+                    "value": {"figure_id": "pca", "alt_text": "PCA of profiles", "height": 500},
+                },
+                {
+                    "type": "plotly_figure",
                     "value": {
                         "figure_id": "radar_compound",
-                        "alt_text": "Radar of morphological change",
+                        "alt_text": "Leftover editorial radar",
                         "height": 640,
-                        "caption": "Both radars share one axis ring.",
                     },
-                }
+                },
             ],
         )
         cls.index.add_child(instance=cls.page)
@@ -127,36 +139,34 @@ class DrrFigureRouteTestCase(DrrDatasetPageTestCase):
         """GET the figure route with the given query parameters."""
         return self.client.get(self.page.url + "figure/", params)
 
+    def page_body(self) -> str:
+        """GET the page and return its HTML."""
+        response = self.client.get(self.page.url)
+        self.assertEqual(response.status_code, 200)
+        return response.content.decode()
+
 
 class DrrFigureRouteTests(DrrFigureRouteTestCase):
     """What the route serves, and what it refuses."""
 
-    def test_each_allow_listed_snippet_figure_is_served(self) -> None:
-        """One server-rendered partial per figure the snippet holds."""
-        for figure_id in ("pca", "radar_compound"):
-            with self.subTest(figure_id=figure_id):
-                response = self.figure(figure_id=figure_id)
-
-                self.assertEqual(response.status_code, 200)
-                self.assertContains(response, "plotly-figure")
-
-    def test_the_partial_is_the_figure_body_and_not_the_page(self) -> None:
-        """An htmx swap replaces one block, so the response carries no page chrome."""
-        response = self.figure(figure_id="pca")
+    def test_the_partial_is_one_radar_and_not_the_page(self) -> None:
+        """An htmx swap replaces one figure, so the response carries no page chrome."""
+        response = self.figure(cbkid="CBK1")
         body = response.content.decode()
 
-        self.assertIn('id="figure-pca"', body)
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('id="drr-radar-radar_compound"', body)
+        self.assertIn("plotly-figure", body)
         self.assertNotIn("<html", body)
-        self.assertNotIn("Downloads", body)
+        self.assertNotIn("Radar plots", body)
 
-    def test_the_swapped_figure_keeps_the_placed_block_s_editorial_settings(self) -> None:
-        """Alt text, caption and height survive the swap, so the page holds its shape."""
-        response = self.figure(figure_id="radar_compound", cbkid="CBK1")
-        body = response.content.decode()
+    def test_the_swapped_figure_keeps_the_page_s_settings(self) -> None:
+        """Alt text and height come from the page's radar settings, so it holds its shape."""
+        body = self.figure(cbkid="CBK1").content.decode()
 
-        self.assertIn("Radar of morphological change", body)
-        self.assertIn("Both radars share one axis ring.", body)
-        self.assertIn("640px", body)
+        self.assertIn(_RADAR_FIGURES[0]["alt_text"], body)
+        self.assertIn(f"{_RADAR_FIGURES[0]['height']}px", body)
+        self.assertNotIn("Leftover editorial radar", body)
 
     def test_the_swapped_figure_carries_its_basis_caveat_as_page_text(self) -> None:
         """The qualification survives the swap, and as wrapping text rather than chart ink.
@@ -165,36 +175,29 @@ class DrrFigureRouteTests(DrrFigureRouteTestCase):
         and is clipped at the plot's edge on a narrow viewport — so the reader
         who most needs the sentence is the one who cannot finish it.
         """
-        response = self.figure(figure_id="radar_compound", cbkid="CBK1")
+        response = self.figure(cbkid="CBK1")
 
-        self.assertContains(response, "1,144 morphology features")
-        self.assertContains(response, "all 1,467 features, unclipped")
         self.assertInHTML(
             f'<p class="text-sm text-pp-dark-grey mt-2">{RADAR_CAVEAT}</p>',
             response.content.decode(),
         )
 
-    def test_a_figure_without_a_caveat_renders_no_empty_paragraph(self) -> None:
-        """Only a payload that declares one gets the line; the PCA declares none."""
-        response = self.figure(figure_id="pca")
+    def test_a_radar_without_a_caveat_renders_no_empty_paragraph(self) -> None:
+        """Only a payload that declares one gets the line; the control radar declares none."""
+        response = self.figure(cbkid="[stau]")
 
         self.assertNotContains(response, "text-sm text-pp-dark-grey mt-2")
 
-    def test_a_figure_id_outside_the_allow_list_is_404_not_a_path_lookup(self) -> None:
-        """The id names a key, never a file: an unknown one is refused before any read."""
-        (self.artefacts / "figures" / "evil.json").write_text("{}", encoding="utf-8")
+    def test_no_compound_is_404(self) -> None:
+        """The route serves the per-compound set only; the defaults are on the page."""
+        self.assertEqual(self.figure().status_code, 404)
+        self.assertEqual(self.figure(cbkid="  ").status_code, 404)
 
-        for figure_id in ("evil", "../summary", "summary.json", ""):
+    def test_the_route_serves_no_other_figure(self) -> None:
+        """A ``figure_id`` names nothing any more: the route is the compound radar's alone."""
+        for figure_id in ("pca", "radar_infected", "../summary"):
             with self.subTest(figure_id=figure_id):
                 self.assertEqual(self.figure(figure_id=figure_id).status_code, 404)
-
-    def test_an_allow_listed_figure_the_dataset_lacks_is_404(self) -> None:
-        """``umap`` is allow-listed but unprecomputed here, so there is nothing to serve."""
-        self.assertEqual(self.figure(figure_id="umap").status_code, 404)
-
-    def test_only_the_radar_takes_a_compound(self) -> None:
-        """The heatmap and PCA are single figures; a cbkid on them is a bad request."""
-        self.assertEqual(self.figure(figure_id="pca", cbkid="CBK1").status_code, 404)
 
 
 class DrrRadarSetRouteTests(DrrFigureRouteTestCase):
@@ -202,42 +205,40 @@ class DrrRadarSetRouteTests(DrrFigureRouteTestCase):
 
     def test_a_named_compound_is_served_from_the_set(self) -> None:
         """The response is that compound's radar, not the snippet's default."""
-        response = self.figure(figure_id="radar_compound", cbkid="CBK1")
+        response = self.figure(cbkid="CBK1")
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Remdesivir (CBK1)")
 
     def test_a_bracketed_control_id_round_trips_through_the_query_string(self) -> None:
         """``[stau]`` cannot sit in a path segment, which is why it travels as a parameter."""
-        response = self.figure(figure_id="radar_compound", cbkid="[stau]")
+        response = self.figure(cbkid="[stau]")
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "[stau] (control)")
 
     def test_an_unknown_compound_is_404_and_leaves_the_default_standing(self) -> None:
         """The page keeps the radar it already rendered; nothing on it changes."""
-        response = self.figure(figure_id="radar_compound", cbkid="CBK404")
-        page = self.client.get(self.page.url)
+        response = self.figure(cbkid="CBK404")
 
         self.assertEqual(response.status_code, 404)
-        self.assertEqual(page.status_code, 200)
-        self.assertContains(page, 'id="figure-radar_compound"')
+        self.assertIn('id="drr-radar-radar_compound"', self.page_body())
 
     def test_a_compound_with_no_radar_is_404_rather_than_someone_else_s(self) -> None:
         """CBK2 has no treated well, so the index gives it no key and nothing is served."""
-        self.assertEqual(self.figure(figure_id="radar_compound", cbkid="CBK2").status_code, 404)
+        self.assertEqual(self.figure(cbkid="CBK2").status_code, 404)
 
     def test_a_missing_artefact_is_404(self) -> None:
         """An index that names a file the run never wrote costs the swap, not the page."""
         (self.artefacts / "figures" / "radar" / "CBK1.json").unlink()
 
-        self.assertEqual(self.figure(figure_id="radar_compound", cbkid="CBK1").status_code, 404)
+        self.assertEqual(self.figure(cbkid="CBK1").status_code, 404)
 
     def test_an_unreadable_artefact_is_404(self) -> None:
         """A truncated file is refused where a half-written generation would produce one."""
         (self.artefacts / "figures" / "radar" / "CBK1.json").write_text("{not json", "utf-8")
 
-        self.assertEqual(self.figure(figure_id="radar_compound", cbkid="CBK1").status_code, 404)
+        self.assertEqual(self.figure(cbkid="CBK1").status_code, 404)
 
     def test_traversal_through_the_compound_id_is_rejected(self) -> None:
         """The id only ever looks a key up, and the lookup then takes the download guard."""
@@ -251,7 +252,7 @@ class DrrRadarSetRouteTests(DrrFigureRouteTestCase):
             "%2e%2e%2fsummary",
         ):
             with self.subTest(cbkid=cbkid):
-                response = self.figure(figure_id="radar_compound", cbkid=cbkid)
+                response = self.figure(cbkid=cbkid)
 
                 self.assertEqual(response.status_code, 404)
 
@@ -269,40 +270,39 @@ class DrrRadarSetRouteTests(DrrFigureRouteTestCase):
             }
         )
 
-        self.assertEqual(self.figure(figure_id="radar_compound", cbkid="CBK1").status_code, 404)
+        self.assertEqual(self.figure(cbkid="CBK1").status_code, 404)
 
 
 class DrrFigureRouteCacheTests(DrrFigureRouteTestCase):
-    """The render cache extends the block's key rather than adding a second one."""
+    """The radar render cache is DRR's own and keys on the compound."""
 
     def test_two_compounds_cannot_serve_each_other_s_figure(self) -> None:
         """``cbkid`` is part of the key, so the second request is not the first's render."""
-        first = self.figure(figure_id="radar_compound", cbkid="CBK1")
-        second = self.figure(figure_id="radar_compound", cbkid="[stau]")
+        first = self.figure(cbkid="CBK1")
+        second = self.figure(cbkid="[stau]")
 
         self.assertContains(first, "Remdesivir (CBK1)")
         self.assertContains(second, "[stau] (control)")
 
-    def test_the_default_view_and_a_compound_do_not_share_a_key(self) -> None:
-        """Same ``figure_id``, different figures: the variant is what separates them."""
-        default = self.figure(figure_id="radar_compound")
-        compound = self.figure(figure_id="radar_compound", cbkid="CBK1")
+    def test_the_page_default_and_a_compound_do_not_share_a_key(self) -> None:
+        """Same ``figure_id``, different figures: rendering the page first changes nothing."""
+        self.page_body()
 
-        self.assertNotEqual(default.content, compound.content)
+        self.assertContains(self.figure(cbkid="CBK1"), "Remdesivir (CBK1)")
 
     def test_a_new_source_file_hash_re_renders(self) -> None:
         """A re-run's figures reach the reader rather than yesterday's cached HTML."""
-        before = self.figure(figure_id="radar_compound", cbkid="CBK1").content
+        before = self.figure(cbkid="CBK1").content
 
         self.write_radar("CBK1", CONTROL_RADAR_ON_DISK)
         self.data.source_file_hash = "hash-two"
         self.data.save()
 
-        self.assertNotEqual(self.figure(figure_id="radar_compound", cbkid="CBK1").content, before)
+        self.assertNotEqual(self.figure(cbkid="CBK1").content, before)
 
 
-class DrrRadarPickerTests(DrrFigureRouteTestCase):
-    """The section 9 control that drives the route."""
+class DrrRadarPartialTests(DrrFigureRouteTestCase):
+    """The radars and their picker, rendered together from the page's partial."""
 
     def test_the_picker_offers_only_compounds_with_a_radar(self) -> None:
         """Every option resolves, so no option can 404 (as FREYA-2583's already does)."""
@@ -313,20 +313,60 @@ class DrrRadarPickerTests(DrrFigureRouteTestCase):
             [("CBK1", "Remdesivir (CBK1)"), ("[stau]", "[stau] (control)")],
         )
 
-    def test_the_rendered_picker_targets_the_radar_and_names_the_figure(self) -> None:
-        """An htmx GET to the route, swapping that one figure's body."""
-        response = self.client.get(self.page.url)
+    def test_the_rendered_picker_targets_the_compound_radar(self) -> None:
+        """An htmx GET to the route, swapping that one figure."""
+        body = self.page_body()
 
-        self.assertContains(response, 'hx-target="#figure-radar_compound"')
-        self.assertContains(response, 'name="figure_id" value="radar_compound"')
-        self.assertContains(response, self.page.url + "figure/")
+        self.assertIn('hx-target="#drr-radar-radar_compound"', body)
+        self.assertIn(self.page.url + "figure/", body)
+        self.assertNotIn('name="figure_id"', body)
+
+    def test_the_picker_sits_with_the_radars_after_the_editorial_content(self) -> None:
+        """PCA, then the radar section: its picker, the compound radar, the infected radar."""
+        body = self.page_body()
+
+        positions = [
+            body.index('aria-label="PCA of profiles"'),
+            body.index('id="drr-radars-heading"'),
+            body.index('id="drr-radar-compound"'),
+            body.index('id="drr-radar-radar_compound"'),
+            body.index('id="drr-radar-radar_infected"'),
+        ]
+        self.assertEqual(positions, sorted(positions))
+
+    def test_a_radar_block_left_in_the_content_is_not_drawn_twice(self) -> None:
+        """Each radar renders once, from the partial; the leftover block is skipped."""
+        body = self.page_body()
+
+        self.assertEqual(body.count('class="plotly-figure"'), 3)
+        self.assertEqual(body.count('id="drr-radar-radar_compound"'), 1)
+        self.assertNotIn("Leftover editorial radar", body)
 
     def test_the_page_renders_its_default_radar_without_the_control(self) -> None:
         """Progressive enhancement: the figure is complete before anything is picked."""
-        response = self.client.get(self.page.url)
+        self.write_compound_index(
+            {"cbkid": ["CBK1"], "kind": ["compound"], "name": ["Remdesivir"], "radar_key": [None]}
+        )
 
-        self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'id="figure-radar_compound"')
+        body = self.page_body()
+
+        self.assertIn('id="drr-radar-radar_compound"', body)
+        self.assertNotIn('id="drr-radar-compound"', body)
+
+    def test_a_radar_s_caveat_renders_on_the_page(self) -> None:
+        """The default view carries its basis caveat as page text, as a swap does."""
+        self.data.data = {
+            **SNIPPET_FIGURES,
+            "radar_compound": {
+                **SNIPPET_FIGURES["radar_compound"],
+                "layout": {"meta": {"caveat": RADAR_CAVEAT}},
+            },
+        }
+        self.data.save()
+
+        self.assertInHTML(
+            f'<p class="text-sm text-pp-dark-grey mt-2">{RADAR_CAVEAT}</p>', self.page_body()
+        )
 
     def test_no_picker_without_a_precomputed_set(self) -> None:
         """An index with no radar keys offers no control at all."""
@@ -337,36 +377,19 @@ class DrrRadarPickerTests(DrrFigureRouteTestCase):
         response = self.client.get(self.page.url)
 
         self.assertNotIn("radar_compounds", self.page.get_context(response.wsgi_request))
-        self.assertNotContains(response, "Radar: choose a compound")
 
-    def test_no_picker_when_the_radar_block_is_not_placed(self) -> None:
-        """A control needs the figure it swaps: without the block there is no target.
+    def test_no_radar_section_and_no_picker_without_the_default_radar(self) -> None:
+        """A control needs the figure it swaps: without it there is no target.
 
-        The set can be fully precomputed and the editor still not have placed
-        the radar. Offering the picker anyway would give the reader a control
-        whose ``hx-target`` does not exist, which fails in the browser and
-        shows nothing — a worse outcome than no control at all.
+        Offering the picker anyway would give the reader a control whose
+        ``hx-target`` does not exist, which fails in the browser and shows
+        nothing — a worse outcome than no control at all.
         """
-        page = DrrDatasetPage.objects.get(pk=self.page.pk)
-        page.content = [
-            {
-                "type": "plotly_figure",
-                "value": {"figure_id": "pca", "alt_text": "PCA", "height": 500},
-            }
-        ]
-        page.save_revision().publish()
+        self.data.data = {"pca": SNIPPET_FIGURES["pca"]}
+        self.data.save()
 
-        response = self.client.get(page.url)
+        body = self.page_body()
 
-        self.assertEqual(response.status_code, 200)
-        self.assertNotIn("radar_compounds", page.get_context(response.wsgi_request))
-        self.assertNotContains(response, "Radar: choose a compound")
-        self.assertNotContains(response, 'hx-target="#figure-radar_compound"')
-
-    def test_the_route_still_serves_a_figure_the_page_does_not_place(self) -> None:
-        """What may be served follows from what was precomputed, not from the layout."""
-        page = DrrDatasetPage.objects.get(pk=self.page.pk)
-        page.content = []
-        page.save_revision().publish()
-
-        self.assertEqual(self.figure(figure_id="radar_compound", cbkid="CBK1").status_code, 200)
+        self.assertNotIn("Radar plots", body)
+        self.assertNotIn('hx-target="#drr-radar-radar_compound"', body)
+        self.assertEqual(self.figure(cbkid="CBK1").status_code, 200)

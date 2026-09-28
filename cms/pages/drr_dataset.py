@@ -8,17 +8,19 @@ from typing import TYPE_CHECKING, Any
 
 import polars as pl
 import structlog
+from django.core.cache import cache
 from django.db import models
 from django.http import FileResponse, Http404, HttpRequest, HttpResponse, HttpResponseRedirect
 from django.shortcuts import render
 from django.utils.functional import cached_property
 from wagtail.admin.panels import FieldPanel, MultiFieldPanel
+from wagtail.blocks import StreamValue
 from wagtail.contrib.routable_page.models import RoutablePageMixin, path
 
-from cms.blocks.plotly_figure import cached_plot_html, figure_caveat
 from cms.pages.dashboard import DashboardPage
 from cms.services.file_downloads import resolve_file_in_directory, serve_file_from_directory
 from dashboard_visualisation.drr import artefact_dir, compound_label
+from dashboard_visualisation.utils import plot_html_from_json
 
 if TYPE_CHECKING:
     from pathlib import Path
@@ -38,18 +40,40 @@ _UNSAFE_FILENAME_CHARS = re.compile(r"[^A-Za-z0-9._-]")
 # ``radar_key`` names the compound's per-compound radar on disk (FREYA-2636).
 _COMPOUND_OPTION_COLUMNS = ("cbkid", "name", "kind", "radar_key")
 
-# The figure ids the section 8.3 route may serve, which is what keeps a request
-# value out of every path it builds. Only ``radar_compound`` takes a ``cbkid``:
-# it is the one figure precomputed as a set. FREYA-2586 adds its three heatmap
-# views here when they replace the single placeholder.
-_SWAPPABLE_FIGURE_IDS = frozenset({"pca", "umap", "heatmap", "radar_compound", "radar_infected"})
+# The radars, in page order, rendered by the page's own radar partial rather
+# than placed as editorial PlotlyFigureBlocks (spec section 10, decision 7), so
+# the compound picker always sits beside the figure it swaps. Only
+# ``radar_compound`` is precomputed as a per-compound set, so it is the one
+# figure the section 8.3 route serves.
+_RADAR_FIGURES: tuple[dict[str, Any], ...] = (
+    {
+        "figure_id": "radar_compound",
+        "alt_text": (
+            "Radar chart of morphological feature groups, comparing treated wells "
+            "with the infected DMSO baseline"
+        ),
+        "caption": "",
+        "height": 600,
+    },
+    {
+        "figure_id": "radar_infected",
+        "alt_text": (
+            "Radar chart of the morphological feature groups most changed by "
+            "infection, comparing uninfected wells with the infected DMSO baseline"
+        ),
+        "caption": "",
+        "height": 600,
+    },
+)
+_RADAR_FIGURE_IDS = frozenset(figure["figure_id"] for figure in _RADAR_FIGURES)
 _COMPOUND_FIGURE_ID = "radar_compound"
 
 # Where the per-compound radar set lives inside the artefact directory.
 _RADAR_SET_DIR = "figures/radar"
 
-# Fallback height for a swapped figure whose block sets none.
-_DEFAULT_FIGURE_HEIGHT = 500
+# Rendered radar HTML is cached like the shared figure block's, keyed on the
+# data row's hash so a rebuild that changes a figure cannot serve the old one.
+_RADAR_CACHE_TIMEOUT_SECONDS = 60 * 60 * 24
 
 
 class DrrDatasetPage(RoutablePageMixin, DashboardPage):
@@ -114,9 +138,10 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
         return DrrDatasetData.get_data(self.slug)
 
     def get_context(self, request: HttpRequest) -> dict[str, Any]:
-        """Add the DRR summary payload, the download URLs and both compound pickers."""
+        """Add the DRR summary payload, the download URLs, the radars and both pickers."""
         context = super().get_context(request)
         context["summary"] = getattr(self.dashboard_data, "summary", {})
+        context["drr_content"] = self._content_without_radars()
 
         download_urls = self._download_urls()
         if download_urls:
@@ -129,20 +154,49 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
         if "compound_base" in download_urls and options:
             context["compounds"] = options
 
-        # The radar picker is the other half of the same rule: it offers only
-        # the compounds precompute wrote a radar for, so no option can 404 and
-        # no reader is shown a control that does nothing (spec section 8.3).
-        # It also needs the block it swaps to be on the page: the control
-        # targets that figure's element, so an editor who never placed the
-        # radar — or who removed it — would otherwise be given a control whose
-        # target does not exist, which fails silently in the browser.
+        figures = getattr(self.dashboard_data, "data", {}) or {}
+        radar_figures = [
+            self._radar_figure(settings, figures[settings["figure_id"]])
+            for settings in _RADAR_FIGURES
+            if figures.get(settings["figure_id"]) is not None
+        ]
+        if radar_figures:
+            context["radar_figures"] = radar_figures
+
+        # The radar picker is the other half of the download rule: it offers
+        # only the compounds precompute wrote a radar for, so no option can 404
+        # and no reader is shown a control that does nothing (spec section 8.3).
+        # It also needs the figure it swaps to be on the page, or its target
+        # would not exist and the swap would fail silently in the browser.
         radar_options = [option for option in options if option["radar_key"]]
-        if radar_options and self._placed_figure_block(_COMPOUND_FIGURE_ID):
+        if radar_options and figures.get(_COMPOUND_FIGURE_ID) is not None:
             context["radar_compounds"] = radar_options
-            context["figure_url"] = (self.url or "") + self.reverse_subpage("figure")
+            context["radar_url"] = (self.url or "") + self.reverse_subpage("figure")
             context["radar_figure_id"] = _COMPOUND_FIGURE_ID
 
         return context
+
+    def _content_without_radars(self) -> StreamValue:
+        """Return the page's ``content`` minus any editor-placed radar block.
+
+        The radars are rendered by the page's radar partial, so a radar block
+        left in the stream — every page built before the partial holds two —
+        would draw the same figure twice.
+
+        Returns:
+            StreamValue: The stream, radar ``plotly_figure`` blocks dropped.
+        """
+        return StreamValue(
+            self.content.stream_block,
+            [
+                (block.block_type, block.value, block.id)
+                for block in self.content
+                if not (
+                    block.block_type == "plotly_figure"
+                    and block.value.get("figure_id") in _RADAR_FIGURE_IDS
+                )
+            ],
+        )
 
     # ------------------------------------------------------------------ #
     # Downloads (spec section 8)                                         #
@@ -343,26 +397,53 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
     # Figure swap (spec section 8.3)                                     #
     # ------------------------------------------------------------------ #
 
-    def _placed_figure_block(self, figure_id: str) -> dict[str, Any] | None:
-        """Return the editorial settings of the placed block for one figure.
-
-        A swapped figure inherits the alt text, caption and height an editor
-        gave the block it replaces, so the page does not change shape or lose
-        its accessible description when a reader uses a control. Whether a
-        block is placed at all is also what decides that a control may be
-        offered for it (see ``get_context``).
+    def _radar_figure(
+        self, settings: dict[str, Any], figure_json: dict[str, Any], cbkid: str = ""
+    ) -> dict[str, Any]:
+        """Render one radar into the context its partial reads.
 
         Args:
-            figure_id: The figure whose block to look for.
+            settings: The figure's entry in ``_RADAR_FIGURES``.
+            figure_json: The precomputed Plotly JSON.
+            cbkid: The compound a per-compound radar was read for; empty for the
+                default views. It keys the cache, so one compound's render can
+                never be served for another's.
 
         Returns:
-            dict[str, Any] | None: The block's value, or ``None`` when this
-                figure is not placed on the page.
+            dict[str, Any]: ``settings`` plus the rendered ``plot_html`` and the
+                ``caveat`` the payload carries about itself.
         """
-        for block in self.content:
-            if block.block_type == "plotly_figure" and block.value.get("figure_id") == figure_id:
-                return dict(block.value)
-        return None
+        figure_id = settings["figure_id"]
+        height_px = int(settings["height"])
+        file_hash = getattr(self.dashboard_data, "source_file_hash", "") or ""
+        cache_key = f"drr_radar_html:{self.slug}:{figure_id}:{cbkid}:{file_hash}:{height_px}"
+
+        plot_html = cache.get(cache_key)
+        if plot_html is None:
+            plot_html = plot_html_from_json(
+                figure_json, height=f"{height_px}px", include_plotlyjs=False
+            )
+            if plot_html is not None:
+                cache.set(cache_key, plot_html, _RADAR_CACHE_TIMEOUT_SECONDS)
+
+        return {**settings, "plot_html": plot_html, "caveat": self._radar_caveat(figure_json)}
+
+    @staticmethod
+    def _radar_caveat(figure_json: dict[str, Any]) -> str:
+        """Return the basis caveat precompute wrote into a radar's ``layout.meta``.
+
+        It is rendered as page text beneath the chart rather than as a Plotly
+        annotation, because annotation text does not wrap and a sentence this
+        long is clipped at the plot's edge on a narrow viewport.
+
+        Args:
+            figure_json: The precomputed Plotly JSON.
+
+        Returns:
+            str: The caveat, or an empty string when the figure declares none.
+        """
+        meta = figure_json.get("layout", {}).get("meta") or {}
+        return str(meta.get("caveat", "")) if isinstance(meta, dict) else ""
 
     def _radar_payload(self, cbkid: str) -> dict[str, Any]:
         """Read one compound's precomputed radar from disk.
@@ -400,66 +481,36 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
 
     @path("figure/")
     def figure(self, request: HttpRequest) -> HttpResponse:
-        """Serve one server-rendered figure partial for an htmx swap.
+        """Serve one compound's radar as a server-rendered partial for an htmx swap.
 
-        Both section 9 controls are the same operation: return one figure's
-        body, rendered on the server exactly as the page renders it. The
-        ``figure_id`` is validated against a fixed allow-list and never used to
-        build a path; only ``radar_compound`` accepts a ``cbkid``, which travels
-        in the query string because control ids such as ``[stau]`` cannot sit in
-        a path segment.
+        The ``cbkid`` only ever looks up the key precompute recorded on the
+        compound index, so no request value reaches a path. It travels in the
+        query string because control ids such as ``[stau]`` cannot sit in a
+        path segment. The response goes through the same partial the page
+        renders, so the swapped figure carries the same id, alt text and
+        caveat, and repeated swaps keep working.
 
         Args:
-            request: The incoming request; ``?figure_id=`` names the figure and
-                ``?cbkid=`` the compound, for the per-compound radar only.
+            request: The incoming request; ``?cbkid=`` names the compound.
 
         Returns:
-            HttpResponse: The figure partial.
+            HttpResponse: The radar partial.
 
         Raises:
-            Http404: If the figure is not allow-listed, is not available, or a
-                named compound has no radar. The page then keeps the figure it
-                already rendered.
+            Http404: If no compound was named or the compound has no radar. The
+                page then keeps the radar it already rendered.
         """
-        figure_id = request.GET.get("figure_id", "").strip()
-        if figure_id not in _SWAPPABLE_FIGURE_IDS:
-            raise Http404("Unknown figure")
-
         cbkid = request.GET.get("cbkid", "").strip()
-        if cbkid and figure_id != _COMPOUND_FIGURE_ID:
-            raise Http404("This figure takes no compound")
+        if not cbkid:
+            raise Http404("No compound requested")
 
-        if cbkid:
-            figure_json = self._radar_payload(cbkid)
-        else:
-            figure_json = getattr(self.dashboard_data, "data", {}).get(figure_id)
-            if figure_json is None:
-                raise Http404("No such figure has been precomputed for this dataset")
-
-        # A figure the page does not place can still be rendered: the partial
-        # is complete in itself, and refusing it would make the route depend on
-        # editorial state rather than on what was precomputed.
-        value = self._placed_figure_block(figure_id) or {
-            "figure_id": figure_id,
-            "alt_text": figure_id,
-            "height": _DEFAULT_FIGURE_HEIGHT,
-        }
-        plot_html = cached_plot_html(
-            figure_json,
-            slug=self.slug,
-            figure_id=figure_id,
-            file_hash=getattr(self.dashboard_data, "source_file_hash", "") or "",
-            height_px=int(value.get("height") or _DEFAULT_FIGURE_HEIGHT),
-            variant=cbkid,
+        settings = next(
+            figure for figure in _RADAR_FIGURES if figure["figure_id"] == _COMPOUND_FIGURE_ID
         )
         return render(
             request,
-            "cms/blocks/plotly_figure.html",
-            {
-                "value": value,
-                "plot_html": plot_html,
-                "figure_caveat": figure_caveat(figure_json),
-            },
+            "cms/pages/drr/partials/radar_figure.html",
+            {"figure": self._radar_figure(settings, self._radar_payload(cbkid), cbkid)},
         )
 
     @path("raw-images/")
