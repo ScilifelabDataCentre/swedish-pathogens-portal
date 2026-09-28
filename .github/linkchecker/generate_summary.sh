@@ -66,8 +66,8 @@ awk '
         FS = "|"
     }
 
-    # Ignore comments and empty lines.
-    /^#/ || NF == 0 {
+    # Ignore comments, empty lines and lines without the expected delimiter.
+    /^#/ || NF == 0 || !index($0, FS) {
         next
     }
 
