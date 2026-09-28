@@ -17,13 +17,13 @@ a narrow viewport instead of being clipped at the plot's edge.
     <p class="text-sm text-gray-500">Chart data is not available for this figure.</p>
     {% endif %}
 
-    {% if figure.caveat %}
-    <p class="text-sm text-pp-dark-grey mt-2">{{ figure.caveat }}</p>
-    {% endif %}
-
     {% if figure.caption %}
     <figcaption class="text-sm italic text-gray-500 mt-2 text-center">
         {{ figure.caption }}
     </figcaption>
+    {% endif %}
+
+    {% if figure.caveat %}
+    <p class="text-sm text-pp-dark-grey mt-2">{{ figure.caveat }}</p>
     {% endif %}
 </figure>

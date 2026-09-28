@@ -167,13 +167,12 @@
 {% comment %}
 Editorial content: prose plus server-side PlotlyFigureBlocks, rendered via the
 inherited context (figures + source_file_hash set by DashboardPage.get_context).
-drr_content is page.content minus any radar block, because the radars render
-from the partial below.
+The radars are not placed here: they render from the partial below.
 {% endcomment %}
 {% if page.show_toc %}
-    {% content_with_toc drr_content %}
+    {% content_with_toc page.content %}
 {% else %}
-    {% include_block drr_content %}
+    {% include_block page.content %}
 {% endif %}
 
 {% include "cms/pages/drr/partials/radar_plots.html" %}

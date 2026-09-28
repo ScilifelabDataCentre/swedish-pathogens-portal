@@ -14,7 +14,6 @@ from django.http import FileResponse, Http404, HttpRequest, HttpResponse, HttpRe
 from django.shortcuts import render
 from django.utils.functional import cached_property
 from wagtail.admin.panels import FieldPanel, MultiFieldPanel
-from wagtail.blocks import StreamValue
 from wagtail.contrib.routable_page.models import RoutablePageMixin, path
 
 from cms.pages.dashboard import DashboardPage
@@ -52,7 +51,7 @@ _RADAR_FIGURES: tuple[dict[str, Any], ...] = (
             "Radar chart of morphological feature groups, comparing treated wells "
             "with the infected DMSO baseline"
         ),
-        "caption": "",
+        "caption": "Pooled across every treated well until a compound is chosen.",
         "height": 600,
     },
     {
@@ -61,12 +60,19 @@ _RADAR_FIGURES: tuple[dict[str, Any], ...] = (
             "Radar chart of the morphological feature groups most changed by "
             "infection, comparing uninfected wells with the infected DMSO baseline"
         ),
-        "caption": "",
+        "caption": (
+            "Uninfected wells read against the infected DMSO baseline the input is normalised to."
+        ),
         "height": 600,
     },
 )
-_RADAR_FIGURE_IDS = frozenset(figure["figure_id"] for figure in _RADAR_FIGURES)
 _COMPOUND_FIGURE_ID = "radar_compound"
+
+# ``radar_compound``'s caption once a reader has picked a compound: the default
+# caption describes the pooled view the swap replaces.
+_SWAPPED_RADAR_CAPTION = (
+    "One compound's treated wells, doses pooled, read against the infected DMSO baseline."
+)
 
 # Where the per-compound radar set lives inside the artefact directory.
 _RADAR_SET_DIR = "figures/radar"
@@ -141,7 +147,6 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
         """Add the DRR summary payload, the download URLs, the radars and both pickers."""
         context = super().get_context(request)
         context["summary"] = getattr(self.dashboard_data, "summary", {})
-        context["drr_content"] = self._content_without_radars()
 
         download_urls = self._download_urls()
         if download_urls:
@@ -175,28 +180,6 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
             context["radar_figure_id"] = _COMPOUND_FIGURE_ID
 
         return context
-
-    def _content_without_radars(self) -> StreamValue:
-        """Return the page's ``content`` minus any editor-placed radar block.
-
-        The radars are rendered by the page's radar partial, so a radar block
-        left in the stream — every page built before the partial holds two —
-        would draw the same figure twice.
-
-        Returns:
-            StreamValue: The stream, radar ``plotly_figure`` blocks dropped.
-        """
-        return StreamValue(
-            self.content.stream_block,
-            [
-                (block.block_type, block.value, block.id)
-                for block in self.content
-                if not (
-                    block.block_type == "plotly_figure"
-                    and block.value.get("figure_id") in _RADAR_FIGURE_IDS
-                )
-            ],
-        )
 
     # ------------------------------------------------------------------ #
     # Downloads (spec section 8)                                         #
@@ -504,9 +487,12 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
         if not cbkid:
             raise Http404("No compound requested")
 
-        settings = next(
-            figure for figure in _RADAR_FIGURES if figure["figure_id"] == _COMPOUND_FIGURE_ID
-        )
+        settings = {
+            **next(
+                figure for figure in _RADAR_FIGURES if figure["figure_id"] == _COMPOUND_FIGURE_ID
+            ),
+            "caption": _SWAPPED_RADAR_CAPTION,
+        }
         return render(
             request,
             "cms/pages/drr/partials/radar_figure.html",

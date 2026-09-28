@@ -16,8 +16,9 @@ from typing import Any
 import polars as pl
 from django.core.cache import cache
 from django.http import HttpResponse
+from django.utils.html import escape
 
-from cms.pages.drr_dataset import _RADAR_FIGURES, DrrDatasetPage
+from cms.pages.drr_dataset import _RADAR_FIGURES, _SWAPPED_RADAR_CAPTION, DrrDatasetPage
 from cms.snippets.drr_dataset_data import DrrDatasetData
 from cms.tests.drr.test_drr_dataset_page import DrrDatasetPageTestCase
 from cms.tests.utils import create_test_image, use_temp_media_root
@@ -74,11 +75,7 @@ class DrrFigureRouteTestCase(DrrDatasetPageTestCase):
 
     @classmethod
     def setUpTestData(cls) -> None:
-        """Publish a DRR dataset page placing the PCA and a leftover radar block.
-
-        The radar block is what every page built before the radar partial
-        still carries, so the fixture keeps one to prove it is not drawn twice.
-        """
+        """Publish a DRR dataset page placing the PCA; the radars come from the partial."""
         super().setUpTestData()
         cls.image = create_test_image(title="DRR Route", file_name="drr-route.jpg")
         cls.page = DrrDatasetPage(
@@ -91,14 +88,6 @@ class DrrFigureRouteTestCase(DrrDatasetPageTestCase):
                 {
                     "type": "plotly_figure",
                     "value": {"figure_id": "pca", "alt_text": "PCA of profiles", "height": 500},
-                },
-                {
-                    "type": "plotly_figure",
-                    "value": {
-                        "figure_id": "radar_compound",
-                        "alt_text": "Leftover editorial radar",
-                        "height": 640,
-                    },
                 },
             ],
         )
@@ -161,12 +150,17 @@ class DrrFigureRouteTests(DrrFigureRouteTestCase):
         self.assertNotIn("Radar plots", body)
 
     def test_the_swapped_figure_keeps_the_page_s_settings(self) -> None:
-        """Alt text and height come from the page's radar settings, so it holds its shape."""
+        """Alt text and height come from the page's radar settings, so it holds its shape.
+
+        The caption does not: the page's describes the pooled view the swap
+        replaces, so a swapped radar says it is one compound's instead.
+        """
         body = self.figure(cbkid="CBK1").content.decode()
 
         self.assertIn(_RADAR_FIGURES[0]["alt_text"], body)
+        self.assertIn(escape(_SWAPPED_RADAR_CAPTION), body)
+        self.assertNotIn(_RADAR_FIGURES[0]["caption"], body)
         self.assertIn(f"{_RADAR_FIGURES[0]['height']}px", body)
-        self.assertNotIn("Leftover editorial radar", body)
 
     def test_the_swapped_figure_carries_its_basis_caveat_as_page_text(self) -> None:
         """The qualification survives the swap, and as wrapping text rather than chart ink.
@@ -334,13 +328,30 @@ class DrrRadarPartialTests(DrrFigureRouteTestCase):
         ]
         self.assertEqual(positions, sorted(positions))
 
-    def test_a_radar_block_left_in_the_content_is_not_drawn_twice(self) -> None:
-        """Each radar renders once, from the partial; the leftover block is skipped."""
-        body = self.page_body()
+    def test_each_radar_s_caption_sits_under_its_plot_before_the_caveat(self) -> None:
+        """The caption says which population is plotted, so it follows the chart directly."""
+        self.data.data = {
+            **SNIPPET_FIGURES,
+            "radar_infected": {
+                **SNIPPET_FIGURES["radar_infected"],
+                "layout": {"meta": {"caveat": RADAR_CAVEAT}},
+            },
+        }
+        self.data.save()
 
-        self.assertEqual(body.count('class="plotly-figure"'), 3)
-        self.assertEqual(body.count('id="drr-radar-radar_compound"'), 1)
-        self.assertNotIn("Leftover editorial radar", body)
+        body = self.page_body()
+        infected = body[body.index('id="drr-radar-radar_infected"') :]
+
+        for settings in _RADAR_FIGURES:
+            self.assertInHTML(
+                f'<figcaption class="text-sm italic text-gray-500 mt-2 text-center">'
+                f"{settings['caption']}</figcaption>",
+                body,
+            )
+        self.assertLess(
+            infected.index("<figcaption"),
+            infected.index('<p class="text-sm text-pp-dark-grey mt-2">'),
+        )
 
     def test_the_page_renders_its_default_radar_without_the_control(self) -> None:
         """Progressive enhancement: the figure is complete before anything is picked."""
