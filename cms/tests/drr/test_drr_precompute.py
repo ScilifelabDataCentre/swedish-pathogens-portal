@@ -29,6 +29,7 @@ from dashboard_visualisation.drr.figures import (
     clip_figure_values,
 )
 from dashboard_visualisation.drr.loader import load_feature_table
+from dashboard_visualisation.drr.radar import POPULATION_LABELS
 
 # The registered screen: its channel-to-stain map is what the run resolves, and
 # an unregistered slug is a failure case of its own below (FREYA-2923).
@@ -404,6 +405,33 @@ class DrrPrecomputeTests(TestCase):
         self.assertEqual(second_summary["source"]["sha256"], first_source["sha256"])
         self.assertEqual(second_summary["source"]["inputs_sha256"], first_source["inputs_sha256"])
         self.assertEqual(second_summary["feature_sets"]["figures"]["clip"]["upper"], 25.0)
+
+    def test_renaming_a_population_busts_the_render_cache(self) -> None:
+        """A relabelled PCA gets a new digest, so no cached legend outlives it.
+
+        The names are figure content no input carries: a rebuild on unchanged
+        inputs would otherwise keep the key, and ``PlotlyFigureBlock`` would serve
+        the previous legend for 24 hours (FREYA-3009).
+        """
+        self._run()
+        first = DrrDatasetData.get_data(SLUG)
+        first_inputs = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))[
+            "source"
+        ]["inputs_sha256"]
+
+        reworded = {**POPULATION_LABELS, "negcon": "Infected DMSO wells"}
+        with patch("dashboard_visualisation.drr.radar.POPULATION_LABELS", reworded):
+            self._run()
+        second = DrrDatasetData.get_data(SLUG)
+        second_inputs = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))[
+            "source"
+        ]["inputs_sha256"]
+
+        self.assertNotEqual(second.source_file_hash, first.source_file_hash)
+        self.assertEqual(second_inputs, first_inputs)
+        self.assertIn(
+            "Infected DMSO wells", [trace["name"] for trace in second.data["pca"]["data"]]
+        )
 
     def test_summary_carries_an_inputs_digest_beside_the_feature_digest(self) -> None:
         """Three provenance digests, each answering a different question."""

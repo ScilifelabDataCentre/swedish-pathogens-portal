@@ -28,10 +28,13 @@ from .channels import Channel
 from .loader import FeatureTable
 from .radar import (
     INFECTED_POPULATION,
+    POPULATION_LEGEND_TITLE,
     TREATMENT_POPULATION,
     RadarAxis,
     axis_values,
     build_ring,
+    population_label,
+    population_labels_token,
     unplotted_columns,
 )
 
@@ -148,17 +151,22 @@ def figure_basis_token(feature_columns: list[str]) -> str:
     """Return a token naming how the figures were computed, for the digest.
 
     The ``PlotlyFigureBlock`` render cache is keyed on the *inputs*, so a change
-    to the computation — the channel exclusion, the clip bound — would otherwise
-    leave the key identical while the figures move, and the page would serve the
-    previous render for a day (spec section 5 step 6).
+    to the computation — the channel exclusion, the clip bound, the population
+    names — would otherwise leave the key identical while the figures move, and
+    the page would serve the previous render for a day (spec section 5 step 6,
+    FREYA-3009).
 
     Args:
         feature_columns: The figure basis's column names.
 
     Returns:
-        The figure column count and the clip bound, in that fixed order.
+        The figure column count, the clip bound and the population-label digest,
+        in that fixed order.
     """
-    return f"figure-basis:{len(feature_columns)}:{FIGURE_CLIP_BOUND}"
+    return (
+        f"figure-basis:{len(feature_columns)}:{FIGURE_CLIP_BOUND}"
+        f":labels-{population_labels_token()}"
+    )
 
 
 def _prepare(table: FeatureTable, feature_columns: list[str]) -> _Prepared:
@@ -185,7 +193,7 @@ def _prepare(table: FeatureTable, feature_columns: list[str]) -> _Prepared:
 
 
 def build_pca(prep: _Prepared) -> go.Figure:
-    """Build a PC1/PC2 scatter of well-level profiles coloured by ``pert_type``.
+    """Build a PC1/PC2 scatter of well-level profiles, one trace per population.
 
     PCA is computed via numpy SVD on the clipped figure basis (no sklearn). Only
     the column means are removed, which is what makes the decomposition a PCA
@@ -194,6 +202,13 @@ def build_pca(prep: _Prepared) -> go.Figure:
     (spec section 5). Each component's sign is fixed (largest-magnitude loading
     forced positive) so the scores, and therefore the serialised figure, are
     reproducible.
+
+    Each trace is named by ``radar.population_label`` rather than by its raw
+    ``pert_type`` token, and is ordered by that token so trace colours stay put
+    (FREYA-3009).
+
+    Raises:
+        ValueError: If a population has no plain-language name.
     """
     data = prep.matrix
     centred = data - data.mean(axis=0) if data.size else data
@@ -219,14 +234,14 @@ def build_pca(prep: _Prepared) -> go.Figure:
             x=scores[mask, 0],
             y=scores[mask, 1],
             mode="markers",
-            name=level or "unknown",
+            name=population_label(level),
             marker={"size": 5, "opacity": 0.6},
         )
     figure.update_layout(
         title="PCA of well-level morphological profiles",
         xaxis_title=f"PC1 ({explained[0] * 100:.1f}% variance)",
         yaxis_title=f"PC2 ({explained[1] * 100:.1f}% variance)",
-        legend_title="pert_type",
+        legend_title=POPULATION_LEGEND_TITLE,
         plot_bgcolor="white",
     )
     return figure
