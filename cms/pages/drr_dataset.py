@@ -17,8 +17,19 @@ from wagtail.admin.panels import FieldPanel, MultiFieldPanel
 from wagtail.contrib.routable_page.models import RoutablePageMixin, path
 
 from cms.pages.dashboard import DashboardPage
+from cms.services.data_table import get_table_context
 from cms.services.file_downloads import resolve_file_in_directory, serve_file_from_directory
-from dashboard_visualisation.drr import POPULATION_LABELS, artefact_dir, compound_label
+from dashboard_visualisation.drr import (
+    HIT_THRESHOLD,
+    POPULATION_LABELS,
+    SORT_OPTIONS,
+    TABLE_HEADERS,
+    artefact_dir,
+    compound_label,
+    filter_state,
+    select_rows,
+    table_rows,
+)
 from dashboard_visualisation.utils import plot_html_from_json
 
 if TYPE_CHECKING:
@@ -76,6 +87,13 @@ _SWAPPED_RADAR_CAPTION = (
 
 # Where the per-compound radar set lives inside the artefact directory.
 _RADAR_SET_DIR = "figures/radar"
+
+# The compound table (FREYA-3011): its artefact, the id the shared data-table
+# templates key their htmx targets on, and the page sizes offered. 629 rows is
+# small enough to read whole on each request.
+_TABLE_ARTEFACT = "table.parquet"
+_TABLE_ID = "drr-compounds"
+_TABLE_PER_PAGE = (25, 50, 100)
 
 # Rendered radar HTML is cached like the shared figure block's, keyed on the
 # data row's hash so a rebuild that changes a figure cannot serve the old one.
@@ -201,7 +219,103 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
             context["radar_url"] = (self.url or "") + self.reverse_subpage("figure")
             context["radar_figure_id"] = _COMPOUND_FIGURE_ID
 
+        compound_table = self._compound_table_context(request)
+        if compound_table:
+            context["compound_table"] = compound_table
+
         return context
+
+    # ------------------------------------------------------------------ #
+    # Compound table (FREYA-3011, spec section 8.1)                      #
+    # ------------------------------------------------------------------ #
+
+    def _compound_table(self) -> pl.DataFrame | None:
+        """Read the precomputed compound table, or ``None`` when there is none."""
+        artefact = self._artefact_dir() / _TABLE_ARTEFACT
+        return pl.read_parquet(artefact) if artefact.is_file() else None
+
+    def _compound_table_context(self, request: HttpRequest | None) -> dict[str, Any] | None:
+        """Build the table's context: the shared table dict plus its controls' state.
+
+        Filtering, search and sort all run in ``select_rows`` — the same call the
+        CSV export makes — and only pagination is left to ``get_table_context``.
+        Its own search then re-applies the same substring test to rows that
+        already pass it, so the count it reports is the export's count.
+
+        Args:
+            request: The current request, or ``None`` outside a request cycle.
+
+        Returns:
+            The context, or ``None`` when no table has been precomputed.
+        """
+        frame = self._compound_table()
+        if frame is None:
+            return None
+        params = request.GET if request else {}
+        page_url = self.url or ""
+        table = get_table_context(
+            request,
+            table_rows(select_rows(frame, params)),
+            TABLE_HEADERS,
+            "",
+            page_url + self.reverse_subpage("compound_table"),
+            table_id=_TABLE_ID,
+            per_page_default=_TABLE_PER_PAGE[0],
+            per_page_options=_TABLE_PER_PAGE,
+        )
+        return {
+            "t": table,
+            "filters": filter_state(params),
+            "sort_options": SORT_OPTIONS,
+            "hit_threshold": HIT_THRESHOLD,
+            "n_rows": frame.height,
+            "download_url": page_url + self.reverse_subpage("download_filtered_csv"),
+        }
+
+    @path("table/", name="compound_table")
+    def compound_table(self, request: HttpRequest) -> HttpResponse:
+        """Serve the compound table: its content partial to htmx, the page otherwise.
+
+        Args:
+            request: The incoming request; its query string carries the controls.
+
+        Returns:
+            HttpResponse: The swappable table body, or the whole page.
+
+        Raises:
+            Http404: If no table has been precomputed.
+        """
+        context = self._compound_table_context(request)
+        if context is None:
+            raise Http404("No compound table has been precomputed for this dataset")
+        if getattr(request, "htmx", False):
+            return render(request, "cms/components/data_table_content.html", {"t": context["t"]})
+        return self.render(request)
+
+    @path("download/filtered/csv/", name="download_filtered_csv")
+    def download_filtered_csv(self, request: HttpRequest) -> HttpResponse:
+        """Serve the rows the reader's current selection shows, as CSV.
+
+        The selection is ``select_rows`` over the same query string the table
+        reads, so the file carries exactly the rows the table counts.
+
+        Args:
+            request: The incoming request; its query string carries the controls.
+
+        Returns:
+            HttpResponse: The selected rows as a CSV attachment.
+
+        Raises:
+            Http404: If no table has been precomputed.
+        """
+        frame = self._compound_table()
+        if frame is None:
+            raise Http404("No compound table has been precomputed for this dataset")
+        response = HttpResponse(
+            select_rows(frame, request.GET).write_csv(), content_type="text/csv"
+        )
+        response["Content-Disposition"] = 'attachment; filename="compounds-filtered.csv"'
+        return response
 
     # ------------------------------------------------------------------ #
     # Downloads (spec section 8)                                         #
