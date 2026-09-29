@@ -21,7 +21,6 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-
 import search_euPMC_rest_API as sepmc
 
 # ---------------------------------------------------------------------------
