@@ -804,13 +804,13 @@ def search_authors(
                     continue
                 filtered_count += 1
 
-                try:
-                    accessions = get_metabolights_accessions(paper)
-                except Exception as e:
-                    src = paper.get("source", "?")
-                    pid = paper.get("id", "?")
-                    print(f"    annotation lookup failed for {src}:{pid}: {e}")
-                    accessions = []
+                # Let a failure here propagate to the per-author except below,
+                # same as a failure in the main search call: it's the same
+                # class of Europe PMC request failure, and silently recording
+                # accessions=[] would be indistinguishable from "this paper
+                # genuinely has none" -- both should mark the author for
+                # --retry-errors rather than being swallowed.
+                accessions = get_metabolights_accessions(paper)
 
                 affiliations = get_author_affiliations(paper)
                 author_affils = get_affiliation_for_author(affiliations, author_name)
