@@ -200,6 +200,8 @@ WAGTAILIMAGES_FORMAT_CONVERSIONS = {
     "png": "webp",
     "webp": "webp",
 }
+# Ask for AI provenance on add, edit, chooser upload, and the multiple uploader.
+WAGTAILIMAGES_IMAGE_FORM_BASE = "cms.forms.image.AIImageForm"
 
 
 # Logging
