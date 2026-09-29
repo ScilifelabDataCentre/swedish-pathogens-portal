@@ -1,10 +1,10 @@
 """Management command: precompute DRR dataset artefacts (FREYA-2556).
 
 Manual, repeatable, offline pipeline (spec section 5). Turns a Cell Painting
-feature CSV plus its CBCS metadata TSV — and optionally a compound-name lookup
-(FREYA-2628) — into the derived artefacts a ``DrrDatasetPage`` serves, and
-upserts the slug-keyed ``DrrDatasetData`` row. Raw imagery is never touched;
-only derived artefacts land under ``media/drr/<slug>/``.
+feature CSV plus its CBCS metadata TSV and the deposit's image-metadata TSV — and
+optionally a compound-name lookup (FREYA-2628) — into the derived artefacts a
+``DrrDatasetPage`` serves, and upserts the slug-keyed ``DrrDatasetData`` row. Raw
+imagery is never touched; only derived artefacts land under ``media/drr/<slug>/``.
 """
 
 from __future__ import annotations
@@ -30,15 +30,20 @@ from dashboard_visualisation.drr import (
     build_summary,
     channel_map,
     compound_label,
+    exclude_plates,
+    excluded_plates,
     figure_basis_token,
     figure_feature_columns,
     load_compound_names,
     load_feature_table,
     load_metadata,
+    load_plate_metadata,
     name_lookup_report,
     oversized_figures,
+    plate_basis_report,
     reconciliation_report,
     require_populations,
+    unresolved_rows,
 )
 from dashboard_visualisation.utils.uploads import calculate_file_hash
 
@@ -60,6 +65,15 @@ class Command(BaseCommand):
             "--metadata", required=True, help="Path to the CBCS compound metadata TSV."
         )
         parser.add_argument(
+            "--plate-metadata",
+            dest="plate_metadata",
+            required=True,
+            help=(
+                "Path to this screen's image-metadata TSV (Files, barcode, well_id), "
+                "checked against every published row."
+            ),
+        )
+        parser.add_argument(
             "--compound-names",
             dest="compound_names",
             default=None,
@@ -78,6 +92,7 @@ class Command(BaseCommand):
         slug = options["slug"]
         input_path = Path(options["input"])
         metadata_path = Path(options["metadata"])
+        plate_metadata_path = Path(options["plate_metadata"])
         names_path = Path(options["compound_names"]) if options["compound_names"] else None
         title = options["title"] or slug
 
@@ -89,6 +104,10 @@ class Command(BaseCommand):
         table = load_feature_table(input_path)
         metadata = load_metadata(metadata_path)
         names = load_compound_names(names_path) if names_path else None
+        try:
+            plate_metadata = load_plate_metadata(plate_metadata_path)
+        except ValueError as error:
+            raise CommandError(str(error)) from error
         # The channel-to-stain map belongs to the screen, and it decides both the
         # stain names the page publishes and which channel the figures exclude.
         # An unregistered slug therefore stops the run here — inputs read, and
@@ -98,6 +117,17 @@ class Command(BaseCommand):
             channels = channel_map(slug)
         except ValueError as error:
             raise CommandError(str(error)) from error
+        # Which plates the page publishes belongs to the screen, like its channel
+        # map, and an unregistered slug stops the run the same way. The exclusion
+        # is applied to the table itself, before anything is derived from it, so
+        # the downloads, the counts and the figures all share one basis
+        # (FREYA-3008).
+        try:
+            plate_stems = excluded_plates(slug)
+        except ValueError as error:
+            raise CommandError(str(error)) from error
+        table, n_rows_excluded = exclude_plates(table, plate_stems)
+        n_unresolved = unresolved_rows(table, plate_metadata)
         figure_columns = figure_feature_columns(table.feature_columns, channels)
         # Both radars are contrasts, so a table missing one of the populations
         # they contrast cannot produce them. Checked here, before anything is
@@ -147,13 +177,17 @@ class Command(BaseCommand):
 
         feature_hash = self._hash_file(input_path)
         names_hash = self._hash_file(names_path) if names_path else None
-        # Fixed order — feature table, metadata, name lookup — so the digest
-        # depends on the inputs and not on the order the optional ones were
-        # passed in. Two digests come out of it, and they answer different
+        # Fixed order — feature table, metadata, plate metadata, name lookup — so
+        # the digest depends on the inputs and not on the order the optional ones
+        # were passed in. Two digests come out of it, and they answer different
         # questions: the inputs-only one says whether the *data* moved, and the
         # one with the figure-basis token appended says whether anything a
         # rendered figure depends on moved.
-        input_hashes = [feature_hash, self._hash_file(metadata_path)]
+        input_hashes = [
+            feature_hash,
+            self._hash_file(metadata_path),
+            self._hash_file(plate_metadata_path),
+        ]
         if names_hash:
             input_hashes.append(names_hash)
         inputs_hash = self._combine_hashes(input_hashes)
@@ -169,6 +203,12 @@ class Command(BaseCommand):
             generated_at=generated_at.isoformat(),
         )
         summary["compound_reconciliation"] = reconciliation
+        summary["plate_basis"] = plate_basis_report(
+            stems=plate_stems,
+            n_rows_excluded=n_rows_excluded,
+            n_unresolved_rows=n_unresolved,
+            source_filename=plate_metadata_path.name,
+        )
         summary["name_lookup"] = name_lookup_report(
             compound_index,
             names,
@@ -194,6 +234,10 @@ class Command(BaseCommand):
             figures=sorted(figures),
             compounds=compound_index.height,
             profiles=summary["n_profiles"],
+            plates=summary["n_plates"],
+            plates_excluded=list(plate_stems),
+            rows_excluded=n_rows_excluded,
+            unresolved_rows=n_unresolved,
             download_features=summary["n_features"],
             figure_features=len(figure_columns),
             radar_axes=len(bundle.axes),
@@ -210,6 +254,9 @@ class Command(BaseCommand):
         report = (
             f"Precomputed DRR dataset '{slug}': {summary['n_compounds']} compounds, "
             f"{summary['n_profiles']} profiles, {len(figures)} figures -> {output_dir}\n"
+            f"  plates: {summary['n_plates']} published, {len(plate_stems)} excluded "
+            f"({', '.join(plate_stems) or 'none'}; {n_rows_excluded} rows), "
+            f"{n_unresolved} published row(s) with no deposited image\n"
             f"  cbkid join: {reconciliation['n_annotated']} annotated "
             f"({reconciliation['n_recovered']} via normalization), "
             f"{reconciliation['n_unannotated']} unannotated, "
@@ -231,6 +278,14 @@ class Command(BaseCommand):
                 f"{name_lookup['n_conflicting_ids']} conflicting"
             )
         self.stdout.write(self.style.SUCCESS(report))
+        if n_unresolved:
+            LOGGER.warning("drr.precompute.unresolved_rows", slug=slug, unresolved=n_unresolved)
+            self.stdout.write(
+                self.style.WARNING(
+                    f"{n_unresolved} published row(s) resolve to no deposited image: the plate "
+                    "basis or the plate metadata does not describe this feature table."
+                )
+            )
 
     @staticmethod
     def _compound_labels(compound_index: pl.DataFrame) -> dict[str, str]:
