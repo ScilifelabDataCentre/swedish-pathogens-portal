@@ -157,7 +157,7 @@ class RateLimiter:
         if len(last_second) >= self._max_per_second:
             wait_for = max(wait_for, 1 - (now - last_second[0]))
         if len(self._recent_calls) >= self._max_per_minute:
-            wait_for = max(wait_for, 60 - (now - self._recent_calls[0]))
+            wait_for = max(wait_for, 15 - (now - self._recent_calls[0]))
 
         if wait_for > 0:
             time.sleep(wait_for)
@@ -179,7 +179,7 @@ def _build_session() -> requests.Session:
     """
     session = requests.Session()
     retry = Retry(
-        total=5,
+        total=3,
         backoff_factor=1.0,
         status_forcelist=[429, 500, 502, 503, 504],
         respect_retry_after_header=True,
@@ -212,7 +212,7 @@ def search_europe_pmc(query: str, page_size: int = 1000) -> list[dict]:
         }
 
         RATE_LIMITER.wait()
-        response = SESSION.get(BASE_URL, params=params, timeout=60)
+        response = SESSION.get(BASE_URL, params=params, timeout=10)
         response.raise_for_status()
         data = response.json()
 
@@ -296,7 +296,7 @@ def fetch_textmined_metabolights_accessions(source: str, ext_id: str) -> list[st
             "type": "Accession Numbers",
             "format": "JSON",
         },
-        timeout=60,
+        timeout=10,
     )
     response.raise_for_status()
     payload = response.json()
