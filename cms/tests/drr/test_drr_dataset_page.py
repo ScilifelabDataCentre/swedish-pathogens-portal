@@ -25,7 +25,7 @@ from cms.pages.topics import TopicPage
 from cms.pages.topics_index import TopicsIndexPage
 from cms.snippets.dashboard_data import DashboardData
 from cms.snippets.drr_dataset_data import DrrDatasetData
-from cms.tests.drr.test_drr_precompute import FEATURE_CSV, METADATA_TSV
+from cms.tests.drr.test_drr_precompute import FEATURE_CSV, METADATA_TSV, PLATE_METADATA_TSV
 from cms.tests.utils import create_test_image, use_temp_media_root
 
 # A representative, fully-populated summary payload mirroring spec section 7 plus
@@ -970,6 +970,8 @@ class TestDrrDatasetSliceAcceptance(DrrDatasetPageTestCase):
         input_path.write_text(FEATURE_CSV, encoding="utf-8")
         metadata_path = base / "metadata.tsv"
         metadata_path.write_text(METADATA_TSV, encoding="utf-8")
+        plate_metadata_path = base / "plates.tsv"
+        plate_metadata_path.write_text(PLATE_METADATA_TSV, encoding="utf-8")
         media = base / "media"
 
         # The registered screen: the fixture is this screen's data in miniature,
@@ -981,6 +983,7 @@ class TestDrrDatasetSliceAcceptance(DrrDatasetPageTestCase):
                 slug=slug,
                 input=str(input_path),
                 metadata=str(metadata_path),
+                plate_metadata=str(plate_metadata_path),
                 title="Acceptance DRR",
             )
 
