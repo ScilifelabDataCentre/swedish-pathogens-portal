@@ -181,7 +181,7 @@ def test_dedupe_paper_rows_aggregates_by_source_and_id() -> None:
 
 
 def test_expand_deduped_row_round_trips() -> None:
-    """dedupe -> expand -> re-dedupe reproduces the exact original row."""
+    """Dedupe -> expand -> re-dedupe reproduces the exact original row."""
     li_paper = make_paper("1", "Li X")
     muller_paper = make_paper("1", "Muller M")
     rows = [
@@ -296,7 +296,9 @@ def test_retry_errored_authors_returns_zero_when_nothing_to_retry(
     with Path(sepmc.SUMMARY_OUTPUT_CSV).open("w", newline="", encoding="utf-8") as f:
         writer = csv.DictWriter(f, fieldnames=sepmc.SUMMARY_FIELDNAMES)
         writer.writeheader()
-        writer.writerow({"input_author": "Good A", "query": "q", "match_count": 0, "filtered_count": 0})
+        writer.writerow(
+            {"input_author": "Good A", "query": "q", "match_count": 0, "filtered_count": 0}
+        )
 
     assert sepmc.retry_errored_authors() == 0  # noqa: S101
 
@@ -327,7 +329,7 @@ def test_main_returns_3_when_an_author_errors(
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(sys, "argv", ["search_euPMC_rest_API.py"])
     (tmp_path / sepmc.KEYWORDS_CSV).write_text("bacteria\npathogen\n")
-    (tmp_path / "publications.csv").write_text("Authors\n\"Good A, Bad B\"\n")
+    (tmp_path / "publications.csv").write_text('Authors\n"Good A, Bad B"\n')
 
     good_paper = make_paper("1", "Good A")
     fake_get = make_fake_get(fail_authors={"Bad B"}, papers_by_author={"Good A": good_paper})
@@ -343,7 +345,7 @@ def test_main_returns_0_when_everything_succeeds(
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(sys, "argv", ["search_euPMC_rest_API.py"])
     (tmp_path / sepmc.KEYWORDS_CSV).write_text("bacteria\npathogen\n")
-    (tmp_path / "publications.csv").write_text("Authors\n\"Good A\"\n")
+    (tmp_path / "publications.csv").write_text('Authors\n"Good A"\n')
 
     good_paper = make_paper("1", "Good A")
     fake_get = make_fake_get(fail_authors=set(), papers_by_author={"Good A": good_paper})
@@ -361,4 +363,3 @@ def test_main_returns_1_on_unexpected_failure(
     # deliberately do NOT create publications.csv
 
     assert sepmc.main() == 1  # noqa: S101
-
