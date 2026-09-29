@@ -41,12 +41,19 @@ def use_temp_media_root(test_case: SimpleTestCase) -> Path:
     return Path(tmp.name)
 
 
-def create_test_image(*, title: str = "Test image", file_name: str = "test.jpg"):
+def create_test_image(
+    *,
+    title: str = "Test image",
+    file_name: str = "test.jpg",
+    image_id: int | None = None,
+):
     """Create and save a minimal test image for use in tests.
 
     Args:
         title (str): The title for the image.
         file_name (str): The file name for the image.
+        image_id (int | None): Optional primary key, used when a test needs a
+            specific existing-library id.
 
     Example usage:
         image = create_test_image(title="My Test Image", file_name="my_test_image.jpg")
@@ -62,6 +69,9 @@ def create_test_image(*, title: str = "Test image", file_name: str = "test.jpg")
     file_obj.seek(0)
 
     Image = get_image_model()  # noqa: N806
+    kwargs = {}
+    if image_id is not None:
+        kwargs["id"] = image_id
     return Image.objects.create(
         title=title,
         file=SimpleUploadedFile(
@@ -69,4 +79,5 @@ def create_test_image(*, title: str = "Test image", file_name: str = "test.jpg")
             content=file_obj.read(),
             content_type="image/jpeg",
         ),
+        **kwargs,
     )
