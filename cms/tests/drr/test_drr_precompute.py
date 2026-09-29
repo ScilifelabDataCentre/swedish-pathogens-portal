@@ -6,6 +6,7 @@ import json
 import re
 import tempfile
 from datetime import date
+from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
@@ -17,7 +18,11 @@ from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from cms.snippets.drr_dataset_data import DrrDatasetData
-from dashboard_visualisation.drr.channels import channel_map, figure_feature_columns
+from dashboard_visualisation.drr.channels import (
+    CHANNEL_MAPS,
+    channel_map,
+    figure_feature_columns,
+)
 from dashboard_visualisation.drr.figures import (
     FIGURE_CLIP_BOUND,
     SNIPPET_FIGURE_BYTE_CEILING,
@@ -128,6 +133,26 @@ METADATA_TSV = (
     "CBK2\tcompoundB\tnull\tnull\tcovid-repurpose/b.ome.zarr.zip\n"
 )
 
+# The deposit's image metadata in miniature: one deposited image per fixture well,
+# its barcode carrying the experiment suffix the real file does (FREYA-3008).
+PLATE_METADATA_TSV = (
+    "Files\tbarcode\twell_id\tcbkid\n"
+    "covid-repurpose/P1_SSS-val_2023.ome.zarr.zip\tP1_SSS-val_2023\tA01\tCBK1\n"
+    "covid-repurpose/P1_SSS-val_2023.ome.zarr.zip\tP1_SSS-val_2023\tA02\tCBK1\n"
+    "covid-repurpose/P1_SSS-val_2023.ome.zarr.zip\tP1_SSS-val_2023\tA03\tCBK2\n"
+    "covid-repurpose/P2_SSS-val_2023.ome.zarr.zip\tP2_SSS-val_2023\tB01\tCBK3\n"
+    "covid-repurpose/P2_SSS-val_2023.ome.zarr.zip\tP2_SSS-val_2023\tB02\tCBK2\n"
+    "covid-repurpose/P2_SSS-val_2023.ome.zarr.zip\tP2_SSS-val_2023\tB03\tCBK3\n"
+)
+
+# Two rows on one of the registered screen's never-deposited plates: a treated
+# compound seen nowhere else, and an uninfected control. Neither may reach any
+# artefact (FREYA-3008 criteria 2 and 4).
+EXCLUDED_PLATE_ROWS = (
+    "6;P103572;C01;10;trt;B1;10;CBK4;1300;9.0;9.0;9.0;0.90;0.90;9.0;9.0;0.90\n"
+    "7;P103572;C02;10;non-inf;B1;0;CBK2;1300;9.0;9.0;9.0;0.90;0.90;9.0;9.0;0.90\n"
+)
+
 # The name lookup in miniature (FREYA-2628): one treated compound the feature
 # table also holds, one negative control whose "name" is its condition and is
 # therefore excluded, and one lookup id absent from the feature table. CBK3 is
@@ -163,6 +188,8 @@ class DrrPrecomputeTests(TestCase):
         self.input_path.write_text(FEATURE_CSV, encoding="utf-8")
         self.metadata_path = self.base / "metadata.tsv"
         self.metadata_path.write_text(METADATA_TSV, encoding="utf-8")
+        self.plate_metadata_path = self.base / "plates.tsv"
+        self.plate_metadata_path.write_text(PLATE_METADATA_TSV, encoding="utf-8")
         self.media = self.base / "media"
         self.out_dir = self.media / "drr" / SLUG
 
@@ -204,6 +231,7 @@ class DrrPrecomputeTests(TestCase):
                 slug=slug,
                 input=str(self.input_path),
                 metadata=str(self.metadata_path),
+                plate_metadata=str(self.plate_metadata_path),
                 title="Test DRR",
                 **extra,
             )
@@ -852,3 +880,115 @@ class DrrPrecomputeTests(TestCase):
         self.assertEqual(second_summary["source"]["sha256"], first_summary_sha)
         # And the reconciliation reflects the new annotation (CBK3 now matched).
         self.assertEqual(second_summary["compound_reconciliation"]["unmatched_cbkids"], [])
+
+    # The published plate basis is the screen's, and it is artefact-wide (FREYA-3008).
+
+    def _artefact_bytes(self) -> dict[str, bytes]:
+        """Return every artefact the run wrote, keyed by its path under the dataset."""
+        return {
+            str(path.relative_to(self.out_dir)): path.read_bytes()
+            for path in sorted(self.out_dir.rglob("*"))
+            if path.is_file()
+        }
+
+    def test_summary_states_the_plate_basis(self) -> None:
+        """The run records which basis it used, and that every row has an image."""
+        self._run()
+        summary = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))
+
+        self.assertEqual(
+            summary["plate_basis"],
+            {
+                "n_plates_excluded": 4,
+                "n_rows_excluded": 0,
+                "n_unresolved_rows": 0,
+                "plate_metadata": "plates.tsv",
+            },
+        )
+
+    def test_excluded_plate_rows_reach_no_artefact(self) -> None:
+        """Rows on a never-deposited plate are dropped from downloads, counts and figures."""
+        self.input_path.write_text(FEATURE_CSV + EXCLUDED_PLATE_ROWS, encoding="utf-8")
+        self._run()
+        summary = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))
+
+        self.assertEqual(summary["n_profiles"], 6)
+        self.assertEqual(summary["n_plates"], 2)
+        self.assertEqual(summary["n_compounds"], 3)
+        self.assertEqual(summary["pert_type_counts"], {"negcon": 1, "non-inf": 1, "trt": 4})
+        self.assertEqual(summary["plate_basis"]["n_rows_excluded"], 2)
+        self.assertEqual(summary["plate_basis"]["n_unresolved_rows"], 0)
+
+        features = pl.read_parquet(self.out_dir / "features.parquet")
+        self.assertEqual(features.height, 6)
+        self.assertNotIn("CBK4", pl.read_parquet(self.out_dir / "compounds.parquet")["cbkid"])
+        for name, content in self._artefact_bytes().items():
+            self.assertNotIn(b"P103572", content, name)
+            self.assertNotIn(b"CBK4", content, name)
+
+    def test_excluded_rows_leave_the_artefacts_as_if_never_there(self) -> None:
+        """Beyond the provenance block, the artefacts equal a run without those rows."""
+        self._run(data_updated_at="2023-11-24")
+        clean = self._artefact_bytes()
+
+        self.input_path.write_text(FEATURE_CSV + EXCLUDED_PLATE_ROWS, encoding="utf-8")
+        self._run(data_updated_at="2023-11-24")
+        with_excluded = self._artefact_bytes()
+
+        self.assertEqual(sorted(with_excluded), sorted(clean))
+        for name in clean:
+            if name != "summary.json":
+                self.assertEqual(with_excluded[name], clean[name], name)
+        first, second = (json.loads(files["summary.json"]) for files in (clean, with_excluded))
+        for summary in (first, second):
+            del summary["source"]
+            del summary["plate_basis"]["n_rows_excluded"]
+        self.assertEqual(second, first)
+
+    def test_a_row_with_no_deposited_image_is_counted(self) -> None:
+        """The guard reports rows the deposit cannot name, rather than assuming none."""
+        self.plate_metadata_path.write_text(
+            PLATE_METADATA_TSV.replace(
+                "covid-repurpose/P2_SSS-val_2023.ome.zarr.zip\tP2_SSS-val_2023\tB03\tCBK3\n", ""
+            ),
+            encoding="utf-8",
+        )
+        out = StringIO()
+        self._run(stdout=out)
+        summary = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))
+
+        self.assertEqual(summary["plate_basis"]["n_unresolved_rows"], 1)
+        self.assertIn("1 published row(s) resolve to no deposited image", out.getvalue())
+
+    def test_unregistered_plate_basis_writes_nothing(self) -> None:
+        """A screen with a channel map but no plate basis fails before any artefact exists."""
+        with (
+            patch.dict(CHANNEL_MAPS, {"other-screen": channel_map(SLUG)}),
+            self.assertRaisesMessage(CommandError, "No plate basis is registered"),
+        ):
+            self._run("other-screen")
+
+        self.assertFalse((self.media / "drr" / "other-screen").exists())
+        self.assertIsNone(DrrDatasetData.get_data("other-screen"))
+
+    def test_plate_metadata_missing_a_column_fails(self) -> None:
+        """An image-metadata file without well ids cannot check anything, so it stops the run."""
+        self.plate_metadata_path.write_text("Files\tbarcode\nx\tP1\n", encoding="utf-8")
+        with self.assertRaisesMessage(CommandError, "well_id"):
+            self._run()
+        self.assertFalse(self.out_dir.exists())
+
+    def test_plate_metadata_is_an_input_to_the_digests(self) -> None:
+        """A changed deposit record moves the inputs digest, as any input does."""
+        self._run()
+        first = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))["source"]
+
+        self.plate_metadata_path.write_text(
+            PLATE_METADATA_TSV + "covid-repurpose/P2.ome.zarr.zip\tP2_SSS-val_2023\tB04\tCBK3\n",
+            encoding="utf-8",
+        )
+        self._run()
+        second = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))["source"]
+
+        self.assertEqual(second["sha256"], first["sha256"])
+        self.assertNotEqual(second["inputs_sha256"], first["inputs_sha256"])

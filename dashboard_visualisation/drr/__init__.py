@@ -29,10 +29,19 @@ from .figures import (
     oversized_figures,
 )
 from .loader import FeatureTable, load_compound_names, load_feature_table, load_metadata
+from .plates import (
+    EXCLUDED_PLATES,
+    exclude_plates,
+    excluded_plates,
+    load_plate_metadata,
+    plate_basis_report,
+    unresolved_rows,
+)
 from .radar import RadarAxis, artefact_key, build_ring, require_populations
 from .summary import build_summary
 
 __all__ = [
+    "EXCLUDED_PLATES",
     "FIGURE_CLIP_BOUND",
     "SNIPPET_FIGURE_BYTE_CEILING",
     "Channel",
@@ -51,15 +60,20 @@ __all__ = [
     "clip_figure_values",
     "clip_report",
     "compound_label",
+    "exclude_plates",
+    "excluded_plates",
     "figure_basis_token",
     "figure_feature_columns",
     "load_compound_names",
     "load_feature_table",
     "load_metadata",
+    "load_plate_metadata",
     "name_lookup_report",
     "normalize_cbkid",
     "oversized_figures",
+    "plate_basis_report",
     "present_channels",
     "reconciliation_report",
     "require_populations",
+    "unresolved_rows",
 ]
