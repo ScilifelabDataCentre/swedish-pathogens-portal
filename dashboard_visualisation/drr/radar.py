@@ -42,6 +42,21 @@ from .channels import Channel
 BASELINE_POPULATION = "negcon"
 INFECTED_POPULATION = "non-inf"
 TREATMENT_POPULATION = "trt"
+POSITIVE_CONTROL_POPULATION = "poscon"
+
+# What a reader sees for each population, and the only place it is said. The
+# tokens stay the data values everywhere they are keys — masks, ``summary.json``,
+# the feature artefacts — so only the display changes. The meanings are DS-2's
+# (``plans/DRR/reference/data-sources.md``): ``negcon`` is infected DMSO and
+# ``non-inf`` uninfected DMSO, the split the article's Figure 1C colours by
+# (FREYA-3009).
+POPULATION_LABELS: dict[str, str] = {
+    BASELINE_POPULATION: "Infected control (DMSO)",
+    INFECTED_POPULATION: "Uninfected control (DMSO)",
+    POSITIVE_CONTROL_POPULATION: "Positive control",
+    TREATMENT_POPULATION: "Treated",
+}
+POPULATION_LEGEND_TITLE = "Well population"
 
 # Compartments carrying their own area/shape and neighbours axes, in ring order,
 # with the notebook's own short labels (``C``, ``CY``, ``N``).
@@ -237,6 +252,28 @@ def axis_values(
     return [
         float(per_feature[list(axis.indices)].mean()) if axis.indices else None for axis in axes
     ]
+
+
+def population_label(token: str) -> str:
+    """Return the plain-language name of one ``pert_type`` population.
+
+    Args:
+        token: The raw ``pert_type`` value.
+
+    Returns:
+        The name a reader sees, from ``POPULATION_LABELS``.
+
+    Raises:
+        ValueError: If the token has no name. Rendering the token instead would
+            republish exactly the internal vocabulary FREYA-3009 removes.
+    """
+    try:
+        return POPULATION_LABELS[token]
+    except KeyError:
+        raise ValueError(
+            f"pert_type {token!r} has no plain-language name, so the figures cannot say "
+            f"which population it is. Named: {sorted(POPULATION_LABELS)}."
+        ) from None
 
 
 def require_populations(pert_types: Iterable[str]) -> None:

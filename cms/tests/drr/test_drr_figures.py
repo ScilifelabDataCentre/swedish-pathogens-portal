@@ -31,6 +31,7 @@ from dashboard_visualisation.drr.figures import (
     figure_basis_token,
 )
 from dashboard_visualisation.drr.loader import FeatureTable
+from dashboard_visualisation.drr.radar import POPULATION_LABELS, population_label
 from dashboard_visualisation.utils.plotly import figure_to_json
 
 SLUG = "sars-cov2-a549-ace2-validation"
@@ -271,6 +272,76 @@ class DrrFigureBuildTests(SimpleTestCase):
 
         self.assertAlmostEqual(axes["DNA I"], 0.5, places=6)
         self.assertAlmostEqual(axes["ER G"], 3.5, places=6)
+
+
+class DrrPopulationLabelTests(SimpleTestCase):
+    """What a reader sees for each population, and what stays a key (FREYA-3009)."""
+
+    @staticmethod
+    def _table_with(extra_pert_type: str) -> FeatureTable:
+        """Return the fixture table plus one more profile carrying ``extra_pert_type``."""
+        table = _feature_table()
+        extra = table.frame.head(1).with_columns(
+            pl.lit(extra_pert_type).alias("pert_type"),
+            pl.lit("CBK3").alias("cbkid"),
+        )
+        return FeatureTable(
+            frame=pl.concat([table.frame, extra]),
+            metadata_columns=table.metadata_columns,
+            feature_columns=table.feature_columns,
+        )
+
+    @staticmethod
+    def _figures(table: FeatureTable) -> dict:
+        """Build every figure of ``table`` on its figure basis."""
+        channels = channel_map(SLUG)
+        columns = figure_feature_columns(table.feature_columns, channels)
+        return build_all_figures(table, feature_columns=columns, channels=channels)
+
+    def test_the_names_are_keyed_by_exactly_the_raw_tokens(self) -> None:
+        """The mapping names the four populations the screen has, and nothing else."""
+        self.assertEqual(set(POPULATION_LABELS), {"negcon", "non-inf", "poscon", "trt"})
+
+    def test_each_population_has_its_plain_language_name(self) -> None:
+        """Infected and uninfected are the DMSO controls, named as DS-2 settles them."""
+        self.assertEqual(population_label("negcon"), "Infected control (DMSO)")
+        self.assertEqual(population_label("non-inf"), "Uninfected control (DMSO)")
+        self.assertEqual(population_label("poscon"), "Positive control")
+        self.assertEqual(population_label("trt"), "Treated")
+
+    def test_the_pca_legend_names_every_population_and_no_token(self) -> None:
+        """One trace per population, in token order so the colours stay put."""
+        pca = self._figures(self._table_with("poscon"))["pca"]
+
+        self.assertEqual(
+            [trace["name"] for trace in pca["data"]],
+            [
+                "Infected control (DMSO)",
+                "Uninfected control (DMSO)",
+                "Positive control",
+                "Treated",
+            ],
+        )
+        self.assertEqual(pca["layout"]["legend"]["title"]["text"], "Well population")
+
+    def test_the_raw_token_stays_the_data_value(self) -> None:
+        """Only the display is renamed: the table the downloads publish is untouched."""
+        table = self._table_with("poscon")
+
+        self._figures(table)
+
+        self.assertEqual(
+            table.frame["pert_type"].to_list(), ["trt", "trt", "negcon", "non-inf", "poscon"]
+        )
+
+    def test_an_unnamed_population_fails_rather_than_rendering_its_token(self) -> None:
+        """A token with no name stops the build, naming the token."""
+        for token in ("mystery", ""):
+            with self.subTest(token=token):
+                with self.assertRaisesMessage(ValueError, repr(token)):
+                    population_label(token)
+                with self.assertRaisesMessage(ValueError, repr(token)):
+                    self._figures(self._table_with(token))
 
 
 class DrrFigureClipTests(SimpleTestCase):

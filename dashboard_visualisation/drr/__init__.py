@@ -37,12 +37,22 @@ from .plates import (
     plate_basis_report,
     unresolved_rows,
 )
-from .radar import RadarAxis, artefact_key, build_ring, require_populations
+from .radar import (
+    POPULATION_LABELS,
+    POPULATION_LEGEND_TITLE,
+    RadarAxis,
+    artefact_key,
+    build_ring,
+    population_label,
+    require_populations,
+)
 from .summary import build_summary
 
 __all__ = [
     "EXCLUDED_PLATES",
     "FIGURE_CLIP_BOUND",
+    "POPULATION_LABELS",
+    "POPULATION_LEGEND_TITLE",
     "SNIPPET_FIGURE_BYTE_CEILING",
     "Channel",
     "FeatureTable",
@@ -72,6 +82,7 @@ __all__ = [
     "normalize_cbkid",
     "oversized_figures",
     "plate_basis_report",
+    "population_label",
     "present_channels",
     "reconciliation_report",
     "require_populations",

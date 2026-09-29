@@ -78,11 +78,11 @@
         </div>
 
         <div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
-            {% if summary.pert_type_counts %}
+            {% if population_counts %}
                 <div>
-                    <h5 class="text-sm font-semibold text-pp-almost-black">Perturbation types</h5>
+                    <h5 class="text-sm font-semibold text-pp-almost-black">Well populations</h5>
                     <ul class="mt-2 flex flex-wrap gap-2">
-                        {% for label, count in summary.pert_type_counts.items %}
+                        {% for label, count in population_counts %}
                             <li class="badge badge-outline">{{ label }}: {{ count|intcomma }}</li>
                         {% endfor %}
                     </ul>

@@ -281,9 +281,15 @@ class TestDrrDatasetPageRender(DrrDatasetPageTestCase):
         self.assertContains(response, "1,467")  # n_features
         self.assertContains(response, "7,500")  # n_wells
 
-        # Perturbation types plus compartments / channels.
-        self.assertContains(response, "Perturbation types")
-        self.assertContains(response, "6,800")  # trt count
+        # Well populations, named in plain language, plus compartments / channels.
+        # The tokens stay the summary's keys and never reach a reader (FREYA-3009).
+        self.assertContains(response, "Well populations")
+        self.assertContains(response, "Treated: 6,800")
+        self.assertContains(response, "Infected control (DMSO): 900")
+        self.assertContains(response, "Positive control: 598")
+        self.assertNotContains(response, "negcon")
+        self.assertNotContains(response, "poscon")
+        self.assertNotContains(response, "trt:")
         self.assertContains(response, "nuclei, cells, cytoplasm")
 
         # Channels name their stains and say which one the figures leave out.
@@ -319,6 +325,26 @@ class TestDrrDatasetPageRender(DrrDatasetPageTestCase):
         # Figure rendered server-side through the inherited PlotlyFigureBlock path.
         self.assertContains(response, 'class="plotly-figure"')
         self.assertContains(response, 'aria-label="PCA plot"')
+
+    def test_an_unnamed_population_renders_as_itself_rather_than_failing(self) -> None:
+        """A summary token with no name is shown raw; the page still renders.
+
+        Precompute refuses such a population, so this is a summary written
+        elsewhere — and a missing label must not take the whole page down.
+        """
+        DrrDatasetData.objects.create(
+            dataset_slug="sars-cov2-a549-ace2-validation",
+            data={},
+            summary={**FULL_SUMMARY, "pert_type_counts": {"trt": 6800, "mystery": 12}},
+            source_file_hash="deadbeefcafe0000",
+            data_updated_at=date(2026, 7, 10),
+        )
+
+        response = self.client.get(self.page.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Treated: 6,800")
+        self.assertContains(response, "mystery: 12")
 
     def test_figure_falls_back_when_figure_json_missing(self) -> None:
         """With no precomputed figure JSON the block shows its unavailable-data fallback."""

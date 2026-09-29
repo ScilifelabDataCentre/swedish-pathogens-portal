@@ -18,7 +18,7 @@ from wagtail.contrib.routable_page.models import RoutablePageMixin, path
 
 from cms.pages.dashboard import DashboardPage
 from cms.services.file_downloads import resolve_file_in_directory, serve_file_from_directory
-from dashboard_visualisation.drr import artefact_dir, compound_label
+from dashboard_visualisation.drr import POPULATION_LABELS, artefact_dir, compound_label
 from dashboard_visualisation.utils import plot_html_from_json
 
 if TYPE_CHECKING:
@@ -143,10 +143,32 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
 
         return DrrDatasetData.get_data(self.slug)
 
+    @staticmethod
+    def _population_counts(summary: dict[str, Any] | None) -> list[tuple[str, int]]:
+        """Return the summary's per-population counts under their plain-language names.
+
+        ``summary.json`` keys the counts by raw ``pert_type`` token, and keeps
+        doing so; only the display is renamed (FREYA-3009). Precompute refuses a
+        population with no name, so an unknown token here means a summary from
+        elsewhere: it is shown as itself and logged rather than failing the page.
+        """
+        counts = (summary or {}).get("pert_type_counts") or {}
+        rows = []
+        for token, count in counts.items():
+            label = POPULATION_LABELS.get(token)
+            if label is None:
+                LOGGER.warning("drr.summary.unnamed_population", pert_type=token)
+                label = token
+            rows.append((label, count))
+        return rows
+
     def get_context(self, request: HttpRequest) -> dict[str, Any]:
         """Add the DRR summary payload, the download URLs, the radars and both pickers."""
         context = super().get_context(request)
         context["summary"] = getattr(self.dashboard_data, "summary", {})
+        population_counts = self._population_counts(context["summary"])
+        if population_counts:
+            context["population_counts"] = population_counts
 
         download_urls = self._download_urls()
         if download_urls:
