@@ -151,6 +151,11 @@ awk '
             }
         }
 
+        print "⚠️ **Note that not all links listed below may be broken.**"
+        print "*For example a 403 status code means the `linkchecker` was not allowed access to the website to check.*"
+        print ""
+        print "### Summary"
+        print ""
         print "| Metric | Count |"
         print "|---|---:|"
         print "| Number of Pages with broken links | " all_parents_count " |"
