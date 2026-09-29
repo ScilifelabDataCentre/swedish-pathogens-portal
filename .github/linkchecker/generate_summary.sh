@@ -90,50 +90,97 @@ awk '
         url    = $(column["urlname"])
         result = $(column["result"])
 
-        # Keep the order in which parent URLs first appear.
-        if (!(parent in seen)) {
-            parent_count++
-            parents[parent_count] = parent
-            seen[parent] = 1
+        # Normalize result into a grouping key.
+        result_key = result
+        sub(/^"/, "", result_key)
+
+        # If it does not start with a numeric HTTP status code e.g. "404 Not Found"
+        # then remove everything after the first colon
+        # e.g. "Timeout: Connection timed out" becomes "Timeout"
+        if (result_key !~ /^[0-9]+[[:space:]]/) {
+            sub(/:.*/, "", result_key)
         }
 
-        count[parent]++
+        # Keep the order in which result groups first appear.
+        if (!(result_key in result_seen)) {
+            result_count++
+            result_groups[result_count] = result_key
+            result_seen[result_key] = 1
+        } else {
+            result_seen[result_key]++
+        }
+
+        # Keep the order in which parent URLs first appear
+        # within each result group.
+        group_parent_key = result_key SUBSEP parent
+
+        if (!(group_parent_key in parent_seen)) {
+            parent_count[result_key]++
+            parents[result_key, parent_count[result_key]] = parent
+            parent_seen[group_parent_key] = 1
+        }
+
+        # Store each failure under its result + parent.
+        i = count[result_key, parent] + 1
+        count[result_key, parent] = i
+
+        names[result_key, parent, i]   = name
+        urls[result_key, parent, i]    = url
+        results[result_key, parent, i] = result
+
         total_broken_links++
-
-        # Store each failure under its parent.
-        i = count[parent]
-
-        names[parent, i]   = name
-        urls[parent, i]    = url
-        results[parent, i] = result
     }
 
     END {
-        if (parent_count == 0) {
+        if (result_count == 0) {
             print "### ✅ No broken links"
             exit 0
         }
 
+        # Count unique pages across all result groups.
+        for (r = 1; r <= result_count; r++) {
+            result_key = result_groups[r]
+
+            for (p = 1; p <= parent_count[result_key]; p++) {
+                parent = parents[result_key, p]
+
+                if (!(parent in all_parents_seen)) {
+                    all_parents_count++
+                    all_parents_seen[parent] = 1
+                }
+            }
+        }
+
         print "| Metric | Count |"
         print "|---|---:|"
-        print "| Number of Pages with broken links | " parent_count " |"
+        print "| Number of Pages with broken links | " all_parents_count " |"
         print "| Total number of broken links | " total_broken_links " |"
+
+        # Stat for each result group.
+        for (r = 1; r <= result_count; r++) {
+            result_key = result_groups[r]
+            print "| " result_key " | " result_seen[result_key] " |"
+        }
         print ""
 
-        print "### ❌ Broken links"
-        print ""
+        for (r = 1; r <= result_count; r++) {
+            result_key = result_groups[r]
 
-        for (p = 1; p <= parent_count; p++) {
-            parent = parents[p]
-
-            print "#### " parent
+            print "### ❌ " result_key
             print ""
 
-            for (i = 1; i <= count[parent]; i++) {
-                print "  - **Link name:** `" names[parent, i] "`"
-                print "    **URL:** " urls[parent, i]
-                print "    **Result:** " results[parent, i]
+            for (p = 1; p <= parent_count[result_key]; p++) {
+                parent = parents[result_key, p]
+
+                print "#### " parent
                 print ""
+
+                for (i = 1; i <= count[result_key, parent]; i++) {
+                    print "  - **Link name:** `" names[result_key, parent, i] "`"
+                    print "    **URL:** " urls[result_key, parent, i]
+                    print "    **Result:** " results[result_key, parent, i]
+                    print ""
+                }
             }
         }
     }
