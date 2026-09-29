@@ -26,6 +26,7 @@ feature (``loader.METADATA_COLUMNS``).
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -274,6 +275,24 @@ def population_label(token: str) -> str:
             f"pert_type {token!r} has no plain-language name, so the figures cannot say "
             f"which population it is. Named: {sorted(POPULATION_LABELS)}."
         ) from None
+
+
+def population_labels_token() -> str:
+    """Return a short digest of every population name a figure displays.
+
+    The names are figure content that no input carries, so rewording one would
+    move no input digest and the render cache would keep the previous legend
+    for a day. ``figures.figure_basis_token`` folds this in for that reason. It
+    is read at call time, so any change to the mapping moves it.
+
+    Returns:
+        The first 12 hex characters of a SHA-256 over the labels and the
+        legend title.
+    """
+    payload = json.dumps(
+        {"labels": POPULATION_LABELS, "legend_title": POPULATION_LEGEND_TITLE}, sort_keys=True
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:12]
 
 
 def require_populations(pert_types: Iterable[str]) -> None:

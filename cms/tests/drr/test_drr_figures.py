@@ -454,17 +454,32 @@ class DrrFigureClipTests(SimpleTestCase):
 
     def test_the_basis_token_carries_the_column_count_then_the_bound(self) -> None:
         """A fixed order, so the digest it feeds is stable across runs."""
-        self.assertEqual(figure_basis_token(self.columns), "figure-basis:7:50.0")
+        self.assertEqual(
+            figure_basis_token(self.columns), "figure-basis:7:50.0:labels-9b654e1eb7fc"
+        )
 
     def test_the_basis_token_moves_with_the_bound_and_with_the_basis(self) -> None:
         """Either half of "how the figures were computed" busts the render cache."""
         with patch("dashboard_visualisation.drr.figures.FIGURE_CLIP_BOUND", 25.0):
-            self.assertEqual(figure_basis_token(self.columns), "figure-basis:7:25.0")
+            self.assertEqual(
+                figure_basis_token(self.columns), "figure-basis:7:25.0:labels-9b654e1eb7fc"
+            )
 
         self.assertNotEqual(
             figure_basis_token(self.columns),
             figure_basis_token(self.columns[:-1]),
         )
+
+    def test_the_basis_token_moves_with_the_population_names(self) -> None:
+        """A reworded label or legend title busts the render cache (FREYA-3009)."""
+        before = figure_basis_token(self.columns)
+        reworded = {**POPULATION_LABELS, "negcon": "Infected DMSO wells"}
+
+        with patch("dashboard_visualisation.drr.radar.POPULATION_LABELS", reworded):
+            self.assertNotEqual(figure_basis_token(self.columns), before)
+        with patch("dashboard_visualisation.drr.radar.POPULATION_LEGEND_TITLE", "Population"):
+            self.assertNotEqual(figure_basis_token(self.columns), before)
+        self.assertEqual(figure_basis_token(self.columns), before)
 
 
 class DrrTwoDimensionalArraySerialisationTests(SimpleTestCase):
