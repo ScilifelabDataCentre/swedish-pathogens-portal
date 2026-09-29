@@ -1,0 +1,29 @@
+{% load plotly_js %}
+
+{% comment %}
+One DRR radar, rendered identically by the page and by the section 8.3 swap
+route, so the swapped figure carries the same id and repeated swaps keep
+working. The caveat is the basis qualification precompute wrote into the
+figure's layout.meta; it is page text, not a Plotly annotation, so it wraps on
+a narrow viewport instead of being clipped at the plot's edge.
+{% endcomment %}
+<figure id="drr-radar-{{ figure.figure_id }}" class="my-8" role="img" aria-label="{{ figure.alt_text }}">
+    {% if figure.plot_html %}
+    {% plotlyjs_once %}
+    <div class="plotly-figure" style="height: {{ figure.height }}px;">
+        {{ figure.plot_html|safe }}
+    </div>
+    {% else %}
+    <p class="text-sm text-gray-500">Chart data is not available for this figure.</p>
+    {% endif %}
+
+    {% if figure.caption %}
+    <figcaption class="text-sm italic text-gray-500 mt-2 text-center">
+        {{ figure.caption }}
+    </figcaption>
+    {% endif %}
+
+    {% if figure.caveat %}
+    <p class="text-sm text-pp-dark-grey mt-2">{{ figure.caveat }}</p>
+    {% endif %}
+</figure>
