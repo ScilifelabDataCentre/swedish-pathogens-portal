@@ -15,11 +15,13 @@ sys.path).
 from __future__ import annotations
 
 import csv
+import sys
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
 import pytest
+
 import search_euPMC_rest_API as sepmc
 
 # ---------------------------------------------------------------------------
@@ -179,7 +181,7 @@ def test_dedupe_paper_rows_aggregates_by_source_and_id() -> None:
 
 
 def test_expand_deduped_row_round_trips() -> None:
-    """Dedupe -> expand -> re-dedupe reproduces the exact original row."""
+    """dedupe -> expand -> re-dedupe reproduces the exact original row."""
     li_paper = make_paper("1", "Li X")
     muller_paper = make_paper("1", "Muller M")
     rows = [
@@ -279,3 +281,84 @@ def test_retry_errored_authors_merges_recovered_result(
     assert any(r["epmc_id"] == "42" for r in rows)  # noqa: S101
     recovered_row = next(r for r in rows if r["epmc_id"] == "42")
     assert recovered_row["sweden_affiliated_matching_authors"] == "Bad B"  # noqa: S101
+
+
+# ---------------------------------------------------------------------------
+# Exit codes: 0 clean, 3 partial (needs --retry-errors), 1 unexpected
+# ---------------------------------------------------------------------------
+
+
+def test_retry_errored_authors_returns_zero_when_nothing_to_retry(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """No error column entries at all -> nothing to retry -> returns 0."""
+    monkeypatch.chdir(tmp_path)
+    with Path(sepmc.SUMMARY_OUTPUT_CSV).open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=sepmc.SUMMARY_FIELDNAMES)
+        writer.writeheader()
+        writer.writerow({"input_author": "Good A", "query": "q", "match_count": 0, "filtered_count": 0})
+
+    assert sepmc.retry_errored_authors() == 0  # noqa: S101
+
+
+def test_retry_errored_authors_returns_count_still_erroring(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """An author that still fails on retry leaves the return value non-zero."""
+    monkeypatch.chdir(tmp_path)
+    (tmp_path / sepmc.KEYWORDS_CSV).write_text("bacteria\npathogen\n")
+    with Path(sepmc.SUMMARY_OUTPUT_CSV).open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=sepmc.SUMMARY_FIELDNAMES)
+        writer.writeheader()
+        writer.writerow({"input_author": "Bad B", "query": "", "error": "boom"})
+    Path(sepmc.PAPERS_OUTPUT_CSV).open("w", encoding="utf-8").close()
+    Path(sepmc.TARGETS_OUTPUT_TXT).open("w", encoding="utf-8").close()
+
+    # still fails on retry too
+    _patch_session(monkeypatch, make_fake_get(fail_authors={"Bad B"}, papers_by_author={}))
+
+    assert sepmc.retry_errored_authors() == 1  # noqa: S101
+
+
+def test_main_returns_3_when_an_author_errors(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A full run with one failing author exits 3, not 0."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "argv", ["search_euPMC_rest_API.py"])
+    (tmp_path / sepmc.KEYWORDS_CSV).write_text("bacteria\npathogen\n")
+    (tmp_path / "publications.csv").write_text("Authors\n\"Good A, Bad B\"\n")
+
+    good_paper = make_paper("1", "Good A")
+    fake_get = make_fake_get(fail_authors={"Bad B"}, papers_by_author={"Good A": good_paper})
+    _patch_session(monkeypatch, fake_get)
+
+    assert sepmc.main() == 3  # noqa: S101
+
+
+def test_main_returns_0_when_everything_succeeds(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A full run with no failing authors exits 0."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "argv", ["search_euPMC_rest_API.py"])
+    (tmp_path / sepmc.KEYWORDS_CSV).write_text("bacteria\npathogen\n")
+    (tmp_path / "publications.csv").write_text("Authors\n\"Good A\"\n")
+
+    good_paper = make_paper("1", "Good A")
+    fake_get = make_fake_get(fail_authors=set(), papers_by_author={"Good A": good_paper})
+    _patch_session(monkeypatch, fake_get)
+
+    assert sepmc.main() == 0  # noqa: S101
+
+
+def test_main_returns_1_on_unexpected_failure(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """A missing required input file is an unexpected failure -> exit 1."""
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "argv", ["search_euPMC_rest_API.py"])
+    # deliberately do NOT create publications.csv
+
+    assert sepmc.main() == 1  # noqa: S101
+
