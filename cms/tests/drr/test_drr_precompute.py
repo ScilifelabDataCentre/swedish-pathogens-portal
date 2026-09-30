@@ -16,6 +16,7 @@ from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.test import TestCase, override_settings
 from django.utils import timezone
+from openpyxl import Workbook
 
 from cms.snippets.drr_dataset_data import DrrDatasetData
 from dashboard_visualisation.drr.channels import (
@@ -236,6 +237,25 @@ class DrrPrecomputeTests(TestCase):
                 title="Test DRR",
                 **extra,
             )
+
+    def _write_table_s8(self, morphology: object = 0.8) -> Path:
+        """Write a two-dose Table S8 naming CBK1's CBCS name, doses stored as text."""
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.append(
+            [
+                "Compound_name",
+                "Concentration (uM)",
+                "morphology_score",
+                "Cell count (%)",
+                "Infection rate (%)",
+            ]
+        )
+        sheet.append(["compoundA", "1", morphology, 100, 20])
+        sheet.append(["compoundA", "0.3", 0.1, 104, 95])
+        path = self.base / "s8.xlsx"
+        workbook.save(path)
+        return path
 
     def test_artefacts_written(self) -> None:
         """All derived figure and download artefacts are written."""
@@ -1020,3 +1040,54 @@ class DrrPrecomputeTests(TestCase):
 
         self.assertEqual(second["sha256"], first["sha256"])
         self.assertNotEqual(second["inputs_sha256"], first["inputs_sha256"])
+
+    def test_table_s8_writes_one_row_per_treated_compound(self) -> None:
+        """CBK1 and CBK3 are treated; CBK2 holds only controls and gets no row."""
+        self._run(table_s8=str(self._write_table_s8()))
+
+        table = pl.read_parquet(self.out_dir / "table.parquet")
+        self.assertEqual(table["cbkid"].to_list(), ["CBK1", "CBK3"])
+        cbk1 = table.row(0, named=True)
+        self.assertEqual(
+            (cbk1["morphology_score"], cbk1["infection_rate_pct"], cbk1["dose_um"]),
+            (0.8, 20.0, 1.0),
+        )
+        self.assertIsNone(table.row(1, named=True)["morphology_score"])
+
+    def test_summary_records_the_table_and_its_source(self) -> None:
+        """The table block names the workbook, its digest and what the join did."""
+        self._run(table_s8=str(self._write_table_s8()))
+        summary = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))
+
+        block = summary["table"]
+        self.assertEqual(block["filename"], "s8.xlsx")
+        self.assertEqual(len(block["sha256"]), 64)
+        self.assertEqual((block["n_rows"], block["n_scored"]), (2, 1))
+        self.assertEqual(block["unmatched_names"], [])
+
+    def test_without_table_s8_no_table_is_written_and_a_stale_one_goes(self) -> None:
+        """A run without the workbook leaves no table from an earlier generation."""
+        self._run(table_s8=str(self._write_table_s8()))
+        with_table = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))
+
+        self._run()
+        without = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))
+
+        self.assertFalse((self.out_dir / "table.parquet").exists())
+        self.assertNotIn("table", without)
+        self.assertNotEqual(
+            with_table["source"]["inputs_sha256"], without["source"]["inputs_sha256"]
+        )
+
+    def test_the_workbook_is_never_copied_into_media(self) -> None:
+        """Only the derived table lands under media; the xlsx stays where it was."""
+        self._run(table_s8=str(self._write_table_s8()))
+
+        self.assertEqual(list(self.media.rglob("*.xlsx")), [])
+
+    def test_a_malformed_table_s8_fails_before_anything_is_written(self) -> None:
+        """A non-numeric score stops the run with no artefact directory created."""
+        with self.assertRaisesMessage(CommandError, "morphology_score"):
+            self._run(table_s8=str(self._write_table_s8(morphology="n/a")))
+
+        self.assertFalse(self.out_dir.exists())
