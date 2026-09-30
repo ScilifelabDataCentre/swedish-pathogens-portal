@@ -33,7 +33,7 @@
                         aria-haspopup="true"
                         aria-controls="{{ item.title|slugify }}-menu"
                         type="button">
-                        {{ item.title|title }}
+                        {{ item.title }}
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                         </svg>
@@ -47,7 +47,7 @@
                              *:transition-colors *:focus-visible:outline-none *:focus-visible:ring-2
                              *:focus-visible:ring-offset-2 *:focus-visible:bg-pp-pale-grey">
                              {% for sub_item in item.sub_menu_items.all %}
-                             <a href="{{ sub_item.link }}" role="menuitem">{{ sub_item.title|title }}</a>
+                             <a href="{{ sub_item.link }}" role="menuitem">{{ sub_item.title }}</a>
                              {% endfor %}
                         </div>
                     </div>
@@ -58,7 +58,7 @@
                         class="text-pp-dark-blue font-medium hover:text-pp-teal transition-colors
                         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pp-teal
                         focus-visible:ring-offset-2 focus-visible:rounded">
-                            {{ item.title|title }}
+                            {{ item.title }}
                         </a>
                     </div>
                     {% endif %}
@@ -108,12 +108,12 @@
             <div class="flex flex-col gap-4" aria-label="Main links">
                 {% for item in header_menu %}
                     {% if item.has_submenu %}
-                    <div role="group" aria-label="{{ item.title|title }}">
+                    <div role="group" aria-label="{{ item.title }}">
                         <details class="group/details">
                             <summary class="flex items-center text-pp-dark-blue font-medium uppercase tracking-wider
                             list-none focus-visible:rounded focus-visible:outline-none focus-visible:ring-2
                             focus-visible:ring-offset-2 [&::-webkit-details-marker]:hidden">
-                                <span>{{ item.title|title }}</span>
+                                <span>{{ item.title }}</span>
                                 <svg class="w-4 h-4 ml-2 transition-transform group-open/details:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                                 </svg>
@@ -122,7 +122,7 @@
                             *:text-pp-mid-blue *:focus-visible:outline-none *:focus-visible:ring-2
                                 *:focus-visible:ring-offset-2 *:focus-visible:rounded">
                                 {% for sub_item in item.sub_menu_items.all %}
-                                <li><a href="{{ sub_item.link }}">{{ sub_item.title|title }}</a></li>
+                                <li><a href="{{ sub_item.link }}">{{ sub_item.title }}</a></li>
                                 {% endfor %}
                             </ul>
                         </details>
@@ -132,7 +132,7 @@
                         <a href="{{ item.link }}"
                             class="text-pp-dark-blue font-medium uppercase tracking-wider focus-visible:rounded
                             focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2">
-                            {{ item.title|title }}
+                            {{ item.title }}
                         </a>
                     </div>
                     {% endif %}
