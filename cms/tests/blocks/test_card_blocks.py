@@ -5,6 +5,7 @@ from wagtail.blocks import StructBlockValidationError
 from wagtail.models import Page, Site
 
 from cms.blocks.cards import (
+    ALLOWED_CARD_DESCRIPTION_FEATURES,
     CardBlock,
     CardGridBlock,
     CatalogueCardBlock,
@@ -32,7 +33,7 @@ class TestCardBlock(TestCase):
             {
                 "image": image.id,
                 "title": "Test title",
-                "description": "Test description",
+                "description": "Test <strong>description</strong>",
                 "url": "https://example.com",
             }
         )
@@ -41,7 +42,7 @@ class TestCardBlock(TestCase):
 
         self.assertEqual(result["title"], "Test title")
         self.assertEqual(result["image"].title, "Test image")
-        self.assertEqual(result["description"], "Test description")
+        self.assertEqual(result["description"].source, "Test <strong>description</strong>")
         self.assertEqual(result["url"], "https://example.com")
 
     def test_missing_required_fields(self):
@@ -56,6 +57,16 @@ class TestCardBlock(TestCase):
         self.assertIn("title", errors)
         self.assertIn("description", errors)
         self.assertIn("url", errors)
+
+    def test_description_only_allows_configured_features(self):
+        """Test that only the configured rich-text features are enabled."""
+        description_block = self.block.child_blocks["description"]
+
+        self.assertEqual(description_block.features, ALLOWED_CARD_DESCRIPTION_FEATURES)
+
+        # some false positives to check that other features are not enabled
+        self.assertNotIn("h2", description_block.features)
+        self.assertNotIn("ul", description_block.features)
 
 
 #######################################################################
@@ -101,7 +112,7 @@ class TestCardGridBlock(TestCase):
                     {
                         "image": image2.id,
                         "title": "Card 2",
-                        "description": "Description for card 2",
+                        "description": "<p>Description for card 2</p>",
                         "url": "https://example.com/card2",
                     },
                 ]
@@ -113,11 +124,11 @@ class TestCardGridBlock(TestCase):
         self.assertEqual(len(result["cards"]), 2)
         self.assertEqual(result["cards"][0]["title"], "Card 1")
         self.assertEqual(result["cards"][0]["image"].title, "Image 1")
-        self.assertEqual(result["cards"][0]["description"], "Description for card 1")
+        self.assertEqual(result["cards"][0]["description"].source, "Description for card 1")
         self.assertEqual(result["cards"][0]["url"], "https://example.com/card1")
         self.assertEqual(result["cards"][1]["title"], "Card 2")
         self.assertEqual(result["cards"][1]["image"].title, "Image 2")
-        self.assertEqual(result["cards"][1]["description"], "Description for card 2")
+        self.assertEqual(result["cards"][1]["description"].source, "<p>Description for card 2</p>")
         self.assertEqual(result["cards"][1]["url"], "https://example.com/card2")
 
 
@@ -151,7 +162,7 @@ class TestCatalogueCardBlock(TestCase):
 
         self.assertEqual(result["title"], "Test title")
         self.assertEqual(result["image"].title, "Test image")
-        self.assertEqual(result["description"], "Test description")
+        self.assertEqual(result["description"].source, "Test description")
         self.assertEqual(result["url"], "https://example.com")
         self.assertEqual(result["type"], "test-type")
         self.assertEqual(result["keywords"], "test, catalogue, card")
@@ -209,7 +220,7 @@ class TestCatalogueCardGridBlock(TestCase):
                     {
                         "image": image1.id,
                         "title": "Card 1",
-                        "description": "Description for card 1",
+                        "description": "<p>Description for card 1</p>",
                         "url": "https://example.com/card1",
                         "type": "type1",
                         "keywords": "keyword1, keyword2",
@@ -230,13 +241,13 @@ class TestCatalogueCardGridBlock(TestCase):
         self.assertEqual(len(result["cards"]), 2)
         self.assertEqual(result["cards"][0]["title"], "Card 1")
         self.assertEqual(result["cards"][0]["image"].title, "Image 1")
-        self.assertEqual(result["cards"][0]["description"], "Description for card 1")
+        self.assertEqual(result["cards"][0]["description"].source, "<p>Description for card 1</p>")
         self.assertEqual(result["cards"][0]["url"], "https://example.com/card1")
         self.assertEqual(result["cards"][0]["type"], "type1")
         self.assertEqual(result["cards"][0]["keywords"], "keyword1, keyword2")
         self.assertEqual(result["cards"][1]["title"], "Card 2")
         self.assertEqual(result["cards"][1]["image"].title, "Image 2")
-        self.assertEqual(result["cards"][1]["description"], "Description for card 2")
+        self.assertEqual(result["cards"][1]["description"].source, "Description for card 2")
         self.assertEqual(result["cards"][1]["url"], "https://example.com/card2")
         self.assertEqual(result["cards"][1]["type"], "type2")
         self.assertEqual(result["cards"][1]["keywords"], "")

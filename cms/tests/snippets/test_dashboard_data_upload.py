@@ -4,6 +4,7 @@ from datetime import date
 from io import BytesIO
 from unittest.mock import patch
 
+from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 
@@ -442,6 +443,7 @@ class TestDashboardDataAdminMessages(TestCase):
         self.assertTrue(issubclass(form_class, DashboardDataForm))
         form = form_class(
             instance=row,
+            for_user=User(is_superuser=True),
             data={
                 "dashboard_title": row.dashboard_title,
                 "dashboard_slug": row.dashboard_slug,
@@ -486,6 +488,7 @@ class TestDashboardDataFormValidation(TestCase):
                 ),
             },
             instance=row,
+            for_user=User(is_superuser=True),
         )
 
         self.assertFalse(form.is_valid())

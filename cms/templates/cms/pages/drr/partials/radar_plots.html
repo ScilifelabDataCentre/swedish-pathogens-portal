@@ -1,0 +1,39 @@
+{% comment %}
+The DRR radars and their compound picker, rendered together so the control
+sits beside the figure it changes (FREYA-2636, spec sections 8.3 and 9).
+
+The picker offers only the compounds precompute wrote a radar for, so no option
+can 404. It is progressive enhancement: the compound radar below already shows
+every treated compound, so the page is complete before the control is touched,
+and a 404 leaves that figure standing. The request is an ordinary GET answered
+with server-rendered HTML, which is what ADR-0004 permits: no client-side
+Plotly callback is involved.
+{% endcomment %}
+{% if radar_figures %}
+    <section aria-labelledby="drr-radars-heading" class="mt-10">
+        <h4 id="drr-radars-heading">Radar plots</h4>
+
+        {% if radar_compounds %}
+            <form
+                class="mt-3 flex w-full flex-col gap-3 sm:flex-row sm:items-center"
+                hx-get="{{ radar_url }}"
+                hx-target="#drr-radar-{{ radar_figure_id }}"
+                hx-swap="outerHTML"
+                hx-indicator="#drr-radar-indicator"
+            >
+                <label for="drr-radar-compound" class="sr-only">Compound</label>
+                <select id="drr-radar-compound" name="cbkid" class="select select-bordered w-full sm:w-auto">
+                    {% for compound in radar_compounds %}
+                        <option value="{{ compound.cbkid }}">{{ compound.label|default:compound.cbkid }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="btn btn-primary btn-sm">Show radar</button>
+                <span id="drr-radar-indicator" class="htmx-indicator loading loading-spinner loading-sm"></span>
+            </form>
+        {% endif %}
+
+        {% for figure in radar_figures %}
+            {% include "cms/pages/drr/partials/radar_figure.html" %}
+        {% endfor %}
+    </section>
+{% endif %}

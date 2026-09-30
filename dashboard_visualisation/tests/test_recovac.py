@@ -7,6 +7,7 @@ import zipfile
 from typing import Any
 
 import polars as pl
+from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase, TestCase
 from plotly.graph_objects import Figure
@@ -98,7 +99,9 @@ def _dashboard_data_form(
     if instance is not None:
         data["dashboard_title"] = instance.dashboard_title
         data["dashboard_slug"] = instance.dashboard_slug
-    return form_class(data, {"source_file": upload}, instance=instance)
+    return form_class(
+        data, {"source_file": upload}, instance=instance, for_user=User(is_superuser=True)
+    )
 
 
 class TestsValidateSourceFile(SimpleTestCase):

@@ -161,7 +161,9 @@ def get_qual_plots(
     y_val = pdata["city"].to_list()
     pdata = pdata.drop("city")
     pdata_numeric = pdata.with_columns(pl.all().replace(category_map))
+    pdata_numeric_numpyed = pdata_numeric.to_numpy()
     pdata_text = pdata.fill_null("Not Available")
+    pdata_text_numpyed = pdata_text.to_numpy()
 
     # data processing for stack bar
     data_bar = (
@@ -185,12 +187,10 @@ def get_qual_plots(
     for category, value in category_map.items():
         fig.add_trace(
             go.Heatmap(
-                z=np.where(pdata_numeric.to_numpy() == value, pdata_numeric.to_numpy(), np.nan),
+                z=np.where(pdata_numeric_numpyed == value, pdata_numeric_numpyed, np.nan),
                 x=pdata.columns,
                 y=y_val,
-                customdata=np.where(
-                    pdata_text.to_numpy() == category, pdata_text.to_numpy(), np.nan
-                ),
+                customdata=np.where(pdata_text_numpyed == category, pdata_text_numpyed, np.nan),
                 colorscale=[[0, hmapcolors_map[category]], [1, hmapcolors_map[category]]],
                 showscale=False,
                 name=category,

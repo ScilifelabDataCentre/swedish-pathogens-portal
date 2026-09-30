@@ -5,6 +5,7 @@ from typing import Any
 from django.db import models
 from django.http import HttpRequest, HttpResponse
 from django.utils.functional import cached_property
+from django.utils.html import strip_tags
 from django.utils.text import slugify
 from wagtail import blocks
 from wagtail.admin.panels import FieldPanel
@@ -117,7 +118,7 @@ class CataloguePage(Page):
                 card
                 for card in context["catalogue_list"]
                 if search_filter.lower() in card["title"].lower()
-                or search_filter.lower() in card["description"].lower()
+                or search_filter.lower() in strip_tags(card["description"]).lower()
                 or search_filter.lower() in card["keywords"].lower()
             ]
 

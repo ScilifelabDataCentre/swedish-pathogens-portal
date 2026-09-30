@@ -47,6 +47,8 @@ DJANGO_ADMIN_URL = "admin/"
 # ------------------------------------------------------------------------------
 WAGTAIL_SITE_NAME = "Swedish Pathogens Portal"
 WAGTAILADMIN_URL = "wagtail/"
+DISABLE_DIRECT_PUBLISH = env.bool("DISABLE_DIRECT_PUBLISH", default=False)
+DISABLE_SELF_APPROVAL = env.bool("DISABLE_SELF_APPROVAL", default=False)
 
 
 # APPS (https://docs.djangoproject.com/en/5.2/ref/settings/#installed-apps)
@@ -152,6 +154,14 @@ LIVER_RESOURCE_DATA_ROOT = Path(
         default=str(BASE_DIR / "dashboard_visualisation" / "liver_resource" / "data"),
     )
 ).resolve()
+
+# EBI catalogue envelope for `/ebi-index.json` (not a Wagtail Settings form).
+# `name` is `EBI_INDEX_NAME` when set, else `WAGTAIL_SITE_NAME`.
+# `release` / `release_date` come from git metadata env vars, baked into the
+# production image (Dockerfile ARG → ENV).
+EBI_INDEX_NAME = env("EBI_INDEX_NAME", default="")
+GIT_RELEASE = env("GIT_RELEASE", default="dev")
+GIT_RELEASE_DATE = env("GIT_RELEASE_DATE", default="")[:10]
 
 
 # PASSWORDS (https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators)

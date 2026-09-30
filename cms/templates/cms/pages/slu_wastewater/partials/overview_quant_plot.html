@@ -67,7 +67,7 @@
                         <div class="pr-8">
                             <input type="range" id="months" name="months" class="range range-accent"
                             min="{{ filter_input.input_months|first }}" max="{{ filter_input.input_months|last }}"
-                            value="{{ filter_input.input_months|last }}" step="1"/>
+                            value="{{ filter_input.input_months|last }}" step="1" aria-label="month-slider"/>
                             <div class="flex justify-between px-2.5 mt-1 text-xs">
                                 {% for m in filter_input.input_months %}
                                 <span>|</span>
@@ -85,7 +85,7 @@
                     <div>
                         <div class="font-medium mb-4 bg-gray-200/50 py-1.5">Normalisation method</div>
                         <div class="pr-8">
-                            <select name="methods" id="norm-method" class="select select-accent">
+                            <select name="methods" id="norm-method" class="select select-accent" aria-label="normalisation-method-selection">
                                 {% for k,v in filter_input.input_methods.items %}
                                 <option value="{{k}}" {% if k == "pmmov_normalised" %}selected{% endif %}>{{v}}</option>
                                 {% endfor %}
@@ -97,7 +97,7 @@
                     <div>
                         <div class="font-medium mb-4 bg-gray-200/50 py-1.5">Time series display</div>
                         <div class="pr-8">
-                            <select name="timeseries" id="timeseries" class="select select-accent">
+                            <select name="timeseries" id="timeseries" class="select select-accent" aria-label="rolling-average-selection">
                                 {% for k,v in filter_input.input_timeseries.items %}
                                 <option value="{{k}}">{{v}}</option>
                                 {% endfor %}

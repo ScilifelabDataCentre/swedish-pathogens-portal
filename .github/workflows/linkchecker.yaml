@@ -1,0 +1,51 @@
+# Linkchecker (https://github.com/linkchecker/linkchecker)
+#
+# This action uses `linkchecker` tool to check for broken links
+# in the URLs passed via sitemap url.
+#
+# This workflow is scheduled to run every Monday at 11:11 UTC,
+# it can also be run manually from repo's GitHub action page.
+
+---
+name: Link Checker
+
+on:
+  workflow_dispatch:
+  # TODO: Uncomment the following lines to enable scheduled runs
+  # schedule:
+  #   - cron: '11 11 * * MON'
+
+jobs:
+  test:
+    name: Link Checker
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout the repo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      # uv reads .python-version and provisions CPython itself, so no
+      # separate actions/setup-python step is needed.
+      - name: Install uv
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+
+      - name: Install LinkChecker
+        run: uv tool install linkchecker==10.6.0
+
+      - name: Run linkchecker
+        run: |
+          linkchecker \
+            --config ${GITHUB_WORKSPACE}/.github/linkchecker/linkcheckerrc \
+            https://swedish-pathogens-portal.scilifelab-2-dev.sys.kth.se/sitemap.xml
+
+      - name: Generate LinkChecker summary
+        if: always()
+        run: |
+          if [[ -f linkchecker-results.csv ]]; then
+            bash \
+              "${GITHUB_WORKSPACE}/.github/linkchecker/generate_summary.sh" \
+              linkchecker-results.csv \
+              >> "$GITHUB_STEP_SUMMARY"
+          fi

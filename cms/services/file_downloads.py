@@ -23,24 +23,24 @@ from django.http import FileResponse, Http404
 LOGGER = structlog.get_logger(__name__)
 
 
-def serve_file_from_directory(base_dir: Path, relpath: str) -> FileResponse:
-    """Stream a single file from ``base_dir`` as an attachment.
+def resolve_file_in_directory(base_dir: Path, relpath: str) -> Path:
+    """Resolve ``relpath`` to a readable file inside ``base_dir``.
 
-    Resolves ``relpath`` inside ``base_dir`` and refuses anything that leaves
-    it, whether through ``..`` segments, an absolute path, or a symlink pointing
-    out of the directory.
+    The traversal guard on its own, so a caller that reads a file rather than
+    streaming it inherits the same tested boundary instead of writing a second
+    one. Refuses anything leaving ``base_dir``, whether through ``..``
+    segments, an absolute path, or a symlink pointing out of the directory.
 
     Args:
-        base_dir: The only directory files may be served from.
+        base_dir: The only directory files may be read from.
         relpath: Path of the requested file relative to ``base_dir``; may be
             percent-encoded.
 
     Returns:
-        FileResponse: An attachment response streaming the file, which releases
-            the underlying handle when the response is closed.
+        Path: The resolved file.
 
     Raises:
-        Http404: If the path escapes ``base_dir``, or no readable file is there.
+        Http404: If the path escapes ``base_dir``, or no file is there.
     """
     requested = Path(unquote(relpath))
 
@@ -67,6 +67,25 @@ def serve_file_from_directory(base_dir: Path, relpath: str) -> FileResponse:
         LOGGER.warning("downloads.file_not_found", candidate=str(candidate))
         raise Http404("File not found")
 
+    return candidate
+
+
+def serve_file_from_directory(base_dir: Path, relpath: str) -> FileResponse:
+    """Stream a single file from ``base_dir`` as an attachment.
+
+    Args:
+        base_dir: The only directory files may be served from.
+        relpath: Path of the requested file relative to ``base_dir``; may be
+            percent-encoded.
+
+    Returns:
+        FileResponse: An attachment response streaming the file, which releases
+            the underlying handle when the response is closed.
+
+    Raises:
+        Http404: If the path escapes ``base_dir``, or no readable file is there.
+    """
+    candidate = resolve_file_in_directory(base_dir, relpath)
     content_type, _ = mimetypes.guess_type(str(candidate))
 
     stack = ExitStack()
