@@ -270,6 +270,39 @@ def test_search_authors_records_error_when_annotation_lookup_fails(
     assert paper_rows == []  # noqa: S101 -- the failing paper never got recorded
 
 
+def test_search_authors_discards_partial_batch_on_mid_batch_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """If paper 2 of 2 fails, paper 1's already-processed row is discarded too.
+
+    paper_rows should only gain an author's rows once their whole batch
+    succeeds -- otherwise a mid-batch failure would leave a partial,
+    silently-incomplete set of that author's papers in the output.
+    """
+    paper_ok = make_paper("1", "Good A", title="First paper, lookup succeeds")
+    paper_fails = make_paper("2", "Good A", title="Second paper, lookup fails")
+    paper_fails["hasTMAccessionNumbers"] = "Y"  # forces the annotations API fallback
+
+    def fake_get(
+        url: str, params: dict[str, Any] | None = None, timeout: float | None = None
+    ) -> FakeResponse:
+        if url == sepmc.ANNOTATIONS_API_URL:
+            raise sepmc.requests.exceptions.ConnectionError("simulated annotations API failure")
+        query = (params or {}).get("query", "")
+        if 'AUTH:"Good A"' in query:
+            result = {"resultList": {"result": [paper_ok, paper_fails]}, "nextCursorMark": None}
+            return FakeResponse(200, result)
+        return FakeResponse(200, {"resultList": {"result": []}, "nextCursorMark": None})
+
+    _patch_session(monkeypatch, fake_get)
+    pattern = sepmc.build_keyword_pattern(["bacteria", "pathogen"])
+
+    paper_rows, summary_rows = sepmc.search_authors(["Good A"], pattern)
+
+    assert summary_rows[0].get("error")  # noqa: S101
+    assert paper_rows == []  # noqa: S101 -- paper 1's row must not linger either
+
+
 def test_retry_errored_authors_merges_recovered_result(
     monkeypatch: pytest.MonkeyPatch, tmp_path: Path
 ) -> None:

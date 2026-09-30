@@ -21,7 +21,7 @@ Expects, in the same directory as this script:
         extracted across all rows and searched individually.
         This can be gathered from the Scilifelab publications database
         (https://publications.scilifelab.se/). Under publications,
-        click download CSV. 
+        click download CSV.
     pathogen_infectious_disease_keywords_just_keywords.csv
         One keyword per line, used to filter results by title/abstract
         content. A handful of overly generic keywords (see WEAK_KEYWORDS)
@@ -800,6 +800,7 @@ def search_authors(
             results = search_europe_pmc(query)
 
             filtered_count = 0
+            author_paper_rows = []
             for paper in results:
                 text = " ".join([safe_get(paper, "title"), safe_get(paper, "abstractText")])
                 matches = find_keyword_matches(text, keyword_pattern)
@@ -818,9 +819,15 @@ def search_authors(
                 affiliations = get_author_affiliations(paper)
                 author_affils = get_affiliation_for_author(affiliations, author_name)
 
-                paper_rows.append(
+                author_paper_rows.append(
                     flatten_paper(author_name, query, paper, matches, accessions, author_affils)
                 )
+
+            # Only commit this author's rows once the whole batch succeeded --
+            # if an exception is raised partway through, we want none of this
+            # author's rows to be recorded rather than a partial set, so a
+            # subsequent --retry-errors run starts from a clean slate for them.
+            paper_rows.extend(author_paper_rows)
 
             print(
                 f"[{idx}/{len(authors)}] {author_name}: "
