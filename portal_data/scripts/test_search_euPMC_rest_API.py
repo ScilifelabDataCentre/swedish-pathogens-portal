@@ -16,9 +16,7 @@ TestCase classes.
 
 Everything here mocks the network layer (SESSION.get) rather than hitting
 the real Europe PMC API: fast, deterministic, and doesn't depend on or add
-load to an external service. Real end-to-end tests against the live API
-are better kept as an occasional manual/scheduled smoke test rather than
-part of this suite.
+load to an external service. Real end-to-end tests against the live API.
 
 Requires search_euPMC_rest_API.py to be importable (same directory, or on
 sys.path).
