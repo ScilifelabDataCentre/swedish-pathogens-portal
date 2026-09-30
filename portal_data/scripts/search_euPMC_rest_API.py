@@ -19,6 +19,9 @@ Expects, in the same directory as this script:
         comma-separated list of authors in "Lastname Initials" form
         (e.g. "Keller T, Etana A, Bosch Y"). Unique author names are
         extracted across all rows and searched individually.
+        This can be gathered from the Scilifelab publications database
+        (https://publications.scilifelab.se/). Under publications,
+        click download CSV. 
     pathogen_infectious_disease_keywords_just_keywords.csv
         One keyword per line, used to filter results by title/abstract
         content. A handful of overly generic keywords (see WEAK_KEYWORDS)
