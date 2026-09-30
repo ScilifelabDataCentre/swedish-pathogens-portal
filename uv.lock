@@ -1130,6 +1130,7 @@ dependencies = [
     { name = "pillow" },
     { name = "plotly" },
     { name = "polars" },
+    { name = "pydantic" },
     { name = "wagtail" },
 ]
 
@@ -1176,6 +1177,7 @@ requires-dist = [
     { name = "pillow", specifier = "==12.3.0" },
     { name = "plotly", specifier = "==7.0.0" },
     { name = "polars", specifier = "==1.44.1" },
+    { name = "pydantic", specifier = ">=2.13.0" },
     { name = "wagtail", specifier = "==8.0" },
 ]
 
