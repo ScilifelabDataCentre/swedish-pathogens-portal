@@ -138,43 +138,47 @@ def build_query(author_name: str) -> str:
 EUROPEPMC_MAX_PER_SECOND = 10
 EUROPEPMC_MAX_PER_MINUTE = 500
 
+# A single per-second cap that respects both limits at once. The per-minute
+# limit works out to about 8.3/s, tighter than the 10/s cap, so enforcing
+# just this one number (over a single 1-second sliding window) keeps us
+# under both constraints without needing to track two separate windows --
+# which is what let them drift out of sync in the first place (the window
+# was tuned down from 60s to 15s without updating the count compared
+# against it, silently making the per-minute check unreachable).
+EUROPEPMC_MAX_CALLS_PER_SECOND = min(EUROPEPMC_MAX_PER_SECOND, EUROPEPMC_MAX_PER_MINUTE // 60)
+
 
 class RateLimiter:
-    """Throttles calls to at most `max_per_second`/`max_per_minute`.
+    """Throttles calls to at most `max_calls` per `period` seconds.
 
     Tracks recent call timestamps and sleeps only the shortfall needed to
-    stay under whichever window (1s or 15) is tighter at the moment --
-    unlike a fixed per-call sleep, this adds no delay at all when normal
-    request latency already keeps you under the limit, and only slows
-    down once you're actually approaching it.
+    stay under the limit -- unlike a fixed per-call sleep, this adds no
+    delay at all when normal request latency already keeps you under the
+    limit, and only slows down once you're actually approaching it.
     """
 
-    def __init__(self, max_per_second: int, max_per_minute: int) -> None:
-        """Set the two throttling windows to enforce."""
-        self._max_per_second = max_per_second
-        self._max_per_minute = max_per_minute
+    def __init__(self, max_calls: int, period: float) -> None:
+        """Set the limit (max_calls per period seconds) to enforce."""
+        self._max_calls = max_calls
+        self._period = period
         self._recent_calls: list[float] = []
 
     def wait(self) -> None:
-        """Block, if needed, until another call is allowed under both windows."""
+        """Block, if needed, until another call is allowed under the limit."""
         now = time.monotonic()
-        self._recent_calls = [t for t in self._recent_calls if now - t < 15]
+        self._recent_calls = [t for t in self._recent_calls if now - t < self._period]
 
-        wait_for = 0.0
-        last_second = [t for t in self._recent_calls if now - t < 1]
-        if len(last_second) >= self._max_per_second:
-            wait_for = max(wait_for, 1 - (now - last_second[0]))
-        if len(self._recent_calls) >= self._max_per_minute:
-            wait_for = max(wait_for, 15 - (now - self._recent_calls[0]))
-
-        if wait_for > 0:
-            time.sleep(wait_for)
-            now = time.monotonic()
+        if len(self._recent_calls) >= self._max_calls:
+            wait_for = self._period - (now - self._recent_calls[0])
+            if wait_for > 0:
+                time.sleep(wait_for)
+                now = time.monotonic()
+                self._recent_calls = [t for t in self._recent_calls if now - t < self._period]
 
         self._recent_calls.append(now)
 
 
-RATE_LIMITER = RateLimiter(EUROPEPMC_MAX_PER_SECOND, EUROPEPMC_MAX_PER_MINUTE)
+RATE_LIMITER = RateLimiter(EUROPEPMC_MAX_CALLS_PER_SECOND, period=1.0)
 
 
 def _build_session() -> requests.Session:

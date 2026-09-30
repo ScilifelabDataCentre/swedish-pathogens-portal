@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import csv
 import sys
+import time
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
@@ -149,6 +150,39 @@ def test_format_lftp_target() -> None:
     """format_lftp_target builds the expected MetaboLights FTP path."""
     expected = "/pub/databases/metabolights/studies/public/MTBLS42/"
     assert sepmc.format_lftp_target("MTBLS42") == expected  # noqa: S101
+
+
+def test_europepmc_max_calls_per_second_respects_both_documented_limits() -> None:
+    """The derived single cap keeps us under both of Europe PMC's documented limits.
+
+    Regression test for the bug where a shortened tracking window (60s ->
+    15s) was compared against the still-60s-based per-minute constant,
+    silently making that check unreachable and letting sustained throughput
+    exceed the real per-minute limit.
+    """
+    assert sepmc.EUROPEPMC_MAX_CALLS_PER_SECOND <= sepmc.EUROPEPMC_MAX_PER_SECOND  # noqa: S101
+    implied_per_minute = sepmc.EUROPEPMC_MAX_CALLS_PER_SECOND * 60
+    assert implied_per_minute <= sepmc.EUROPEPMC_MAX_PER_MINUTE  # noqa: S101
+
+
+def test_rate_limiter_throttles_bursts_but_not_slow_calls() -> None:
+    """A burst over the cap is throttled; calls already under the cap are not delayed."""
+    limiter = sepmc.RateLimiter(max_calls=5, period=0.5)
+
+    start = time.monotonic()
+    for _ in range(10):
+        limiter.wait()
+    elapsed = time.monotonic() - start
+    # 10 calls against a 5-per-0.5s cap must span at least one extra window.
+    assert elapsed >= 0.4  # noqa: S101
+
+    # A separate limiter with calls comfortably under the cap adds no delay.
+    slow_limiter = sepmc.RateLimiter(max_calls=5, period=0.5)
+    start2 = time.monotonic()
+    for _ in range(3):
+        slow_limiter.wait()
+    elapsed2 = time.monotonic() - start2
+    assert elapsed2 < 0.05  # noqa: S101
 
 
 def test_normalize_name_strips_diacritics_and_case() -> None:
