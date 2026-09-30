@@ -1,7 +1,7 @@
 {% extends "cms/base.html" %}
 
 {% load static %}
-{% load wagtailcore_tags wagtailimages_tags %}
+{% load wagtailcore_tags wagtailimages_tags ai_images %}
 
 {% block content %}
 <!-- Main Content -->
@@ -28,7 +28,7 @@
 {% image page.image format-webp as cover %}
 <figure class="float-none md:float-right mx-0 md:mx-2 mb-4 md:mb-0 w-96">
     <img src="{{ cover.url }}" 
-            alt="{{ page.title }}"
+            alt="{{ page.image|ai_image_alt:page.title }}"
             class="w-full h-auto rounded border border-pp-pale-grey block">
     {% if page.image_caption %}
         <figcaption class="text-sm text-pp-dark-grey mt-1 italic text-center block w-full wrap-break-word">

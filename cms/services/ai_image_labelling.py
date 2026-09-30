@@ -166,6 +166,26 @@ def label_image(image: AbstractImage) -> LabelResult:
     return LabelResult(LabelOutcome.LABELLED, labelled_hash)
 
 
+def ensure_image_can_be_labelled(data: bytes, generation_status: str) -> None:
+    """Reject bytes that cannot take the official icon.
+
+    Args:
+        data: Image file bytes that would be labelled.
+        generation_status: Confirmed ``fully_ai`` or ``partially_ai`` value.
+
+    Raises:
+        UnsupportedImageError: The file is animated, too small, or unsupported.
+        PILImage.UnidentifiedImageError: Pillow cannot read the file.
+    """
+    with PILImage.open(io.BytesIO(data)) as opened:
+        _require_supported(opened)
+        oriented = ImageOps.exif_transpose(opened)
+        size = oriented.size
+    stem = STATUS_ICON_STEM[generation_status]
+    reference = _load_icon(f"{stem}-black.png")
+    _icon_box(size, reference.size)
+
+
 def _disclosure_for(image: AbstractImage) -> ImageAIDisclosure:
     """Return the disclosure row for an image.
 

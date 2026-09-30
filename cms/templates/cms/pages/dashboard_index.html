@@ -87,7 +87,7 @@
                         <!-- Render each dashboard -->
                         <div class="dashboard">
                             {% image dashboard.image format-webp as thumbnail %}
-                            {% include "cms/components/content_card.html#content_card" with url=dashboard.url image=thumbnail.url title=dashboard.title description=dashboard.description date=dashboard.dashboard_data_updated_at badge_text=dashboard.get_data_status_display topics=dashboard.topics only %}
+                            {% include "cms/components/content_card.html#content_card" with url=dashboard.url image=thumbnail.url source_image=dashboard.image title=dashboard.title description=dashboard.description date=dashboard.dashboard_data_updated_at badge_text=dashboard.get_data_status_display topics=dashboard.topics only %}
                         </div>
                     {% endfor %}
                     </div>

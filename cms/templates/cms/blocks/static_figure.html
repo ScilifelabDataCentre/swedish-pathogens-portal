@@ -1,8 +1,10 @@
-{% load wagtailimages_tags %}
+{% load wagtailimages_tags ai_images %}
 
 <figure class="my-8 text-center">
     {% if value.image %}
-        {% image value.image original alt=value.alt_text class="mx-auto" %}
+        {% with figure_alt=value.image|ai_image_alt:value.alt_text %}
+        {% image value.image original alt=figure_alt class="mx-auto" %}
+        {% endwith %}
     {% elif value.image_url %}
         <img src="{{ value.image_url }}" alt="{{ value.alt_text }}" loading="lazy" class="mx-auto">
     {% endif %}

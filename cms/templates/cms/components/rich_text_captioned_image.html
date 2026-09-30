@@ -1,3 +1,4 @@
+{% load ai_images %}
 {% comment %}
     Template used by the custom image format called "Captioned" which is defined
     in "cms/image_format.py". This is format is listed as one of the format while
@@ -10,7 +11,7 @@
         width="{{ image.width }}"
         height="{{ image.height }}"
         class="m-auto {{ classname }}" 
-        alt="{{ alt_text|striptags }}"
+        alt="{{ source_image|ai_image_alt:alt_text|striptags }}"
         loading="lazy"
         decoding="async"
         {{ extra_attributes_flat }}

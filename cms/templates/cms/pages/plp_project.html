@@ -18,7 +18,7 @@
                 {% for subproject in subprojects %}
                     {% if subproject.image %}
                         {% image subproject.image format-webp as thumbnail %}
-                        {% include "cms/components/content_card.html#content_card" with url=subproject.url image=thumbnail.url title=subproject.title description="" only %}
+                        {% include "cms/components/content_card.html#content_card" with url=subproject.url image=thumbnail.url source_image=subproject.image title=subproject.title description="" only %}
                     {% else %}
                         {% include "cms/components/content_card.html#content_card" with url=subproject.url image="" title=subproject.title description="" only %}
                     {% endif %}

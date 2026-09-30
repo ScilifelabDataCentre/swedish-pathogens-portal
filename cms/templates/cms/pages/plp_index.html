@@ -18,7 +18,7 @@
                     {% for project in group.projects %}
                         {% if project.image %}
                             {% image project.image format-webp as thumbnail %}
-                            {% include "cms/components/content_card.html#content_card" with url=project.url image=thumbnail.url title=project.title description="" only %}
+                            {% include "cms/components/content_card.html#content_card" with url=project.url image=thumbnail.url source_image=project.image title=project.title description="" only %}
                         {% else %}
                             {% include "cms/components/content_card.html#content_card" with url=project.url image="" title=project.title description="" only %}
                         {% endif %}
