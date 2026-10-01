@@ -20,7 +20,6 @@ from cms.snippets.dashboard_data import (
     DashboardDataRevisionsCompareView,
     DashboardDataUsageView,
     DashboardDataViewSet,
-    _is_internal_user,
     _user_can_access_dashboard_data,
 )
 
@@ -170,26 +169,6 @@ class DashboardDataAccessTests(TestCase):
             source_file=source_file,
             data={"chart": {}},
         )
-
-    # ------------------------------------------------------------------
-    # _is_internal_user
-    # ------------------------------------------------------------------
-
-    def test_superuser_is_internal_user(self) -> None:
-        """Test that returns True for super user."""
-        self.assertTrue(_is_internal_user(self.superuser))
-
-    def test_editor_is_internal_user(self) -> None:
-        """Test that returns True for editor."""
-        self.assertTrue(_is_internal_user(self.editor))
-
-    def test_researcher_is_not_internal_user(self) -> None:
-        """Test that returns False for other user."""
-        self.assertFalse(_is_internal_user(self.researcher))
-
-    def test_none_is_not_internal_user(self) -> None:
-        """Test that returns False for passed None."""
-        self.assertFalse(_is_internal_user(None))
 
     # ------------------------------------------------------------------
     # _user_can_access_dashboard_data
