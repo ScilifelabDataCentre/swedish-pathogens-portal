@@ -97,7 +97,25 @@ def ai_card_icon_corner(context: template.Context) -> bool:
     """
     image = context.get("source_image")
     disclosure = _disclosure(image) if image is not None else None
+    return _keeps_icon_corner(disclosure)
+
+
+def _keeps_icon_corner(disclosure: ImageAIDisclosure | None) -> bool:
+    """Return whether the embedded icon must stay inside a cropped frame."""
     return bool(disclosure and disclosure.is_ready_to_label)
+
+
+@register.filter(name="ai_icon_corner")
+def ai_icon_corner(image: object) -> bool:
+    """Return whether a cropped image should keep its top-right corner.
+
+    Args:
+        image: Wagtail image, or anything that is not an image record.
+
+    Returns:
+        True for a confirmed picture-like AI image.
+    """
+    return _keeps_icon_corner(_disclosure(image))
 
 
 @register.filter(name="ai_image_alt")

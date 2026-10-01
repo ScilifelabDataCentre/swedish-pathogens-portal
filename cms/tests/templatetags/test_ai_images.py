@@ -187,6 +187,7 @@ class TestAIImageAltTemplates(BasePageTestCase):
         expected = "AI-generated image: An elderly person inside a protective dome"
 
         self.assertContains(detail, f'alt="{expected}"')
+        self.assertContains(detail, "object-right-top")
         self.assertContains(detail, f'property="og:image:alt" content="{expected}"')
         self.assertContains(listing, f'alt="{expected}"')
 
@@ -205,6 +206,7 @@ class TestAIImageAltTemplates(BasePageTestCase):
         detail = self.client.get(news.url)
 
         self.assertContains(detail, 'alt="Lab study"')
+        self.assertNotContains(detail, "object-right-top")
         self.assertNotContains(detail, "AI-generated image:")
         self.assertNotContains(detail, "AI-modified image:")
 
