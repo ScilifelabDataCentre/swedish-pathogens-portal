@@ -1,7 +1,7 @@
 {% extends "cms/base.html" %}
 
 {% load static %}
-{% load wagtailcore_tags wagtailimages_tags %}
+{% load wagtailcore_tags %}
 
 {% block content %}
 
@@ -66,8 +66,7 @@
                             {% for card in catalogue_list %}
                                 <!-- Render each card -->
                                 <div class="card">
-                                    {% image card.image format-webp as thumbnail %}
-                                    {% include "cms/components/content_card.html#content_card" with url=card.url image=thumbnail.url source_image=card.image title=card.title description=card.description external_url=True only %}
+                                    {% include "cms/components/content_card.html#content_card" with url=card.url image=card.image title=card.title description=card.description external_url=True only %}
                                 </div>
                             {% endfor %}
                         </div>

@@ -1,7 +1,7 @@
 {% extends "cms/base.html" %}
 
 {% load static %}
-{% load wagtailcore_tags wagtailimages_tags %}
+{% load wagtailcore_tags %}
 
 {% block content %}
 
@@ -86,8 +86,7 @@
                     {% for article in articles_list %}
                         <!-- Render each article -->
                         <div class="article">
-                            {% image article.image format-webp as thumbnail %}
-                            {% include "cms/components/content_card.html#content_card" with url=article.url image=thumbnail.url source_image=article.image title=article.title description=article.description date=article.first_published_at badge_text=article.get_article_type_display topics=article.topics only %}
+                            {% include "cms/components/content_card.html#content_card" with url=article.url image=article.image title=article.title description=article.description date=article.first_published_at badge_text=article.get_article_type_display topics=article.topics only %}
                         </div>
                     {% endfor %}
                 </div>

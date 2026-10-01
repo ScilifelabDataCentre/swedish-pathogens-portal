@@ -1,7 +1,7 @@
 {% extends "cms/base.html" %}
 
 {% load static %}
-{% load wagtailcore_tags wagtailimages_tags %}
+{% load wagtailcore_tags %}
 
 {% block content %}
 
@@ -16,12 +16,7 @@
             <h4 class="m-0 mb-4">Subprojects</h4>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
                 {% for subproject in subprojects %}
-                    {% if subproject.image %}
-                        {% image subproject.image format-webp as thumbnail %}
-                        {% include "cms/components/content_card.html#content_card" with url=subproject.url image=thumbnail.url source_image=subproject.image title=subproject.title description="" only %}
-                    {% else %}
-                        {% include "cms/components/content_card.html#content_card" with url=subproject.url image="" title=subproject.title description="" only %}
-                    {% endif %}
+                    {% include "cms/components/content_card.html#content_card" with url=subproject.url image=subproject.image title=subproject.title description="" only %}
                 {% endfor %}
             </div>
         </section>

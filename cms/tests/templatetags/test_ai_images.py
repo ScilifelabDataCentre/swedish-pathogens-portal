@@ -143,17 +143,17 @@ class TestAIImageAltTemplates(BasePageTestCase):
 
     def test_card_announces_a_confirmed_ai_image(self):
         """The card announces the image and does not add a separate icon."""
-        image = SimpleNamespace(
-            description="An elderly person inside a protective dome",
-            ai_disclosure=confirmed(GenerationStatus.FULLY_AI),
-        )
+        image = create_test_image(title="Dome image", file_name="dome-card.jpg")
+        image.description = "An elderly person inside a protective dome"
+        image.file_hash = "abc123"
+        image.save(update_fields=["description", "file_hash"])
+        self._confirm(image, GenerationStatus.FULLY_AI)
 
         html = render_to_string(
             "cms/components/content_card.html#content_card",
             {
                 "url": "/dome/",
-                "image": "/media/dome.webp",
-                "source_image": image,
+                "image": image,
                 "title": "Dome study",
                 "description": "Card text",
             },
@@ -165,17 +165,20 @@ class TestAIImageAltTemplates(BasePageTestCase):
         )
         label = "AI-generated image: An elderly person inside a protective dome. Dome study"
         self.assertIn(f'aria-label="{label}"', html)
+        self.assertIn("dome-card.format-webp.webp?v=abc123", html)
         self.assertNotIn("ai_labels", html)
         self.assertIn("w-full h-40 object-cover object-right-top origin-top-right", html)
         self.assertIn("group-hover:scale-105", html)
 
     def test_card_without_ai_keeps_the_title(self):
         """A normal card still uses the title as its image alt."""
+        image = create_test_image(title="Plain image", file_name="plain-card.jpg")
+
         html = render_to_string(
             "cms/components/content_card.html#content_card",
             {
                 "url": "/plain/",
-                "image": "/media/plain.webp",
+                "image": image,
                 "title": "Plain study",
                 "description": "Card text",
             },
@@ -183,10 +186,22 @@ class TestAIImageAltTemplates(BasePageTestCase):
 
         self.assertIn('alt="Plain study"', html)
         self.assertIn('aria-label="Plain study"', html)
+        self.assertIn("plain-card.format-webp.webp", html)
         self.assertNotIn("AI-generated image:", html)
         self.assertIn("object-cover", html)
         self.assertIn("group-hover:scale-105", html)
         self.assertNotIn("object-right-top", html)
+
+        empty = render_to_string(
+            "cms/components/content_card.html#content_card",
+            {
+                "url": "/empty/",
+                "image": "",
+                "title": "Empty study",
+                "description": "Card text",
+            },
+        )
+        self.assertNotIn("<img", empty)
 
     def test_news_detail_card_and_social_alt(self):
         """A published news page discloses a confirmed AI image in every alt."""

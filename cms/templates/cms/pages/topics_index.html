@@ -1,7 +1,7 @@
 {% extends "cms/base.html" %}
 
 {% load static %}
-{% load wagtailcore_tags wagtailimages_tags %}
+{% load wagtailcore_tags %}
 
 {% block content %}
 
@@ -11,8 +11,7 @@
     {% if topics %}
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
             {% for topic in topics %}
-                {% image topic.image format-webp as thumbnail %}
-                {% include "cms/components/content_card.html#content_card" with url=topic.url image=thumbnail.url source_image=topic.image title=topic.title description=topic.description only %}
+                {% include "cms/components/content_card.html#content_card" with url=topic.url image=topic.image title=topic.title description=topic.description only %}
             {% endfor %}
         </div>
     {% else %}

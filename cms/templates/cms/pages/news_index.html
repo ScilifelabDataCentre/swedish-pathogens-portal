@@ -1,7 +1,7 @@
 {% extends "cms/base.html" %}
 
 {% load static %}
-{% load wagtailcore_tags wagtailimages_tags %}
+{% load wagtailcore_tags %}
 
 {% block content %}
 
@@ -11,8 +11,7 @@
     {% if all_news %}
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6 mt-8">
             {% for news in all_news %}
-                {% image news.image format-webp as thumbnail %}
-                {% include "cms/components/content_card.html#content_card" with url=news.url image=thumbnail.url source_image=news.image title=news.title description=news.description date=news.first_published_at only %}
+                {% include "cms/components/content_card.html#content_card" with url=news.url image=news.image title=news.title description=news.description date=news.first_published_at only %}
             {% endfor %}
         </div>
     {% else %}

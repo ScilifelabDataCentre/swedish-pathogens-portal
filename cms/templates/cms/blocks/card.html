@@ -1,4 +1,1 @@
-{% load wagtailimages_tags %}
-
-{% image value.image format-webp as thumbnail %}
-{% include "cms/components/content_card.html#content_card" with title=value.title description=value.description image=thumbnail.url source_image=value.image url=value.url external_url=True only %}
+{% include "cms/components/content_card.html#content_card" with title=value.title description=value.description image=value.image url=value.url external_url=True only %}

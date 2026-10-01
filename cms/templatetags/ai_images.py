@@ -69,7 +69,7 @@ def ai_card_alt(context: template.Context, fallback: str = "") -> str:
     so the card calls this tag instead.
 
     Args:
-        context: Template context, which may omit ``source_image`` and ``image_alt``.
+        context: Template context. ``image`` may be empty, and ``image_alt`` overrides it.
         fallback: Alt text used when the image is not a confirmed AI picture.
 
     Returns:
@@ -78,7 +78,7 @@ def ai_card_alt(context: template.Context, fallback: str = "") -> str:
     explicit = context.get("image_alt")
     if explicit:
         return str(explicit)
-    return ai_image_alt(context.get("source_image"), fallback)
+    return ai_image_alt(context.get("image"), fallback)
 
 
 @register.simple_tag(takes_context=True, name="ai_card_icon_corner")
@@ -90,12 +90,12 @@ def ai_card_icon_corner(context: template.Context) -> bool:
     that corner. It does not add a second icon on top of the picture.
 
     Args:
-        context: Template context, which may omit ``source_image``.
+        context: Template context. ``image`` may be empty.
 
     Returns:
         True for a confirmed picture-like AI image.
     """
-    image = context.get("source_image")
+    image = context.get("image")
     disclosure = _disclosure(image) if image is not None else None
     return _keeps_icon_corner(disclosure)
 
