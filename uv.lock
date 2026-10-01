@@ -1199,8 +1199,6 @@ requires-dist = [
     { name = "plotly", specifier = "==7.0.0" },
     { name = "polars", specifier = "==1.44.1" },
     { name = "pydantic", specifier = ">=2.13.0" },
-    { name = "plotly", specifier = "==7.1.0" },
-    { name = "polars", specifier = "==1.44.2" },
     { name = "wagtail", specifier = "==8.0" },
 ]
 

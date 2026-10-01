@@ -18,8 +18,6 @@ dependencies = [
     "plotly==7.0.0",
     "polars==1.44.1",
     "pydantic>=2.13.0", 
-    "plotly==7.1.0",
-    "polars==1.44.2",
     "wagtail==8.0",
 ]
 
