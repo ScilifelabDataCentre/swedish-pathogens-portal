@@ -36,6 +36,7 @@ from wagtail.snippets.views.snippets import (
     UsageView,
 )
 
+from cms.services.user import is_internal_user
 from dashboard_visualisation.registry import validate_source_columns, validate_source_file
 from dashboard_visualisation.utils.uploads import (
     calculate_file_hash,
@@ -67,15 +68,8 @@ def _is_new_source_file_upload(source_file: object) -> bool:
     return False
 
 
-def _is_internal_user(user: User | None) -> bool:
-    """Return True if the user is a superuser or belongs to the 'editors' group."""
-    if not user or not getattr(user, "is_authenticated", False):
-        return False
-    return user.is_superuser or user.groups.filter(name="Editors").exists()
-
-
 def _user_can_access_dashboard_data(user: User | None, obj: DashboardData) -> bool:
-    if _is_internal_user(user):
+    if is_internal_user(user):
         return True
     return bool(
         user is not None
@@ -93,7 +87,7 @@ class DashboardDataForm(WagtailAdminModelForm):
         super().__init__(*args, **kwargs)
 
         for_user = kwargs.get("for_user")
-        if not _is_internal_user(for_user):
+        if not is_internal_user(for_user):
             self.fields = {
                 name: field for name, field in self.fields.items() if name == "source_file"
             }
@@ -438,7 +432,7 @@ class DashboardDataPermissionPolicy(ModelPermissionPolicy):
 
     def user_has_permission(self, user: User, action: str) -> bool:
         """Require Django permissions and reserve administrative actions for editors."""
-        if not _is_internal_user(user) and action not in {"change", "view"}:
+        if not is_internal_user(user) and action not in {"change", "view"}:
             return False
         return super().user_has_permission(user, action)
 
@@ -455,7 +449,7 @@ class DashboardDataPermissionPolicy(ModelPermissionPolicy):
     ) -> models.QuerySet:
         """Return only the uploads the user may access."""
         queryset = super().instances_user_has_any_permission_for(user, actions)
-        if _is_internal_user(user):
+        if is_internal_user(user):
             return queryset
         return queryset.filter(research_group__in=user.groups.all())
 
@@ -513,7 +507,7 @@ class DashboardDataSnippetSaveMessagesMixin:
     def save_action(self) -> object:
         """Show upload/regeneration feedback instead of the default success message."""
         message, level = get_dashboard_data_save_feedback(
-            self.object, include_internal_details=_is_internal_user(self.request.user)
+            self.object, include_internal_details=is_internal_user(self.request.user)
         )
         if message is not None:
             method = getattr(admin_messages, level, admin_messages.success)
@@ -543,7 +537,7 @@ class DashboardDataEditView(
 
     def setup(self, request: HttpRequest, *args: object, **kwargs: object) -> None:
         """Keep researcher saves from overwriting historical revisions."""
-        if not _is_internal_user(request.user):
+        if not is_internal_user(request.user):
             if request.POST.get("overwrite_revision_id"):
                 raise PermissionDenied
             self.history_url_name = None
@@ -552,31 +546,31 @@ class DashboardDataEditView(
 
     def get_panel(self) -> Panel:
         """Choose the upload-only editor without changing the shared panels."""
-        if _is_internal_user(self.request.user):
+        if is_internal_user(self.request.user):
             return super().get_panel()
         return ObjectList(self.model.researcher_panels).bind_to_model(self.model)
 
     def get_form_class(self) -> type[WagtailAdminModelForm]:
         """Use the researcher panel's form instead of the viewset's full form."""
-        if _is_internal_user(self.request.user):
+        if is_internal_user(self.request.user):
             return super().get_form_class()
         return self.panel.get_form_class()
 
     def get_side_panels(self) -> MediaContainer:
         """Keep administrative history and usage controls out of the upload screen."""
-        if _is_internal_user(self.request.user):
+        if is_internal_user(self.request.user):
             return super().get_side_panels()
         return MediaContainer([])
 
     def get_page_subtitle(self) -> str:
         """Use the configured title rather than a slug fallback for researchers."""
-        if _is_internal_user(self.request.user):
+        if is_internal_user(self.request.user):
             return super().get_page_subtitle()
         return self.object.dashboard_title
 
     def get_success_message(self) -> str:
         """Keep the default save message free of internal identifiers."""
-        if _is_internal_user(self.request.user):
+        if is_internal_user(self.request.user):
             return super().get_success_message()
         return "Dashboard data upload saved."
 
@@ -607,7 +601,7 @@ class DashboardDataIndexView(IndexView):
 
     def setup(self, request: HttpRequest, *args: object, **kwargs: object) -> None:
         """Limit this request's columns, filters, and ordering before they are cached."""
-        if not _is_internal_user(request.user):
+        if not is_internal_user(request.user):
             self.list_display = ["dashboard_title", "data_updated_at"]
             self.list_filter = []
             self.filterset_class = None
@@ -618,13 +612,13 @@ class DashboardDataIndexView(IndexView):
     def columns(self) -> list[BaseColumn]:
         """Remove selection checkboxes when there are no permitted bulk actions."""
         columns = super().columns
-        if _is_internal_user(self.request.user):
+        if is_internal_user(self.request.user):
             return columns
         return [column for column in columns if not isinstance(column, BulkActionsCheckboxColumn)]
 
     def get_list_buttons(self, instance: DashboardData) -> list:
         """Researchers open uploads through their title links only."""
-        if _is_internal_user(self.request.user):
+        if is_internal_user(self.request.user):
             return super().get_list_buttons(instance)
         return []
 
@@ -634,7 +628,7 @@ class DashboardDataChooserViewSet(SnippetChooserViewSet):
 
     def construct_view(self, view_class: type, **kwargs: object) -> Callable[..., HttpResponse]:
         """Guard listing, single/multiple selections, and chooser creation alike."""
-        return user_passes_test(_is_internal_user)(super().construct_view(view_class, **kwargs))
+        return user_passes_test(is_internal_user)(super().construct_view(view_class, **kwargs))
 
 
 class DashboardDataDeleteBulkAction(DeleteBulkAction):
@@ -644,7 +638,7 @@ class DashboardDataDeleteBulkAction(DeleteBulkAction):
 
     def dispatch(self, request: HttpRequest, *args: object, **kwargs: object) -> HttpResponse:
         """Reserve dashboard bulk deletion for internal users."""
-        if not _is_internal_user(request.user):
+        if not is_internal_user(request.user):
             raise PermissionDenied
         return super().dispatch(request, *args, **kwargs)
 
@@ -681,14 +675,14 @@ class DashboardDataViewSet(SnippetViewSet):
         view = super().construct_view(view_class, **kwargs)
         if getattr(view_class, "view_name", None) in {"list", "edit"}:
             return view
-        return user_passes_test(_is_internal_user)(view)
+        return user_passes_test(is_internal_user)(view)
 
     def get_queryset(self, request: HttpRequest) -> models.QuerySet:
         """Return a queryset of DashboardData instances based on the user's permissions."""
         queryset = self.model.objects.all()
 
         user = request.user
-        if _is_internal_user(user):
+        if is_internal_user(user):
             return queryset
 
         return queryset.filter(research_group__in=user.groups.all())
