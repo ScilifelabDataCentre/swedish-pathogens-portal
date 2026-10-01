@@ -1,3 +1,4 @@
+# ruff: noqa: N999
 """Tests for search_euPMC_rest_API.py.
 
 Run with: python manage.py test portal_data/scripts --settings core.settings.test
@@ -16,7 +17,9 @@ TestCase classes.
 
 Everything here mocks the network layer (SESSION.get) rather than hitting
 the real Europe PMC API: fast, deterministic, and doesn't depend on or add
-load to an external service. Real end-to-end tests against the live API.
+load to an external service. Real end-to-end tests against the live API
+are better kept as an occasional manual/scheduled smoke test rather than
+part of this suite.
 
 Requires search_euPMC_rest_API.py to be importable (same directory, or on
 sys.path).
@@ -35,7 +38,14 @@ from pathlib import Path
 from typing import Any
 from unittest import mock
 
-import search_euPMC_rest_API as sepmc
+# Ensure this directory is importable regardless of how the test is
+# discovered: as part of the portal_data.scripts package (e.g. when
+# Django's test runner scans portal_data/ as a whole) or as its own
+# standalone top-level dir (e.g. `manage.py test portal_data/scripts`),
+# which has no parent package context for a relative import to use.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+
+import search_euPMC_rest_API as sepmc  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Small helpers for building fake Europe PMC responses
@@ -307,7 +317,9 @@ class SearchAuthorsTests(SepmcTestCase):
             url: str, params: dict[str, Any] | None = None, timeout: float | None = None
         ) -> FakeResponse:
             if url == sepmc.ANNOTATIONS_API_URL:
-                raise sepmc.requests.exceptions.ConnectionError("simulated annotations API failure")
+                raise sepmc.requests.exceptions.ConnectionError(
+                    "simulated annotations API failure"
+                )
             query = (params or {}).get("query", "")
             if 'AUTH:"Good A"' in query:
                 result = {"resultList": {"result": [paper]}, "nextCursorMark": None}
@@ -337,7 +349,9 @@ class SearchAuthorsTests(SepmcTestCase):
             url: str, params: dict[str, Any] | None = None, timeout: float | None = None
         ) -> FakeResponse:
             if url == sepmc.ANNOTATIONS_API_URL:
-                raise sepmc.requests.exceptions.ConnectionError("simulated annotations API failure")
+                raise sepmc.requests.exceptions.ConnectionError(
+                    "simulated annotations API failure"
+                )
             query = (params or {}).get("query", "")
             if 'AUTH:"Good A"' in query:
                 result = {

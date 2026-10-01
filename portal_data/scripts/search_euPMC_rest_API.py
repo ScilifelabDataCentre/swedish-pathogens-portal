@@ -1,3 +1,4 @@
+# ruff: noqa: N999
 """Search Europe PMC for publications associated with MetaboLights.
 
 Usage:
