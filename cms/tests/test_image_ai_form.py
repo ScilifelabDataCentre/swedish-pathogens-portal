@@ -83,6 +83,7 @@ class TestAIImageForm(TestCase):
             "description": "",
             "tags": "",
             "picture_like": PictureLike.YES,
+            "ai_extent": GenerationStatus.NOT_AI,
         }
         data.update(overrides)
         return data
@@ -92,8 +93,10 @@ class TestAIImageForm(TestCase):
         self.assertTrue(issubclass(self.form_class, AIImageForm))
         multi_form = get_image_multi_form(get_image_model())
         self.assertTrue(issubclass(multi_form, AIImageForm))
-        self.assertIn("ai_generated", multi_form(user=self.user).fields)
-        self.assertNotIn("file", multi_form(user=self.user).fields)
+        fields = multi_form(user=self.user).fields
+        self.assertNotIn("ai_generated", fields)
+        self.assertTrue(fields["ai_extent"].required)
+        self.assertNotIn("file", fields)
 
     def test_new_image_cannot_be_saved_without_a_picture_choice(self):
         """A new image cannot be left unreviewed."""
@@ -106,10 +109,10 @@ class TestAIImageForm(TestCase):
         self.assertIn("picture_like", form.errors)
         self.assertEqual(ImageAIDisclosure.objects.count(), 0)
 
-    def test_ai_checkbox_requires_full_or_partial(self):
-        """Checking AI without an extent is invalid."""
+    def test_ai_use_is_required(self):
+        """A new image cannot be saved until the editor chooses how AI was used."""
         form = self.form(
-            data=self.base_data(ai_generated=True, description="A white square."),
+            data=self.base_data(ai_extent="", description="A white square."),
             files={"file": jpeg_upload()},
         )
 
@@ -120,7 +123,6 @@ class TestAIImageForm(TestCase):
         """A picture that needs a label also needs accessible description text."""
         form = self.form(
             data=self.base_data(
-                ai_generated=True,
                 ai_extent=GenerationStatus.FULLY_AI,
                 picture_like=PictureLike.YES,
                 description="  ",
@@ -132,7 +134,7 @@ class TestAIImageForm(TestCase):
         self.assertIn("description", form.errors)
 
     def test_not_ai_image_saves_a_confirmed_disclosure_without_a_description(self):
-        """An unchecked AI box stores not-AI and does not label the file."""
+        """A not-AI choice stores that decision and does not label the file."""
         upload = jpeg_upload()
         form = self.form(
             data=self.base_data(picture_like=PictureLike.NO),
@@ -157,7 +159,6 @@ class TestAIImageForm(TestCase):
         """A picture-like AI file that cannot hold the icon is not saved."""
         form = self.form(
             data=self.base_data(
-                ai_generated=True,
                 ai_extent=GenerationStatus.PARTIALLY_AI,
                 description="A microscope photograph with a replaced background.",
             ),
@@ -177,7 +178,6 @@ class TestAIImageForm(TestCase):
         upload.seek(0)
         form = self.form(
             data=self.base_data(
-                ai_generated=True,
                 ai_extent=GenerationStatus.FULLY_AI,
                 description="An illustrated laboratory scene.",
             ),
@@ -205,7 +205,6 @@ class TestAIImageForm(TestCase):
         """Saving the same decision again leaves the labelled file unchanged."""
         form = self.form(
             data=self.base_data(
-                ai_generated=True,
                 ai_extent=GenerationStatus.FULLY_AI,
                 description="An illustrated laboratory scene.",
             ),
@@ -218,7 +217,6 @@ class TestAIImageForm(TestCase):
         again = self.form(
             data=self.base_data(
                 title=image.title,
-                ai_generated=True,
                 ai_extent=GenerationStatus.FULLY_AI,
                 description="An illustrated laboratory scene.",
             ),
@@ -241,7 +239,6 @@ class TestAIImageForm(TestCase):
         upload.seek(0)
         form = self.form(
             data=self.base_data(
-                ai_generated=True,
                 ai_extent=GenerationStatus.FULLY_AI,
                 picture_like=PictureLike.NO,
             ),
@@ -267,7 +264,6 @@ class TestAIImageForm(TestCase):
         form = self.form(
             data=self.base_data(
                 title=image.title,
-                ai_generated=True,
                 ai_extent=GenerationStatus.PARTIALLY_AI,
                 description="A photograph with an AI-generated background.",
             ),
@@ -286,7 +282,6 @@ class TestAIImageForm(TestCase):
         """A new file on an in-scope image is archived and labelled before it is ready."""
         image = self.form(
             data=self.base_data(
-                ai_generated=True,
                 ai_extent=GenerationStatus.FULLY_AI,
                 description="An illustrated laboratory scene.",
             ),
@@ -299,7 +294,6 @@ class TestAIImageForm(TestCase):
         form = self.form(
             data=self.base_data(
                 title=image.title,
-                ai_generated=True,
                 ai_extent=GenerationStatus.FULLY_AI,
                 description="An illustrated laboratory scene.",
             ),
@@ -323,7 +317,6 @@ class TestAIImageForm(TestCase):
         """A failed label deletes the new image instead of leaving it selectable."""
         form = self.form(
             data=self.base_data(
-                ai_generated=True,
                 ai_extent=GenerationStatus.FULLY_AI,
                 description="An illustrated laboratory scene.",
             ),
@@ -353,7 +346,6 @@ class TestAIImageForm(TestCase):
         form = self.form(
             data=self.base_data(
                 title=image.title,
-                ai_generated=True,
                 ai_extent=GenerationStatus.FULLY_AI,
                 description="An illustrated laboratory scene.",
             ),
@@ -378,7 +370,6 @@ class TestAIImageForm(TestCase):
         """The multiple uploader saves the image, then the wrapped save labels it."""
         form = self.form(
             data=self.base_data(
-                ai_generated=True,
                 ai_extent=GenerationStatus.FULLY_AI,
                 description="An illustrated laboratory scene.",
             ),
@@ -399,7 +390,6 @@ class TestAIImageForm(TestCase):
         """The create-from-upload step still refuses a file that cannot be labelled."""
         form = get_image_multi_form(get_image_model())(
             data=self.base_data(
-                ai_generated=True,
                 ai_extent=GenerationStatus.FULLY_AI,
                 description="An illustrated laboratory scene.",
             ),
@@ -432,14 +422,12 @@ class TestAIImageForm(TestCase):
         form = self.form(data={}, instance=image)
         image.ai_disclosure.refresh_from_db()
 
-        self.assertTrue(form.fields["ai_generated"].initial)
         self.assertEqual(form.fields["ai_extent"].initial, GenerationStatus.FULLY_AI)
         self.assertIsNone(image.ai_disclosure.reviewed_at)
 
         bound = self.form(
             data=self.base_data(
                 title=image.title,
-                ai_generated=True,
                 ai_extent=GenerationStatus.FULLY_AI,
                 description="An elderly man inside a protective dome.",
             ),

@@ -18,6 +18,7 @@ from cms.services.ai_image_labelling import (
 )
 
 AI_EXTENT_CHOICES = [
+    (GenerationStatus.NOT_AI, "Not created or changed using AI"),
     (GenerationStatus.FULLY_AI, "Fully AI-generated"),
     (GenerationStatus.PARTIALLY_AI, "Partially AI-modified"),
 ]
@@ -25,7 +26,12 @@ PICTURE_LIKE_CHOICES = [
     (PictureLike.YES, "Yes"),
     (PictureLike.NO, "No — logo, chart, diagram, or animation"),
 ]
-PROVENANCE_FIELDS = ("ai_generated", "ai_extent", "picture_like")
+PROVENANCE_FIELDS = ("ai_extent", "picture_like")
+AI_EXTENTS = {
+    GenerationStatus.NOT_AI,
+    GenerationStatus.FULLY_AI,
+    GenerationStatus.PARTIALLY_AI,
+}
 
 
 class AIImageForm(BaseImageForm):
@@ -35,16 +41,11 @@ class AIImageForm(BaseImageForm):
     requires a label, the same save embeds the official EU icon.
     """
 
-    ai_generated = forms.BooleanField(
-        required=False,
-        label="This image was created or changed using AI",
-    )
     ai_extent = forms.ChoiceField(
-        required=False,
+        required=True,
         choices=AI_EXTENT_CHOICES,
         widget=forms.RadioSelect,
         label="How was AI used?",
-        help_text="Required when the image was created or changed using AI.",
     )
     picture_like = forms.ChoiceField(
         required=True,
@@ -68,14 +69,8 @@ class AIImageForm(BaseImageForm):
             disclosure = self.instance.ai_disclosure
         except ImageAIDisclosure.DoesNotExist:
             return
-        if disclosure.generation_status in {
-            GenerationStatus.FULLY_AI,
-            GenerationStatus.PARTIALLY_AI,
-        }:
-            self.fields["ai_generated"].initial = True
+        if disclosure.generation_status in AI_EXTENTS:
             self.fields["ai_extent"].initial = disclosure.generation_status
-        elif disclosure.generation_status == GenerationStatus.NOT_AI:
-            self.fields["ai_generated"].initial = False
         if disclosure.picture_like in {PictureLike.YES, PictureLike.NO}:
             self.fields["picture_like"].initial = disclosure.picture_like
 
@@ -92,22 +87,10 @@ class AIImageForm(BaseImageForm):
         cleaned = super().clean()
         if self.reviewer is None:
             self.add_error(None, "A signed-in editor is required to record AI provenance.")
-        ai_generated = bool(cleaned.get("ai_generated"))
         extent = cleaned.get("ai_extent")
-        if ai_generated and extent not in {
-            GenerationStatus.FULLY_AI,
-            GenerationStatus.PARTIALLY_AI,
-        }:
-            self.add_error(
-                "ai_extent",
-                "Choose whether the image is fully AI-generated or partially AI-modified.",
-            )
-        elif not ai_generated:
-            cleaned["ai_extent"] = ""
         description = (cleaned.get("description") or "").strip()
         needs_description = (
-            ai_generated
-            and extent in {GenerationStatus.FULLY_AI, GenerationStatus.PARTIALLY_AI}
+            extent in {GenerationStatus.FULLY_AI, GenerationStatus.PARTIALLY_AI}
             and cleaned.get("picture_like") == PictureLike.YES
         )
         if needs_description and not description:
@@ -157,9 +140,7 @@ class AIImageForm(BaseImageForm):
             True when the editor confirmed a picture-like AI image.
         """
         return (
-            bool(cleaned.get("ai_generated"))
-            and cleaned.get("ai_extent")
-            in {GenerationStatus.FULLY_AI, GenerationStatus.PARTIALLY_AI}
+            cleaned.get("ai_extent") in {GenerationStatus.FULLY_AI, GenerationStatus.PARTIALLY_AI}
             and cleaned.get("picture_like") == PictureLike.YES
         )
 
@@ -295,11 +276,7 @@ class AIImageForm(BaseImageForm):
 
     def _save_disclosure(self, image: Model) -> None:
         """Create or update the disclosure without changing label bookkeeping."""
-        status = (
-            self.cleaned_data["ai_extent"]
-            if self.cleaned_data["ai_generated"]
-            else GenerationStatus.NOT_AI
-        )
+        status = self.cleaned_data["ai_extent"]
         disclosure, _created = ImageAIDisclosure.objects.get_or_create(image=image)
         disclosure.generation_status = status
         disclosure.picture_like = self.cleaned_data["picture_like"]

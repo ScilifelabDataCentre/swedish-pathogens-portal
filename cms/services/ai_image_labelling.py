@@ -1,8 +1,8 @@
 """Embed an official EU AI icon into a confirmed Wagtail image.
 
 The service reads ``ImageAIDisclosure``. It does not inspect pixels, titles, or
-filenames to decide whether an image is AI-generated. The upload form does not
-call this module yet.
+filenames to decide whether an image is AI-generated. The Wagtail image form
+calls ``label_image`` after a save that confirms the disclosure.
 """
 
 from __future__ import annotations
