@@ -317,9 +317,7 @@ class SearchAuthorsTests(SepmcTestCase):
             url: str, params: dict[str, Any] | None = None, timeout: float | None = None
         ) -> FakeResponse:
             if url == sepmc.ANNOTATIONS_API_URL:
-                raise sepmc.requests.exceptions.ConnectionError(
-                    "simulated annotations API failure"
-                )
+                raise sepmc.requests.exceptions.ConnectionError("simulated annotations API failure")
             query = (params or {}).get("query", "")
             if 'AUTH:"Good A"' in query:
                 result = {"resultList": {"result": [paper]}, "nextCursorMark": None}
@@ -349,9 +347,7 @@ class SearchAuthorsTests(SepmcTestCase):
             url: str, params: dict[str, Any] | None = None, timeout: float | None = None
         ) -> FakeResponse:
             if url == sepmc.ANNOTATIONS_API_URL:
-                raise sepmc.requests.exceptions.ConnectionError(
-                    "simulated annotations API failure"
-                )
+                raise sepmc.requests.exceptions.ConnectionError("simulated annotations API failure")
             query = (params or {}).get("query", "")
             if 'AUTH:"Good A"' in query:
                 result = {
