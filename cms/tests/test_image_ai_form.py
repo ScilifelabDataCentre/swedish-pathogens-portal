@@ -422,7 +422,8 @@ class TestAIImageForm(TestCase):
         form = self.form(data={}, instance=image)
         image.ai_disclosure.refresh_from_db()
 
-        self.assertEqual(form.fields["ai_extent"].initial, GenerationStatus.FULLY_AI)
+        self.assertIsNone(form.fields["ai_extent"].initial)
+        self.assertIsNone(form.fields["picture_like"].initial)
         self.assertIsNone(image.ai_disclosure.reviewed_at)
 
         bound = self.form(

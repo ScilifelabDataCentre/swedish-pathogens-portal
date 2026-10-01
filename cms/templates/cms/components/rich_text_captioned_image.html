@@ -7,7 +7,7 @@
 
 <figure class="{{ alignment_class }}">
     <img 
-        src="{{ image.url }}"
+        src="{{ image.url|with_file_version:source_image }}"
         width="{{ image.width }}"
         height="{{ image.height }}"
         class="m-auto {{ classname }}" 

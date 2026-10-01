@@ -4,6 +4,7 @@ import hashlib
 import io
 import tempfile
 from pathlib import Path
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -344,6 +345,24 @@ class TestAIImageLabelling(TestCase):
 
         self.assertEqual(image.renditions.count(), 0)
         self.assertFalse(rendition_path.exists())
+
+    def test_database_failure_puts_the_public_file_back(self):
+        """A failed disclosure save restores the bytes that were on disk."""
+        image = self.store("restore.jpg", jpeg_bytes((800, 500), "white"), "image/jpeg")
+        self.confirm(image)
+        before = Path(image.file.path).read_bytes()
+
+        with (
+            patch(
+                "cms.services.ai_image_labelling._record_label",
+                side_effect=RuntimeError("database unavailable"),
+            ),
+            self.assertRaises(RuntimeError),
+        ):
+            label_image(image)
+
+        self.assertEqual(Path(image.file.path).read_bytes(), before)
+        self.assertEqual(image.ai_disclosure.labelled_file_hash, "")
 
     def test_exif_orientation_is_applied_before_the_icon_is_placed(self):
         """A sideways JPEG is turned upright before the icon is embedded."""

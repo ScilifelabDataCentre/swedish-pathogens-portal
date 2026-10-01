@@ -49,7 +49,6 @@ class ImageAIDisclosure(models.Model):
         choices=PictureLike.choices,
         default=PictureLike.UNREVIEWED,
     )
-    review_notes = models.TextField(blank=True)
     reviewed_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         null=True,

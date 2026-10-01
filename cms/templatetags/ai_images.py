@@ -105,6 +105,28 @@ def _keeps_icon_corner(disclosure: ImageAIDisclosure | None) -> bool:
     return bool(disclosure and disclosure.is_ready_to_label)
 
 
+@register.filter(name="with_file_version")
+def with_file_version(url: object, image: object) -> str:
+    """Append the file checksum so a replaced image is not served from an old address.
+
+    Rendition filenames stay the same when the source file changes. The checksum
+    changes with the file, so the browser requests the new bytes.
+
+    Args:
+        url: Rendition or media address.
+        image: Wagtail image whose ``file_hash`` versions that address.
+
+    Returns:
+        The address, with ``?v=`` added when both the address and checksum exist.
+    """
+    address = str(url or "")
+    file_hash = str(getattr(image, "file_hash", "") or "")
+    if not address or not file_hash:
+        return address
+    separator = "&" if "?" in address else "?"
+    return f"{address}{separator}v={file_hash}"
+
+
 @register.filter(name="ai_icon_corner")
 def ai_icon_corner(image: object) -> bool:
     """Return whether a cropped image should keep its top-right corner.

@@ -14,6 +14,7 @@ from pathlib import Path
 
 import structlog
 from django.conf import settings
+from django.db import transaction
 from django.utils import timezone
 from PIL import Image as PILImage
 from PIL import ImageOps
@@ -155,7 +156,15 @@ def label_image(image: AbstractImage) -> LabelResult:
     _archive_pristine(image.pk, current_hash, public_path.suffix, original)
     _replace_public_file(public_path, labelled)
     labelled_hash = hashlib.sha256(labelled).hexdigest()
-    _record_label(image, disclosure, labelled, labelled_hash)
+    try:
+        with transaction.atomic():
+            _record_label(image, disclosure, labelled, labelled_hash)
+    except Exception:
+        try:
+            _replace_public_file(public_path, original)
+        except Exception:
+            LOGGER.exception("ai_image.restore_failed", image_id=image.pk)
+        raise
     _clear_renditions(image)
     LOGGER.info(
         "ai_image.labelled",

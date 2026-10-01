@@ -2,9 +2,8 @@
 
 <figure class="my-8 text-center">
     {% if value.image %}
-        {% with figure_alt=value.image|ai_image_alt:value.alt_text %}
-        {% image value.image original alt=figure_alt class="mx-auto" %}
-        {% endwith %}
+        {% image value.image original as figure %}
+        <img src="{{ figure.url|with_file_version:value.image }}" alt="{{ value.image|ai_image_alt:value.alt_text }}" class="mx-auto" width="{{ figure.width }}" height="{{ figure.height }}">
     {% elif value.image_url %}
         <img src="{{ value.image_url }}" alt="{{ value.alt_text }}" loading="lazy" class="mx-auto">
     {% endif %}

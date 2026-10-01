@@ -69,6 +69,8 @@ class AIImageForm(BaseImageForm):
             disclosure = self.instance.ai_disclosure
         except ImageAIDisclosure.DoesNotExist:
             return
+        if not disclosure.is_reviewed:
+            return
         if disclosure.generation_status in AI_EXTENTS:
             self.fields["ai_extent"].initial = disclosure.generation_status
         if disclosure.picture_like in {PictureLike.YES, PictureLike.NO}:

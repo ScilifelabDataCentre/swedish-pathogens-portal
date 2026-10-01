@@ -11,7 +11,7 @@ from django.utils import timezone
 from cms.blocks.static_figure import StaticFigureBlock
 from cms.image_ai import GenerationStatus, ImageAIDisclosure, PictureLike
 from cms.pages import NewsPage
-from cms.templatetags.ai_images import FULLY_AI_ALT_PREFIX, ai_image_alt
+from cms.templatetags.ai_images import FULLY_AI_ALT_PREFIX, ai_image_alt, with_file_version
 from cms.tests.pages.test_news_pages import BasePageTestCase
 from cms.tests.utils import create_test_image, use_temp_media_root
 
@@ -102,6 +102,27 @@ class TestAIImageAlt(SimpleTestCase):
         self.assertEqual(ai_image_alt(None, "Fallback"), "Fallback")
 
 
+class TestFileVersion(SimpleTestCase):
+    """The rendition address changes when the source checksum changes."""
+
+    def test_checksum_is_added_once(self):
+        """A plain address gains the checksum, and an addressed one keeps its query."""
+        image = SimpleNamespace(file_hash="abc123")
+
+        self.assertEqual(
+            with_file_version("/media/images/photo.format-webp.webp", image),
+            "/media/images/photo.format-webp.webp?v=abc123",
+        )
+        self.assertEqual(
+            with_file_version("/media/images/photo.webp?width=10", image),
+            "/media/images/photo.webp?width=10&v=abc123",
+        )
+        self.assertEqual(
+            with_file_version("/media/images/photo.webp", None),
+            "/media/images/photo.webp",
+        )
+
+
 class TestAIImageAltTemplates(BasePageTestCase):
     """Rendered card, detail, social, and static-figure alt text."""
 
@@ -171,7 +192,8 @@ class TestAIImageAltTemplates(BasePageTestCase):
         """A published news page discloses a confirmed AI image in every alt."""
         image = create_test_image(title="Dome image", file_name="dome.jpg")
         image.description = "An elderly person inside a protective dome"
-        image.save(update_fields=["description"])
+        image.file_hash = "abc123"
+        image.save(update_fields=["description", "file_hash"])
         self._confirm(image, GenerationStatus.FULLY_AI)
         news = NewsPage(
             title="Dome study",
@@ -188,6 +210,7 @@ class TestAIImageAltTemplates(BasePageTestCase):
 
         self.assertContains(detail, f'alt="{expected}"')
         self.assertContains(detail, "object-right-top")
+        self.assertContains(detail, "?v=abc123")
         self.assertContains(detail, f'property="og:image:alt" content="{expected}"')
         self.assertContains(listing, f'alt="{expected}"')
 

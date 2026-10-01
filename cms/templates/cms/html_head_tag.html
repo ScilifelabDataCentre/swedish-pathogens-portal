@@ -48,7 +48,7 @@
     {# When an image is not available fall back to the default logo #}
     {% if page.image %}
     {% image page.image format-jpeg fill-900x450 as cover %}
-    <meta property="og:image" content="{{ cover.full_url }}">
+    <meta property="og:image" content="{{ cover.full_url|with_file_version:page.image }}">
     <meta property="og:image:width" content="{{ cover.width }}">
     <meta property="og:image:height" content="{{ cover.height }}">
     <meta property="og:image:alt" content="{{ page.image|ai_image_alt:cover.alt }}">

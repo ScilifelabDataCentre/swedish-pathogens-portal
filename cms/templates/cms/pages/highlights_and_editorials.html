@@ -27,7 +27,7 @@
 <!-- Featured Image (floated right on medium+ screens) -->
 {% image page.image format-webp as cover %}
 <figure class="float-none md:float-right mx-0 md:mx-2 mb-4 md:mb-0 w-96">
-    <img src="{{ cover.url }}" 
+    <img src="{{ cover.url|with_file_version:page.image }}" 
             alt="{{ page.image|ai_image_alt:page.title }}"
             class="w-full h-auto rounded border border-pp-pale-grey block">
     {% if page.image_caption %}
