@@ -1,0 +1,147 @@
+{% comment %}
+The compound table (FREYA-3011, spec section 8.1): one row per treated compound,
+carrying the two A549-ACE2 summary scores Table S8 publishes.
+
+The body is the portal's shared data_table_content.html partial, so this wrapper
+recreates the three ids that partial and its htmx controls key on — the controls
+form (read by hx-include only, never swapped), the loading overlay, and the
+content container every control and pagination button swaps into. The controls
+are a plain GET form whose submit is the filtered CSV download: the export reads
+the same query string the table does, through the same selection, so the file
+always carries the rows the table counts.
+{% endcomment %}
+{% if compound_table %}
+    {% with t=compound_table.t filters=compound_table.filters %}
+    <section aria-labelledby="drr-compound-table-heading" class="mt-10">
+        <h4 id="drr-compound-table-heading">Compound scores</h4>
+
+        <div class="mt-3 space-y-2 text-sm text-pp-dark-grey">
+            <p>
+                One row per treated compound, with the two summary scores Table S8 of
+                Asp et al., 2026 (<span class="italic">iScience</span> 29, 116673, CC BY 4.0)
+                publishes for this screen. Table S8 scores each compound at several doses;
+                each row shows the dose with the highest morphology score, and the infection
+                rate and cell count measured at that same dose. A low infection rate with a
+                low cell count can mean the cells died rather than that they were protected.
+            </p>
+            <p>
+                Two of the four scores requested are absent, and that is not a missing result:
+                the cytopathic-effect (CPE) assay was not run on this cell line, and
+                phospholipidosis is deferred. Compounds outside Table S8 read "not reported",
+                never zero — the validation screen scored only the compounds the primary
+                screen carried forward.
+            </p>
+            <p>
+                "Hits only" applies Table S8's own threshold, a morphology score above
+                {{ compound_table.hit_threshold }}; the thresholds to filter at are still an open
+                question to the research group. No threshold is preset for the infection rate:
+                none is published for this cell line, and the 59.7 % cut-off in the paper belongs
+                to the primary Vero E6 screen.
+            </p>
+        </div>
+
+        <form id="data-table-{{ t.table_id }}-controls"
+              method="get"
+              action="{{ compound_table.download_url }}"
+              class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            {# The form's default button is disabled, so Enter in a field never starts a download. #}
+            <button type="submit" disabled hidden aria-hidden="true" tabindex="-1"></button>
+
+            <label class="form-control">
+                <span class="label-text text-xs">Search</span>
+                <input type="search" name="search" value="{{ t.search }}" placeholder="Search…" autocomplete="off"
+                       class="input input-sm input-bordered"
+                       hx-get="{{ t.table_url }}" hx-trigger="input changed delay:300ms, search"
+                       hx-target="#data-table-{{ t.table_id }}-content"
+                       hx-include="#data-table-{{ t.table_id }}-controls"
+                       hx-indicator="#data-table-{{ t.table_id }}-loading">
+            </label>
+
+            <label class="form-control">
+                <span class="label-text text-xs">Sort by</span>
+                <select name="sort" class="select select-sm select-bordered"
+                        hx-get="{{ t.table_url }}" hx-trigger="change"
+                        hx-target="#data-table-{{ t.table_id }}-content"
+                        hx-include="#data-table-{{ t.table_id }}-controls"
+                        hx-indicator="#data-table-{{ t.table_id }}-loading">
+                    {% for value, label in compound_table.sort_options %}
+                        <option value="{{ value }}" {% if value == filters.sort %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+
+            <fieldset class="form-control">
+                <legend class="label-text text-xs">Morphology score</legend>
+                <div class="flex gap-2">
+                    <input type="number" step="any" name="morph_min" value="{{ filters.morph_min|default:'' }}" placeholder="min" aria-label="Morphology score, minimum"
+                           class="input input-sm input-bordered w-full"
+                           hx-get="{{ t.table_url }}" hx-trigger="input changed delay:400ms"
+                           hx-target="#data-table-{{ t.table_id }}-content"
+                           hx-include="#data-table-{{ t.table_id }}-controls"
+                           hx-indicator="#data-table-{{ t.table_id }}-loading">
+                    <input type="number" step="any" name="morph_max" value="{{ filters.morph_max|default:'' }}" placeholder="max" aria-label="Morphology score, maximum"
+                           class="input input-sm input-bordered w-full"
+                           hx-get="{{ t.table_url }}" hx-trigger="input changed delay:400ms"
+                           hx-target="#data-table-{{ t.table_id }}-content"
+                           hx-include="#data-table-{{ t.table_id }}-controls"
+                           hx-indicator="#data-table-{{ t.table_id }}-loading">
+                </div>
+            </fieldset>
+
+            <fieldset class="form-control">
+                <legend class="label-text text-xs">Infection rate (%)</legend>
+                <div class="flex gap-2">
+                    <input type="number" step="any" name="inf_min" value="{{ filters.inf_min|default:'' }}" placeholder="min" aria-label="Infection rate, minimum"
+                           class="input input-sm input-bordered w-full"
+                           hx-get="{{ t.table_url }}" hx-trigger="input changed delay:400ms"
+                           hx-target="#data-table-{{ t.table_id }}-content"
+                           hx-include="#data-table-{{ t.table_id }}-controls"
+                           hx-indicator="#data-table-{{ t.table_id }}-loading">
+                    <input type="number" step="any" name="inf_max" value="{{ filters.inf_max|default:'' }}" placeholder="max" aria-label="Infection rate, maximum"
+                           class="input input-sm input-bordered w-full"
+                           hx-get="{{ t.table_url }}" hx-trigger="input changed delay:400ms"
+                           hx-target="#data-table-{{ t.table_id }}-content"
+                           hx-include="#data-table-{{ t.table_id }}-controls"
+                           hx-indicator="#data-table-{{ t.table_id }}-loading">
+                </div>
+            </fieldset>
+
+            <label class="label cursor-pointer justify-start gap-2">
+                <input type="checkbox" name="hits" value="1" class="checkbox checkbox-sm" {% if filters.hits %}checked{% endif %}
+                       hx-get="{{ t.table_url }}" hx-trigger="change"
+                       hx-target="#data-table-{{ t.table_id }}-content"
+                       hx-include="#data-table-{{ t.table_id }}-controls"
+                       hx-indicator="#data-table-{{ t.table_id }}-loading">
+                <span class="label-text text-sm">Hits only (morphology score &gt; {{ compound_table.hit_threshold }})</span>
+            </label>
+
+            <label class="form-control">
+                <span class="label-text text-xs">Rows per page</span>
+                <select name="per_page" class="select select-sm select-bordered"
+                        hx-get="{{ t.table_url }}" hx-trigger="change"
+                        hx-target="#data-table-{{ t.table_id }}-content"
+                        hx-include="#data-table-{{ t.table_id }}-controls"
+                        hx-indicator="#data-table-{{ t.table_id }}-loading">
+                    {% for option in t.per_page_options %}
+                        <option value="{{ option }}" {% if option == t.per_page %}selected{% endif %}>{{ option }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+
+            <div class="flex items-end sm:col-span-2">
+                <button type="submit" class="btn btn-primary btn-sm">Download filtered rows (CSV)</button>
+            </div>
+        </form>
+
+        <div class="relative mt-4 min-h-20">
+            <div id="data-table-{{ t.table_id }}-loading"
+                 class="htmx-indicator absolute inset-0 z-10 flex items-center justify-center rounded-box bg-base-100/60">
+                <span class="loading loading-spinner loading-lg text-accent" aria-label="Loading"></span>
+            </div>
+            <div id="data-table-{{ t.table_id }}-content" aria-live="polite">
+                {% include "cms/components/data_table_content.html" %}
+            </div>
+        </div>
+    </section>
+    {% endwith %}
+{% endif %}
