@@ -70,8 +70,8 @@ https://daisyui.com/docs/utilities/#theme-css-variables
     --color-success-content: #0f2f28;
     --color-warning: #f3b153;
     --color-warning-content: #511e01;
-    --color-error: #eb7270;
-    --color-error-content: #470b0b;
+    --color-error: #a0302c;
+    --color-error-content: #ffffff;
 
     /* Border radius for components */
     --radius-box: 0.75rem;
