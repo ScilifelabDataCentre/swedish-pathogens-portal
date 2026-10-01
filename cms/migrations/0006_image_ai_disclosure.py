@@ -27,7 +27,6 @@ class Migration(migrations.Migration):
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('generation_status', models.CharField(choices=[('unreviewed', 'Unreviewed'), ('not_ai', 'Not AI-generated'), ('fully_ai', 'Fully AI-generated'), ('partially_ai', 'Partially AI-modified')], default='unreviewed', max_length=20)),
                 ('picture_like', models.CharField(choices=[('unreviewed', 'Unreviewed'), ('yes', 'Yes'), ('no', 'No')], default='unreviewed', max_length=20)),
-                ('review_notes', models.TextField(blank=True)),
                 ('reviewed_at', models.DateTimeField(blank=True, null=True)),
                 ('label_version', models.CharField(blank=True, max_length=64)),
                 ('labelled_file_hash', models.CharField(blank=True, max_length=64)),
