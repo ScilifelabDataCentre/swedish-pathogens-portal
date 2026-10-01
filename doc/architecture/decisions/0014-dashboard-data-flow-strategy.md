@@ -2,11 +2,11 @@
 
 **Date**: 2026-09-16
 
-**Updated**: 2026-09-21
+**Updated**: 2026-10-01
 
 ## Status
 
-Proposed
+Accepted
 
 ## Related ADRs
 
