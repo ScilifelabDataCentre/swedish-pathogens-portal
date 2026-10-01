@@ -1,9 +1,9 @@
 {% if ancestors_list %}
 <div class="container">
-    <nav class="breadcrumbs p-0" aria-label="Breadcrumb">
+    <nav class="breadcrumbs p-0 ms-0" aria-label="Breadcrumb">
         <ul class="ps-0 mb-0 items-start">
             {% for ancestor in ancestors_list %}
-            <li>
+            <li class="mb-0">
                 {% if ancestor.url %}
                 <a class="text-pp-dark-blue" href="{{ ancestor.url }}">{{ ancestor.title }}</a>
                 {% else %}
