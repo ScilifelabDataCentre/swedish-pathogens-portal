@@ -1,8 +1,8 @@
 """RECOVAC dashboard visualisation (zip of named source workbooks).
 
-Editors upload a single ``.zip`` whose members match the filenames used by
-the legacy pandas scripts. Members may be ``.xlsx`` (production) or ``.csv``
-with the same stem (tests / CSV export).
+Editors upload a single ``.zip`` whose members match the filenames used by the
+upstream RECOVAC prep scripts (maintained outside this repo). Members may be
+``.xlsx`` (production) or ``.csv`` with the same stem (tests / CSV export).
 
 Figure IDs (Wagtail ``plotly_figure`` / ``DashboardData.data`` keys):
 
@@ -350,12 +350,12 @@ def _load_tables(source_file: SourceFile) -> dict[str, pl.DataFrame]:
 
 
 def _canonical_column_name(column: str) -> str:
-    """Map a workbook header onto the names used by the legacy pandas scripts.
+    """Map a workbook header onto the names used by the upstream RECOVAC scripts.
 
     Population coverage files use ``vacc1``…``vacc6``. Comorbidity coverage
     files use the same values under prefixes such as ``cvd_cardio_vacc1``.
-    The old comorbidity dataprep renamed by column *position*; we rename by
-    suffix so extra columns cannot scramble the mapping.
+    The upstream comorbidity dataprep renamed by column *position*; we rename
+    by suffix so extra columns cannot scramble the mapping.
     """
     stripped = column.strip()
     lowered = stripped.lower()

@@ -175,7 +175,7 @@ class TestsValidateSourceFile(SimpleTestCase):
         self.assertIn("header", error)
 
     def test_accepts_members_in_data_subdirectory(self) -> None:
-        """Accept the legacy data/ prefix used by the pandas scripts."""
+        """Accept the data/ prefix used by the upstream RECOVAC scripts."""
         buffer = io.BytesIO()
         with zipfile.ZipFile(buffer, "w") as archive:
             for stem in REQUIRED_ZIP_STEMS:

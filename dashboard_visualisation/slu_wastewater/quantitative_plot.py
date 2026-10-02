@@ -26,7 +26,7 @@ def get_quant_overview_plot(
 
     The function builds a multi-facet Plotly scatter with rolling trendlines for
     the supplied dataset. If `data` is provided as a dict, it is converted to a
-    pandas DataFrame first. Optional filtering and display behaviour can be
+    Polars DataFrame first. Optional filtering and display behaviour can be
     provided via keyword arguments.
 
     Args:
