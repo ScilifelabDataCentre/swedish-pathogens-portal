@@ -69,6 +69,24 @@ def page_type_label(page: Page) -> str:
     return ""
 
 
+def page_location(page: Page) -> list[dict[str, str | None]]:
+    """Return a page's searchable ancestors, for display under its title.
+
+    Two pages can share a title, so the type label alone does not always
+    separate them; where they sit does. Only ancestors that are themselves
+    searchable are kept. The rest — the site root, the home page and listing
+    pages such as "News & Updates" — are structural containers whose name the
+    type badge already conveys, so naming them would put a line of noise under
+    every result instead of only the nested ones that need it.
+    """
+    searchable = tuple(SEARCH_MODELS)
+    return [
+        {"title": ancestor.title, "url": ancestor.url if ancestor.live else None}
+        for ancestor in page.get_ancestors().specific()
+        if isinstance(ancestor, searchable)
+    ]
+
+
 def search(request: HttpRequest) -> HttpResponse:
     """Render the site-wide search results page, faceted by page type."""
     query = request.GET.get("q", "").strip()
@@ -76,6 +94,7 @@ def search(request: HttpRequest) -> HttpResponse:
     facets: list[dict[str, object]] = []
     items: list[dict[str, object]] = []
     total = 0
+    shown = 0
     page_obj = None
 
     if query:
@@ -91,6 +110,9 @@ def search(request: HttpRequest) -> HttpResponse:
 
         paginator = Paginator(results, PAGE_SIZE)
         page_obj = paginator.get_page(request.GET.get("page"))
+        # What the visitor is actually looking at: narrowed by the facet, where
+        # `total` stays the count across every type for the "All" tab.
+        shown = paginator.count
         for page in page_obj:
             specific = page.specific
             items.append(
@@ -99,7 +121,7 @@ def search(request: HttpRequest) -> HttpResponse:
                     "title": specific.title,
                     "excerpt": getattr(specific, "description", "") or specific.search_description,
                     "label": page_type_label(specific),
-                    "image": getattr(specific, "image", None),
+                    "ancestors": page_location(specific),
                 }
             )
 
@@ -109,6 +131,7 @@ def search(request: HttpRequest) -> HttpResponse:
         "selected": selected,
         "facets": facets,
         "total": total,
+        "shown": shown,
         "items": items,
         "page_obj": page_obj,
     }
@@ -118,8 +141,16 @@ def search(request: HttpRequest) -> HttpResponse:
 def search_autocomplete(request: HttpRequest) -> HttpResponse:
     """Return an htmx partial of top title matches for the typeahead dropdown."""
     query = request.GET.get("q", "").strip()
-    results = []
+    results: list[dict[str, object]] = []
     if query:
         matches = _base_queryset().autocomplete(query)[:AUTOCOMPLETE_LIMIT]
-        results = [page.specific for page in matches]
+        for page in matches:
+            specific = page.specific
+            results.append(
+                {
+                    "url": specific.url,
+                    "title": specific.title,
+                    "label": page_type_label(specific),
+                }
+            )
     return render(request, "cms/search/autocomplete.html", {"query": query, "results": results})
