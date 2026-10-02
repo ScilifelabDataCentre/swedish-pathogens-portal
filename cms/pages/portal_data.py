@@ -16,7 +16,7 @@ from wagtail.models import Page
 
 from cms.blocks import AlertBlock
 from portal_data.context import build_portal_data_context
-from portal_data.views import serve_download_file, serve_study_files
+from portal_data.views import serve_bulk_download, serve_download_file, serve_study_files
 
 logger = logging.getLogger(__name__)
 
@@ -104,3 +104,9 @@ class PortalDataPage(RoutablePageMixin, Page):
     def download_file(self, request: HttpRequest, accession: str, relpath: str) -> HttpResponse:
         """Stream a single file from a study directory."""
         return serve_download_file(request, self.datatype, accession, relpath)
+
+    @path("bulk-download/")
+    def bulk_download(self, request: HttpRequest) -> HttpResponse:
+        """Resolve the POSTed selection of studies to local download links."""
+        template = "cms/pages/portal_data/bulk_download.html"
+        return serve_bulk_download(request, self, self.datatype, template)
