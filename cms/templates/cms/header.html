@@ -76,9 +76,11 @@
                         hx-trigger="input changed delay:300ms"
                         hx-target="#header-search-results"
                         hx-swap="innerHTML">
+                    <!-- Anchored right: the box sits at the end of the nav, so a panel
+                         wider than the input has to grow leftwards to stay on screen. -->
                     <div id="header-search-results" role="region" aria-live="polite"
                         aria-label="Search suggestions" data-search-suggest-panel hidden
-                        class="absolute left-0 top-full z-50 mt-1 w-72"></div>
+                        class="absolute right-0 top-full z-50 mt-1 w-[26rem] max-w-[calc(100vw-2rem)]"></div>
                 </form>
             </nav>
 
