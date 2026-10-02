@@ -1,7 +1,14 @@
 {% if query %}
-<ul class="menu bg-white rounded-box shadow border border-pp-pale-grey w-full p-1" role="listbox">
-    {% for page in results %}
-    <li role="option"><a href="{{ page.url }}">{{ page.title }}</a></li>
+<ul class="menu bg-white rounded-box shadow border border-pp-pale-grey w-full p-1">
+    {% for result in results %}
+    <li>
+        <a href="{{ result.url }}" class="flex items-center justify-between gap-2">
+            <span class="truncate">{{ result.title }}</span>
+            {% if result.label %}
+            <span class="badge badge-ghost badge-sm shrink-0">{{ result.label }}</span>
+            {% endif %}
+        </a>
+    </li>
     {% endfor %}
     <li><a href="{% url 'search' %}?q={{ query|urlencode }}" class="font-medium text-pp-teal">Search for &ldquo;{{ query }}&rdquo;</a></li>
 </ul>

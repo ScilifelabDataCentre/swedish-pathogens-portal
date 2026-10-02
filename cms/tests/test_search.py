@@ -100,11 +100,11 @@ class SearchTestCase(WagtailPageTestCase):
         self.assertTrue(any(r.pk == self.article.pk for r in results))
 
     def test_search_page_returns_matches(self) -> None:
-        """The results page lists a matching page with its thumbnail image."""
+        """The results page lists a matching page under its type label."""
         resp = self.client.get("/search/", {"q": "zuluwidget"})
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "Influenza surveillance update")
-        self.assertContains(resp, "<img")
+        self.assertContains(resp, "News")
 
     def test_blank_query_renders_prompt(self) -> None:
         """No query renders the empty prompt, not a zero-results message."""
@@ -138,6 +138,16 @@ class SearchTestCase(WagtailPageTestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "Influenza surveillance update")
 
+    def test_headline_count_follows_the_selected_facet(self) -> None:
+        """The count above the list describes the list, not every matching type."""
+        unfiltered = self.client.get("/search/", {"q": "wastewater monitoring"})
+        self.assertEqual(unfiltered.context["shown"], unfiltered.context["total"])
+
+        filtered = self.client.get("/search/", {"q": "wastewater monitoring", "type": "pages"})
+        self.assertEqual(filtered.context["shown"], 1)
+        self.assertEqual(filtered.context["total"], unfiltered.context["total"])
+        self.assertGreater(filtered.context["total"], filtered.context["shown"])
+
     def test_autocomplete_returns_title_matches(self) -> None:
         """Autocomplete returns a partial listing pages whose title prefix matches."""
         resp = self.client.get("/search/autocomplete/", {"q": "influenza"})
@@ -166,7 +176,7 @@ class SearchTestCase(WagtailPageTestCase):
         self.assertContains(resp, 'action="/search/"')
         self.assertContains(resp, 'name="q"')
 
-    def test_imageless_page_renders(self) -> None:
+    def test_page_without_image_renders(self) -> None:
         """A matching page whose model has no image field renders without error."""
         resp = self.client.get("/search/", {"q": "preparedness"})
         self.assertEqual(resp.status_code, 200)
@@ -201,3 +211,55 @@ class SearchTestCase(WagtailPageTestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "Publications")
         self.assertContains(resp, "Wastewater monitoring")
+
+    def test_result_shows_page_location(self) -> None:
+        """A nested page's result carries its ancestors, excluding the site home."""
+        resp = self.client.get("/search/", {"q": "methodology"})
+        self.assertEqual(resp.status_code, 200)
+        trails = {
+            item["title"]: [a["title"] for a in item["ancestors"]] for item in resp.context["items"]
+        }
+        self.assertEqual(trails["Methodology"], ["Wastewater monitoring"])
+        self.assertContains(resp, "Wastewater monitoring")
+
+    def test_listing_pages_are_left_out_of_the_location(self) -> None:
+        """Index pages are containers the badge already implies, so they are dropped."""
+        resp = self.client.get("/search/", {"q": "quixotrap"})
+        items = {item["title"]: item for item in resp.context["items"]}
+        dashboard = items["Wastewater monitoring"]
+        self.assertEqual(dashboard["label"], "Dashboards")
+        self.assertEqual(dashboard["ancestors"], [])
+
+    def test_location_keeps_searchable_ancestors(self) -> None:
+        """An ancestor that is itself a content page is named, not dropped."""
+        child = BasicPage(title="Funding sources", slug="funding-sources")
+        self.basic.add_child(instance=child)
+        child.save_revision().publish()
+        call_command("update_index", stdout=StringIO())
+
+        resp = self.client.get("/search/", {"q": "funding sources"})
+        items = {item["title"]: item for item in resp.context["items"]}
+        self.assertEqual(
+            [a["title"] for a in items["Funding sources"]["ancestors"]],
+            ["Preparedness overview"],
+        )
+
+    def test_top_level_page_has_no_location_trail(self) -> None:
+        """A page directly under the home page has nothing to disambiguate with."""
+        resp = self.client.get("/search/", {"q": "preparedness"})
+        items = {item["title"]: item for item in resp.context["items"]}
+        self.assertEqual(items["Preparedness overview"]["ancestors"], [])
+
+    def test_autocomplete_labels_suggestions_with_their_type(self) -> None:
+        """Dropdown suggestions say what kind of page they are, not just the title."""
+        resp = self.client.get("/search/autocomplete/", {"q": "influenza"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Influenza surveillance update")
+        self.assertContains(resp, "News")
+
+    def test_autocomplete_distinguishes_same_titled_pages(self) -> None:
+        """Two same-titled pages are separated by their type in the dropdown."""
+        resp = self.client.get("/search/autocomplete/", {"q": "wastewater"})
+        self.assertEqual(resp.status_code, 200)
+        labels = [result["label"] for result in resp.context["results"]]
+        self.assertEqual(sorted(labels), ["Dashboards", "Pages"])

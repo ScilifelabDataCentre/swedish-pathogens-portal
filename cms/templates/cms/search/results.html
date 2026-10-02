@@ -1,5 +1,4 @@
 {% extends "cms/base.html" %}
-{% load wagtailimages_tags %}
 
 {% block page_heading %}
 <div class="bg-linear-to-r from-pp-dark-blue via-pp-mid-blue to-pp-teal text-white py-1 shadow-sm">
@@ -20,7 +19,7 @@
 
     {% if query %}
         <p class="text-pp-dark-grey mb-4" aria-live="polite">
-            {{ total }} result{{ total|pluralize }} for &ldquo;<strong>{{ query }}</strong>&rdquo;
+            {{ shown }} result{{ shown|pluralize }} for &ldquo;<strong>{{ query }}</strong>&rdquo;
         </p>
 
         {% if facets %}
@@ -37,12 +36,37 @@
         {% endif %}
 
         {% if items %}
-        <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <ul class="list-none ps-0 mb-0 max-w-3xl flex flex-col">
         {% for item in items %}
-            {% image item.image format-webp as thumbnail %}
-            {% include "cms/components/content_card.html#content_card" with url=item.url image=thumbnail.url title=item.title description=item.excerpt badge_text=item.label only %}
+            <li class="border-b border-pp-pale-grey py-5 first:pt-0 last:border-b-0">
+                <!-- Type and location: what kind of page this is, and where it sits -->
+                <div class="flex flex-wrap items-center gap-2 mb-1 text-xs">
+                    {% if item.label %}
+                    <span class="badge badge-ghost badge-sm">{{ item.label }}</span>
+                    {% endif %}
+                    {% if item.ancestors %}
+                    <span class="text-pp-dark-grey">
+                        {% for ancestor in item.ancestors %}
+                        {% if not forloop.first %}<span aria-hidden="true">&rsaquo;</span>{% endif %}
+                        {{ ancestor.title }}
+                        {% endfor %}
+                    </span>
+                    {% endif %}
+                </div>
+
+                <h3 class="text-lg font-bold tracking-tight mb-1">
+                    <a href="{{ item.url }}"
+                        class="text-pp-dark-blue hover:text-pp-teal focus-visible:outline-none
+                        focus-visible:ring-2 focus-visible:ring-pp-teal focus-visible:ring-offset-2
+                        focus-visible:rounded">{{ item.title }}</a>
+                </h3>
+
+                {% if item.excerpt %}
+                <p class="text-pp-dark-grey text-sm m-0 line-clamp-2">{{ item.excerpt }}</p>
+                {% endif %}
+            </li>
         {% endfor %}
-        </div>
+        </ul>
 
         {% if page_obj.has_other_pages %}
         <nav class="flex justify-center gap-2 mt-8" aria-label="Search results pages">
