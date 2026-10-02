@@ -3,6 +3,8 @@
 from io import StringIO
 
 from django.core.management import call_command
+from django.db import connection
+from django.test.utils import CaptureQueriesContext
 from wagtail.models import Page, Site
 from wagtail.rich_text import RichText
 from wagtail.test.utils import WagtailPageTestCase
@@ -18,7 +20,7 @@ from cms.pages import (
     SLUDashboardSubPage,
 )
 from cms.tests.utils import create_test_image
-from cms.views.search import page_type_label
+from cms.views.search import MAX_QUERY_LENGTH, page_type_label
 
 
 class SearchTestCase(WagtailPageTestCase):
@@ -256,6 +258,37 @@ class SearchTestCase(WagtailPageTestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "Influenza surveillance update")
         self.assertContains(resp, "News")
+
+    def test_oversized_query_does_not_crash_search(self) -> None:
+        """A query far longer than the input allows is capped, not a 500."""
+        resp = self.client.get("/search/", {"q": " ".join(["a"] * 500)})
+        self.assertEqual(resp.status_code, 200)
+
+    def test_oversized_query_does_not_crash_autocomplete(self) -> None:
+        """The autocomplete endpoint caps the query too; it is just as reachable."""
+        resp = self.client.get("/search/autocomplete/", {"q": " ".join(["a"] * 500)})
+        self.assertEqual(resp.status_code, 200)
+
+    def test_query_is_capped_at_the_input_maxlength(self) -> None:
+        """The cap matches the maxlength the search inputs advertise."""
+        resp = self.client.get("/search/", {"q": "z" * 250})
+        self.assertEqual(len(resp.context["query"]), MAX_QUERY_LENGTH)
+
+    def test_result_rendering_does_not_scale_queries_with_results(self) -> None:
+        """Ancestors and specific pages are batched, so more hits cost no more queries."""
+        for index in range(12):
+            page = BasicPage(title=f"Preparedness note {index}", slug=f"preparedness-note-{index}")
+            self.home.add_child(instance=page)
+            page.save_revision().publish()
+        call_command("update_index", stdout=StringIO())
+
+        with CaptureQueriesContext(connection) as few:
+            self.client.get("/search/", {"q": "preparedness note 1"})
+        with CaptureQueriesContext(connection) as many:
+            resp = self.client.get("/search/", {"q": "preparedness note"})
+
+        self.assertGreater(len(resp.context["items"]), 5)
+        self.assertEqual(len(many.captured_queries), len(few.captured_queries))
 
     def test_autocomplete_distinguishes_same_titled_pages(self) -> None:
         """Two same-titled pages are separated by their type in the dropdown."""
