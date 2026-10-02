@@ -1,4 +1,4 @@
-{# Required: url, image, title, description. image is a Wagtail image, or empty for the placeholder. Optional: image_alt, external_url, date (j F Y), badge_text, topics. #}
+{# Required: url, image, title, description. image is a Wagtail image, or empty for the placeholder. Optional: image_alt, external_url, date (j F Y), badge_text, topics, image_ratio. image_ratio "2/1" is for news cards only; other cards keep the fixed height. #}
 
 {% load ai_images %}
 
@@ -15,9 +15,9 @@
             <div class="overflow-hidden border-b border-pp-pale-grey">
                 {% if image %}
                     {% cms_image image "format-webp" as thumbnail %}
-                    <img src="{{ thumbnail.url }}" alt="{{ card_alt }}" class="w-full h-40 object-cover{% if thumbnail.icon_corner %} object-right-top origin-top-right{% endif %} transition-transform duration-300 group-hover:scale-105" loading="lazy">
+                    <img src="{{ thumbnail.url }}" alt="{{ card_alt }}" class="w-full {% if image_ratio == '2/1' %}aspect-[2/1]{% else %}h-40{% endif %} object-cover{% if thumbnail.icon_corner %} object-right-top origin-top-right{% endif %} transition-transform duration-300 group-hover:scale-105" loading="lazy">
                 {% else %}
-                    <div class="w-full h-40 flex items-center justify-center bg-linear-to-br from-pp-mid-blue to-pp-teal" aria-hidden="true">
+                    <div class="w-full {% if image_ratio == '2/1' %}aspect-[2/1]{% else %}h-40{% endif %} flex items-center justify-center bg-linear-to-br from-pp-mid-blue to-pp-teal" aria-hidden="true">
                     <svg class="w-12 h-12 text-white shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                     </svg>
