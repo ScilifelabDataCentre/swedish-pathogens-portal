@@ -7,6 +7,7 @@ from django.utils.functional import cached_property
 from wagtail.admin.panels import FieldPanel, MultiFieldPanel
 from wagtail.blocks import RichTextBlock, StaticBlock
 from wagtail.fields import RichTextField, StreamField
+from wagtail.search import index
 
 from cms.blocks import AlertBlock, CollapsibleBlock, LastUpdatedBlock, PlotlyFigureBlock
 from cms.pages.dashboard import DashboardPage
@@ -94,6 +95,12 @@ class SLUDashboardPage(DashboardPage):
         },
         collapsed=True,
     )
+
+    # The inherited "content" field is unused here, so index "slu_content" in its place.
+    search_fields = DashboardPage.search_fields + [
+        index.SearchField("notice"),
+        index.SearchField("slu_content"),
+    ]
 
     # No need to include the last panel from the parent class, which is the "content" field,
     # since we are using a new StreamField with additional blocks instead.

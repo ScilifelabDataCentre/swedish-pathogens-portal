@@ -4,10 +4,21 @@ from io import StringIO
 
 from django.core.management import call_command
 from wagtail.models import Page, Site
+from wagtail.rich_text import RichText
 from wagtail.test.utils import WagtailPageTestCase
 
-from cms.pages import BasicPage, HomePage, NewsIndexPage, NewsPage
+from cms.pages import (
+    BasicPage,
+    DashboardIndexPage,
+    HomePage,
+    NewsIndexPage,
+    NewsPage,
+    PublicationsPage,
+    SLUDashboardPage,
+    SLUDashboardSubPage,
+)
 from cms.tests.utils import create_test_image
+from cms.views.search import page_type_label
 
 
 class SearchTestCase(WagtailPageTestCase):
@@ -39,10 +50,47 @@ class SearchTestCase(WagtailPageTestCase):
         cls.news_index.add_child(instance=cls.article)
         cls.article.save_revision().publish()
 
-        # A page type with no `image` field, to exercise the imageless card path.
+        # A page type with no `image` field, to exercise the imageless result path.
         cls.basic = BasicPage(title="Preparedness overview", slug="preparedness-overview")
         cls.home.add_child(instance=cls.basic)
         cls.basic.save_revision().publish()
+
+        cls.dashboard_index = DashboardIndexPage(title="Dashboards", slug="dashboards")
+        cls.home.add_child(instance=cls.dashboard_index)
+        cls.dashboard_index.save_revision().publish()
+
+        # A DashboardPage subclass. Multi-table inheritance returns these as their
+        # own class, which is what used to leave the type badge blank.
+        cls.slu = SLUDashboardPage(
+            title="Wastewater monitoring",
+            slug="wastewater-monitoring",
+            description="Quixotrap wastewater surveillance overview.",
+            image=create_test_image(),
+            data_status="active",
+        )
+        cls.dashboard_index.add_child(instance=cls.slu)
+        cls.slu.save_revision().publish()
+
+        cls.slu_subpage = SLUDashboardSubPage(title="Methodology", slug="methodology")
+        cls.slu.add_child(instance=cls.slu_subpage)
+        cls.slu_subpage.save_revision().publish()
+
+        # Shares the dashboard's title, so the listing has to show something
+        # beyond the name to tell the two apart.
+        cls.namesake = BasicPage(
+            title="Wastewater monitoring",
+            slug="wastewater-monitoring-basic",
+        )
+        cls.home.add_child(instance=cls.namesake)
+        cls.namesake.save_revision().publish()
+
+        cls.publications = PublicationsPage(
+            title="Publications",
+            slug="publications",
+            content=[("text", RichText("<p>Quixotrap publication listing.</p>"))],
+        )
+        cls.home.add_child(instance=cls.publications)
+        cls.publications.save_revision().publish()
 
         call_command("update_index", stdout=StringIO())
 
@@ -123,3 +171,33 @@ class SearchTestCase(WagtailPageTestCase):
         resp = self.client.get("/search/", {"q": "preparedness"})
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "Preparedness overview")
+
+    def test_dashboard_subclass_is_labelled(self) -> None:
+        """A DashboardPage subclass is labelled, not left with a blank badge."""
+        self.assertEqual(page_type_label(self.slu), "Dashboards")
+
+    def test_slu_subpage_groups_with_dashboards(self) -> None:
+        """SLU subpages share the dashboards facet rather than getting their own."""
+        self.assertEqual(page_type_label(self.slu_subpage), "Dashboards")
+
+    def test_singleton_pages_group_under_pages(self) -> None:
+        """Singleton pages share the generic "Pages" facet."""
+        self.assertEqual(page_type_label(self.publications), "Pages")
+
+    def test_same_title_different_types_are_distinguishable(self) -> None:
+        """Two pages sharing a title are told apart by their type label."""
+        resp = self.client.get("/search/", {"q": "wastewater monitoring"})
+        self.assertEqual(resp.status_code, 200)
+        titles = [item["title"] for item in resp.context["items"]]
+        self.assertEqual(titles.count("Wastewater monitoring"), 2)
+        self.assertEqual(
+            {item["label"] for item in resp.context["items"]},
+            {"Dashboards", "Pages"},
+        )
+
+    def test_newly_added_page_types_are_searchable(self) -> None:
+        """Page types added after the initial indexing pass are indexed too."""
+        resp = self.client.get("/search/", {"q": "quixotrap"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "Publications")
+        self.assertContains(resp, "Wastewater monitoring")
