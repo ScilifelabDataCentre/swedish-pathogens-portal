@@ -43,6 +43,15 @@ SEARCH_MODELS: list[type[Page]] = [model for models, _, _ in SEARCH_TYPES for mo
 _MODELS_BY_KEY: dict[str, tuple[type[Page], ...]] = {key: models for models, key, _ in SEARCH_TYPES}
 PAGE_SIZE = 12
 AUTOCOMPLETE_LIMIT = 8
+# Mirrors the maxlength on the search inputs. A direct request bypasses that,
+# and the backend compiles each term into a nested expression, so a query of a
+# few hundred terms overflows the stack while the query is being built.
+MAX_QUERY_LENGTH = 100
+
+
+def _clean_query(request: HttpRequest) -> str:
+    """Return the submitted query, trimmed and capped at a safe length."""
+    return request.GET.get("q", "").strip()[:MAX_QUERY_LENGTH]
 
 
 def _queryset_for(models: Sequence[type[Page]]) -> PageQuerySet:
@@ -69,27 +78,49 @@ def page_type_label(page: Page) -> str:
     return ""
 
 
-def page_location(page: Page) -> list[dict[str, str | None]]:
-    """Return a page's searchable ancestors, for display under its title.
+def _ancestor_paths(page: Page) -> list[str]:
+    """Return the treebeard paths of a page's ancestors, shallowest first."""
+    step = Page.steplen
+    return [page.path[:length] for length in range(step, len(page.path), step)]
+
+
+def page_locations(pages: Sequence[Page]) -> dict[int, list[dict[str, str | None]]]:
+    """Map each page to its searchable ancestors, for display under its title.
 
     Two pages can share a title, so the type label alone does not always
     separate them; where they sit does. Only ancestors that are themselves
-    searchable are kept. The rest — the site root, the home page and listing
+    searchable are named. The rest — the site root, the home page and listing
     pages such as "News & Updates" — are structural containers whose name the
     type badge already conveys, so naming them would put a line of noise under
     every result instead of only the nested ones that need it.
+
+    Resolved for the whole result set in one query. Ancestors are filtered by
+    type in SQL rather than after loading, and shared ones (every result on a
+    page tends to sit under the same handful) are fetched once.
     """
-    searchable = tuple(SEARCH_MODELS)
-    return [
-        {"title": ancestor.title, "url": ancestor.url if ancestor.live else None}
-        for ancestor in page.get_ancestors().specific()
-        if isinstance(ancestor, searchable)
-    ]
+    wanted = {path for page in pages for path in _ancestor_paths(page)}
+    if not wanted:
+        return {page.pk: [] for page in pages}
+
+    # `title`, `live` and `url_path` all live on the base table, so the concrete
+    # subclass is never needed and `specific()` would only add queries.
+    by_path = {
+        ancestor.path: ancestor
+        for ancestor in Page.objects.filter(path__in=wanted).type(*SEARCH_MODELS)
+    }
+    return {
+        page.pk: [
+            {"title": ancestor.title, "url": ancestor.url if ancestor.live else None}
+            for path in _ancestor_paths(page)
+            if (ancestor := by_path.get(path)) is not None
+        ]
+        for page in pages
+    }
 
 
 def search(request: HttpRequest) -> HttpResponse:
     """Render the site-wide search results page, faceted by page type."""
-    query = request.GET.get("q", "").strip()
+    query = _clean_query(request)
     selected = request.GET.get("type", "").strip()
     facets: list[dict[str, object]] = []
     items: list[dict[str, object]] = []
@@ -113,15 +144,21 @@ def search(request: HttpRequest) -> HttpResponse:
         # What the visitor is actually looking at: narrowed by the facet, where
         # `total` stays the count across every type for the "All" tab.
         shown = paginator.count
-        for page in page_obj:
-            specific = page.specific
+        # One batched fetch per content type instead of one per result: the
+        # excerpt and the type label both need the concrete subclass.
+        ordered_pks = [page.pk for page in page_obj]
+        by_pk = {page.pk: page for page in Page.objects.filter(pk__in=ordered_pks).specific()}
+        results_page = [by_pk[pk] for pk in ordered_pks if pk in by_pk]
+
+        locations = page_locations(results_page)
+        for specific in results_page:
             items.append(
                 {
                     "url": specific.url,
                     "title": specific.title,
                     "excerpt": getattr(specific, "description", "") or specific.search_description,
                     "label": page_type_label(specific),
-                    "ancestors": page_location(specific),
+                    "ancestors": locations[specific.pk],
                 }
             )
 
@@ -140,7 +177,7 @@ def search(request: HttpRequest) -> HttpResponse:
 
 def search_autocomplete(request: HttpRequest) -> HttpResponse:
     """Return an htmx partial of top title matches for the typeahead dropdown."""
-    query = request.GET.get("q", "").strip()
+    query = _clean_query(request)
     results: list[dict[str, object]] = []
     if query:
         matches = _base_queryset().autocomplete(query)[:AUTOCOMPLETE_LIMIT]
