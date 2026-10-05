@@ -60,6 +60,7 @@ class AIImageForm(BaseImageForm):
         super().__init__(*args, **kwargs)
         self._set_disclosure_initials()
         self._order_provenance_fields()
+        self._set_help_text()
 
     def _set_disclosure_initials(self) -> None:
         """Show a saved decision. An unreviewed image stays unanswered."""
@@ -83,6 +84,24 @@ class AIImageForm(BaseImageForm):
         index = remaining.index(anchor) + 1
         ordered = [*remaining[:index], *PROVENANCE_FIELDS, *remaining[index:]]
         self.order_fields(ordered)
+
+    def _set_help_text(self) -> None:
+        """Explain the provenance questions and when a description is required."""
+        if "description" in self.fields:
+            self.fields["description"].help_text = (
+                "Required when the image is a picture-like AI image. "
+                "This text is used as the accessible description."
+            )
+        if "ai_extent" in self.fields:
+            self.fields["ai_extent"].help_text = (
+                "Say whether the image was fully generated, partly modified, "
+                "or not created or changed using AI."
+            )
+        if "picture_like" in self.fields:
+            self.fields["picture_like"].help_text = (
+                "Choose yes when someone could interpret the image as a picture. "
+                "Choose no for a logo, chart, diagram, or animation."
+            )
 
     def clean(self) -> dict[str, object]:
         """Require an AI extent, a picture choice, and a description when needed."""

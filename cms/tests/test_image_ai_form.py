@@ -97,6 +97,22 @@ class TestAIImageForm(TestCase):
         self.assertNotIn("ai_generated", fields)
         self.assertTrue(fields["ai_extent"].required)
         self.assertNotIn("file", fields)
+        add_fields = self.form_class(user=self.user).fields
+        self.assertEqual(
+            add_fields["description"].help_text,
+            "Required when the image is a picture-like AI image. "
+            "This text is used as the accessible description.",
+        )
+        self.assertEqual(
+            add_fields["ai_extent"].help_text,
+            "Say whether the image was fully generated, partly modified, "
+            "or not created or changed using AI.",
+        )
+        self.assertEqual(
+            add_fields["picture_like"].help_text,
+            "Choose yes when someone could interpret the image as a picture. "
+            "Choose no for a logo, chart, diagram, or animation.",
+        )
 
     def test_new_image_cannot_be_saved_without_a_picture_choice(self):
         """A new image cannot be left unreviewed."""
