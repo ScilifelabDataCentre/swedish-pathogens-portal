@@ -424,8 +424,8 @@ class TestAIImageForm(TestCase):
         self.assertEqual(get_image_model().objects.count(), 0)
         self.assertEqual(ImageAIDisclosure.objects.count(), 0)
 
-    def test_existing_suggestion_stays_unconfirmed_until_the_editor_saves(self):
-        """Opening a suggested image does not confirm it. Saving labels it."""
+    def test_existing_unreviewed_image_stays_unanswered_until_the_editor_saves(self):
+        """Opening an existing image does not confirm it. Saving a fully AI choice labels it."""
         image = create_test_image(
             title="Suggested",
             file_name="suggested.jpg",
@@ -434,8 +434,8 @@ class TestAIImageForm(TestCase):
         Path(image.file.path).write_bytes(jpeg_upload("suggested.jpg", LARGE).read())
         ImageAIDisclosure.objects.create(
             image=image,
-            generation_status=GenerationStatus.FULLY_AI,
-            picture_like=PictureLike.YES,
+            generation_status=GenerationStatus.UNREVIEWED,
+            picture_like=PictureLike.UNREVIEWED,
         )
         before = Path(image.file.path).read_bytes()
         form = self.form(data={}, instance=image)

@@ -5,8 +5,8 @@ from django.conf import settings
 from django.db import models
 from wagtail.images import get_image_model_string
 
-# Image ids whose current title or description already says they are AI-generated.
-# Seeded as unconfirmed suggestions. An editor must save them before labelling.
+# Former suggested ids. The seed treats every existing image as unreviewed.
+# This list remains until the review comments that delete it.
 SUGGESTED_FULLY_AI_IMAGE_IDS = frozenset({133, 204, 205, 206, 207, 208, 209, 210, 211})
 
 
@@ -95,22 +95,18 @@ class ImageAIDisclosure(models.Model):
 
 
 def disclosure_defaults_for_image(image_id: int) -> dict[str, str]:
-    """Return unconfirmed disclosure fields for an existing image id.
+    """Return unreviewed disclosure fields for an existing image id.
 
-    Known AI images are stored as suggestions. Reviewer fields stay empty, so
-    the suggestion does not count as a confirmed review.
+    Every existing image stays unanswered until an editor saves it. Reviewer
+    fields stay empty, so the row does not count as a confirmed review.
 
     Args:
-        image_id: Primary key of a Wagtail image.
+        image_id: Primary key of a Wagtail image. The default does not depend on it.
 
     Returns:
         Field values for a new disclosure row.
     """
-    if image_id in SUGGESTED_FULLY_AI_IMAGE_IDS:
-        return {
-            "generation_status": GenerationStatus.FULLY_AI,
-            "picture_like": PictureLike.YES,
-        }
+    del image_id
     return {
         "generation_status": GenerationStatus.UNREVIEWED,
         "picture_like": PictureLike.UNREVIEWED,

@@ -21,12 +21,12 @@ from cms.tests.utils import create_test_image, use_temp_media_root
 class TestDisclosureDefaults(TestCase):
     """Tests for the existing-library seed values."""
 
-    def test_known_ai_image_is_an_unconfirmed_suggestion(self):
-        """A known AI image is suggested without a reviewer."""
+    def test_known_ai_image_is_unreviewed(self):
+        """A former suggested id is unreviewed, like every other existing image."""
         defaults = disclosure_defaults_for_image(209)
 
-        self.assertEqual(defaults["generation_status"], GenerationStatus.FULLY_AI)
-        self.assertEqual(defaults["picture_like"], PictureLike.YES)
+        self.assertEqual(defaults["generation_status"], GenerationStatus.UNREVIEWED)
+        self.assertEqual(defaults["picture_like"], PictureLike.UNREVIEWED)
         self.assertNotIn("reviewed_by", defaults)
         self.assertNotIn("reviewed_at", defaults)
 
@@ -103,14 +103,13 @@ class TestDisclosureBackfill(TestCase):
     """Tests for the existing-library backfill."""
 
     def setUp(self):
-        """Create one suggested image and one ordinary image."""
+        """Create one former suggested id and one ordinary image."""
         use_temp_media_root(self)
         self.suggested = create_test_image(
             title="Suggested AI image",
             file_name="suggested.jpg",
             image_id=209,
         )
-        # SQLite's next id after 209 is 210, which is also in the suggested set.
         self.ordinary = create_test_image(
             title="Ordinary image",
             file_name="ordinary.jpg",
@@ -129,8 +128,8 @@ class TestDisclosureBackfill(TestCase):
         suggested = ImageAIDisclosure.objects.get(image=self.suggested)
         ordinary = ImageAIDisclosure.objects.get(image=self.ordinary)
 
-        self.assertEqual(suggested.generation_status, GenerationStatus.FULLY_AI)
-        self.assertEqual(suggested.picture_like, PictureLike.YES)
+        self.assertEqual(suggested.generation_status, GenerationStatus.UNREVIEWED)
+        self.assertEqual(suggested.picture_like, PictureLike.UNREVIEWED)
         self.assertIsNone(suggested.reviewed_by)
         self.assertIsNone(suggested.reviewed_at)
         self.assertFalse(suggested.is_reviewed)
