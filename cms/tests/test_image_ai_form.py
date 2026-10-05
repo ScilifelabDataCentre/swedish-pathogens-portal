@@ -414,10 +414,13 @@ class TestAIImageForm(TestCase):
         )
         self.assertTrue(form.is_valid(), form.errors)
         form.instance.file.save("tiny.jpg", jpeg_upload("tiny.jpg"), save=False)
+        stored = Path(form.instance.file.path)
+        self.assertTrue(stored.is_file())
 
         with self.assertRaises(ValidationError):
             form.save()
 
+        self.assertFalse(stored.is_file())
         self.assertEqual(get_image_model().objects.count(), 0)
         self.assertEqual(ImageAIDisclosure.objects.count(), 0)
 

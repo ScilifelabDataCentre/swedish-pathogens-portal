@@ -231,15 +231,7 @@ class AIImageForm(BaseImageForm):
         """Remove a file written before validation when the image row does not exist."""
         if self.instance.pk:
             return
-        image_file = getattr(self.instance, "file", None)
-        if not getattr(image_file, "name", ""):
-            return
-        try:
-            path = Path(image_file.path)
-        except NotImplementedError, ValueError, OSError:
-            return
-        if path.is_file():
-            path.unlink()
+        self._unlink(self.instance)
 
     def _label_saved_image(self, image: Model, *, created: bool) -> None:
         """Store the disclosure and embed the icon in one transaction.
