@@ -5,10 +5,6 @@ from django.conf import settings
 from django.db import models
 from wagtail.images import get_image_model_string
 
-# Former suggested ids. The seed treats every existing image as unreviewed.
-# This list remains until the review comments that delete it.
-SUGGESTED_FULLY_AI_IMAGE_IDS = frozenset({133, 204, 205, 206, 207, 208, 209, 210, 211})
-
 
 class GenerationStatus(models.TextChoices):
     """How an image was produced."""

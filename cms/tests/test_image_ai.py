@@ -8,7 +8,6 @@ from django.utils import timezone
 from wagtail.images import get_image_model
 
 from cms.image_ai import (
-    SUGGESTED_FULLY_AI_IMAGE_IDS,
     GenerationStatus,
     ImageAIDisclosure,
     PictureLike,
@@ -36,13 +35,6 @@ class TestDisclosureDefaults(TestCase):
 
         self.assertEqual(defaults["generation_status"], GenerationStatus.UNREVIEWED)
         self.assertEqual(defaults["picture_like"], PictureLike.UNREVIEWED)
-
-    def test_suggestion_ids_match_the_known_library_set(self):
-        """The seed covers the nine images identified in the development database."""
-        self.assertEqual(
-            SUGGESTED_FULLY_AI_IMAGE_IDS,
-            frozenset({133, 204, 205, 206, 207, 208, 209, 210, 211}),
-        )
 
 
 class TestImageAIDisclosureRules(TestCase):
