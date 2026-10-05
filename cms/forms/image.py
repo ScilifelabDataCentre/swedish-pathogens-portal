@@ -284,9 +284,8 @@ class AIImageForm(BaseImageForm):
 
     def _save_disclosure(self, image: Model) -> None:
         """Create or update the disclosure without changing label bookkeeping."""
-        status = self.cleaned_data["ai_extent"]
         disclosure, _created = ImageAIDisclosure.objects.get_or_create(image=image)
-        disclosure.generation_status = status
+        disclosure.generation_status = self.cleaned_data["ai_extent"]
         disclosure.picture_like = self.cleaned_data["picture_like"]
         disclosure.reviewed_by = self.reviewer
         disclosure.reviewed_at = timezone.now()
