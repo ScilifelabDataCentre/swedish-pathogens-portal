@@ -262,7 +262,8 @@ class TestAIImageAltTemplates(BasePageTestCase):
         """A static figure uses the helper for a Wagtail image and not for a URL."""
         image = create_test_image(title="Figure image", file_name="figure.jpg")
         image.description = "A pathogen under glass"
-        image.save(update_fields=["description"])
+        image.file_hash = "figure123"
+        image.save(update_fields=["description", "file_hash"])
         self._confirm(image, GenerationStatus.PARTIALLY_AI)
         block = StaticFigureBlock()
         value = block.to_python(
@@ -277,6 +278,11 @@ class TestAIImageAltTemplates(BasePageTestCase):
 
         self.assertIn("AI-modified image: A pathogen under glass", html)
         self.assertIn("Figure 1", html)
+        stem = Path(image.file.name).stem
+        self.assertIn(f"{stem}.original.webp?v=figure123", html)
+        self.assertIn('width="1"', html)
+        self.assertIn('height="1"', html)
+        self.assertNotIn("object-right-top", html)
 
         external = block.to_python(
             {
