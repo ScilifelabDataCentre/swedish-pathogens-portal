@@ -2,13 +2,12 @@
 
 import hashlib
 import io
-import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import SimpleTestCase, TestCase, override_settings
+from django.test import SimpleTestCase, TestCase
 from django.utils import timezone
 from PIL import Image as PILImage
 from wagtail.images import get_image_model
@@ -92,16 +91,11 @@ class TestOfficialIconFiles(SimpleTestCase):
 
 
 class TestAIImageLabelling(TestCase):
-    """Tests for stamp, skip, archive, and rejection behaviour."""
+    """Tests for stamp, skip, and rejection behaviour."""
 
     def setUp(self):
-        """Point media and the pristine archive at temporary directories."""
-        self.media = use_temp_media_root(self)
-        self.archive = tempfile.TemporaryDirectory()
-        self.addCleanup(self.archive.cleanup)
-        override = override_settings(AI_IMAGE_ARCHIVE_ROOT=self.archive.name)
-        override.enable()
-        self.addCleanup(override.disable)
+        """Point media at a temporary directory."""
+        use_temp_media_root(self)
         self.user = get_user_model().objects.create_user(username="reviewer")
 
     def store(self, name: str, content: bytes, content_type: str):
@@ -148,14 +142,6 @@ class TestAIImageLabelling(TestCase):
             reviewed_at=timezone.now() if reviewed else None,
         )
 
-    def archive_files(self) -> list[Path]:
-        """Return files written to the pristine archive.
-
-        Returns:
-            Archive file paths.
-        """
-        return [path for path in Path(self.archive.name).rglob("*") if path.is_file()]
-
     def test_unconfirmed_suggestion_is_refused(self):
         """A suggested AI image is not stamped before an editor confirms it."""
         image = self.store("suggested.jpg", jpeg_bytes((800, 500), "white"), "image/jpeg")
@@ -166,7 +152,6 @@ class TestAIImageLabelling(TestCase):
             label_image(image)
 
         self.assertEqual(Path(image.file.path).read_bytes(), before)
-        self.assertEqual(self.archive_files(), [])
 
     def test_missing_disclosure_is_refused(self):
         """Labelling requires a disclosure row."""
@@ -185,7 +170,6 @@ class TestAIImageLabelling(TestCase):
 
         self.assertEqual(result.outcome, LabelOutcome.NOT_REQUIRED)
         self.assertEqual(Path(image.file.path).read_bytes(), before)
-        self.assertEqual(self.archive_files(), [])
 
     def test_non_picture_ai_image_is_skipped(self):
         """An AI logo or diagram is recorded and left unlabelled."""
@@ -210,7 +194,7 @@ class TestAIImageLabelling(TestCase):
         self.assertEqual(Path(image.file.path).read_bytes(), before)
 
     def test_fully_ai_image_gets_the_black_icon_on_a_light_background(self):
-        """A light fully AI image is archived and stamped with the black icon."""
+        """A light fully AI image is stamped with the black icon."""
         image = self.store("full.jpg", jpeg_bytes((800, 500), "white"), "image/jpeg")
         disclosure = self.confirm(image)
         path = Path(image.file.path)
@@ -220,7 +204,6 @@ class TestAIImageLabelling(TestCase):
 
         after = path.read_bytes()
         disclosure.refresh_from_db()
-        archived = self.archive_files()
         darkest, _lightest = icon_channel_bounds(after)
         self.assertEqual(result.outcome, LabelOutcome.LABELLED)
         self.assertNotEqual(after, before)
@@ -230,9 +213,6 @@ class TestAIImageLabelling(TestCase):
         self.assertEqual(disclosure.labelled_file_hash, result.file_hash)
         self.assertEqual(disclosure.label_version, LABEL_VERSION)
         self.assertIsNotNone(disclosure.labelled_at)
-        self.assertEqual(len(archived), 1)
-        self.assertEqual(archived[0].read_bytes(), before)
-        self.assertFalse(archived[0].resolve().is_relative_to(self.media.resolve()))
 
     def test_partial_ai_image_gets_the_white_icon_on_a_dark_background(self):
         """A dark partially AI image keeps PNG format and uses the white icon."""
@@ -270,7 +250,7 @@ class TestAIImageLabelling(TestCase):
         )
 
     def test_second_run_does_not_stamp_another_icon(self):
-        """A current label is left unchanged, including the pristine archive."""
+        """A current label is left unchanged."""
         image = self.store("twice.jpg", jpeg_bytes((800, 500), "white"), "image/jpeg")
         disclosure = self.confirm(image)
         label_image(image)
@@ -281,8 +261,24 @@ class TestAIImageLabelling(TestCase):
 
         self.assertEqual(result.outcome, LabelOutcome.ALREADY_LABELLED)
         self.assertEqual(Path(image.file.path).read_bytes(), stamped)
-        self.assertEqual(len(self.archive_files()), 1)
         self.assertEqual(ImageAIDisclosure.objects.get(pk=disclosure.pk).labelled_at, labelled_at)
+
+    def test_different_icon_version_stays_unchanged(self):
+        """A file that already carries another profile is left for the editor to replace."""
+        image = self.store("old-profile.jpg", jpeg_bytes((800, 500), "white"), "image/jpeg")
+        disclosure = self.confirm(image)
+        label_image(image)
+        stamped = Path(image.file.path).read_bytes()
+        disclosure.refresh_from_db()
+        disclosure.label_version = "older-profile"
+        disclosure.save(update_fields=["label_version"])
+
+        with self.assertRaises(AIImageLabellingError) as raised:
+            label_image(image)
+
+        self.assertNotIn("archive", str(raised.exception))
+        self.assertIn("Delete it and upload the image again.", str(raised.exception))
+        self.assertEqual(Path(image.file.path).read_bytes(), stamped)
 
     def test_animated_image_is_rejected_without_replacement(self):
         """An animated file is out of scope and stays byte-for-byte unchanged."""
@@ -305,7 +301,6 @@ class TestAIImageLabelling(TestCase):
             label_image(image)
 
         self.assertEqual(path.read_bytes(), animated)
-        self.assertEqual(self.archive_files(), [])
 
     def test_unsupported_format_is_rejected_without_replacement(self):
         """A non-JPEG, PNG, or WebP file is not replaced."""
@@ -321,7 +316,6 @@ class TestAIImageLabelling(TestCase):
             label_image(image)
 
         self.assertEqual(path.read_bytes(), bmp)
-        self.assertEqual(self.archive_files(), [])
 
     def test_tiny_image_is_rejected_without_replacement(self):
         """An image that cannot hold the icon and its padding is left unchanged."""
@@ -380,19 +374,3 @@ class TestAIImageLabelling(TestCase):
         with PILImage.open(path) as stamped:
             self.assertEqual(stamped.size, (80, 240))
         self.assertEqual((image.width, image.height), (80, 240))
-
-    def test_archive_inside_media_is_refused(self):
-        """The pristine copy is not written into the public media tree."""
-        image = self.store("public.jpg", jpeg_bytes((800, 500), "white"), "image/jpeg")
-        self.confirm(image)
-        before = Path(image.file.path).read_bytes()
-        nested = self.media / "ai-archive"
-
-        with (
-            override_settings(AI_IMAGE_ARCHIVE_ROOT=str(nested)),
-            self.assertRaises(AIImageLabellingError),
-        ):
-            label_image(image)
-
-        self.assertEqual(Path(image.file.path).read_bytes(), before)
-        self.assertFalse(nested.exists())

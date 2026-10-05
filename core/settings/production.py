@@ -37,12 +37,6 @@ LIVER_SESSION_ROOT = env(
     "LIVER_SESSION_ROOT",
     default="/app/private/liver_resource_sessions",
 )
-# Pristine image copies taken before EU icon embedding. Same private volume
-# as the liver sessions, and not mounted into the media proxy.
-AI_IMAGE_ARCHIVE_ROOT = env(
-    "AI_IMAGE_ARCHIVE_ROOT",
-    default="/app/private/ai_image_archive",
-)
 
 # Must match Gateway ClientSettingsPolicy (50m) and liver MAX_TOTAL_UPLOAD_BYTES.
 # This is the hard cap on the whole request body (multi-file POST). Below this size

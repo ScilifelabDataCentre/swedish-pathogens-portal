@@ -133,7 +133,7 @@ def label_image(image: AbstractImage) -> LabelResult:
     Raises:
         UnconfirmedDisclosureError: ``reviewed_by`` or ``reviewed_at`` is empty.
         UnsupportedImageError: The file is animated, too small, or unsupported.
-        AIImageLabellingError: The disclosure, archive, or official icon is unusable.
+        AIImageLabellingError: The disclosure or official icon is unusable.
     """
     disclosure = _disclosure_for(image)
     if not disclosure.is_reviewed:
@@ -148,12 +148,12 @@ def label_image(image: AbstractImage) -> LabelResult:
     if disclosure.labelled_file_hash == current_hash:
         if disclosure.label_version != LABEL_VERSION:
             raise AIImageLabellingError(
-                "labelled file uses another icon version; restore the pristine archive first"
+                "This image already carries a different icon version. "
+                "Delete it and upload the image again."
             )
         return LabelResult(LabelOutcome.ALREADY_LABELLED, current_hash)
 
     labelled = _embed(original, disclosure.generation_status)
-    _archive_pristine(image.pk, current_hash, public_path.suffix, original)
     _replace_public_file(public_path, labelled)
     labelled_hash = hashlib.sha256(labelled).hexdigest()
     try:
@@ -440,41 +440,6 @@ def _encode(image: PILImage.Image, image_format: str) -> bytes:
     else:
         image.save(buffer, format="WEBP", quality=90)
     return buffer.getvalue()
-
-
-def _archive_root() -> Path:
-    """Return the private archive directory, creating it when needed.
-
-    Returns:
-        Path: Absolute archive root outside ``MEDIA_ROOT``.
-
-    Raises:
-        AIImageLabellingError: The archive is inside public media.
-    """
-    root = Path(settings.AI_IMAGE_ARCHIVE_ROOT).resolve()
-    media_root = Path(settings.MEDIA_ROOT).resolve()
-    if root == media_root or root.is_relative_to(media_root):
-        raise AIImageLabellingError("pristine archive must stay outside MEDIA_ROOT")
-    root.mkdir(parents=True, exist_ok=True)
-    return root
-
-
-def _archive_pristine(image_id: int, digest: str, suffix: str, original: bytes) -> None:
-    """Store the untouched file outside public media.
-
-    Args:
-        image_id: Wagtail image primary key.
-        digest: SHA-256 of the untouched file.
-        suffix: Original filename suffix, including the leading dot.
-        original: Untouched file bytes.
-    """
-    destination = _archive_root() / str(image_id) / f"{digest}{suffix or '.bin'}"
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    if destination.exists():
-        return
-    temporary = destination.with_name(f".{destination.name}.tmp")
-    temporary.write_bytes(original)
-    temporary.replace(destination)
 
 
 def _replace_public_file(path: Path, labelled: bytes) -> None:

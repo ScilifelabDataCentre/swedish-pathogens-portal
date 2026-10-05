@@ -2,7 +2,6 @@
 
 import hashlib
 import io
-import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
@@ -10,7 +9,7 @@ from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db.models import Model
 from django.forms import ValidationError
-from django.test import TestCase, override_settings
+from django.test import TestCase
 from PIL import Image as PILImage
 from wagtail.images import get_image_model
 from wagtail.images.forms import get_image_form, get_image_multi_form
@@ -47,13 +46,8 @@ class TestAIImageForm(TestCase):
     """Tests for provenance validation and disclosure updates."""
 
     def setUp(self):
-        """Create an editor and point media and the archive at temporary directories."""
-        self.media = use_temp_media_root(self)
-        self.archive = tempfile.TemporaryDirectory()
-        self.addCleanup(self.archive.cleanup)
-        override = override_settings(AI_IMAGE_ARCHIVE_ROOT=self.archive.name)
-        override.enable()
-        self.addCleanup(override.disable)
+        """Create an editor and point media at a temporary directory."""
+        use_temp_media_root(self)
         self.user = get_user_model().objects.create_superuser(
             username="image-editor",
             email="image-editor@example.com",
@@ -188,7 +182,7 @@ class TestAIImageForm(TestCase):
         self.assertEqual(ImageAIDisclosure.objects.count(), 0)
 
     def test_in_scope_upload_embeds_the_icon(self):
-        """One save stores the image, the decision, the archive, and the icon."""
+        """One save stores the image, the decision, and the icon."""
         upload = jpeg_upload("full.jpg", LARGE)
         original = upload.read()
         upload.seek(0)
@@ -204,7 +198,6 @@ class TestAIImageForm(TestCase):
         image = form.save()
         labelled = Path(image.file.path).read_bytes()
         disclosure = ImageAIDisclosure.objects.get(image=image)
-        archived = [path for path in Path(self.archive.name).rglob("*") if path.is_file()]
 
         self.assertEqual(disclosure.generation_status, GenerationStatus.FULLY_AI)
         self.assertTrue(disclosure.is_ready_to_label)
@@ -214,8 +207,6 @@ class TestAIImageForm(TestCase):
         self.assertIsNotNone(disclosure.labelled_at)
         self.assertNotEqual(labelled, original)
         self.assertTrue(labelled.startswith(b"\xff\xd8"))
-        self.assertEqual(archived[0].read_bytes(), original)
-        self.assertFalse(archived[0].resolve().is_relative_to(self.media.resolve()))
 
     def test_second_save_does_not_stamp_another_icon(self):
         """Saving the same decision again leaves the labelled file unchanged."""
@@ -243,10 +234,6 @@ class TestAIImageForm(TestCase):
 
         self.assertEqual(Path(image.file.path).read_bytes(), stamped)
         self.assertEqual(ImageAIDisclosure.objects.get(image=image).labelled_at, labelled_at)
-        self.assertEqual(
-            len([path for path in Path(self.archive.name).rglob("*") if path.is_file()]),
-            1,
-        )
 
     def test_ai_diagram_is_saved_without_changing_pixels(self):
         """An AI image that is not picture-like keeps its original file."""
@@ -295,7 +282,7 @@ class TestAIImageForm(TestCase):
         self.assertNotEqual(Path(image.file.path).read_bytes(), before)
 
     def test_replacing_a_labelled_file_labels_the_replacement(self):
-        """A new file on an in-scope image is archived and labelled before it is ready."""
+        """A new file on an in-scope image is labelled before it is ready."""
         image = self.form(
             data=self.base_data(
                 ai_extent=GenerationStatus.FULLY_AI,
@@ -343,7 +330,7 @@ class TestAIImageForm(TestCase):
         with (
             patch(
                 "cms.forms.image.label_image",
-                side_effect=UnsupportedImageError("archive unavailable"),
+                side_effect=UnsupportedImageError("could not embed the icon"),
             ),
             self.assertRaises(ValidationError),
         ):
@@ -371,7 +358,7 @@ class TestAIImageForm(TestCase):
         with (
             patch(
                 "cms.forms.image.label_image",
-                side_effect=UnsupportedImageError("archive unavailable"),
+                side_effect=UnsupportedImageError("could not embed the icon"),
             ),
             self.assertRaises(ValidationError),
         ):
