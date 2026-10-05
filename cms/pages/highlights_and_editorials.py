@@ -107,7 +107,6 @@ class HighlightsAndEditorialsPage(Page):
         index.SearchField("content"),
         index.SearchField("keywords"),
         index.SearchField("announcement"),
-        index.SearchField("author"),
         index.AutocompleteField("title"),
     ]
 
