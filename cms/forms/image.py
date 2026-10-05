@@ -126,9 +126,7 @@ class AIImageForm(BaseImageForm):
         """Save the image, record the decision, and embed the icon when required."""
         if commit:
             if not self.is_valid():
-                raise ValueError(
-                    "The image could not be saved because the data didn't validate."
-                )
+                raise ValueError("The image could not be saved because the data didn't validate.")
             self._raise_if_unlabelable()
             created = self.instance.pk is None
             image = super().save(commit=True)

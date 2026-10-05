@@ -110,7 +110,12 @@ class TestDisclosureBackfill(TestCase):
             file_name="suggested.jpg",
             image_id=209,
         )
-        self.ordinary = create_test_image(title="Ordinary image", file_name="ordinary.jpg")
+        # SQLite's next id after 209 is 210, which is also in the suggested set.
+        self.ordinary = create_test_image(
+            title="Ordinary image",
+            file_name="ordinary.jpg",
+            image_id=1,
+        )
         self.suggested.file.open("rb")
         self.suggested_bytes = self.suggested.file.read()
         self.suggested.file.close()

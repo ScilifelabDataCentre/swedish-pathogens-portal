@@ -1,12 +1,14 @@
 """Tests for AI image alt text."""
 
 from datetime import UTC, datetime
+from pathlib import Path
 from types import SimpleNamespace
 
 from django.contrib.auth import get_user_model
 from django.template.loader import render_to_string
 from django.test import SimpleTestCase
 from django.utils import timezone
+from wagtail.images import get_image_model
 
 from cms.blocks.static_figure import StaticFigureBlock
 from cms.image_ai import GenerationStatus, ImageAIDisclosure, PictureLike
@@ -130,6 +132,9 @@ class TestAIImageAltTemplates(BasePageTestCase):
         """Keep generated files out of the development media directory."""
         super().setUp()
         use_temp_media_root(self)
+        # The rendition cache outlives the test transaction, and SQLite reuses
+        # image ids, so a later test can be served an earlier image's file.
+        get_image_model().get_rendition_model().cache_backend.clear()
         self.reviewer = get_user_model().objects.create(username="alt-reviewer")
 
     def _confirm(self, image: object, status: str) -> None:
@@ -165,7 +170,8 @@ class TestAIImageAltTemplates(BasePageTestCase):
         )
         label = "AI-generated image: An elderly person inside a protective dome. Dome study"
         self.assertIn(f'aria-label="{label}"', html)
-        self.assertIn("dome-card.format-webp.webp?v=abc123", html)
+        stem = Path(image.file.name).stem
+        self.assertIn(f"{stem}.format-webp.webp?v=abc123", html)
         self.assertNotIn("ai_labels", html)
         self.assertIn("w-full h-40 object-cover object-right-top origin-top-right", html)
         self.assertIn("group-hover:scale-105", html)
@@ -186,7 +192,8 @@ class TestAIImageAltTemplates(BasePageTestCase):
 
         self.assertIn('alt="Plain study"', html)
         self.assertIn('aria-label="Plain study"', html)
-        self.assertIn("plain-card.format-webp.webp", html)
+        stem = Path(image.file.name).stem
+        self.assertIn(f"{stem}.format-webp.webp", html)
         self.assertNotIn("AI-generated image:", html)
         self.assertIn("object-cover", html)
         self.assertIn("group-hover:scale-105", html)
