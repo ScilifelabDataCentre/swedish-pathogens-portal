@@ -95,9 +95,7 @@ def ai_card_icon_corner(context: template.Context) -> bool:
     Returns:
         True for a confirmed picture-like AI image.
     """
-    image = context.get("image")
-    disclosure = _disclosure(image) if image is not None else None
-    return _keeps_icon_corner(disclosure)
+    return ai_icon_corner(context.get("image"))
 
 
 def _keeps_icon_corner(disclosure: ImageAIDisclosure | None) -> bool:
