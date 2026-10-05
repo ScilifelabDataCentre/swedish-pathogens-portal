@@ -32,6 +32,7 @@ AI_EXTENTS = {
     GenerationStatus.FULLY_AI,
     GenerationStatus.PARTIALLY_AI,
 }
+PICTURE_LIKE_ANSWERS = {PictureLike.YES, PictureLike.NO}
 
 
 class AIImageForm(BaseImageForm):
@@ -74,7 +75,7 @@ class AIImageForm(BaseImageForm):
             return
         if disclosure.generation_status in AI_EXTENTS:
             self.fields["ai_extent"].initial = disclosure.generation_status
-        if disclosure.picture_like in {PictureLike.YES, PictureLike.NO}:
+        if disclosure.picture_like in PICTURE_LIKE_ANSWERS:
             self.fields["picture_like"].initial = disclosure.picture_like
 
     def _order_provenance_fields(self) -> None:
