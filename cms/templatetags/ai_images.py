@@ -98,11 +98,6 @@ def ai_card_icon_corner(context: template.Context) -> bool:
     return ai_icon_corner(context.get("image"))
 
 
-def _keeps_icon_corner(disclosure: ImageAIDisclosure | None) -> bool:
-    """Return whether the embedded icon must stay inside a cropped frame."""
-    return bool(disclosure and disclosure.is_ready_to_label)
-
-
 @register.filter(name="with_file_version")
 def with_file_version(url: object, image: object) -> str:
     """Append the file checksum so a replaced image is not served from an old address.
@@ -135,7 +130,8 @@ def ai_icon_corner(image: object) -> bool:
     Returns:
         True for a confirmed picture-like AI image.
     """
-    return _keeps_icon_corner(_disclosure(image))
+    disclosure = _disclosure(image) if image is not None else None
+    return bool(disclosure and disclosure.is_ready_to_label)
 
 
 @register.filter(name="ai_image_alt")
