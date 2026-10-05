@@ -12,29 +12,8 @@ from cms.image_ai import (
     ImageAIDisclosure,
     PictureLike,
     backfill_image_disclosures,
-    disclosure_defaults_for_image,
 )
 from cms.tests.utils import create_test_image, use_temp_media_root
-
-
-class TestDisclosureDefaults(TestCase):
-    """Tests for the existing-library seed values."""
-
-    def test_known_ai_image_is_unreviewed(self):
-        """A former suggested id is unreviewed, like every other existing image."""
-        defaults = disclosure_defaults_for_image(209)
-
-        self.assertEqual(defaults["generation_status"], GenerationStatus.UNREVIEWED)
-        self.assertEqual(defaults["picture_like"], PictureLike.UNREVIEWED)
-        self.assertNotIn("reviewed_by", defaults)
-        self.assertNotIn("reviewed_at", defaults)
-
-    def test_other_image_stays_unreviewed(self):
-        """An image outside the known set is left unreviewed."""
-        defaults = disclosure_defaults_for_image(1)
-
-        self.assertEqual(defaults["generation_status"], GenerationStatus.UNREVIEWED)
-        self.assertEqual(defaults["picture_like"], PictureLike.UNREVIEWED)
 
 
 class TestImageAIDisclosureRules(TestCase):

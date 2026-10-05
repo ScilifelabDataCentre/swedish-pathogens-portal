@@ -90,27 +90,8 @@ class ImageAIDisclosure(models.Model):
         return self.requires_label and self.is_reviewed
 
 
-def disclosure_defaults_for_image(image_id: int) -> dict[str, str]:
-    """Return unreviewed disclosure fields for an existing image id.
-
-    Every existing image stays unanswered until an editor saves it. Reviewer
-    fields stay empty, so the row does not count as a confirmed review.
-
-    Args:
-        image_id: Primary key of a Wagtail image. The default does not depend on it.
-
-    Returns:
-        Field values for a new disclosure row.
-    """
-    del image_id
-    return {
-        "generation_status": GenerationStatus.UNREVIEWED,
-        "picture_like": PictureLike.UNREVIEWED,
-    }
-
-
 def backfill_image_disclosures(apps: Apps, schema_editor: object) -> None:
-    """Create one unconfirmed disclosure for every Wagtail image that lacks one.
+    """Create one unreviewed disclosure for every Wagtail image that lacks one.
 
     Args:
         apps: Historical app registry supplied by the migration.
@@ -121,7 +102,11 @@ def backfill_image_disclosures(apps: Apps, schema_editor: object) -> None:
     disclosure_model = apps.get_model("cms", "ImageAIDisclosure")
     existing_ids = set(disclosure_model.objects.values_list("image_id", flat=True))
     rows = [
-        disclosure_model(image_id=image_id, **disclosure_defaults_for_image(image_id))
+        disclosure_model(
+            image_id=image_id,
+            generation_status=GenerationStatus.UNREVIEWED,
+            picture_like=PictureLike.UNREVIEWED,
+        )
         for image_id in image_model.objects.values_list("id", flat=True)
         if image_id not in existing_ids
     ]
