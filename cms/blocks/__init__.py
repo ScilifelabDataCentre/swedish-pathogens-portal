@@ -13,6 +13,7 @@ from .data_table import DataTableBlock
 from .last_updated import LastUpdatedBlock
 from .page_section import PageSectionBlock
 from .plotly_figure import PlotlyFigureBlock
+from .portal_data_summary import PortalDataSummaryBlock
 from .publications import PathogenBlock, PublicationsBlock
 from .static_figure import StaticFigureBlock
 
@@ -29,6 +30,7 @@ __all__ = [
     "PageSectionBlock",
     "PathogenBlock",
     "PlotlyFigureBlock",
+    "PortalDataSummaryBlock",
     "PublicationsBlock",
     "StaticFigureBlock",
 ]

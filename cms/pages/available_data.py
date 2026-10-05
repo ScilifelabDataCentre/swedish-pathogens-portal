@@ -7,7 +7,7 @@ from wagtail.blocks import RichTextBlock, StaticBlock
 from wagtail.fields import StreamField
 from wagtail.models import Page
 
-from cms.blocks import AlertBlock
+from cms.blocks import AlertBlock, PortalDataSummaryBlock
 from cms.services.available_data import build_page_context
 
 
@@ -19,6 +19,7 @@ class AvailableDataPage(Page):
             - RichTextBlock: formatted text (headings, bold, italic, links, lists)
             - AlertBlock: callout/notice box
             - StaticBlock "available_data": displays the EBI dataset counts.
+            - PortalDataSummaryBlock: study counts from a Portal data page.
     """
 
     template = "cms/pages/available_data/index.html"
@@ -41,6 +42,7 @@ class AvailableDataPage(Page):
                     template="cms/pages/available_data/partials/available_data_section.html",
                 ),
             ),
+            ("portal_data_summary", PortalDataSummaryBlock()),
         ],
         blank=False,
         block_counts={"available_data": {"min_num": 1, "max_num": 1}},

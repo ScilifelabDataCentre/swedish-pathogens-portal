@@ -1,0 +1,8 @@
+{% comment %}
+    PortalDataSummaryBlock template. Reuses the Available Data page's category partial
+    so the section looks the same as the EBI "Outbreaks" and "Pathogen Sequences" ones.
+{% endcomment %}
+
+{% if section %}
+{% include "cms/pages/available_data/partials/available_data_counts.html#available_data_category" with section=section %}
+{% endif %}

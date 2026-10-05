@@ -1,6 +1,8 @@
 {% comment %}
     Available data counts fragment returned for the "available_data" block's lazy-load HTMX request. 
     The `available_data_category` partialdef loads the 2 sections, "Outbreaks" and "Pathogen Sequences"
+    The partialdef is also reused by PortalDataSummaryBlock. Sections with `internal` set open links in
+    the same tab, and rows with a `display_label` show it as-is instead of title-casing `label`.
 {% endcomment %}
 
 {% load humanize %}
@@ -19,14 +21,14 @@
         [&_a]:focus-visible:ring-pp-dark-blue [&_a]:focus-visible:ring-offset-2
         [&_a]:focus-visible:ring-offset-white">
         <li>
-            <a href="{{ section.total_url }}" target="_blank" rel="noopener noreferrer">
+            <a href="{{ section.total_url }}"{% if not section.internal %} target="_blank" rel="noopener noreferrer"{% endif %}>
                 View all <strong>{{ section.total_count|intcomma }}</strong> results in {{ section.title }}
             </a>
         </li>
         {% for row in section.rows %}
         <li>
-            <a href="{{ row.url }}" target="_blank" rel="noopener noreferrer">
-                View all <strong>{{ row.count|intcomma }}</strong> results in {{ row.label|title }}
+            <a href="{{ row.url }}"{% if not section.internal %} target="_blank" rel="noopener noreferrer"{% endif %}>
+                View all <strong>{{ row.count|intcomma }}</strong> results in {% firstof row.display_label row.label|title %}
             </a>
         </li>
         {% endfor %}
