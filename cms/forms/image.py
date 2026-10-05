@@ -108,21 +108,18 @@ class AIImageForm(BaseImageForm):
         cleaned = super().clean()
         if self.reviewer is None:
             self.add_error(None, "A signed-in editor is required to record AI provenance.")
-        extent = cleaned.get("ai_extent")
-        description = (cleaned.get("description") or "").strip()
-        needs_description = (
-            extent in {GenerationStatus.FULLY_AI, GenerationStatus.PARTIALLY_AI}
-            and cleaned.get("picture_like") == PictureLike.YES
-        )
-        if needs_description and not description:
-            self.add_error(
-                "description",
-                "Describe what the image shows. This text is used as the accessible description.",
-            )
-        if self._requires_label(cleaned) and not self.errors:
-            message = self._unlabelable_message(cleaned)
-            if message:
-                self._add_file_error(message)
+        if self._requires_label(cleaned):
+            description = (cleaned.get("description") or "").strip()
+            if not description:
+                self.add_error(
+                    "description",
+                    "Describe what the image shows. "
+                    "This text is used as the accessible description.",
+                )
+            if not self.errors:
+                message = self._unlabelable_message(cleaned)
+                if message:
+                    self._add_file_error(message)
         return cleaned
 
     def save(self, commit: bool = True) -> Model:
