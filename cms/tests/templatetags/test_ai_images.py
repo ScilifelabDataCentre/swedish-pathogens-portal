@@ -180,6 +180,8 @@ class TestAIImageAltTemplates(BasePageTestCase):
     def test_card_without_ai_keeps_the_title(self):
         """A normal card still uses the title as its image alt."""
         image = create_test_image(title="Plain image", file_name="plain-card.jpg")
+        image.file_hash = "plain123"
+        image.save(update_fields=["file_hash"])
 
         html = render_to_string(
             "cms/components/content_card.html#content_card",
@@ -194,7 +196,7 @@ class TestAIImageAltTemplates(BasePageTestCase):
         self.assertIn('alt="Plain study"', html)
         self.assertIn('aria-label="Plain study"', html)
         stem = Path(image.file.name).stem
-        self.assertIn(f"{stem}.format-webp.webp", html)
+        self.assertIn(f"{stem}.format-webp.webp?v=plain123", html)
         self.assertNotIn("AI-generated image:", html)
         self.assertIn("object-cover", html)
         self.assertIn("group-hover:scale-105", html)
