@@ -102,6 +102,7 @@ class TestAIImageAlt(SimpleTestCase):
             "AI-modified image: Kept",
         )
         self.assertEqual(ai_image_alt(None, "Fallback"), "Fallback")
+        self.assertEqual(ai_image_alt("", "Fallback"), "Fallback")
 
 
 class TestFileVersion(SimpleTestCase):

@@ -150,8 +150,10 @@ def ai_image_alt(image: object, fallback: str = "") -> str:
         Alt text for an ``img`` or ``og:image:alt``.
     """
     fallback_text = str(fallback or "").strip()
-    if image is None or isinstance(image, str):
-        return image if isinstance(image, str) and image else fallback_text
+    if image is None:
+        return fallback_text
+    if isinstance(image, str):
+        return image or fallback_text
 
     disclosure = _disclosure(image)
     prefix = _prefix(disclosure)
