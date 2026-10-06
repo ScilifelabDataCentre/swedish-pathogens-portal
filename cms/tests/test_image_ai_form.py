@@ -368,6 +368,9 @@ class TestAIImageForm(TestCase):
         self.assertEqual(disclosure.generation_status, GenerationStatus.NOT_AI)
         self.assertEqual(disclosure.labelled_file_hash, "")
         self.assertEqual(Path(image.file.path).read_bytes(), before)
+        reopened = self.form_class(instance=image, user=self.user)
+        self.assertFalse(reopened.fields["ai_extent"].disabled)
+        self.assertFalse(reopened.fields["picture_like"].disabled)
 
     def test_multiple_uploader_save_path_labels_after_the_image_is_saved(self):
         """The multiple uploader saves the image, then the wrapped save labels it."""
@@ -430,6 +433,8 @@ class TestAIImageForm(TestCase):
 
         self.assertIsNone(form.fields["ai_extent"].initial)
         self.assertIsNone(form.fields["picture_like"].initial)
+        self.assertFalse(form.fields["ai_extent"].disabled)
+        self.assertFalse(form.fields["picture_like"].disabled)
         self.assertIsNone(image.ai_disclosure.reviewed_at)
 
         bound = self.form(
@@ -448,3 +453,102 @@ class TestAIImageForm(TestCase):
         self.assertEqual(disclosure.reviewed_by, self.user)
         self.assertIsNotNone(disclosure.reviewed_at)
         self.assertEqual(disclosure.label_version, LABEL_VERSION)
+
+    def labelled_image(self) -> Model:
+        """Save one picture-like fully AI image with the icon embedded."""
+        return self.form(
+            data=self.base_data(
+                ai_extent=GenerationStatus.FULLY_AI,
+                description="An illustrated laboratory scene.",
+            ),
+            files={"file": jpeg_upload("locked.jpg", LARGE)},
+        ).save()
+
+    def test_labelled_image_locks_the_provenance_fields(self):
+        """A labelled image shows its decision but does not allow it to change."""
+        image = self.labelled_image()
+        opened = self.form_class(instance=image, user=self.user)
+        html = str(opened["ai_extent"]) + str(opened["picture_like"])
+
+        self.assertTrue(opened.fields["ai_extent"].disabled)
+        self.assertTrue(opened.fields["picture_like"].disabled)
+        self.assertEqual(opened.fields["ai_extent"].initial, GenerationStatus.FULLY_AI)
+        self.assertEqual(opened.fields["picture_like"].initial, PictureLike.YES)
+        self.assertIn(
+            "locked because the EU icon is embedded",
+            opened.fields["ai_extent"].help_text,
+        )
+        self.assertIn(
+            "delete this image and upload it again",
+            opened.fields["picture_like"].help_text,
+        )
+        self.assertIn("disabled", html)
+        self.assertIn('value="fully_ai"', html)
+        self.assertIn("checked", html)
+
+    def test_forged_provenance_cannot_change_a_labelled_image(self):
+        """Submitted answers are ignored once the icon is embedded."""
+        image = self.labelled_image()
+        before = Path(image.file.path).read_bytes()
+        form = self.form(
+            data=self.base_data(
+                title="Renamed laboratory",
+                description="A revised description of the laboratory.",
+                ai_extent=GenerationStatus.NOT_AI,
+                picture_like=PictureLike.NO,
+            ),
+            instance=image,
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+        form.save()
+        image.refresh_from_db()
+        disclosure = ImageAIDisclosure.objects.get(image=image)
+
+        self.assertEqual(image.title, "Renamed laboratory")
+        self.assertEqual(image.description, "A revised description of the laboratory.")
+        self.assertEqual(disclosure.generation_status, GenerationStatus.FULLY_AI)
+        self.assertEqual(disclosure.picture_like, PictureLike.YES)
+        self.assertEqual(Path(image.file.path).read_bytes(), before)
+
+    def test_replacing_a_labelled_file_keeps_the_locked_decision(self):
+        """A replacement file receives the same icon type as the locked decision."""
+        image = self.labelled_image()
+        first = Path(image.file.path).read_bytes()
+        replacement = jpeg_upload("replacement.jpg", LARGE, "black")
+        raw_replacement = replacement.read()
+        replacement.seek(0)
+        form = self.form(
+            data=self.base_data(
+                title=image.title,
+                ai_extent=GenerationStatus.PARTIALLY_AI,
+                picture_like=PictureLike.NO,
+                description="An illustrated laboratory scene.",
+            ),
+            files={"file": replacement},
+            instance=image,
+        )
+
+        self.assertTrue(form.is_valid(), form.errors)
+        form.save()
+        image.refresh_from_db()
+        current = Path(image.file.path).read_bytes()
+        disclosure = ImageAIDisclosure.objects.get(image=image)
+
+        self.assertEqual(disclosure.generation_status, GenerationStatus.FULLY_AI)
+        self.assertEqual(disclosure.picture_like, PictureLike.YES)
+        self.assertNotEqual(current, first)
+        self.assertNotEqual(current, raw_replacement)
+        self.assertEqual(disclosure.labelled_file_hash, hashlib.sha256(current).hexdigest())
+
+    def test_not_ai_image_keeps_the_provenance_fields_editable(self):
+        """A confirmed image without an embedded icon can still be marked as AI."""
+        image = self.form(
+            data=self.base_data(picture_like=PictureLike.YES),
+            files={"file": jpeg_upload("plain.jpg", LARGE)},
+        ).save()
+        opened = self.form_class(instance=image, user=self.user)
+
+        self.assertFalse(opened.fields["ai_extent"].disabled)
+        self.assertFalse(opened.fields["picture_like"].disabled)
+        self.assertEqual(opened.fields["ai_extent"].initial, GenerationStatus.NOT_AI)

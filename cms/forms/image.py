@@ -33,6 +33,10 @@ AI_EXTENTS = {
     GenerationStatus.PARTIALLY_AI,
 }
 PICTURE_LIKE_ANSWERS = {PictureLike.YES, PictureLike.NO}
+LOCKED_PROVENANCE_HELP = (
+    "These answers are locked because the EU icon is embedded in the file. "
+    "To correct them, delete this image and upload it again."
+)
 
 
 class AIImageForm(BaseImageForm):
@@ -62,16 +66,21 @@ class AIImageForm(BaseImageForm):
         self._set_disclosure_initials()
         self._order_provenance_fields()
         self._set_help_text()
+        self._lock_labelled_provenance()
+
+    def _saved_disclosure(self) -> ImageAIDisclosure | None:
+        """Return the disclosure stored for this image, ignoring a stale cache."""
+        if not self.instance.pk:
+            return None
+        try:
+            return ImageAIDisclosure.objects.get(image_id=self.instance.pk)
+        except ImageAIDisclosure.DoesNotExist:
+            return None
 
     def _set_disclosure_initials(self) -> None:
         """Show a saved decision. An unreviewed image stays unanswered."""
-        if not self.instance.pk:
-            return
-        try:
-            disclosure = self.instance.ai_disclosure
-        except ImageAIDisclosure.DoesNotExist:
-            return
-        if not disclosure.is_reviewed:
+        disclosure = self._saved_disclosure()
+        if disclosure is None or not disclosure.is_reviewed:
             return
         if disclosure.generation_status in AI_EXTENTS:
             self.fields["ai_extent"].initial = disclosure.generation_status
@@ -103,6 +112,16 @@ class AIImageForm(BaseImageForm):
                 "Choose yes when someone could interpret the image as a picture. "
                 "Choose no for a logo, chart, diagram, or animation."
             )
+
+    def _lock_labelled_provenance(self) -> None:
+        """Stop the icon decision from changing after it has been embedded."""
+        disclosure = self._saved_disclosure()
+        if disclosure is None or not disclosure.labelled_file_hash:
+            return
+        for name in PROVENANCE_FIELDS:
+            field = self.fields[name]
+            field.disabled = True
+            field.help_text = LOCKED_PROVENANCE_HELP
 
     def clean(self) -> dict[str, object]:
         """Require an AI extent, a picture choice, and a description when needed."""
