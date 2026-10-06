@@ -19,6 +19,7 @@ def _panel_help_text(panels: list, field_name: str) -> str:
                 return found
     return ""
 
+
 #######################################################################
 ############# Helper classes and functions for testing ################
 #######################################################################
