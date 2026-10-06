@@ -42,7 +42,8 @@ class CaptionedImageFormat(Format):
 
         context = {
             "image": image_rendition,
-            "alt_text": alt_text or image.title or "",
+            "source_image": image,
+            "alt_text": alt_text or getattr(image, "title", "") or "",
             "alignment_class": alignment_class,
             "classname": self.classname or "richtext-image",
             "extra_attributes_flat": flatatt(extra_attributes or {}),

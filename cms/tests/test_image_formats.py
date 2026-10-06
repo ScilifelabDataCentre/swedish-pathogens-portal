@@ -1,10 +1,12 @@
 """Tests for ``CaptionedImageFormat`` in ``cms.image_formats``."""
 
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from django.test import SimpleTestCase
 
+from cms.image_ai import GenerationStatus, ImageAIDisclosure, PictureLike
 from cms.image_formats import CaptionedImageFormat
 
 
@@ -110,3 +112,24 @@ class TestCaptionedImageFormat(SimpleTestCase):
         self.assertIn("<img", html)
         self.assertIn("<figure", html)
         self.assertIn("<figcaption", html)
+        self.assertNotIn("AI-generated image:", html)
+        self.assertNotIn("AI-modified image:", html)
+
+    def test_confirmed_ai_alt_is_prefixed_and_caption_stays_semantic(self):
+        """A confirmed picture-like AI image prefixes alt text and leaves the caption."""
+        fmt = build_format("captioned_full_width")
+        self.image.description = "An elderly person inside a protective dome"
+        self.image.ai_disclosure = ImageAIDisclosure(
+            generation_status=GenerationStatus.FULLY_AI,
+            picture_like=PictureLike.YES,
+            reviewed_by_id=1,
+            reviewed_at=datetime(2026, 9, 29, tzinfo=UTC),
+        )
+
+        html = fmt.image_to_html(image=self.image, alt_text="Editor alt")
+
+        self.assertIn(
+            'alt="AI-generated image: An elderly person inside a protective dome"',
+            html,
+        )
+        self.assertIn(">Editor alt</figcaption>", html)

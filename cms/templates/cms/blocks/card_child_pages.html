@@ -1,10 +1,8 @@
-{% load wagtailimages_tags %}
 {# Child listing: template expects child models with listing image/teaser (see ChildPageCardBlock). #}
 {% if child_pages %}
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 my-7">
     {% for child in child_pages %}
-    {% image child.thumbnail format-webp as thumbnail %}
-    {% include "cms/components/content_card.html#content_card" with title=child.title description=child.description image=thumbnail.url url=child.url only %}
+    {% include "cms/components/content_card.html#content_card" with title=child.title description=child.description image=child.thumbnail url=child.url only %}
     {% endfor %}
 </div>
 {% else %}

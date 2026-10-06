@@ -1,5 +1,6 @@
 """Model file used to register page models defined in cms/pages."""
 
+from cms.image_ai import ImageAIDisclosure as ImageAIDisclosure
 from cms.pages import *  # noqa: F403
 from cms.snippets import *  # noqa: F403
 from cms.workflows import *  # noqa: F403

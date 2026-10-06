@@ -1,4 +1,4 @@
-{% load wagtailcore_tags wagtailimages_tags %}
+{% load wagtailcore_tags %}
 
 {% if not invalid_page %}
 <section>
@@ -23,8 +23,7 @@
     {% if section_children %}
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         {% for child in section_children %}
-        {% image child.image format-webp as thumbnail %}
-        {% include "cms/components/content_card.html#content_card" with title=child.title description=child.description image=thumbnail.url url=child.url date=child.date badge_text=child.badge topics=child.topics only %}
+        {% include "cms/components/content_card.html#content_card" with title=child.title description=child.description image=child.image url=child.url date=child.date badge_text=child.badge topics=child.topics only %}
         {% endfor %}
     </div>
     {% else %}

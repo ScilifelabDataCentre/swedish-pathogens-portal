@@ -1,15 +1,15 @@
 {% extends "cms/base.html" %}
 
 {% load static %}
-{% load wagtailcore_tags wagtailimages_tags %}
+{% load wagtailcore_tags ai_images %}
 
 {% block content %}
 
-{% image page.image format-webp as cover %}
+{% cms_image page.image "format-webp" as cover %}
 <article>
     <h3>{{ page.title }}</h3>
     <p class="text-sm text-pp-dark-grey mb-6">{{ page.first_published_at|date:"F d, Y" }}</p>
-    <img src="{{ cover.url }}" alt="{{ page.title }}" class="w-full h-64 sm:h-96 object-cover rounded-lg">
+    <img src="{{ cover.url }}" alt="{{ page.image|ai_image_alt:page.title }}" class="w-full h-64 sm:h-96 object-cover rounded-lg{% if cover.icon_corner %} object-right-top{% endif %}">
 
     <div class="mt-6">
         {% include_block page.content %}

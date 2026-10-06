@@ -1,4 +1,4 @@
-{% load static django_htmx wagtailimages_tags %}
+{% load static django_htmx ai_images %}
 
 {% comment %}
     Set the site name, meta title, and meta description for the page. The site name is retrieved
@@ -47,11 +47,11 @@
 
     {# When an image is not available fall back to the default logo #}
     {% if page.image %}
-    {% image page.image format-jpeg fill-900x450 as cover %}
+    {% cms_image page.image "format-jpeg" "fill-900x450" as cover %}
     <meta property="og:image" content="{{ cover.full_url }}">
     <meta property="og:image:width" content="{{ cover.width }}">
     <meta property="og:image:height" content="{{ cover.height }}">
-    <meta property="og:image:alt" content="{{ cover.alt }}">
+    <meta property="og:image:alt" content="{{ page.image|ai_image_alt:page.image.default_alt_text }}">
     {% else %}
     <meta property="og:image" content="{{ request.scheme }}://{{ request.get_host }}{% static 'cms/images/swe_pathogens_logo_social_media.jpg' %}">
     <meta property="og:image:width" content="900">
