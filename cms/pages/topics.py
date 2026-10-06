@@ -1,5 +1,6 @@
 """CMS pages for topics."""
 
+from datetime import date
 from typing import Any
 
 from django.db import models
@@ -100,7 +101,7 @@ class TopicPage(Page):
             .public()
             .filter(dashboard_topics__topic=self)
             .distinct()
-            .order_by("-first_published_at")
+            .specific()
         )
 
     def get_context(self, request: HttpRequest) -> dict[str, Any]:
@@ -124,7 +125,10 @@ class TopicPage(Page):
         )
 
         context["tagged_dashboards_count"] = self.tagged_dashboards.count()
-        context["tagged_dashboards"] = self.tagged_dashboards[:3]
+        context["tagged_dashboards"] = sorted(
+            self.tagged_dashboards,
+            key=lambda d: (-(d.dashboard_data_updated_at or date.min).toordinal(), d.title.lower()),
+        )[:3]
         dashboard_index = DashboardIndexPage.objects.live().first()
         context["dashboards_index_url"] = dashboard_index.url if dashboard_index else ""
         return context
