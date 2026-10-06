@@ -54,7 +54,10 @@ class NewsPage(Page):
                 ),
                 FieldPanel(
                     "image",
-                    help_text="Thumbnail image that will be displayed on the news card.",
+                    help_text=(
+                        "Shown on the news article at a 2:1 ratio. Use a 2:1 image "
+                        "(for example, 1200 × 600 px) to avoid cropping on the article page."
+                    ),
                 ),
             ],
             heading="Card details",

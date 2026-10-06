@@ -6,6 +6,19 @@ from wagtail.test.utils import WagtailPageTestCase
 from cms.pages import HomePage, NewsIndexPage, NewsPage
 from cms.tests.utils import create_test_image
 
+
+def _panel_help_text(panels: list, field_name: str) -> str:
+    """Return the help text of a named panel, including panels inside groups."""
+    for panel in panels:
+        if getattr(panel, "field_name", None) == field_name:
+            return str(getattr(panel, "help_text", "") or "")
+        children = getattr(panel, "children", None)
+        if children:
+            found = _panel_help_text(children, field_name)
+            if found:
+                return found
+    return ""
+
 #######################################################################
 ############# Helper classes and functions for testing ################
 #######################################################################
@@ -127,3 +140,32 @@ class TestNewsPage(BasePageTestCase):
 
         self.assertTrue(NewsPage.objects.filter(id=news_page.id).exists())
         self.assertEqual(news_page.get_parent(), self.news_index)
+
+    def test_article_image_uses_two_to_one_frame(self):
+        """The article image is 2:1, while the news card keeps the shared card height."""
+        image = create_test_image(title="Ratio image", file_name="ratio.jpg")
+        news_page = NewsPage(
+            title="Ratio article",
+            slug="ratio-article",
+            description="This is a test news article.",
+            image=image,
+        )
+        self.news_index.add_child(instance=news_page)
+        news_page.save_revision().publish()
+
+        detail = self.client.get(news_page.url)
+        listing = self.client.get(self.news_index.url)
+
+        self.assertContains(detail, "aspect-[2/1]")
+        self.assertContains(detail, "object-cover")
+        self.assertNotContains(detail, "h-64")
+        self.assertNotContains(detail, "sm:h-96")
+        self.assertContains(listing, "h-40")
+        self.assertNotContains(listing, "aspect-[2/1]")
+
+    def test_image_panel_recommends_two_to_one(self):
+        """Editors are told to supply a 2:1 image for the article page."""
+        help_text = _panel_help_text(NewsPage.content_panels, "image")
+
+        self.assertIn("2:1", help_text)
+        self.assertIn("1200 × 600", help_text)
