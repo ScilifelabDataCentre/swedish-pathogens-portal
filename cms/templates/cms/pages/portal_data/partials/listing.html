@@ -172,19 +172,12 @@
                                 </a>
                             {% endif %}
 
-                            {# routablepageurl generates the sub-route URL relative to this page. #}
-                            <a
-                                href="{% routablepageurl page 'study_files' it.accession %}"
-                                class="btn btn-primary btn-sm ml-auto"
-                            >
-                                Download data
-                            </a>
-
+                            {# Link back to MetaboLights (bulk download now happens via the selection toolbar above) #}
                             <a
                                 href="{{ it.repo_url }}"
                                 target="_blank"
                                 rel="noopener"
-                                class="btn btn-outline btn-sm"
+                                class="btn btn-outline btn-sm ml-auto"
                             >
                                 View in MetaboLights
                             </a>
