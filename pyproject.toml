@@ -29,7 +29,7 @@ dev = [
     "psycopg[binary]==3.3.6",
     "ruff==0.16.10",
     "watchdog==6.0.0",
-    "werkzeug[watchdog]==3.1.8",
+    "werkzeug[watchdog]==3.1.9",
 ]
 prod = [
     "gunicorn==26.2.0",
@@ -39,7 +39,7 @@ prod = [
 ]
 extensions = [
     {include-group = "dev"},
-    "pygraphviz==2.0.2",
+    "pygraphviz==2.0.3",
 ]
 
 # Disable UV default dependency-groups
