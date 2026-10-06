@@ -100,17 +100,20 @@
 
             <ul class="mt-0 list-none space-y-4 pl-0">
                 {% for it in items %}
-                    <li class="rounded border border-pp-pale-grey bg-white p-4 shadow-sm transition hover:shadow-md md:p-5">
+                    <li class="rounded border border-pp-pale-grey bg-white p-4 shadow-sm transition hover:shadow-md has-[.selectRow:checked]:border-accent has-[.selectRow:checked]:ring-1 has-[.selectRow:checked]:ring-accent md:p-5">
                         <div class="flex items-start justify-between gap-3">
                             <h3 class="text-xl text-pp-almost-black">
                                 {{ it.title }}
                             </h3>
-                            <label class="inline-flex shrink-0 items-center gap-2 text-sm text-pp-dark-grey">
+                            <label class="group inline-flex shrink-0 cursor-pointer items-center gap-2 text-sm text-pp-dark-grey">
                                 <input
                                     type="checkbox"
                                     class="selectRow checkbox checkbox-accent checkbox-sm"
                                     data-accession="{{ it.accession }}"
                                 >
+                                {# Visible label swaps to "Selected" when ticked; the sr-only text keeps the accession for screen readers. #}
+                                <span aria-hidden="true" class="group-has-[:checked]:hidden">Select for download</span>
+                                <span aria-hidden="true" class="hidden font-medium group-has-[:checked]:inline">Selected</span>
                                 <span class="sr-only">Select {{ it.accession }} for bulk download</span>
                             </label>
                         </div>
