@@ -14,7 +14,7 @@
             <!-- Image -->
             <div class="overflow-hidden border-b border-pp-pale-grey">
                 {% if image %}
-                    {% cms_image image format-webp as thumbnail %}
+                    {% cms_image image "format-webp" as thumbnail %}
                     <img src="{{ thumbnail.url }}" alt="{{ card_alt }}" class="w-full h-40 object-cover{% if thumbnail.icon_corner %} object-right-top origin-top-right{% endif %} transition-transform duration-300 group-hover:scale-105" loading="lazy">
                 {% else %}
                     <div class="w-full h-40 flex items-center justify-center bg-linear-to-br from-pp-mid-blue to-pp-teal" aria-hidden="true">

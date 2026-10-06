@@ -175,64 +175,39 @@ class CmsImage:
     """A rendition address and the crop flag for one portal image."""
 
     url: str
+    full_url: str
     width: int
     height: int
     icon_corner: bool
 
 
-def cms_image(image: object, *filter_specs: str) -> CmsImage:
+@register.simple_tag
+def cms_image(image: object | None, *filter_specs: str) -> CmsImage | None:
     """Return a versioned rendition and whether its crop should keep the icon corner.
 
+    Filter specs are quoted in the template. A simple tag treats an unquoted word
+    as a variable.
+
     Args:
-        image: Wagtail image.
+        image: Wagtail image, or empty when the template has no image.
         filter_specs: Filter spec pieces, joined the same way as Wagtail's image tag.
 
     Returns:
-        Address, size, and icon-corner flag for the rendition.
+        Address, absolute address, size, and icon-corner flag, or None when the image is empty.
+
+    Raises:
+        TemplateSyntaxError: A filter spec is not a Wagtail operation.
     """
+    if not image:
+        return None
+    for spec in filter_specs:
+        if not Filter.spec_pattern.match(spec):
+            raise template.TemplateSyntaxError(f"Invalid cms_image filter spec: {spec}")
     rendition = get_rendition_or_not_found(image, "|".join(filter_specs))
     return CmsImage(
         url=with_file_version(rendition.url, image),
+        full_url=with_file_version(rendition.full_url, image),
         width=rendition.width,
         height=rendition.height,
         icon_corner=ai_icon_corner(image),
     )
-
-
-class CmsImageNode(template.Node):
-    """Resolve ``{% cms_image image format-webp as thumbnail %}``."""
-
-    def __init__(
-        self,
-        image_expr: template.FilterExpression,
-        filter_specs: list[str],
-        output_var_name: str,
-    ) -> None:
-        """Store the image expression, filter specs, and output variable."""
-        self.image_expr = image_expr
-        self.filter_specs = filter_specs
-        self.output_var_name = output_var_name
-
-    def render(self, context: template.Context) -> str:
-        """Store the versioned rendition on the named context variable."""
-        try:
-            image = self.image_expr.resolve(context)
-        except template.VariableDoesNotExist:
-            image = None
-        context[self.output_var_name] = cms_image(image, *self.filter_specs) if image else None
-        return ""
-
-
-@register.tag(name="cms_image")
-def cms_image_tag(parser: template.base.Parser, token: template.base.Token) -> CmsImageNode:
-    """Parse a Wagtail-style image tag that returns a versioned rendition."""
-    _tag_name, *bits = token.split_contents()
-    if len(bits) < 4 or bits[-2] != "as":
-        raise template.TemplateSyntaxError(
-            "cms_image must be {% cms_image image filter-spec as name %}"
-        )
-    filter_specs = bits[1:-2]
-    for spec in filter_specs:
-        if not Filter.spec_pattern.match(spec):
-            raise template.TemplateSyntaxError(f"Invalid cms_image filter spec: {spec}")
-    return CmsImageNode(parser.compile_filter(bits[0]), filter_specs, bits[-1])

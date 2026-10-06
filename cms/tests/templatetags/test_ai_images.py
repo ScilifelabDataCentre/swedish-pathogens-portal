@@ -5,6 +5,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from django.contrib.auth import get_user_model
+from django.template import TemplateSyntaxError
 from django.template.loader import render_to_string
 from django.test import SimpleTestCase
 from django.utils import timezone
@@ -12,8 +13,13 @@ from wagtail.images import get_image_model
 
 from cms.blocks.static_figure import StaticFigureBlock
 from cms.image_ai import GenerationStatus, ImageAIDisclosure, PictureLike
-from cms.pages import NewsPage
-from cms.templatetags.ai_images import FULLY_AI_ALT_PREFIX, ai_image_alt, with_file_version
+from cms.pages import HighlightsAndEditorialsIndexPage, HighlightsAndEditorialsPage, NewsPage
+from cms.templatetags.ai_images import (
+    FULLY_AI_ALT_PREFIX,
+    ai_image_alt,
+    cms_image,
+    with_file_version,
+)
 from cms.tests.pages.test_news_pages import BasePageTestCase
 from cms.tests.utils import create_test_image, use_temp_media_root
 
@@ -125,6 +131,16 @@ class TestFileVersion(SimpleTestCase):
             "/media/images/photo.webp",
         )
 
+    def test_empty_image_returns_nothing(self):
+        """A missing image does not produce a rendition."""
+        self.assertIsNone(cms_image(None))
+        self.assertIsNone(cms_image(""))
+
+    def test_invalid_filter_spec_is_rejected(self):
+        """A filter spec has to be one Wagtail operation."""
+        with self.assertRaises(TemplateSyntaxError):
+            cms_image(SimpleNamespace(), "format webp")
+
 
 class TestAIImageAltTemplates(BasePageTestCase):
     """Rendered card, detail, social, and static-figure alt text."""
@@ -235,7 +251,13 @@ class TestAIImageAltTemplates(BasePageTestCase):
 
         self.assertContains(detail, f'alt="{expected}"')
         self.assertContains(detail, "object-right-top")
+        self.assertNotContains(detail, "origin-top-right")
         self.assertContains(detail, "?v=abc123")
+        self.assertContains(
+            detail,
+            'property="og:image" content="http://localhost:8000/',
+        )
+        self.assertContains(detail, "fill-900x450")
         self.assertContains(detail, f'property="og:image:alt" content="{expected}"')
         self.assertContains(listing, f'alt="{expected}"')
 
@@ -257,6 +279,35 @@ class TestAIImageAltTemplates(BasePageTestCase):
         self.assertNotContains(detail, "object-right-top")
         self.assertNotContains(detail, "AI-generated image:")
         self.assertNotContains(detail, "AI-modified image:")
+
+    def test_highlights_detail_keeps_natural_proportions(self):
+        """A highlights image uses the versioned address and stays at its own height."""
+        image = create_test_image(title="Highlight image", file_name="highlight.jpg")
+        image.description = "A chart with an added marker"
+        image.file_hash = "hl123"
+        image.save(update_fields=["description", "file_hash"])
+        self._confirm(image, GenerationStatus.PARTIALLY_AI)
+        index = HighlightsAndEditorialsIndexPage(title="Highlights", slug="highlights")
+        self.home.add_child(instance=index)
+        index.save_revision().publish()
+        article = HighlightsAndEditorialsPage(
+            title="Marker study",
+            slug="marker-study",
+            description="Card text",
+            image=image,
+            article_type="data-highlight",
+            image_caption="Caption stays plain",
+        )
+        index.add_child(instance=article)
+        article.save_revision().publish()
+
+        detail = self.client.get(article.url)
+
+        self.assertContains(detail, "AI-modified image: A chart with an added marker")
+        self.assertContains(detail, "Caption stays plain")
+        self.assertContains(detail, "h-auto")
+        self.assertContains(detail, "?v=hl123")
+        self.assertNotContains(detail, "object-right-top")
 
     def test_static_figure_prefixes_a_managed_image(self):
         """A static figure uses the helper for a Wagtail image and not for a URL."""

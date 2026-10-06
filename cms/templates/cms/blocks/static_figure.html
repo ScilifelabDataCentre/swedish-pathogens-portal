@@ -2,7 +2,7 @@
 
 <figure class="my-8 text-center">
     {% if value.image %}
-        {% cms_image value.image original as figure %}
+        {% cms_image value.image "original" as figure %}
         <img src="{{ figure.url }}" alt="{{ value.image|ai_image_alt:value.alt_text }}" class="mx-auto" width="{{ figure.width }}" height="{{ figure.height }}">
     {% elif value.image_url %}
         <img src="{{ value.image_url }}" alt="{{ value.alt_text }}" loading="lazy" class="mx-auto">
