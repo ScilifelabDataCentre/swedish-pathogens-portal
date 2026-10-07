@@ -4,7 +4,7 @@
 
 {% block content %}
 
-<h3>{{ page.title }}</h3>
+<h1>{{ page.title }}</h1>
 
 {# Status badge + data-updated date (mirrors cms/pages/dashboard.html). #}
 <p class="text-pp-dark-grey mb-6 flex items-center gap-2 flex-wrap">
@@ -52,7 +52,7 @@
 {# Summary-statistics panel (DrrDatasetData.summary; spec section 7). #}
 {% if summary %}
     <section aria-labelledby="drr-summary-heading" class="mb-8">
-        <h4 id="drr-summary-heading">Summary statistics</h4>
+        <h3 id="drr-summary-heading">Summary statistics</h3>
 
         <div class="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
             <div class="rounded border border-pp-pale-grey bg-white p-4 shadow-sm">
@@ -188,7 +188,7 @@ single-line only, and a multi-line one renders verbatim into the page.
 {% endcomment %}
 {% if download_urls %}
     <section aria-labelledby="drr-downloads-heading" class="mt-10">
-        <h4 id="drr-downloads-heading">Downloads</h4>
+        <h3 id="drr-downloads-heading">Downloads</h3>
         <div class="mt-4 flex flex-wrap items-center gap-3">
             {% if download_urls.csv %}
                 <a href="{{ download_urls.csv }}" class="btn btn-primary btn-sm">Download features (CSV)</a>
