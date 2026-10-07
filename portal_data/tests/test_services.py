@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import os
 import tempfile
 from datetime import datetime
 from pathlib import Path
+from unittest import mock
 
+from django.core.cache import cache
 from django.test import TestCase, override_settings
 
 from portal_data.services import (
@@ -179,10 +182,55 @@ class LoadAllItemsTests(TestCase):
         """Create a temporary dataset root for each test."""
         self.tmpdir_context = tempfile.TemporaryDirectory()
         self.datasets_root = Path(self.tmpdir_context.name)
+        cache.clear()
 
     def tearDown(self) -> None:
         """Remove the temporary dataset root."""
         self.tmpdir_context.cleanup()
+        cache.clear()
+
+    def _make_study(self, accession: str, title: str) -> Path:
+        """Create a minimal study directory with an investigation file."""
+        study = self.datasets_root / accession
+        study.mkdir()
+        (study / "i_Investigation.txt").write_text(f"Study Title\t{title}\n", encoding="utf-8")
+        return study
+
+    def _bump_root_mtime(self) -> None:
+        """Force a distinct root mtime; filesystem timestamp granularity can be coarse."""
+        stat = self.datasets_root.stat()
+        os.utime(self.datasets_root, ns=(stat.st_atime_ns, stat.st_mtime_ns + 1_000_000_000))
+
+    def test_load_all_items_is_cached_between_calls(self) -> None:
+        """A second call reuses the cached items instead of re-parsing every study."""
+        self._make_study("MTBLS1", "First")
+
+        with (
+            override_settings(DATASETS_ROOT=self.datasets_root),
+            mock.patch(
+                "portal_data.services.parse_investigation_file",
+                wraps=parse_investigation_file,
+            ) as parse_spy,
+        ):
+            first = load_all_items("metabolomics")
+            second = load_all_items("metabolomics")
+
+        self.assertEqual(parse_spy.call_count, 1)
+        self.assertEqual(first, second)
+
+    def test_new_study_dir_invalidates_cache(self) -> None:
+        """Adding a study directory changes the root mtime and so the cache key."""
+        self._make_study("MTBLS1", "First")
+
+        with override_settings(DATASETS_ROOT=self.datasets_root):
+            self.assertEqual(len(load_all_items("metabolomics")), 1)
+
+            self._make_study("MTBLS2", "Second")
+            self._bump_root_mtime()
+
+            items = load_all_items("metabolomics")
+
+        self.assertEqual([it["accession"] for it in items], ["MTBLS1", "MTBLS2"])
 
     def test_load_all_items_reads_valid_metabolights_dirs(self) -> None:
         """Load only valid MetaboLights study directories from the dataset root."""

@@ -145,6 +145,11 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # DATASETS ROOT variable used for portal data storage
 DATASETS_ROOT = env("DATASETS_ROOT", default="/datasets")
 
+# Seconds to cache the parsed portal data listing (see portal_data.services.load_all_items).
+# New/removed study directories invalidate the cache straight away; this timeout
+# bounds how long in-place updates to existing studies can stay stale.
+PORTAL_DATA_CACHE_TIMEOUT = env.int("PORTAL_DATA_CACHE_TIMEOUT", default=60 * 60)
+
 # Bundled reference data for the DINA Liver Resource dashboard
 LIVER_RESOURCE_DATA_ROOT = Path(
     env(

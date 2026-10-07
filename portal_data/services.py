@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import csv
+import hashlib
 import io
 import json
 import logging
@@ -18,6 +19,7 @@ from urllib.parse import quote
 
 import nh3
 from django.conf import settings
+from django.core.cache import cache
 from django.utils import timezone
 
 from cms.services.api_client import fetch_json
@@ -219,11 +221,26 @@ def _iter_study_dirs(datatype: str) -> list[Path]:
     return [candidates[name] for name in sorted(candidates)]
 
 
-def load_all_items(datatype: str) -> list[dict]:
-    """Load all public metabolomics datasets from the PVC.
+def _items_cache_key(datatype: str, data_root: Path) -> str:
+    """Build the cache key for ``load_all_items``.
 
-    Each item dict keeps the old keys (id, repository, repo_url, etc.)
-    so facets/export keep working, but now also has richer metadata.
+    The datasets root's mtime is part of the key, so adding or removing a
+    study directory (e.g. when fetch_metabolights.sh adds new studies) invalidates
+    the cache immediately. In-place edits to files inside an existing study
+    directory don't touch the root's mtime; those are picked up when the
+    entry expires (``PORTAL_DATA_CACHE_TIMEOUT``).
+    """
+    root_hash = hashlib.sha1(str(data_root).encode(), usedforsecurity=False).hexdigest()[:12]
+    mtime_ns = data_root.stat().st_mtime_ns
+    return f"portal_data:items:{datatype}:{root_hash}:{mtime_ns}"
+
+
+def load_all_items(datatype: str) -> list[dict]:
+    """Load all public metabolomics datasets from the PVC, with caching.
+
+    Parsing every study's investigation file takes seconds once there are
+    thousands of studies, so the result is cached rather than rebuilt on
+    every listing request (search, filter and pagination all hit this).
     """
     if datatype != "metabolomics":
         return []
@@ -232,6 +249,20 @@ def load_all_items(datatype: str) -> list[dict]:
     if not data_root.is_dir():
         return []
 
+    key = _items_cache_key(datatype, data_root)
+    items = cache.get(key)
+    if items is None:
+        items = _scan_all_items(data_root)
+        cache.set(key, items, timeout=settings.PORTAL_DATA_CACHE_TIMEOUT)
+    return items
+
+
+def _scan_all_items(data_root: Path) -> list[dict]:
+    """Build listing items by parsing each study's investigation file.
+
+    Each item dict keeps the old keys (id, repository, repo_url, etc.)
+    so facets/export keep working, but now also has richer metadata.
+    """
     items = []
 
     for study_dir in sorted(data_root.iterdir(), key=lambda p: p.name):
