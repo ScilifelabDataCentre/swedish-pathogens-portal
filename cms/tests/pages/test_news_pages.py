@@ -142,8 +142,8 @@ class TestNewsPage(BasePageTestCase):
         self.assertTrue(NewsPage.objects.filter(id=news_page.id).exists())
         self.assertEqual(news_page.get_parent(), self.news_index)
 
-    def test_article_image_uses_two_to_one_frame(self):
-        """The article image is 2:1, while the news card keeps the shared card height."""
+    def test_article_image_keeps_its_proportions(self):
+        """The article shows the whole image, and the news card keeps the shared height."""
         image = create_test_image(title="Ratio image", file_name="ratio.jpg")
         news_page = NewsPage(
             title="Ratio article",
@@ -157,12 +157,11 @@ class TestNewsPage(BasePageTestCase):
         detail = self.client.get(news_page.url)
         listing = self.client.get(self.news_index.url)
 
-        self.assertContains(detail, "aspect-[2/1]")
-        self.assertContains(detail, "object-cover")
-        self.assertNotContains(detail, "h-64")
-        self.assertNotContains(detail, "sm:h-96")
+        self.assertContains(detail, "h-64 sm:h-96 object-contain")
+        self.assertNotContains(detail, "aspect-[2/1]")
+        self.assertNotContains(detail, "object-cover")
         self.assertContains(listing, "h-40")
-        self.assertNotContains(listing, "aspect-[2/1]")
+        self.assertContains(listing, "object-cover")
 
     def test_image_panel_recommends_two_to_one(self):
         """Editors are told to supply a 2:1 image for the article page."""

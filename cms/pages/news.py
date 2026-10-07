@@ -55,8 +55,9 @@ class NewsPage(Page):
                 FieldPanel(
                     "image",
                     help_text=(
-                        "Shown on the news article at a 2:1 ratio. Use a 2:1 image "
-                        "(for example, 1200 × 600 px) to avoid cropping on the article page."
+                        "Shown in full on the news article, without stretching or cropping. "
+                        "A 2:1 image (for example, 1200 × 600 px) fills the article frame "
+                        "most evenly."
                     ),
                 ),
             ],
