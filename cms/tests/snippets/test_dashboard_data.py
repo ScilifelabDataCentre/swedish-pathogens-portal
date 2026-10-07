@@ -458,3 +458,28 @@ class DashboardDataAccessTests(TestCase):
         view.request = request
 
         return view
+
+
+class TestDashboardDataAdminMenu(TestCase):
+    """Tests for the DashboardData snippet in the Wagtail admin menu."""
+
+    def setUp(self) -> None:
+        """Create a test user and log them in."""
+        self.user = User.objects.create_superuser(username="admin", password="password")  # noqa: S106
+        self.client.force_login(self.user)
+        self.viewset = DashboardDataViewSet()
+
+    def test_dashboard_data_viewset_is_enabled_for_admin_menu(self) -> None:
+        """Test that the Dashboard Data snippet is enabled in the Wagtail admin menu."""
+        self.assertTrue(self.viewset.add_to_admin_menu)
+        self.assertTrue(self.viewset.menu_label)
+        self.assertTrue(self.viewset.menu_name)
+        self.assertTrue(self.viewset.icon)
+
+    def test_dashboard_data_is_in_main_menu(self) -> None:
+        """Test that the Dashboard Data snippet appears in the Wagtail admin menu."""
+        response = self.client.get(reverse("wagtailadmin_home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.viewset.menu_label)
+        self.assertContains(response, reverse(self.viewset.get_url_name("list")))

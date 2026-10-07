@@ -647,10 +647,11 @@ class DashboardDataViewSet(SnippetViewSet):
     """Wagtail admin viewset for the Dashboard Data Upload snippet."""
 
     model = DashboardData
-    icon = "doc-full-inverse"
-    menu_label = "Dashboard Data Upload"
-    menu_name = "dashboard-data-upload"
-    ordering = ["dashboard_slug"]
+    icon = "upload"
+    menu_label = "Dashboard Data"
+    menu_name = "dashboard-data"
+    add_to_admin_menu = True
+    ordering = ["-data_updated_at", "dashboard_title"]
     index_view_class = DashboardDataIndexView
     add_view_class = DashboardDataCreateView
     edit_view_class = DashboardDataEditView
