@@ -178,7 +178,7 @@ class TestTopicPage(BasePageTestCase):
         mock_queryset = MagicMock()
 
         (
-            MockDashboardPage.objects.live.return_value.public.return_value.filter.return_value.distinct.return_value.order_by.return_value
+            MockDashboardPage.objects.live.return_value.public.return_value.filter.return_value.distinct.return_value.specific.return_value
         ) = mock_queryset
 
         with patch(
@@ -218,7 +218,7 @@ class TestTopicPage(BasePageTestCase):
         tagged_dashboards = [MagicMock()]
         mock_dashboards = MagicMock()
         mock_dashboards.count.return_value = 1
-        mock_dashboards.__getitem__.return_value = tagged_dashboards
+        mock_dashboards.__iter__.return_value = iter(tagged_dashboards)
 
         with (
             patch(
