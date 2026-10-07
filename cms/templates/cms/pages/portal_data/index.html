@@ -20,6 +20,7 @@
         hx-target="#portal-data-listing"
         hx-swap="innerHTML"
         hx-push-url="true"
+        hx-sync="this:replace"
         hx-trigger="
         input changed delay:400ms from:#searchForm input[name='q'],
         change from:#portal-data-listing input.facet-checkbox,
