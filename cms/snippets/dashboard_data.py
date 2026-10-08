@@ -605,7 +605,7 @@ class DashboardDataIndexView(IndexView):
             self.list_display = ["dashboard_title", "data_updated_at"]
             self.list_filter = []
             self.filterset_class = None
-            self.default_ordering = ["dashboard_title", "pk"]
+            self.default_ordering = ["-data_updated_at", "dashboard_title"]
         super().setup(request, *args, **kwargs)
 
     @cached_property
