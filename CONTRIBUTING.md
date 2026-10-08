@@ -38,7 +38,7 @@ All guidelines and legislation related to accessibility on websites that apply i
 
 - In titles and headings, only the first word, proper nouns, and acronyms are capitalised.
 - If names or phrases are used at least three times in a text, it is acceptable to use an acronym (otherwise they should be written in full). That acronym should be spelled out the first time that it is used in the text. Acronyms that are widely accepted and used in science (e.g. DNA and RNA) are considered exceptions to this rule.
-- Capital letters are not used for emphasis, 
+- Capital letters are not used for emphasis.
 - Avoid gendered pronouns like “he” or “she”. Write, for example, Andersson and colleagues, or Andersson et al. 
 - British date format should be used for all dates (i.e. date, month, year). This should be written e.g. Wednesday 7th July 2021 (not Wednesday 7 July 2021 or other variations).
 
