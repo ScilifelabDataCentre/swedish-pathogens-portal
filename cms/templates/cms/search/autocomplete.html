@@ -5,8 +5,11 @@
     <li class="w-full min-w-0">
         {# min-w-0 is what lets the title actually truncate: a flex child will not #}
         {# shrink below its content width without it, and the row would overflow.  #}
-        <a href="{{ result.url }}" class="flex w-full min-w-0 items-center justify-between gap-3">
-            <span class="min-w-0 truncate">{{ result.title }}</span>
+        {# The base a:hover underline would reach the badge too, so it moves to the title. #}
+        {# [&:hover], not hover:, which only applies where (hover: hover) matches.        #}
+        <a href="{{ result.url }}"
+            class="group flex w-full min-w-0 items-center justify-between gap-3 [&:hover]:no-underline">
+            <span class="min-w-0 truncate underline-offset-2 group-hover:underline">{{ result.title }}</span>
             {% if result.label %}
             <span class="badge badge-ghost badge-sm shrink-0">{{ result.label }}</span>
             {% endif %}
