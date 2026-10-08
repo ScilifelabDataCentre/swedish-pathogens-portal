@@ -1,6 +1,7 @@
 """Site-wide search: a faceted, paginated results page over Wagtail pages."""
 
 from collections.abc import Sequence
+from functools import cache
 
 from django.core.paginator import Paginator
 from django.http import HttpRequest, HttpResponse
@@ -9,6 +10,8 @@ from django.utils.http import urlencode
 from django.views.decorators.vary import vary_on_headers
 from wagtail.models import Page
 from wagtail.query import PageQuerySet
+from wagtail.search.backends import get_search_backend
+from wagtail.search.backends.base import BaseSearchQueryCompiler, BaseSearchResults
 
 from cms.pages import (
     AvailableDataPage,
@@ -66,6 +69,37 @@ def _base_queryset() -> PageQuerySet:
     return _queryset_for(SEARCH_MODELS)
 
 
+@cache
+def _last_term_prefix(compiler: type[BaseSearchQueryCompiler]) -> type[BaseSearchQueryCompiler]:
+    """Return the backend's full-text compiler, with the last search term matched as a prefix."""
+    return type(f"LastTermPrefix{compiler.__name__}", (compiler,), {"LAST_TERM_IS_PREFIX": True})
+
+
+def _full_text_search(queryset: PageQuerySet, query: str) -> BaseSearchResults:
+    """Search titles and body text, treating the last word as possibly half-typed.
+
+    The dropdown's ``autocomplete()`` matches what has been typed so far, so
+    "wastew" suggests the wastewater pages; pressing Enter has to find them too.
+    ``search()`` only matches whole words, so this runs the backend's own
+    compiler with the switch its autocomplete compiler flips, ``LAST_TERM_IS_PREFIX``,
+    over the full title and body index. The words before the last stay whole
+    and stemmed.
+
+    ``_search`` is the shared entry point behind both ``search()`` and
+    ``autocomplete()`` in modelsearch, the package Wagtail delegates search to.
+    It is internal, so the partial-word tests in ``test_search`` guard it.
+    """
+    backend = get_search_backend()
+    return backend._search(
+        _last_term_prefix(backend.query_compiler_class),
+        query,
+        queryset,
+        fields=None,
+        operator="and",
+        order_by_relevance=True,
+    )
+
+
 def _results_url(query: str, facet: str = "", page: int | None = None) -> str:
     """Return the relative results URL for a query, optionally narrowed to a facet and paged.
 
@@ -114,7 +148,7 @@ def search(request: HttpRequest) -> HttpResponse:
 
     if query:
         for models, key, label in SEARCH_TYPES:
-            count = _queryset_for(models).search(query, operator="and").count()
+            count = _full_text_search(_queryset_for(models), query).count()
             if count:
                 facets.append(
                     {"key": key, "label": label, "count": count, "url": _results_url(query, key)}
@@ -122,7 +156,7 @@ def search(request: HttpRequest) -> HttpResponse:
         total = sum(int(facet["count"]) for facet in facets)
 
         base = _queryset_for(_MODELS_BY_KEY[selected]) if selected else _base_queryset()
-        results = base.search(query, operator="and")
+        results = _full_text_search(base, query)
 
         paginator = Paginator(results, PAGE_SIZE)
         page_obj = paginator.get_page(request.GET.get("page"))

@@ -316,3 +316,31 @@ class SearchTestCase(WagtailPageTestCase):
             )
         self.assertContains(page_two, 'id="search-page-prev"')
         self.assertContains(page_two, 'hx-get="?q=wastewater+monitoring&amp;type=pages&amp;page=1"')
+
+    def test_partial_last_word_matches_body_text(self) -> None:
+        """Enter on a half-typed word finds what it starts, in the body as well as the title."""
+        resp = self.client.get("/search/", {"q": "zuluwid"})
+        self.assertEqual([item["title"] for item in resp.context["items"]], [self.article.title])
+
+    def test_earlier_words_still_match_whole(self) -> None:
+        """Only the word being typed is a prefix; the ones before it are complete."""
+        resp = self.client.get("/search/", {"q": "weekly zuluwid"})
+        self.assertEqual(resp.context["shown"], 1)
+
+    def test_results_include_every_dropdown_suggestion(self) -> None:
+        """Pressing Enter never loses a page the dropdown has just suggested."""
+        suggested = self.client.get("/search/autocomplete/", {"q": "wastew"})
+        titles = [result["title"] for result in suggested.context["results"]]
+        self.assertTrue(titles)
+
+        resp = self.client.get("/search/", {"q": "wastew"})
+        listed = [item["title"] for item in resp.context["items"]]
+        for title in titles:
+            self.assertIn(title, listed)
+
+    def test_partial_word_facet_counts_add_up(self) -> None:
+        """Facet counts use the same matching as the list, so they agree with it."""
+        resp = self.client.get("/search/", {"q": "quixot"})
+        counts = {facet["key"]: facet["count"] for facet in resp.context["facets"]}
+        self.assertEqual(counts, {"dashboards": 1, "pages": 1})
+        self.assertEqual(resp.context["total"], resp.context["shown"])
