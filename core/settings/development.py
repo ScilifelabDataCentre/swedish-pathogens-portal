@@ -45,6 +45,18 @@ MEDIA_URL = "media/"
 LIVER_SESSION_ROOT = BASE_DIR / "private" / "liver_resource_sessions"  # noqa: F405
 
 
+# PORTAL DATA (Development)
+# ------------------------------------------------------------------------------
+# Default to where portal_data/scripts/fetch_metabolights.sh saves studies
+# (gitignored). BASE_DIR resolves to /app/local under Docker Compose and to the
+# repo root under devbox, so this works in both. Production keeps base.py's
+# /datasets default.
+DATASETS_ROOT = env(
+    "DATASETS_ROOT",
+    default=str(BASE_DIR / "portal_data" / "scripts" / "datasets"),  # noqa: F405
+)
+
+
 # EMAIL (Development defaults, override via .env if needed)
 # ------------------------------------------------------------------------------
 # Mailpit is the default: a local SMTP catcher listening on 127.0.0.1:1025 with
