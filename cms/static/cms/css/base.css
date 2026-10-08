@@ -32,8 +32,10 @@
     --color-pp-dark-grey: #55585a;
     --color-pp-almost-black: #1a1c1a;
 
-    /* Header: full menu from here, hamburger below. Logos + menu need ~1065px. */
-    --breakpoint-nav: 85rem;
+    /* Header: full menu from `nav` (medium logos + menu need ~1245px), hamburger below;
+       full-size logos from `logos` (~1345px with the menu). */
+    --breakpoint-nav: 79rem;
+    --breakpoint-logos: 85rem;
 }
 
 /* Daisy UI, downloaded to path specified during build time */
