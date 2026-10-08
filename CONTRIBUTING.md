@@ -77,6 +77,6 @@ All guidelines and legislation related to accessibility on websites that apply i
 
 - AI generated images can be used, as long as they are clearly labelled as such, in compliance with the [European Union's AI Act](https://artificialintelligenceact.eu/transparency-rules-article-50/). 
 
-- Images should be optimised for size. This means uploading the images in the smallest possible size and resolution to ensure that they are displayed well (for example, thumbnail images should be 500px wide and 250px wide). Images integration should then be tested: check if the image looks as intended when it is embedded in a page, and if the image still looks good when viewed on a mobile device.
+- Images should be optimised for size. This means uploading the images in the smallest possible size and resolution to ensure that they are displayed well (for example, thumbnail images should be 500px wide and 250px high). Images integration should then be tested: check if the image looks as intended when it is embedded in a page, and if the image still looks good when viewed on a mobile device.
 
 - When images are uploaded, they should be given clear titles and alternative texts, such that it is clear for those using e.g. screen readers to understand what the image is. 
