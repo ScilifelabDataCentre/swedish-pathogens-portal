@@ -10,17 +10,27 @@
     </form>
 
     {% if query %}
-        <p class="text-pp-dark-grey mb-4" aria-live="polite">
-            {{ shown }} result{{ shown|pluralize }} for &ldquo;<strong>{{ query }}</strong>&rdquo;
+        {# Kept outside the swapped region: htmx replaces only its text (see htmx_results), #}
+        {# and a live region that survives the swap is what gets the new count announced.  #}
+        <p id="search-status" class="text-pp-dark-grey mb-4" aria-live="polite">
+            {% partialdef status inline %}{{ shown }} result{{ shown|pluralize }} for &ldquo;<strong>{{ query }}</strong>&rdquo;{% endpartialdef %}
         </p>
 
+        {# Facet and page links swap this region in place and push their URL. Their ids #}
+        {# let htmx return keyboard focus to the link that was activated.               #}
+        <div id="search-results" hx-target="#search-results" hx-swap="innerHTML"
+            hx-push-url="true" hx-indicator="#search-results"
+            class="transition-opacity [&.htmx-request]:opacity-60">
+        {% partialdef results inline %}
         {% if facets %}
         <nav class="flex flex-wrap gap-2 mb-6" aria-label="Filter results by type">
-            <a href="?q={{ query|urlencode }}"
+            <a id="search-facet-all" href="{{ all_url }}"
+                hx-get="{{ all_url }}"
                 class="badge badge-lg {% if not selected %}badge-primary{% else %}badge-ghost{% endif %}"
                 {% if not selected %}aria-current="true"{% endif %}>All ({{ total }})</a>
             {% for f in facets %}
-            <a href="?q={{ query|urlencode }}&type={{ f.key }}"
+            <a id="search-facet-{{ f.key }}" href="{{ f.url }}"
+                hx-get="{{ f.url }}"
                 class="badge badge-lg {% if selected == f.key %}badge-primary{% else %}badge-ghost{% endif %}"
                 {% if selected == f.key %}aria-current="true"{% endif %}>{{ f.label }} ({{ f.count }})</a>
             {% endfor %}
@@ -54,20 +64,31 @@
 
         {% if page_obj.has_other_pages %}
         <nav class="flex justify-center gap-2 mt-8" aria-label="Search results pages">
-            {% if page_obj.has_previous %}
-            <a class="btn btn-sm" href="?q={{ query|urlencode }}{% if selected %}&type={{ selected }}{% endif %}&page={{ page_obj.previous_page_number }}">Previous</a>
+            {% if prev_url %}
+            <a id="search-page-prev" class="btn btn-sm" href="{{ prev_url }}"
+                hx-get="{{ prev_url }}" hx-swap="innerHTML show:window:top">Previous</a>
             {% endif %}
             <span class="btn btn-sm btn-disabled">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
-            {% if page_obj.has_next %}
-            <a class="btn btn-sm" href="?q={{ query|urlencode }}{% if selected %}&type={{ selected }}{% endif %}&page={{ page_obj.next_page_number }}">Next</a>
+            {% if next_url %}
+            <a id="search-page-next" class="btn btn-sm" href="{{ next_url }}"
+                hx-get="{{ next_url }}" hx-swap="innerHTML show:window:top">Next</a>
             {% endif %}
         </nav>
         {% endif %}
         {% else %}
         <p class="text-pp-dark-grey">No results found. Try a different or broader search term.</p>
         {% endif %}
+        {% endpartialdef %}
+        </div>
     {% else %}
         <p class="text-pp-dark-grey">Enter a search term above to search the portal.</p>
     {% endif %}
 </div>
+
+{# What an htmx facet or page request gets: the results, plus the count swapped into #}
+{# the persistent live region out of band.                                          #}
+{% partialdef htmx_results %}
+<span id="search-status" hx-swap-oob="innerHTML">{% partial status %}</span>
+{% partial results %}
+{% endpartialdef %}
 {% endblock %}

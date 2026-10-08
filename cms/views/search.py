@@ -5,6 +5,8 @@ from collections.abc import Sequence
 from django.core.paginator import Paginator
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
+from django.utils.http import urlencode
+from django.views.decorators.vary import vary_on_headers
 from wagtail.models import Page
 from wagtail.query import PageQuerySet
 
@@ -64,6 +66,20 @@ def _base_queryset() -> PageQuerySet:
     return _queryset_for(SEARCH_MODELS)
 
 
+def _results_url(query: str, facet: str = "", page: int | None = None) -> str:
+    """Return the relative results URL for a query, optionally narrowed to a facet and paged.
+
+    Each facet and pagination link uses it twice, as the ``href`` that works
+    without JavaScript and as the ``hx-get`` that swaps the results in place.
+    """
+    params: dict[str, str | int] = {"q": query}
+    if facet:
+        params["type"] = facet
+    if page:
+        params["page"] = page
+    return f"?{urlencode(params)}"
+
+
 def page_type_label(page: Page) -> str:
     """Return the facet label describing what kind of page this is.
 
@@ -78,10 +94,18 @@ def page_type_label(page: Page) -> str:
     return ""
 
 
+@vary_on_headers("HX-Request")
 def search(request: HttpRequest) -> HttpResponse:
-    """Render the site-wide search results page, faceted by page type."""
+    """Render the site-wide search results page, faceted by page type.
+
+    Facet and pagination links are htmx requests: they get only the results
+    partial, which swaps in place and updates the result count. A history
+    restore (back button after htmx's cache was evicted) gets the full page.
+    """
     query = _clean_query(request)
     selected = request.GET.get("type", "").strip()
+    if selected not in _MODELS_BY_KEY:
+        selected = ""
     facets: list[dict[str, object]] = []
     items: list[dict[str, object]] = []
     total = 0
@@ -92,11 +116,12 @@ def search(request: HttpRequest) -> HttpResponse:
         for models, key, label in SEARCH_TYPES:
             count = _queryset_for(models).search(query, operator="and").count()
             if count:
-                facets.append({"key": key, "label": label, "count": count})
+                facets.append(
+                    {"key": key, "label": label, "count": count, "url": _results_url(query, key)}
+                )
         total = sum(int(facet["count"]) for facet in facets)
 
-        narrowed = _MODELS_BY_KEY.get(selected)
-        base = _queryset_for(narrowed) if narrowed else _base_queryset()
+        base = _queryset_for(_MODELS_BY_KEY[selected]) if selected else _base_queryset()
         results = base.search(query, operator="and")
 
         paginator = Paginator(results, PAGE_SIZE)
@@ -129,8 +154,22 @@ def search(request: HttpRequest) -> HttpResponse:
         "shown": shown,
         "items": items,
         "page_obj": page_obj,
+        "all_url": _results_url(query),
+        "prev_url": (
+            _results_url(query, selected, page_obj.previous_page_number())
+            if page_obj and page_obj.has_previous()
+            else None
+        ),
+        "next_url": (
+            _results_url(query, selected, page_obj.next_page_number())
+            if page_obj and page_obj.has_next()
+            else None
+        ),
     }
-    return render(request, "cms/search/results.html", context)
+    template = "cms/search/results.html"
+    if request.htmx and not request.htmx.history_restore_request:
+        template += "#htmx_results"
+    return render(request, template, context)
 
 
 def search_autocomplete(request: HttpRequest) -> HttpResponse:

@@ -1,6 +1,7 @@
 """Tests for site-wide search (indexing, results view, autocomplete)."""
 
 from io import StringIO
+from unittest import mock
 
 from django.core.management import call_command
 from django.db import connection
@@ -258,3 +259,57 @@ class SearchTestCase(WagtailPageTestCase):
         self.assertEqual(resp.status_code, 200)
         labels = [result["label"] for result in resp.context["results"]]
         self.assertEqual(sorted(labels), ["Dashboards", "Pages"])
+
+    def test_facet_links_swap_results_in_place(self) -> None:
+        """Facet links fetch with htmx and push the URL; their href still works without JS."""
+        resp = self.client.get("/search/", {"q": "wastewater monitoring"})
+        self.assertContains(resp, 'hx-push-url="true"')
+        self.assertContains(resp, 'id="search-facet-pages"')
+        self.assertContains(resp, 'href="?q=wastewater+monitoring&amp;type=pages"')
+        self.assertContains(resp, 'hx-get="?q=wastewater+monitoring&amp;type=pages"')
+
+    def test_htmx_facet_request_returns_only_the_results(self) -> None:
+        """An htmx facet click gets the narrowed results and the new count, not the page."""
+        resp = self.client.get(
+            "/search/", {"q": "wastewater monitoring", "type": "pages"}, HTTP_HX_REQUEST="true"
+        )
+        self.assertEqual(resp.status_code, 200)
+        self.assertNotContains(resp, "<header")
+        self.assertContains(resp, 'hx-swap-oob="innerHTML"')
+        self.assertContains(resp, "1 result for")
+        self.assertContains(resp, "Wastewater monitoring", count=1)
+
+    def test_history_restore_request_gets_the_full_page(self) -> None:
+        """A back-button restore that missed htmx's cache needs the whole page."""
+        resp = self.client.get(
+            "/search/",
+            {"q": "influenza"},
+            HTTP_HX_REQUEST="true",
+            HTTP_HX_HISTORY_RESTORE_REQUEST="true",
+        )
+        self.assertContains(resp, "<header")
+        self.assertNotContains(resp, "hx-swap-oob")
+
+    def test_search_varies_on_the_htmx_header(self) -> None:
+        """One URL serves both the page and the partial, so caches must tell them apart."""
+        resp = self.client.get("/search/", {"q": "influenza"})
+        self.assertIn("HX-Request", resp["Vary"])
+
+    def test_pagination_links_swap_results_in_place(self) -> None:
+        """Next/previous carry the facet and fetch the neighbouring page with htmx."""
+        second = BasicPage(title="Wastewater monitoring methods", slug="wastewater-methods")
+        self.home.add_child(instance=second)
+        second.save_revision().publish()
+        call_command("update_index", stdout=StringIO())
+
+        with mock.patch("cms.views.search.PAGE_SIZE", 1):
+            resp = self.client.get("/search/", {"q": "wastewater monitoring", "type": "pages"})
+            self.assertContains(resp, 'hx-get="?q=wastewater+monitoring&amp;type=pages&amp;page=2"')
+
+            page_two = self.client.get(
+                "/search/",
+                {"q": "wastewater monitoring", "type": "pages", "page": 2},
+                HTTP_HX_REQUEST="true",
+            )
+        self.assertContains(page_two, 'id="search-page-prev"')
+        self.assertContains(page_two, 'hx-get="?q=wastewater+monitoring&amp;type=pages&amp;page=1"')
