@@ -21,7 +21,8 @@ class NewsPage(Page):
 
     Attributes:
         description (str): A brief text summary that will be displayed on the news card.
-        image (Image): A thumbnail image that will be displayed on the news card.
+        image (Image): The image displayed on the news card and article page.
+        image_caption (str): A required caption shown under the article image.
         content (StreamField): A stream field for the news article content, allowing rich text.
     """
 
@@ -37,6 +38,7 @@ class NewsPage(Page):
         on_delete=models.PROTECT,
         related_name="+",
     )
+    image_caption = models.CharField(max_length=255)
     content = StreamField(
         [
             ("text", RichTextBlock()),
@@ -55,9 +57,15 @@ class NewsPage(Page):
                 FieldPanel(
                     "image",
                     help_text=(
-                        "Shown in full on the news article, without stretching or cropping. "
-                        "A 2:1 image (for example, 1200 × 600 px) fills the article frame "
-                        "most evenly."
+                        "Image used on the news card and article page. On the article page "
+                        "it is shown at its natural proportions beside the text."
+                    ),
+                ),
+                FieldPanel(
+                    "image_caption",
+                    help_text=(
+                        "Required caption displayed below the image on the article page. "
+                        "It is not displayed on the news card."
                     ),
                 ),
             ],
@@ -86,5 +94,4 @@ class NewsPage(Page):
         parent = self.get_ancestors().type(NewsIndexPage).specific().first()
         if parent:
             context["page_heading"] = parent.title
-            context["parent_page"] = parent.url
         return context

@@ -1,5 +1,6 @@
 """Tests for news pages."""
 
+from django.core.exceptions import ValidationError
 from wagtail.models import Page, Site
 from wagtail.test.utils import WagtailPageTestCase
 
@@ -76,6 +77,7 @@ class TestNewsIndexPage(BasePageTestCase):
             slug="news-article-1",
             description="Description for news article 1",
             image=image1,
+            image_caption="Caption for news article 1",
         )
         self.news_index.add_child(instance=news1)
         news1.save_revision().publish()
@@ -86,6 +88,7 @@ class TestNewsIndexPage(BasePageTestCase):
             slug="news-article-2",
             description="Description for news article 2",
             image=image2,
+            image_caption="Caption for news article 2",
         )
         self.news_index.add_child(instance=news2)
         news2.save_revision().publish()
@@ -135,6 +138,7 @@ class TestNewsPage(BasePageTestCase):
             slug="test-news-article",
             description="This is a test news article.",
             image=image,
+            image_caption="Caption for the test article",
         )
         self.news_index.add_child(instance=news_page)
         news_page.save_revision().publish()
@@ -142,14 +146,22 @@ class TestNewsPage(BasePageTestCase):
         self.assertTrue(NewsPage.objects.filter(id=news_page.id).exists())
         self.assertEqual(news_page.get_parent(), self.news_index)
 
+    def test_image_caption_is_required(self):
+        """The article caption is required and limited to the shared caption length."""
+        field = NewsPage._meta.get_field("image_caption")
+
+        self.assertFalse(field.blank)
+        self.assertEqual(field.max_length, 255)
+
     def test_article_image_keeps_its_proportions(self):
-        """The article shows the whole image, and the news card keeps the shared height."""
+        """The article shows the whole image beside the text, without changing cards."""
         image = create_test_image(title="Ratio image", file_name="ratio.jpg")
         news_page = NewsPage(
             title="Ratio article",
             slug="ratio-article",
             description="This is a test news article.",
             image=image,
+            image_caption="Figure from the BSL3 network",
         )
         self.news_index.add_child(instance=news_page)
         news_page.save_revision().publish()
@@ -157,15 +169,37 @@ class TestNewsPage(BasePageTestCase):
         detail = self.client.get(news_page.url)
         listing = self.client.get(self.news_index.url)
 
-        self.assertContains(detail, "h-64 sm:h-96 object-contain")
-        self.assertNotContains(detail, "aspect-[2/1]")
-        self.assertNotContains(detail, "object-cover")
+        self.assertContains(detail, "md:float-right")
+        self.assertContains(detail, "md:w-1/2")
+        self.assertContains(detail, "w-full h-auto")
+        self.assertContains(detail, "<figcaption")
+        self.assertContains(detail, "Figure from the BSL3 network")
+        self.assertNotContains(detail, "Back to News")
+        self.assertNotContains(detail, "Last updated")
+        self.assertNotContains(listing, "Figure from the BSL3 network")
         self.assertContains(listing, "h-40")
         self.assertContains(listing, "object-cover")
 
-    def test_image_panel_recommends_two_to_one(self):
-        """Editors are told to supply a 2:1 image for the article page."""
-        help_text = _panel_help_text(NewsPage.content_panels, "image")
+    def test_article_without_caption_cannot_be_saved(self):
+        """An article cannot be saved until the caption is filled in."""
+        image = create_test_image(title="Plain image", file_name="plain.jpg")
+        news_page = NewsPage(
+            title="Plain article",
+            slug="plain-article",
+            description="This is a test news article.",
+            image=image,
+        )
 
-        self.assertIn("2:1", help_text)
-        self.assertIn("1200 × 600", help_text)
+        with self.assertRaises(ValidationError) as raised:
+            self.news_index.add_child(instance=news_page)
+
+        self.assertIn("image_caption", raised.exception.message_dict)
+
+    def test_image_panels_explain_article_placement(self):
+        """Editors are told where the image and caption appear."""
+        image_help = _panel_help_text(NewsPage.content_panels, "image")
+        caption_help = _panel_help_text(NewsPage.content_panels, "image_caption")
+
+        self.assertIn("natural proportions", image_help)
+        self.assertIn("Required caption", caption_help)
+        self.assertIn("not displayed on the news card", caption_help)

@@ -1,29 +1,27 @@
 {% extends "cms/base.html" %}
 
-{% load static %}
 {% load wagtailcore_tags ai_images %}
 
 {% block content %}
 
 {% cms_image page.image "format-webp" as cover %}
-<article>
+<article class="flow-root">
     <h3>{{ page.title }}</h3>
     <p class="text-sm text-pp-dark-grey mb-6">{{ page.first_published_at|date:"F d, Y" }}</p>
-    <img src="{{ cover.url }}" alt="{{ page.image|ai_image_alt:page.title }}" class="w-full h-64 sm:h-96 object-contain rounded-lg">
+
+    <figure class="float-none md:float-right mx-0 md:mx-2 mb-4 w-full md:w-1/2">
+        <img src="{{ cover.url }}"
+            alt="{{ page.image|ai_image_alt:page.title }}"
+            class="w-full h-auto rounded border border-pp-pale-grey block">
+        {% if page.image_caption %}
+            <figcaption class="text-sm text-pp-dark-grey mt-1 italic text-center block w-full wrap-break-word">
+                {{ page.image_caption }}
+            </figcaption>
+        {% endif %}
+    </figure>
 
     <div class="mt-6">
         {% include_block page.content %}
-    </div>
-
-    <div class="flex justify-between items-center mb-6">
-        <a href="{{ parent_page }}"
-        class="text-pp-mid-blue hover:text-pp-dark-blue hover:underline transition-colors duration-200"
-        >
-            ← Back to News
-        </a>
-        <p class="text-sm text-pp-dark-grey">
-        Last updated: {{ page.last_published_at|date:"F d, Y" }}
-        </p>
     </div>
 </article>
 

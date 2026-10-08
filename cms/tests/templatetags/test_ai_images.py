@@ -241,6 +241,7 @@ class TestAIImageAltTemplates(BasePageTestCase):
             slug="dome-study",
             description="Card text",
             image=image,
+            image_caption="Caption for the dome study",
         )
         self.news_index.add_child(instance=news)
         news.save_revision().publish()
@@ -250,7 +251,8 @@ class TestAIImageAltTemplates(BasePageTestCase):
         expected = "AI-generated image: An elderly person inside a protective dome"
 
         self.assertContains(detail, f'alt="{expected}"')
-        self.assertContains(detail, "object-contain")
+        self.assertContains(detail, "h-auto")
+        self.assertNotContains(detail, "object-cover")
         self.assertNotContains(detail, "object-right-top")
         self.assertNotContains(detail, "origin-top-right")
         self.assertContains(detail, "?v=abc123")
@@ -270,6 +272,7 @@ class TestAIImageAltTemplates(BasePageTestCase):
             slug="lab-study",
             description="Card text",
             image=image,
+            image_caption="Caption for the lab study",
         )
         self.news_index.add_child(instance=news)
         news.save_revision().publish()
