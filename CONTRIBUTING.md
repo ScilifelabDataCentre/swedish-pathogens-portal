@@ -48,7 +48,7 @@ All guidelines and legislation related to accessibility on websites that apply i
 
 - Wherever possible, the link text should explicitly state where the link goes. For example, display “the Contribute page”, not “click here”.
 
-- Avoid using the URL as the link text.
+- Except in the case of DOIs, avoid using the URL as the link text.
 
 ### References
 
