@@ -14,6 +14,7 @@ from cms.handlers.external_link import ExternalLinkNewTabHandler
 from cms.wagtail_hooks import (
     copy_error_message,
     customise_homepage_panels,
+    menu_items_for_non_internal_users,
     prevent_bulk_direct_publish,
     prevent_direct_publish,
     prevent_page_copy,
@@ -277,3 +278,49 @@ class TestCustomiseHomepagePanels(SimpleTestCase):
         customise_homepage_panels(request, panels)
 
         replace_panel.assert_called_once_with(panels)
+
+
+# -----------------------------------------------------------------------------
+# Test main menu customization hook
+# -----------------------------------------------------------------------------
+
+
+class TestMenuItemsForNonInternalUsers(TestCase):
+    """Test that menu items are removed for non-internal users."""
+
+    def setUp(self):
+        """Set up the test case."""
+        self.user = User.objects.create_user(username="editor", password="password")  # noqa: S106
+
+        self.request = self.client.get("/").wsgi_request
+        self.request.user = self.user
+
+        self.help_item = SimpleNamespace(name="help")
+        self.pages_item = SimpleNamespace(name="pages")
+        self.settings_item = SimpleNamespace(name="settings")
+
+    def _menu_items(self) -> list[SimpleNamespace]:
+        """Return a list of menu items for testing."""
+        return [self.pages_item, self.help_item, self.settings_item]
+
+    @patch("cms.wagtail_hooks.is_internal_user")
+    def test_removes_help_for_non_internal_user(self, mock_is_internal_user: MagicMock):
+        """Test that help is removed for non-internal users."""
+        mock_is_internal_user.return_value = False
+        menu_items = self._menu_items()
+        menu_items_for_non_internal_users(self.request, menu_items)
+
+        self.assertNotIn(self.help_item, menu_items)
+        self.assertIn(self.pages_item, menu_items)
+        self.assertIn(self.settings_item, menu_items)
+
+    @patch("cms.wagtail_hooks.is_internal_user")
+    def test_keeps_help_for_internal_user(self, mock_is_internal_user: MagicMock):
+        """Test that help remains for internal users."""
+        mock_is_internal_user.return_value = True
+        menu_items = self._menu_items()
+        menu_items_for_non_internal_users(self.request, menu_items)
+
+        self.assertIn(self.help_item, menu_items)
+        self.assertIn(self.pages_item, menu_items)
+        self.assertIn(self.settings_item, menu_items)
