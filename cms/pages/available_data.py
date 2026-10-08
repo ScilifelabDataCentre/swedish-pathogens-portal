@@ -6,6 +6,7 @@ from wagtail.admin.panels import FieldPanel
 from wagtail.blocks import RichTextBlock, StaticBlock
 from wagtail.fields import StreamField
 from wagtail.models import Page
+from wagtail.search import index
 
 from cms.blocks import AlertBlock, PortalDataSummaryBlock
 from cms.services.available_data import build_page_context
@@ -47,6 +48,11 @@ class AvailableDataPage(Page):
         blank=False,
         block_counts={"available_data": {"min_num": 1, "max_num": 1}},
     )
+
+    search_fields = Page.search_fields + [
+        index.SearchField("content"),
+        index.AutocompleteField("title"),
+    ]
 
     content_panels = Page.content_panels + [FieldPanel("content")]
 

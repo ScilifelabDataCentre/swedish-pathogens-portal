@@ -5,6 +5,7 @@ from wagtail.admin.panels import FieldPanel
 from wagtail.blocks import RichTextBlock, StaticBlock
 from wagtail.fields import StreamField
 from wagtail.models import Page
+from wagtail.search import index
 
 from cms.blocks import AlertBlock, CardGridBlock, CollapsibleBlock, DataTableBlock
 
@@ -52,6 +53,11 @@ class BasicPage(Page):
             "matomo_opt_out": {"max_num": 1},
         },
     )
+
+    search_fields = Page.search_fields + [
+        index.SearchField("content"),
+        index.AutocompleteField("title"),
+    ]
 
     content_panels = Page.content_panels + [
         FieldPanel(

@@ -13,6 +13,7 @@ from wagtail.blocks import RichTextBlock
 from wagtail.fields import StreamField
 from wagtail.images import get_image_model_string
 from wagtail.models import Orderable, Page
+from wagtail.search import index
 
 from cms.blocks import (
     AlertBlock,
@@ -144,6 +145,13 @@ class DashboardPage(Page):
         ],
         blank=False,
     )
+
+    search_fields = Page.search_fields + [
+        index.SearchField("description"),
+        index.SearchField("content"),
+        index.SearchField("keywords"),
+        index.AutocompleteField("title"),
+    ]
 
     content_panels = Page.content_panels + [
         MultiFieldPanel(

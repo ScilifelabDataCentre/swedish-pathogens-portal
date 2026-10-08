@@ -204,6 +204,19 @@ WAGTAILIMAGES_FORMAT_CONVERSIONS = {
 WAGTAILIMAGES_IMAGE_FORM_BASE = "cms.forms.image.AIImageForm"
 
 
+# SEARCH (https://docs.wagtail.org/en/stable/topics/search/backends.html)
+# ------------------------------------------------------------------------------
+# Wagtail's built-in database backend uses native PostgreSQL full-text search in
+# dev/prod (and a substring fallback under SQLite in tests). AUTO_UPDATE keeps the
+# index fresh via model signals; run `manage.py update_index` to backfill.
+WAGTAILSEARCH_BACKENDS = {
+    "default": {
+        "BACKEND": "wagtail.search.backends.database",
+        "AUTO_UPDATE": True,
+    }
+}
+
+
 # Logging
 # -----------------------------------------------------------------------------------------------
 #

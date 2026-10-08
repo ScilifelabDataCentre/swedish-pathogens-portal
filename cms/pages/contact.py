@@ -11,6 +11,7 @@ from wagtail import blocks
 from wagtail.admin.panels import FieldPanel
 from wagtail.fields import StreamField
 from wagtail.models import Page
+from wagtail.search import index
 
 from cms.blocks import AlertBlock
 from cms.forms.contact import ContactForm
@@ -61,6 +62,11 @@ class ContactPage(Page):
         blank=False,
         block_counts={"contact_form": {"min_num": 1, "max_num": 1}},
     )
+
+    search_fields = Page.search_fields + [
+        index.SearchField("content"),
+        index.AutocompleteField("title"),
+    ]
 
     content_panels = Page.content_panels + [
         FieldPanel("content"),

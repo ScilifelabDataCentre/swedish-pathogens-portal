@@ -15,6 +15,7 @@ from django.shortcuts import render
 from django.utils.functional import cached_property
 from wagtail.admin.panels import FieldPanel, MultiFieldPanel
 from wagtail.contrib.routable_page.models import RoutablePageMixin, path
+from wagtail.search import index
 
 from cms.pages.dashboard import DashboardPage
 from cms.services.file_downloads import resolve_file_in_directory, serve_file_from_directory
@@ -112,6 +113,12 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
     screen_type = models.CharField(max_length=255, blank=True)
     upstream_accession = models.CharField(max_length=64, blank=True)
     upstream_bia_url = models.URLField(blank=True)
+
+    search_fields = DashboardPage.search_fields + [
+        index.SearchField("organism"),
+        index.SearchField("cell_line"),
+        index.SearchField("screen_type"),
+    ]
 
     content_panels = [
         *DashboardPage.content_panels[:-1],

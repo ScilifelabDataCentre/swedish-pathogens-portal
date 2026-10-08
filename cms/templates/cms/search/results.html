@@ -1,0 +1,81 @@
+{% extends "cms/base.html" %}
+
+{% block content %}
+<div role="search">
+    <form method="get" action="{% url 'search' %}" class="mb-6">
+        <label for="search-q" class="sr-only">Search the portal</label>
+        <input id="search-q" type="search" name="q" value="{{ query }}"
+            class="input input-bordered input-accent w-full max-w-xl"
+            placeholder="Search the portal" maxlength="100" aria-label="Search the portal">
+    </form>
+
+    {% if query %}
+        <p class="text-pp-dark-grey mb-4" aria-live="polite">
+            {{ shown }} result{{ shown|pluralize }} for &ldquo;<strong>{{ query }}</strong>&rdquo;
+        </p>
+
+        {% if facets %}
+        <nav class="flex flex-wrap gap-2 mb-6" aria-label="Filter results by type">
+            <a href="?q={{ query|urlencode }}"
+                class="badge badge-lg {% if not selected %}badge-primary{% else %}badge-ghost{% endif %}"
+                {% if not selected %}aria-current="true"{% endif %}>All ({{ total }})</a>
+            {% for f in facets %}
+            <a href="?q={{ query|urlencode }}&type={{ f.key }}"
+                class="badge badge-lg {% if selected == f.key %}badge-primary{% else %}badge-ghost{% endif %}"
+                {% if selected == f.key %}aria-current="true"{% endif %}>{{ f.label }} ({{ f.count }})</a>
+            {% endfor %}
+        </nav>
+        {% endif %}
+
+        {% if items %}
+        <ul class="list-none ps-0 mb-0 max-w-3xl flex flex-col">
+        {% for item in items %}
+            <li class="border-b border-pp-pale-grey py-5 first:pt-0 last:border-b-0">
+                <!-- Type and location: what kind of page this is, and where it sits -->
+                <div class="flex flex-wrap items-center gap-2 mb-1 text-xs">
+                    {% if item.label %}
+                    <span class="badge badge-ghost badge-sm">{{ item.label }}</span>
+                    {% endif %}
+                    {% if item.ancestors %}
+                    <span class="text-pp-dark-grey">
+                        {% for ancestor in item.ancestors %}
+                        {% if not forloop.first %}<span aria-hidden="true">&rsaquo;</span>{% endif %}
+                        {{ ancestor.title }}
+                        {% endfor %}
+                    </span>
+                    {% endif %}
+                </div>
+
+                <h3 class="text-lg font-bold tracking-tight mb-1">
+                    <a href="{{ item.url }}"
+                        class="text-pp-dark-blue hover:text-pp-teal focus-visible:outline-none
+                        focus-visible:ring-2 focus-visible:ring-pp-teal focus-visible:ring-offset-2
+                        focus-visible:rounded">{{ item.title }}</a>
+                </h3>
+
+                {% if item.excerpt %}
+                <p class="text-pp-dark-grey text-sm m-0 line-clamp-2">{{ item.excerpt }}</p>
+                {% endif %}
+            </li>
+        {% endfor %}
+        </ul>
+
+        {% if page_obj.has_other_pages %}
+        <nav class="flex justify-center gap-2 mt-8" aria-label="Search results pages">
+            {% if page_obj.has_previous %}
+            <a class="btn btn-sm" href="?q={{ query|urlencode }}{% if selected %}&type={{ selected }}{% endif %}&page={{ page_obj.previous_page_number }}">Previous</a>
+            {% endif %}
+            <span class="btn btn-sm btn-disabled">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+            {% if page_obj.has_next %}
+            <a class="btn btn-sm" href="?q={{ query|urlencode }}{% if selected %}&type={{ selected }}{% endif %}&page={{ page_obj.next_page_number }}">Next</a>
+            {% endif %}
+        </nav>
+        {% endif %}
+        {% else %}
+        <p class="text-pp-dark-grey">No results found. Try a different or broader search term.</p>
+        {% endif %}
+    {% else %}
+        <p class="text-pp-dark-grey">Enter a search term above to search the portal.</p>
+    {% endif %}
+</div>
+{% endblock %}
