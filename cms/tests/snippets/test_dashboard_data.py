@@ -465,8 +465,25 @@ class TestDashboardDataAdminMenu(TestCase):
 
     def setUp(self) -> None:
         """Create a test user and log them in."""
-        self.user = User.objects.create_superuser(username="admin", password="password")  # noqa: S106
-        self.client.force_login(self.user)
+        dashboard_data_permission = Permission.objects.get(
+            content_type=ContentType.objects.get_for_model(DashboardData),
+            codename="change_dashboarddata",
+        )
+        admin_permission = Permission.objects.get(
+            content_type=ContentType.objects.get_for_model(Admin),
+            codename="access_admin",
+        )
+        self.editors = Group.objects.get(name="Editors")
+        self.editors.permissions.add(dashboard_data_permission, admin_permission)
+        self.regular = Group.objects.create(name="Regular")
+        self.regular.permissions.add(admin_permission)
+
+        self.admin = User.objects.create_superuser(username="admin", password="password")  # noqa: S106
+        self.editor = User.objects.create_user(username="editor", password="password")  # noqa: S106
+        self.editor.groups.add(self.editors)
+        self.regular_user = User.objects.create_user(username="user", password="password")  # noqa: S106
+        self.regular_user.groups.add(self.regular)
+
         self.viewset = DashboardDataViewSet()
 
     def test_dashboard_data_viewset_is_enabled_for_admin_menu(self) -> None:
@@ -476,10 +493,29 @@ class TestDashboardDataAdminMenu(TestCase):
         self.assertTrue(self.viewset.menu_name)
         self.assertTrue(self.viewset.icon)
 
-    def test_dashboard_data_is_in_main_menu(self) -> None:
+    def test_dashboard_data_is_in_main_menu_for_admin(self) -> None:
         """Test that the Dashboard Data snippet appears in the Wagtail admin menu."""
+        self.client.force_login(self.admin)
         response = self.client.get(reverse("wagtailadmin_home"))
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, self.viewset.menu_label)
         self.assertContains(response, reverse(self.viewset.get_url_name("list")))
+
+    def test_dashboard_data_is_in_main_menu_for_editor(self) -> None:
+        """Test that the Dashboard Data snippet appears in the Wagtail admin menu for editors."""
+        self.client.force_login(self.editor)
+        response = self.client.get(reverse("wagtailadmin_home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, self.viewset.menu_label)
+        self.assertContains(response, reverse(self.viewset.get_url_name("list")))
+
+    def test_dashboard_data_is_not_in_main_menu_for_regular_user(self) -> None:
+        """Test that the Dashboard Data snippet does not appear for regular users."""
+        self.client.force_login(self.regular_user)
+        response = self.client.get(reverse("wagtailadmin_home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, self.viewset.menu_label)
+        self.assertNotContains(response, reverse(self.viewset.get_url_name("list")))
