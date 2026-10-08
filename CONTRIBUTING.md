@@ -14,7 +14,7 @@ All guidelines and legislation related to accessibility on websites that apply i
 
 - Plagiarism is unacceptable. Any material should be appropriately referenced and, as much as possible, original. 
 
-- The use of AI to generate text is considered acceptable, on the condition that it is edited prior to submission, and the [European Union's Code of Practice on Transparency of AI-generated Content](https://digital-strategy.ec.europa.eu/en/policies/code-practice-ai-generated-content).
+- The use of AI to generate text is considered acceptable, on the condition that it is edited prior to submission, and that the [European Union's Code of Practice on Transparency of AI-generated Content](https://digital-strategy.ec.europa.eu/en/policies/code-practice-ai-generated-content) is followed.
 
 - At least two people must read through any text before publishing (e.g. one person writes, another person reads and makes edits). This is necessary to minimise the incidence of typos, bad phrasing, misinterpretation, etc. 
 
