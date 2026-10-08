@@ -5,9 +5,9 @@
 <header class="bg-white border-b border-pp-pale-grey sticky top-0 z-50 shadow-sm
     motion-safe:transition-all motion-safe:duration-700 motion-safe:delay-200 ease-in-out">
     <div class="container">
-        <div class="flex items-center justify-between nav:gap-6 h-16 lg:h-20 w-full">
+        <div class="flex items-center gap-6 h-16 lg:h-20 w-full">
             <!-- Logos: left-aligned, minimal gutter on mobile; full spacing on desktop -->
-            <div class="flex items-center gap-2 lg:gap-3 logos:gap-5 min-w-0 shrink-0">
+            <div class="flex items-center gap-2 lg:gap-3 logos:gap-5 min-w-0 shrink-0 me-auto">
                 <a href="/" class="focus-visible:rounded focus-visible:outline-none
                     focus-visible:ring-2 focus-visible:ring-pp-teal focus-visible:ring-offset-2">
                     <img src="{% static 'cms/images/swe_pathogens_logo.svg' %}" alt="Swedish Pathogens Portal"
@@ -65,29 +65,38 @@
                     </div>
                     {% endif %}
                 {% endfor %}
+            </nav>
 
-                <form method="get" action="{% url 'search' %}" role="search" class="relative ml-2"
-                    data-search-suggest>
-                    <label for="header-search" class="sr-only">Search the portal</label>
-                    <input id="header-search" type="search" name="q" autocomplete="off"
-                        class="input input-bordered input-sm input-accent w-44"
-                        placeholder="Search" maxlength="100"
+            <!-- Search bar: beside the menu on wide screens, beside the hamburger from md;
+                 phones use the one inside the mobile menu instead. -->
+            <form method="get" action="{% url 'search' %}" role="search"
+                class="relative hidden md:block shrink-0" data-search-suggest>
+                <label for="header-search" class="sr-only">Search the portal</label>
+                <div class="input input-sm input-accent w-44 pe-1">
+                    <input id="header-search" type="search" name="q" autocomplete="off" required
+                        class="grow" placeholder="Search" maxlength="100"
                         aria-label="Search the portal"
                         aria-controls="header-search-results"
                         hx-get="{% url 'search_autocomplete' %}"
                         hx-trigger="input changed delay:300ms"
                         hx-target="#header-search-results"
                         hx-swap="innerHTML">
-                    <!-- Anchored right: the box sits at the end of the nav, so a panel
-                         wider than the input has to grow leftwards to stay on screen. -->
-                    <div id="header-search-results" role="region" aria-live="polite"
-                        aria-label="Search suggestions" data-search-suggest-panel hidden
-                        class="absolute right-0 top-full z-50 mt-1 w-[26rem] max-w-[calc(100vw-2rem)]"></div>
-                </form>
-            </nav>
+                    <button type="submit" class="btn btn-ghost btn-xs btn-square" aria-label="Search">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"></path>
+                        </svg>
+                    </button>
+                </div>
+                <!-- Anchored right: the box sits at the end of the row, so a panel
+                     wider than the input has to grow leftwards to stay on screen. -->
+                <div id="header-search-results" role="region" aria-live="polite"
+                    aria-label="Search suggestions" data-search-suggest-panel hidden
+                    class="absolute right-0 top-full z-50 mt-1 w-[26rem] max-w-[calc(100vw-2rem)]"></div>
+            </form>
 
             <!-- Mobile Menu Button: right-aligned, minimal gutter on mobile -->
-            <div class="nav:hidden ml-auto shrink-0">
+            <div class="nav:hidden shrink-0">
                 <button
                     id="mobile-menu-button"
                     class="text-pp-dark-blue focus-visible:outline-none focus-visible:ring-2
@@ -129,10 +138,17 @@
             <div class="flex flex-col gap-4" aria-label="Main links">
                 <form method="get" action="{% url 'search' %}" role="search" class="mb-2">
                     <label for="mobile-search" class="sr-only">Search the portal</label>
-                    <input id="mobile-search" type="search" name="q"
-                        class="input input-bordered input-accent w-full"
-                        placeholder="Search the portal" maxlength="100"
-                        aria-label="Search the portal">
+                    <div class="input input-accent w-full pe-1">
+                        <input id="mobile-search" type="search" name="q" required
+                            class="grow" placeholder="Search the portal" maxlength="100"
+                            aria-label="Search the portal">
+                        <button type="submit" class="btn btn-ghost btn-sm btn-square" aria-label="Search">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"></path>
+                            </svg>
+                        </button>
+                    </div>
                 </form>
                 {% for item in header_menu %}
                     {% if item.has_submenu %}

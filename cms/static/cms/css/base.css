@@ -32,9 +32,9 @@
     --color-pp-dark-grey: #55585a;
     --color-pp-almost-black: #1a1c1a;
 
-    /* Header: full menu from `nav` (medium logos + menu need ~1245px), hamburger below;
-       full-size logos from `logos` (~1345px with the menu). */
-    --breakpoint-nav: 79rem;
+    /* Header: full menu from here, hamburger below. Logos + menu + search need ~1265px,
+       which only fits once .container reaches its 80rem cap at 96rem. */
+    --breakpoint-nav: 96rem;
     --breakpoint-logos: 85rem;
 }
 

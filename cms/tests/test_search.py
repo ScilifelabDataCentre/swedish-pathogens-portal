@@ -178,6 +178,9 @@ class SearchTestCase(WagtailPageTestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, 'action="/search/"')
         self.assertContains(resp, 'name="q"')
+        # Header bar and mobile menu each offer a visible magnifier to submit with.
+        self.assertContains(resp, '<button type="submit"', count=2)
+        self.assertContains(resp, 'aria-label="Search"', count=2)
 
     def test_page_without_image_renders(self) -> None:
         """A matching page whose model has no image field renders without error."""
