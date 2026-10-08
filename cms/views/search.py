@@ -78,46 +78,6 @@ def page_type_label(page: Page) -> str:
     return ""
 
 
-def _ancestor_paths(page: Page) -> list[str]:
-    """Return the treebeard paths of a page's ancestors, shallowest first."""
-    step = Page.steplen
-    return [page.path[:length] for length in range(step, len(page.path), step)]
-
-
-def page_locations(pages: Sequence[Page]) -> dict[int, list[dict[str, str | None]]]:
-    """Map each page to its searchable ancestors, for display under its title.
-
-    Two pages can share a title, so the type label alone does not always
-    separate them; where they sit does. Only ancestors that are themselves
-    searchable are named. The rest — the site root, the home page and listing
-    pages such as "News & Updates" — are structural containers whose name the
-    type badge already conveys, so naming them would put a line of noise under
-    every result instead of only the nested ones that need it.
-
-    Resolved for the whole result set in one query. Ancestors are filtered by
-    type in SQL rather than after loading, and shared ones (every result on a
-    page tends to sit under the same handful) are fetched once.
-    """
-    wanted = {path for page in pages for path in _ancestor_paths(page)}
-    if not wanted:
-        return {page.pk: [] for page in pages}
-
-    # `title`, `live` and `url_path` all live on the base table, so the concrete
-    # subclass is never needed and `specific()` would only add queries.
-    by_path = {
-        ancestor.path: ancestor
-        for ancestor in Page.objects.filter(path__in=wanted).type(*SEARCH_MODELS)
-    }
-    return {
-        page.pk: [
-            {"title": ancestor.title, "url": ancestor.url if ancestor.live else None}
-            for path in _ancestor_paths(page)
-            if (ancestor := by_path.get(path)) is not None
-        ]
-        for page in pages
-    }
-
-
 def search(request: HttpRequest) -> HttpResponse:
     """Render the site-wide search results page, faceted by page type."""
     query = _clean_query(request)
@@ -150,7 +110,6 @@ def search(request: HttpRequest) -> HttpResponse:
         by_pk = {page.pk: page for page in Page.objects.filter(pk__in=ordered_pks).specific()}
         results_page = [by_pk[pk] for pk in ordered_pks if pk in by_pk]
 
-        locations = page_locations(results_page)
         for specific in results_page:
             items.append(
                 {
@@ -158,7 +117,6 @@ def search(request: HttpRequest) -> HttpResponse:
                     "title": specific.title,
                     "excerpt": getattr(specific, "description", "") or specific.search_description,
                     "label": page_type_label(specific),
-                    "ancestors": locations[specific.pk],
                 }
             )
 

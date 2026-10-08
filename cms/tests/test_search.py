@@ -214,44 +214,6 @@ class SearchTestCase(WagtailPageTestCase):
         self.assertContains(resp, "Publications")
         self.assertContains(resp, "Wastewater monitoring")
 
-    def test_result_shows_page_location(self) -> None:
-        """A nested page's result carries its ancestors, excluding the site home."""
-        resp = self.client.get("/search/", {"q": "methodology"})
-        self.assertEqual(resp.status_code, 200)
-        trails = {
-            item["title"]: [a["title"] for a in item["ancestors"]] for item in resp.context["items"]
-        }
-        self.assertEqual(trails["Methodology"], ["Wastewater monitoring"])
-        self.assertContains(resp, "Wastewater monitoring")
-
-    def test_listing_pages_are_left_out_of_the_location(self) -> None:
-        """Index pages are containers the badge already implies, so they are dropped."""
-        resp = self.client.get("/search/", {"q": "quixotrap"})
-        items = {item["title"]: item for item in resp.context["items"]}
-        dashboard = items["Wastewater monitoring"]
-        self.assertEqual(dashboard["label"], "Dashboards")
-        self.assertEqual(dashboard["ancestors"], [])
-
-    def test_location_keeps_searchable_ancestors(self) -> None:
-        """An ancestor that is itself a content page is named, not dropped."""
-        child = BasicPage(title="Funding sources", slug="funding-sources")
-        self.basic.add_child(instance=child)
-        child.save_revision().publish()
-        call_command("update_index", stdout=StringIO())
-
-        resp = self.client.get("/search/", {"q": "funding sources"})
-        items = {item["title"]: item for item in resp.context["items"]}
-        self.assertEqual(
-            [a["title"] for a in items["Funding sources"]["ancestors"]],
-            ["Preparedness overview"],
-        )
-
-    def test_top_level_page_has_no_location_trail(self) -> None:
-        """A page directly under the home page has nothing to disambiguate with."""
-        resp = self.client.get("/search/", {"q": "preparedness"})
-        items = {item["title"]: item for item in resp.context["items"]}
-        self.assertEqual(items["Preparedness overview"]["ancestors"], [])
-
     def test_autocomplete_labels_suggestions_with_their_type(self) -> None:
         """Dropdown suggestions say what kind of page they are, not just the title."""
         resp = self.client.get("/search/autocomplete/", {"q": "influenza"})
@@ -275,7 +237,7 @@ class SearchTestCase(WagtailPageTestCase):
         self.assertEqual(len(resp.context["query"]), MAX_QUERY_LENGTH)
 
     def test_result_rendering_does_not_scale_queries_with_results(self) -> None:
-        """Ancestors and specific pages are batched, so more hits cost no more queries."""
+        """Specific pages are fetched in one batch, so more hits cost no more queries."""
         for index in range(12):
             page = BasicPage(title=f"Preparedness note {index}", slug=f"preparedness-note-{index}")
             self.home.add_child(instance=page)
