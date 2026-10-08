@@ -16,7 +16,7 @@ from wagtail.models import Page
 
 from cms.blocks import AlertBlock
 from portal_data.context import build_portal_data_context
-from portal_data.views import serve_bulk_download, serve_download_file, serve_study_files
+from portal_data.views import serve_bulk_download
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ logger = logging.getLogger(__name__)
 class PortalDataPage(RoutablePageMixin, Page):
     """CMS-managed wrapper around the portal_data dataset browser.
 
-    RoutablePageMixin lets sub-paths (file browser, file download) be handled
+    RoutablePageMixin lets sub-paths (e.g. the bulk download) be handled
     directly by this page, removing the need for portal_data.urls,
     portal_data.wagtail_urls, and their corresponding root urlconf includes.
     """
@@ -94,19 +94,8 @@ class PortalDataPage(RoutablePageMixin, Page):
 
         return render(request, "cms/pages/portal_data/index.html", context)
 
-    @path("<slug:accession>/files/")
-    def study_files(self, request: HttpRequest, accession: str) -> HttpResponse:
-        """List files available for a given study accession."""
-        template = "cms/pages/portal_data/study_files.html"
-        return serve_study_files(request, self, accession, template)
-
-    @path("<slug:accession>/files/<path:relpath>/")
-    def download_file(self, request: HttpRequest, accession: str, relpath: str) -> HttpResponse:
-        """Stream a single file from a study directory."""
-        return serve_download_file(request, self.datatype, accession, relpath)
-
     @path("bulk-download/")
     def bulk_download(self, request: HttpRequest) -> HttpResponse:
-        """Resolve the POSTed selection of studies to local download links."""
+        """Resolve the POSTed selection of studies to MetaboLights download links."""
         template = "cms/pages/portal_data/bulk_download.html"
         return serve_bulk_download(request, self, self.datatype, template)

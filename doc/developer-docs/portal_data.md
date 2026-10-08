@@ -62,17 +62,16 @@ Study descriptions in the investigation file contain HTML authored by depositors
 
 ## Page model and URL routing
 
-`PortalDataPage` in `cms/pages/portal_data.py` extends both `RoutablePageMixin` and `Page`. This means the page handles all its own sub-paths without any entries in the root URL configuration. Three routes are defined:
+`PortalDataPage` in `cms/pages/portal_data.py` extends both `RoutablePageMixin` and `Page`. This means the page handles all its own sub-paths without any entries in the root URL configuration. Two routes are defined:
 
 | Route | Method | Description |
 |---|---|---|
 | `""` | `index` | Dataset listing with search and facets |
-| `<slug:accession>/files/` | `study_files` | File browser for one study |
-| `<slug:accession>/files/<path:relpath>/` | `download_file` | Stream a single file |
+| `bulk-download/` | `bulk_download` | Resolve the POSTed selection of studies to direct MetaboLights download links |
 
 Because this is a Wagtail page, it can be placed anywhere in the Wagtail page tree. Its URL is determined by the slug an editor gives it; no hardcoded prefix exists in `core/urls.py`.
 
-The `index` route delegates context building to `build_portal_data_context` (in `portal_data/context.py`) and handles HTMX partial swaps itself. The `study_files` and `download_file` routes delegate entirely to standalone functions in `portal_data/views.py`, receiving the page instance or data type string as arguments so the view functions stay decoupled from the CMS.
+The `index` route delegates context building to `build_portal_data_context` (in `portal_data/context.py`) and handles HTMX partial swaps itself. The `bulk_download` route delegates entirely to `serve_bulk_download` in `portal_data/views.py`, receiving the page instance and data type string as arguments so the view function stays decoupled from the CMS.
 
 ### CMS fields
 
@@ -113,7 +112,7 @@ All templates live in `cms/templates/cms/pages/portal_data/`.
 index.html              Full page template with the search form, HTMX attributes, and shared JavaScript
 partials/
   listing.html          Partial returned during HTMX swaps; contains facets and result cards
-study_files.html        File browser table for a single study
+bulk_download.html      Lists the MetaboLights download links for the selected studies
 ```
 
 ### HTMX and JavaScript
@@ -140,12 +139,6 @@ Adding a new data type is mostly configuration, as long as the new type uses the
 3. Create a new `PortalDataPage` instance in the Wagtail admin and set `datatype` to the new slug.
 
 No URL configuration or template changes are needed unless the new data type uses a different investigation file format.
-
----
-
-## Path traversal protection
-
-Before serving a download, `serve_download_file` in `portal_data/views.py` resolves the requested path and verifies that it remains inside the study directory before opening any file. Absolute paths and paths that escape via `../` are rejected with a 404. This check uses `Path.is_relative_to()` on the resolved (symlink-expanded) paths.
 
 ---
 

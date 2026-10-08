@@ -4,10 +4,6 @@ Shared by Wagtail page routes that stream a file out of a directory the
 application controls — for example a per-dataset artefact directory under
 ``MEDIA_ROOT``. It centralises the path-traversal guard, the MIME-type
 fallback and the file-handle lifetime so each route stays a one-liner.
-
-The logic follows ``portal_data/views.py::serve_download_file``, which keeps its
-own datatype/accession validation and is expected to delegate its file-serving
-half here in a later refactor.
 """
 
 from __future__ import annotations

@@ -7,12 +7,10 @@ import hashlib
 import io
 import json
 import logging
-import os
 import re
 from collections.abc import Iterable, Mapping
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
-from datetime import datetime
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote
@@ -20,7 +18,6 @@ from urllib.parse import quote
 import nh3
 from django.conf import settings
 from django.core.cache import cache
-from django.utils import timezone
 
 from cms.services.api_client import fetch_json
 
@@ -518,39 +515,6 @@ def parse_investigation_file(path: Path) -> dict[str, object]:
         pass
 
     return meta
-
-
-def list_study_files(study_dir: Path) -> list[dict[str, Any]]:
-    """Return metadata for files contained in a study directory."""
-    files: list[dict[str, Any]] = []
-
-    for root, _, filenames in os.walk(study_dir):
-        for filename in filenames:
-            full = Path(root) / filename
-
-            try:
-                relpath = str(full.relative_to(study_dir)).replace(os.sep, "/")
-                stat = full.stat()
-            except (OSError, ValueError) as err:
-                logger.debug(
-                    f"Skipping file during listing: '{full}' due to Error: {err}", exc_info=True
-                )
-                continue
-
-            files.append(
-                {
-                    "relpath": relpath,
-                    "name": filename,
-                    "size": stat.st_size,
-                    "mtime": datetime.fromtimestamp(
-                        stat.st_mtime,
-                        tz=timezone.get_current_timezone(),
-                    ),
-                }
-            )
-
-    files.sort(key=lambda file: file["relpath"])
-    return files
 
 
 def _dedupe_filename(filename: str, seen: dict[str, int]) -> str:

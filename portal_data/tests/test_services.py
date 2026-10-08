@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import os
 import tempfile
-from datetime import datetime
 from pathlib import Path
 from unittest import mock
 
@@ -16,7 +15,6 @@ from portal_data.services import (
     apply_text_search,
     build_facets,
     find_investigation_file,
-    list_study_files,
     load_all_items,
     parse_investigation_file,
 )
@@ -140,39 +138,6 @@ class FindInvestigationFileTests(TestCase):
     def test_returns_none_when_no_investigation_file_exists(self) -> None:
         """Return None when neither a revision nor a top-level file is present."""
         self.assertIsNone(find_investigation_file(self.study_dir))
-
-
-class ListStudyFilesTests(TestCase):
-    """Tests for listing files available within a study directory."""
-
-    def setUp(self) -> None:
-        """Create a temporary study directory for each test."""
-        self.tmpdir_context = tempfile.TemporaryDirectory()
-        self.study_dir = Path(self.tmpdir_context.name)
-
-    def tearDown(self) -> None:
-        """Remove the temporary study directory."""
-        self.tmpdir_context.cleanup()
-
-    def test_returns_empty_list_for_an_empty_directory(self) -> None:
-        """Return an empty list when the study directory has no files."""
-        self.assertEqual(list_study_files(self.study_dir), [])
-
-    def test_lists_nested_files_sorted_by_relative_path(self) -> None:
-        """List files recursively with forward-slash relpaths, sorted."""
-        (self.study_dir / "b_top.txt").write_text("top", encoding="utf-8")
-        nested_dir = self.study_dir / "subdir"
-        nested_dir.mkdir()
-        (nested_dir / "a_nested.txt").write_text("nested contents", encoding="utf-8")
-
-        files = list_study_files(self.study_dir)
-
-        self.assertEqual([f["relpath"] for f in files], ["b_top.txt", "subdir/a_nested.txt"])
-        self.assertEqual(files[0]["name"], "b_top.txt")
-        self.assertEqual(files[0]["size"], len(b"top"))
-        self.assertIsInstance(files[0]["mtime"], datetime)
-        self.assertEqual(files[1]["name"], "a_nested.txt")
-        self.assertEqual(files[1]["size"], len(b"nested contents"))
 
 
 class LoadAllItemsTests(TestCase):
