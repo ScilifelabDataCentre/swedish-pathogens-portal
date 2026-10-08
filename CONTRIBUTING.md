@@ -69,7 +69,7 @@ All guidelines and legislation related to accessibility on websites that apply i
 
 - Page titles and headers should be kept as short as possible. Before publishing, preview how the page title looks on its card view to make sure it is not cut off.
 
-- For texts to be included on cards within pages, titles much not span over more than two lines, and description texts must not span more than three lines.
+- For texts to be included on cards within pages, titles must not span over more than two lines, and description texts must not span more than three lines.
 
 ## Guidance related to images
 
