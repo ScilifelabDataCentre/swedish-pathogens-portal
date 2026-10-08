@@ -250,7 +250,7 @@ class TestAIImageAltTemplates(BasePageTestCase):
         expected = "AI-generated image: An elderly person inside a protective dome"
 
         self.assertContains(detail, f'alt="{expected}"')
-        self.assertContains(detail, "object-right-top")
+        self.assertContains(detail, "object-top-right")
         self.assertNotContains(detail, "origin-top-right")
         self.assertContains(detail, "?v=abc123")
         self.assertContains(

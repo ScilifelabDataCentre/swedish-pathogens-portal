@@ -5,7 +5,7 @@
 
 {% block content %}
 
-    <h3>{{ page.title }}</h3>
+    <h1 class="text-3xl">{{ page.title }}</h1>
 
     <div class="mb-6">
         {% include_block page.content %}
@@ -13,7 +13,7 @@
 
     {% if subprojects %}
         <section class="mt-8">
-            <h4 class="m-0 mb-4">Subprojects</h4>
+            <h3 class="m-0 mb-4">Subprojects</h3>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
                 {% for subproject in subprojects %}
                     {% include "cms/components/content_card.html#content_card" with url=subproject.url image=subproject.image title=subproject.title description="" only %}

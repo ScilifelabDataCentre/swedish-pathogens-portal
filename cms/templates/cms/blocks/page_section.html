@@ -4,7 +4,7 @@
 <section>
     {# Section title and view all link #}
     <div class="flex items-baseline justify-between mb-2">
-        <h3 class="m-0">{{ value.title|default:value.page.title }}</h3>
+        <h2 class="m-0">{{ value.title|default:value.page.title }}</h2>
         <a href="{{ value.page.url }}" class="font-bold focus-visible:rounded focus-visible:outline-none
         focus-visible:ring-2 focus-visible:ring-offset-2" aria-label="View all {{ value.page.title }}"
         >

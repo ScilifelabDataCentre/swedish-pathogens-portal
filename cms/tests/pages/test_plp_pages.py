@@ -365,18 +365,18 @@ class TestPlpProjectPageHeading(BasePlpPageTestCase):
         response = self.client.get(self.parent_project.url)
 
         self.assertEqual(response.status_code, 200)
-        banner_heading = f'<h2 class="my-4">{self.index.title}</h2>'
+        banner_heading = f'<h2 class="my-2">{self.index.title}</h2>'
         self.assertContains(response, banner_heading, html=True)
-        self.assertContains(response, "<h3>BSL3</h3>", html=True)
+        self.assertContains(response, '<h1 class="text-3xl">BSL3</h1>', html=True)
 
     def test_subproject_banner_and_body_titles(self):
         """Subprojects resolve the same PLP index ancestor for the banner."""
         response = self.client.get(self.subproject.url)
 
         self.assertEqual(response.status_code, 200)
-        banner_heading = f'<h2 class="my-4">{self.index.title}</h2>'
+        banner_heading = f'<h2 class="my-2">{self.index.title}</h2>'
         self.assertContains(response, banner_heading, html=True)
-        self.assertContains(response, "<h3>BSL3 Facility</h3>", html=True)
+        self.assertContains(response, '<h1 class="text-3xl">BSL3 Facility</h1>', html=True)
 
 
 ######################################################################
