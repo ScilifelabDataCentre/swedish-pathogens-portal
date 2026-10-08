@@ -54,7 +54,7 @@ All guidelines and legislation related to accessibility on websites that apply i
 
 - References to papers, datasets, book chapters etc. should be formatted in APA reference style. See the [Referencing guide for APA 7, Karolinska Institutet University Library](https://kib.ki.se/en/write-cite/writing-references-apa-vancouver/reference-guides/reference-guide-apa-7).
 
-- With the exception of editorials within the site, articles referred to in the content should be made available with a pesistant identifier. However, we may link to a GitHub repository or a dataset that is published with a DOI in a repository. 
+- With the exception of editorials within the site, articles referred to in the content should be made available with a persistent identifier. However, we may link to a GitHub repository or a dataset that is published with a DOI in a repository. 
 
 ### Headers
 
