@@ -1,6 +1,7 @@
 {% if query %}
+{# my-0: the base ul margin would drop the panel 16px, half over the menu below the box. #}
 <ul class="menu flex-nowrap bg-white rounded-box shadow border border-pp-pale-grey w-full p-1
-    overflow-hidden">
+    my-0 overflow-hidden">
     {% for result in results %}
     <li class="w-full min-w-0">
         {# min-w-0 is what lets the title actually truncate: a flex child will not #}

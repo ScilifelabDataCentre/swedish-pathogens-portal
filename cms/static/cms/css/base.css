@@ -32,11 +32,11 @@
     --color-pp-dark-grey: #55585a;
     --color-pp-almost-black: #1a1c1a;
 
-    /* Header: full menu from `nav`, hamburger below. Logos + menu (20px gaps) + search
-       need ~1260px, which only fits once .container reaches its 80rem cap at 96rem.
-       Full-size logos from `logos`, medium below it from lg. */
-    --breakpoint-nav: 96rem;
-    --breakpoint-logos: 85rem;
+    /* Header: full menu from `nav` (medium logos + 20px-gap menu ~995px), hamburger below;
+       full-size logos from `logos` (~1075px). The search box sits above the menu, so it
+       takes no width. ~15px spare at each, with 17px scrollbars. */
+    --breakpoint-nav: 80rem;
+    --breakpoint-logos: 86rem;
 }
 
 /* Daisy UI, downloaded to path specified during build time */
