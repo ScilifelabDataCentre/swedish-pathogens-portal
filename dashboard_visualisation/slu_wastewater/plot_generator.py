@@ -8,9 +8,9 @@ from django.utils.text import slugify
 from ..utils.uploads import SourceFile, read_csv_dataframe
 from .constants import VIRUSES_OF_INTEREST, city_display_names, expected_columns
 from .input_for_filters import get_input_for_filters
+from .plants_map_plot import get_ww_plants_map_plot
 from .qualitative_plots import get_qual_overview_plot, get_qual_plots
 from .recent_data import get_recent_data_info
-from .site_info import get_sites_info
 
 
 def generate_figures(source_file: SourceFile) -> dict[str, Any]:
@@ -27,8 +27,8 @@ def generate_figures(source_file: SourceFile) -> dict[str, Any]:
     # store the raw data to be used while generating the plots with filters
     figures["raw_data"] = data.to_dict(as_series=False)
 
-    # site info for methodology page
-    figures["sites_info"] = get_sites_info(data=data)
+    # interactive map for methodology page
+    figures["ww_plants_map"] = get_ww_plants_map_plot(data=data)
 
     # input information for filters
     figures["filter_input_context"] = get_input_for_filters(data=data)

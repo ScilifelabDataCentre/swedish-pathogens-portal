@@ -125,27 +125,27 @@ https://daisyui.com/docs/utilities/#theme-css-variables
 
     /* Default typography for headers and text */
     h1 {
-        @apply text-5xl;
-    }
-
-    h2 {
         @apply text-4xl;
     }
 
-    h3 {
+    h2 {
         @apply text-3xl;
     }
 
-    h4 {
+    h3 {
         @apply text-2xl;
     }
 
-    h5 {
+    h4 {
         @apply text-xl;
     }
 
+    h5 {
+        @apply text-lg;
+    }
+
     h1, h2, h3, h4, h5, h6 {
-        @apply mt-7 mb-4 font-medium tracking-tight wrap-break-word hyphens-auto;
+        @apply mt-6 mb-4 font-medium tracking-tight wrap-break-word hyphens-auto;
     }
 
     p {

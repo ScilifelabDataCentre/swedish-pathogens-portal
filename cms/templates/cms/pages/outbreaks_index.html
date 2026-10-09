@@ -11,7 +11,7 @@
     {% if outbreaks %}
         {% for type, outbreak_list in outbreaks.items %}
             {% if outbreak_list %}
-            <h4>{{ type|title }} Outbreaks</h4>
+            <h3>{{ type|title }} Outbreaks</h3>
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
                 {% for outbreak in outbreak_list %}
                     {% include "cms/components/content_card.html#content_card" with url=outbreak.url image=outbreak.image title=outbreak.title description=outbreak.description only %}

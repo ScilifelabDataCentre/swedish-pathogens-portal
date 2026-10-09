@@ -5,12 +5,13 @@
 
 {% block content %}
 
+<h1>{{ page.title }}</h1>
 {% include_block page.content %}
 
 {% if tagged_highlights_and_editorials %}
 <section id="related-highlights-and-editorials" class="mt-8">
     <div class="flex flex-col gap-6">
-        <h3 class="my-0">Highlights and Editorials ({{ tagged_articles_count }})</h3>
+        <h2 class="my-0">Highlights and Editorials ({{ tagged_articles_count }})</h2>
         {% include "cms/pages/highlights_and_editorials_index.html#articles_grid" with articles_list=tagged_highlights_and_editorials only %}
         <div>
             <a href="{{ articles_index_url }}?topic={{ page.slug }}"
@@ -25,7 +26,7 @@
 {% if tagged_dashboards %}
 <section id="related-dashboards" class="mt-8">
     <div class="flex flex-col gap-6">
-        <h3 class="my-0">Dashboards ({{ tagged_dashboards_count }})</h3>
+        <h2 class="my-0">Dashboards ({{ tagged_dashboards_count }})</h2>
         {% include "cms/pages/dashboard_index.html#dashboards_grid" with dashboards_list=tagged_dashboards only %}
         <div>
             <a href="{{ dashboards_index_url }}?topic={{ page.slug }}"

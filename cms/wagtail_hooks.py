@@ -9,6 +9,7 @@ from wagtail.admin import messages
 
 from cms.handlers.external_link import ExternalLinkNewTabHandler
 from cms.panels.workflow_panel import replace_user_objects_in_workflow_moderation_panel
+from cms.services.user import is_internal_user
 from cms.snippets.dashboard_data import DashboardDataDeleteBulkAction
 
 if TYPE_CHECKING:
@@ -118,3 +119,19 @@ def remove_not_allowed_actions(
 def customise_homepage_panels(request: HttpRequest, panels: list[Component]) -> None:
     """Customize the homepage panels."""
     replace_user_objects_in_workflow_moderation_panel(panels)
+
+
+# -----------------------------------------------------------------------------
+# Hook to customize the main menu
+# -----------------------------------------------------------------------------
+
+
+# This is a temporary implementation to hide the "Help" menu item for non internal users.
+# Later when we allow external users to edit pages, then we will need to implement a more
+# appropriate solution along with required UI changes.
+@hooks.register("construct_main_menu")
+def menu_items_for_non_internal_users(request: HttpRequest, menu_items: list[MenuItem]) -> None:
+    """Customize the main menu to hide the some items for non internal users."""
+    user = getattr(request, "user", None)
+    if not is_internal_user(user):
+        menu_items[:] = [item for item in menu_items if item.name != "help"]

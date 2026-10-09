@@ -24,8 +24,8 @@ class TestGenerateFigures(SimpleTestCase):
             "dashboard_visualisation.slu_wastewater.plot_generator.read_csv_dataframe"
         ).start()
 
-        self.sites_info = patch(
-            "dashboard_visualisation.slu_wastewater.plot_generator.get_sites_info"
+        self.ww_plants_map = patch(
+            "dashboard_visualisation.slu_wastewater.plot_generator.get_ww_plants_map_plot"
         ).start()
 
         self.filter_input = patch(
@@ -49,7 +49,7 @@ class TestGenerateFigures(SimpleTestCase):
         self.data = get_sample_data()
 
         self.read_csv.return_value = self.data
-        self.sites_info.return_value = [("Site", "Num. of residents")]
+        self.ww_plants_map.return_value = "ww-plants-map"
         self.filter_input.return_value = {"input_years": [2024]}
         self.recent_data.return_value = {"sampling_date": "2024-01-15"}
         self.qual_overview.return_value = "qual-overview"
@@ -60,7 +60,7 @@ class TestGenerateFigures(SimpleTestCase):
         result = generate_figures(object())
 
         self.assertIn("raw_data", result)
-        self.assertIn("sites_info", result)
+        self.assertIn("ww_plants_map", result)
         self.assertIn("filter_input_context", result)
         self.assertIn("recent_data_info", result)
         self.assertIn("qual_overview_plot", result)
@@ -85,7 +85,7 @@ class TestGenerateFigures(SimpleTestCase):
         """Test that the expected helper functions are called."""
         generate_figures(object())
 
-        self.sites_info.assert_called_once()
+        self.ww_plants_map.assert_called_once()
         self.filter_input.assert_called_once()
         self.recent_data.assert_called_once()
         self.qual_overview.assert_called_once()

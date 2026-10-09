@@ -10,7 +10,7 @@
     data-recompute-url="{% routablepageurl page 'recompute' %}"
     data-has-session="{% if has_session %}true{% else %}false{% endif %}"
 >
-    <h3>{{ page.title }}</h3>
+    <h1>{{ page.title }}</h1>
 
     <p class="text-pp-dark-grey mb-6 flex items-center gap-2 flex-wrap">
         <span class="badge badge-ghost badge-lg">{{ page.get_data_status_display }}</span>
@@ -43,7 +43,7 @@
             class="lg:col-span-8 xl:col-span-9 card bg-base-100 border border-base-300 shadow-sm"
             aria-label="Tree-leaf network plot"
         >
-            <div class="card-body p-3 sm:p-4 relative min-h-[720px]">
+            <div class="card-body p-3 sm:p-4 relative min-h-180">
                 <div
                     id="liver-tln-loading"
                     class="htmx-indicator absolute inset-0 bg-base-100/80 flex items-center justify-center z-10 rounded-box"
