@@ -3,7 +3,7 @@
 from django import template
 from django.template.loader import render_to_string
 
-from dashboard_visualisation.utils.plotly import get_plotlyjs_cdn_param
+from dashboard_visualisation.utils.plotly import get_plotlyjs_cdn_param, plot_html_from_json
 
 register = template.Library()
 
@@ -31,3 +31,11 @@ def plotlyjs_once(context: template.Context) -> str:
         return ""
     context["plotlyjs_loaded"] = True
     return render_to_string("cms/components/plotly_js.html")
+
+
+@register.simple_tag
+def plotly_html_from_json(
+    data: str, height: str | int = "100%", display_modebar: bool = True
+) -> str:
+    """Return a Plotly HTML div from a JSON string."""
+    return plot_html_from_json(data, height=height, display_modebar=display_modebar) or ""
