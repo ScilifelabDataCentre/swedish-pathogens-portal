@@ -74,8 +74,7 @@
                 <label for="header-search" class="sr-only">Search the portal</label>
                 <div class="input input-sm input-accent w-44 pe-1">
                     <input id="header-search" type="search" name="q" autocomplete="off" required
-                        class="grow" placeholder="Search" maxlength="100"
-                        aria-label="Search the portal"
+                        class="grow" placeholder="Search the portal" maxlength="100"
                         aria-controls="header-search-results"
                         hx-get="{% url 'search_autocomplete' %}"
                         hx-trigger="input changed delay:300ms"
@@ -92,7 +91,7 @@
                      wider than the input has to grow leftwards to stay on screen. -->
                 <div id="header-search-results" role="region" aria-live="polite"
                     aria-label="Search suggestions" data-search-suggest-panel hidden
-                    class="absolute right-0 top-full z-50 mt-1 w-[26rem] max-w-[calc(100vw-2rem)]"></div>
+                    class="absolute right-0 top-full z-50 mt-1 w-104 max-w-[calc(100vw-2rem)]"></div>
             </form>
 
             <!-- Mobile Menu Button: right-aligned, minimal gutter on mobile -->
@@ -140,8 +139,7 @@
                     <label for="mobile-search" class="sr-only">Search the portal</label>
                     <div class="input input-accent w-full pe-1">
                         <input id="mobile-search" type="search" name="q" required
-                            class="grow" placeholder="Search the portal" maxlength="100"
-                            aria-label="Search the portal">
+                            class="grow" placeholder="Search the portal" maxlength="100">
                         <button type="submit" class="btn btn-ghost btn-sm btn-square" aria-label="Search">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"

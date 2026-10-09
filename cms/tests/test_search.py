@@ -181,6 +181,10 @@ class SearchTestCase(WagtailPageTestCase):
         # Header bar and mobile menu each offer a visible magnifier to submit with.
         self.assertContains(resp, '<button type="submit"', count=2)
         self.assertContains(resp, 'aria-label="Search"', count=2)
+        # Both boxes say the same thing, and their <label>s name them, not aria-label.
+        self.assertContains(resp, 'placeholder="Search the portal"', count=2)
+        self.assertContains(resp, 'class="sr-only">Search the portal</label>', count=2)
+        self.assertNotContains(resp, 'aria-label="Search the portal"')
 
     def test_page_without_image_renders(self) -> None:
         """A matching page whose model has no image field renders without error."""
