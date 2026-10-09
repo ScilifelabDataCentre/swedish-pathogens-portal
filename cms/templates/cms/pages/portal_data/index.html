@@ -64,7 +64,9 @@
                         hx-target="#portal-data-listing"
                         hx-swap="innerHTML"
                         hx-push-url="true"
-                    >
+                        {# clears the search box when resetting the form. #}
+                        hx-on="htmx:afterRequest: document.querySelector('#searchForm input[name=q]').value = ''"
+                        >
                         Reset
                     </a>
                 </div>
