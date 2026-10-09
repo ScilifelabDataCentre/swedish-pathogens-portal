@@ -429,3 +429,17 @@ class SearchStemmingTestCase(WagtailPageTestCase):
         titles = [result["title"] for result in suggested.context["results"]]
         self.assertEqual(titles, [self.titled.title])
         self.assertEqual(self._titles("wastewater monitorin"), titles)
+
+    def test_completed_words_keep_their_stemming(self) -> None:
+        """Earlier words still match other forms of themselves while the last is typed.
+
+        The page says "Antibiotic", never "antibiotics": only the stemmed index
+        relates the two, and only the unstemmed one matches "resistan" as a prefix.
+        """
+        for typed in ("antibiotics res", "antibiotics resistan"):
+            with self.subTest(typed=typed):
+                self.assertEqual(self._titles(typed), [self.bodied.title])
+
+    def test_stop_word_before_the_last_word_still_matches(self) -> None:
+        """The stemmed index drops words like "of", so they cannot narrow by themselves."""
+        self.assertEqual(self._titles("of resis"), [self.bodied.title])

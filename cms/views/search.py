@@ -104,22 +104,35 @@ def page_type_label(page: Page) -> str:
 def _matches(query: str) -> list[tuple[int, str]]:
     """Return ``(page pk, facet key)`` for every page matching the query, best first.
 
-    Two passes, because the last word may still be half-typed:
+    The last word may still be half-typed, and no single index handles that.
+    ``search()`` uses a stemmed index ("monitoring" is stored as "monitor"), so
+    it relates word forms but only matches whole words; a prefix of it would stop
+    matching once typing runs past the stem ("monitorin"). ``autocomplete()``
+    matches the last word as an unstemmed prefix, over the same text (every page
+    model pairs its ``SearchField``s with ``AutocompleteField``s), but needs the
+    earlier words spelled exactly. So, every word required in each pass:
 
-    - ``search()`` matches whole words, stemmed, so "vaccines" finds "vaccine".
-    - ``autocomplete()`` matches the last word as an unstemmed prefix. The
-      full-text index is stemmed ("monitoring" is stored as "monitor"), so a
-      prefix of it stops matching once typing runs past the stem ("monitorin").
-      The autocomplete index holds the words as written, over the same text:
-      every page model pairs its ``SearchField``s with ``AutocompleteField``s.
+    1. ``search(query)``: all words whole and stemmed; "vaccines" finds "vaccine".
+    2. ``search(earlier words)`` narrowed by ``autocomplete(last word)``: completed
+       words stemmed, the last a prefix; "antibiotics res" finds "Antibiotic
+       resistance".
+    3. ``autocomplete(query)``: all words as written, the last a prefix. Keeps
+       earlier words the stemmed index drops, like "of" in "of resis".
 
-    Whole-word matches rank first, then prefix-only ones. Loading just the pk
-    and content type of every match lets one pass serve the facet counts and
-    the page, instead of a search per facet.
+    Results follow that order. Loading just the pk and content type of every
+    match lets one pass serve the facet counts and the page, instead of a
+    search per facet.
     """
     base = _base_queryset().only("id", "content_type")
+    *earlier, last = query.split()
+    passes = [base.search(query, operator="and")]
+    if earlier:
+        completed = [page.pk for page in base.search(" ".join(earlier), operator="and")]
+        passes.append(base.filter(pk__in=completed).autocomplete(last, operator="and"))
+    passes.append(base.autocomplete(query, operator="and"))
+
     found: dict[int, str] = {}
-    for results in (base.search(query, operator="and"), base.autocomplete(query, operator="and")):
+    for results in passes:
         for page in results:
             if page.pk not in found:
                 model = ContentType.objects.get_for_id(page.content_type_id).model_class()
