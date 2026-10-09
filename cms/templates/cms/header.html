@@ -5,28 +5,28 @@
 <header class="bg-white border-b border-pp-pale-grey sticky top-0 z-50 shadow-sm
     motion-safe:transition-all motion-safe:duration-700 motion-safe:delay-200 ease-in-out">
     <div class="container">
-        <div class="flex items-center justify-between h-16 lg:h-20 w-full">
+        <div class="flex items-center justify-between nav:gap-6 h-16 lg:h-20 w-full">
             <!-- Logos: left-aligned, minimal gutter on mobile; full spacing on desktop -->
-            <div class="flex items-center gap-2 lg:gap-5 min-w-0 shrink-0">
+            <div class="flex items-center gap-2 lg:gap-3 logos:gap-5 min-w-0 shrink-0">
                 <a href="/" class="focus-visible:rounded focus-visible:outline-none
                     focus-visible:ring-2 focus-visible:ring-pp-teal focus-visible:ring-offset-2">
                     <img src="{% static 'cms/images/swe_pathogens_logo.svg' %}" alt="Swedish Pathogens Portal"
-                    class="h-7 lg:h-10 w-auto">
+                    class="h-7 lg:h-8 logos:h-10 w-auto">
                 </a>
-                <div class="h-6 lg:h-9 w-px bg-gray-300" aria-hidden="true"></div>
+                <div class="h-6 lg:h-7 logos:h-9 w-px bg-gray-300" aria-hidden="true"></div>
                 <a href="https://www.scilifelab.se/" target="_blank" rel="noopener" class="focus-visible:rounded
                     focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pp-teal focus-visible:ring-offset-2">
-                    <img src="{% static 'cms/images/SciLifeLab_logo.svg' %}" alt="SciLifeLab" class="h-6 lg:h-8.5 w-auto">
+                    <img src="{% static 'cms/images/SciLifeLab_logo.svg' %}" alt="SciLifeLab" class="h-6 lg:h-7 logos:h-8.5 w-auto">
                 </a>
             </div>
 
             <!-- Desktop Navigation (agreed menu structure) -->
-            <nav class="hidden lg:flex items-center gap-6" aria-label="Main navigation">
+            <nav class="hidden nav:flex items-center gap-4 nav:gap-6" aria-label="Main navigation">
                 {% for item in header_menu %}
                     {% if item.has_submenu %}
                     <div class="relative group">
                     <button
-                        class="flex items-center gap-1 text-pp-dark-blue font-medium hover:text-pp-teal
+                        class="flex items-center gap-1 whitespace-nowrap text-pp-dark-blue font-medium hover:text-pp-teal
                         transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pp-teal
                         focus-visible:ring-offset-2 focus-visible:rounded"
                         aria-expanded="false"
@@ -38,8 +38,10 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                         </svg>
                     </button>
+                    <!-- The last panel opens leftwards: hidden panels still widen the page -->
                     <div id="{{ item.title|slugify }}-menu" role="menu"
-                        class="absolute left-0 pt-2 w-56 opacity-0 invisible group-hover:opacity-100
+                        class="absolute {% if forloop.last %}right-0{% else %}left-0{% endif %} pt-2 w-56
+                        opacity-0 invisible group-hover:opacity-100
                         group-hover:visible [.group:focus-within_&]:opacity-100
                         [.group:focus-within_&]:visible transition-all">
                         <div class="flex flex-col bg-white border border-gray-200 rounded-lg p-2 shadow-lg
@@ -55,7 +57,7 @@
                     {% else %}
                     <div>
                         <a href="{{ item.link }}"
-                        class="text-pp-dark-blue font-medium hover:text-pp-teal transition-colors
+                        class="whitespace-nowrap text-pp-dark-blue font-medium hover:text-pp-teal transition-colors
                         focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pp-teal
                         focus-visible:ring-offset-2 focus-visible:rounded">
                             {{ item.title }}
@@ -66,7 +68,7 @@
             </nav>
 
             <!-- Mobile Menu Button: right-aligned, minimal gutter on mobile -->
-            <div class="lg:hidden ml-auto lg:pr-0 shrink-0">
+            <div class="nav:hidden ml-auto shrink-0">
                 <button
                     id="mobile-menu-button"
                     class="text-pp-dark-blue focus-visible:outline-none focus-visible:ring-2
@@ -87,7 +89,7 @@
 
     <!-- Mobile Menu (agreed structure: mirrors desktop); scrollable when content overflows -->
     <nav id="mobile-menu"
-         class="lg:hidden hidden fixed inset-0 z-40 bg-white overflow-y-auto overflow-x-hidden pt-4 lg:pt-20
+         class="nav:hidden hidden fixed inset-0 z-40 bg-white overflow-y-auto overflow-x-hidden pt-4
          min-h-0 [-webkit-overflow-scrolling:touch] overscroll-y-contain"
          role="navigation"
          aria-label="Mobile navigation">
