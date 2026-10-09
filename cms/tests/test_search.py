@@ -49,6 +49,7 @@ class SearchTestCase(WagtailPageTestCase):
             slug="influenza-surveillance-update",
             description="Weekly zuluwidget report on national influenza monitoring.",
             image=create_test_image(),
+            image_caption="Test caption",
         )
         cls.news_index.add_child(instance=cls.article)
         cls.article.save_revision().publish()
@@ -128,6 +129,7 @@ class SearchTestCase(WagtailPageTestCase):
             slug="zuluwidget-draft",
             description="zuluwidget secret draft",
             image=create_test_image(),
+            image_caption="Test caption",
             live=False,
         )
         self.news_index.add_child(instance=draft)
