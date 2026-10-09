@@ -271,6 +271,18 @@ class SearchTestCase(WagtailPageTestCase):
         self.assertContains(resp, 'href="?q=wastewater+monitoring&amp;type=pages"')
         self.assertContains(resp, 'hx-get="?q=wastewater+monitoring&amp;type=pages"')
 
+    def test_selected_facet_is_not_clickable(self) -> None:
+        """Only the other facets react to a click; the selected one is already shown."""
+        resp = self.client.get("/search/", {"q": "wastewater monitoring", "type": "pages"})
+        html = resp.content.decode()
+
+        def tag(facet_id: str) -> str:
+            start = html.index(f'id="{facet_id}"')
+            return html[start : html.index(">", start)]
+
+        self.assertIn("pointer-events-none", tag("search-facet-pages"))
+        self.assertNotIn("pointer-events-none", tag("search-facet-all"))
+
     def test_htmx_facet_request_returns_only_the_results(self) -> None:
         """An htmx facet click gets the narrowed results and the new count, not the page."""
         resp = self.client.get(

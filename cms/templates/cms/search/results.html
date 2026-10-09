@@ -34,12 +34,12 @@
         <nav class="flex flex-wrap gap-2 mb-6" aria-label="Filter results by type">
             <a id="search-facet-all" href="{{ all_url }}"
                 hx-get="{{ all_url }}"
-                class="badge badge-lg {% if not selected %}badge-primary{% else %}badge-ghost{% endif %}"
+                class="badge badge-lg {% if not selected %}badge-primary pointer-events-none{% else %}badge-ghost{% endif %}"
                 {% if not selected %}aria-current="true"{% endif %}>All ({{ total }})</a>
             {% for f in facets %}
             <a id="search-facet-{{ f.key }}" href="{{ f.url }}"
                 hx-get="{{ f.url }}"
-                class="badge badge-lg {% if selected == f.key %}badge-primary{% else %}badge-ghost{% endif %}"
+                class="badge badge-lg {% if selected == f.key %}badge-primary pointer-events-none{% else %}badge-ghost{% endif %}"
                 {% if selected == f.key %}aria-current="true"{% endif %}>{{ f.label }} ({{ f.count }})</a>
             {% endfor %}
         </nav>
