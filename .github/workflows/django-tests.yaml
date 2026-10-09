@@ -90,3 +90,44 @@ jobs:
       - name: Check for missing migrations
         if: ${{ !cancelled() }}
         run: uv run python manage.py makemigrations --check --dry-run --settings=core.settings.test
+
+  # SQLite's full-text index does not stem words and PostgreSQL's does, so
+  # search behaves differently on the database production runs: a word typed
+  # past its stem ("monitorin" vs "monitor") only fails here. Search tests
+  # only; the full suite is not yet clean on PostgreSQL.
+  search-postgres:
+    name: Search tests on PostgreSQL
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    services:
+      postgres:
+        # Same image as compose.yaml
+        image: postgres:18.6-trixie@sha256:1957b2ff3137e4ef7f3bc813e74fff50b1e1ffddc85c8b9d6f14ade972be8687
+        env:
+          POSTGRES_PASSWORD: ci-not-a-secret  # A throwaway service, not a credential
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://postgres:ci-not-a-secret@localhost:5432/pathogens_portal
+    steps:
+      - name: Checkout the repo
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        with:
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+
+      - name: Install Python dependencies
+        run: uv sync --frozen --group dev
+
+      - name: Run the search tests
+        run: uv run python manage.py test --settings=core.settings.test_postgres --noinput cms.tests.test_search
