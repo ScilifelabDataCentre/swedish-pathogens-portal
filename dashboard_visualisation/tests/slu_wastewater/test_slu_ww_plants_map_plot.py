@@ -34,7 +34,7 @@ class TestGetWWPlantsMapPlot(SimpleTestCase):
                 "city": [
                     "Stockholm-Bromma",
                     "Stockholm-Grödinge",
-                    "Stockholm-Hendriksdal",
+                    "Stockholm-Henriksdal",
                     "Stockholm-Käppala",
                 ],
                 "inhabitants": [100_000, 200_000, 300_000, 400_000],

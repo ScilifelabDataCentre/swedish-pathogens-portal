@@ -18,7 +18,7 @@ hover_border_colour = "#000000"
 font_family = "IBM Plex Sans"
 
 # Combined Stockholm sites for hover text
-combined_stockholm_text = "Stockholm (Bromma, Grödinge, Hendriksdal and Käppala)"
+combined_stockholm_text = "Stockholm (Bromma, Grödinge, Henriksdal and Käppala)"
 
 # File paths for the map data
 script_dir = Path(__file__).resolve().parent
