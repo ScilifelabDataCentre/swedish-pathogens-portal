@@ -1,8 +1,9 @@
 """Site-wide search: a faceted, paginated results page over Wagtail pages."""
 
+from collections import Counter
 from collections.abc import Sequence
-from functools import cache
 
+from django.contrib.contenttypes.models import ContentType
 from django.core.paginator import Paginator
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
@@ -10,8 +11,6 @@ from django.utils.http import urlencode
 from django.views.decorators.vary import vary_on_headers
 from wagtail.models import Page
 from wagtail.query import PageQuerySet
-from wagtail.search.backends import get_search_backend
-from wagtail.search.backends.base import BaseSearchQueryCompiler, BaseSearchResults
 
 from cms.pages import (
     AvailableDataPage,
@@ -69,37 +68,6 @@ def _base_queryset() -> PageQuerySet:
     return _queryset_for(SEARCH_MODELS)
 
 
-@cache
-def _last_term_prefix(compiler: type[BaseSearchQueryCompiler]) -> type[BaseSearchQueryCompiler]:
-    """Return the backend's full-text compiler, with the last search term matched as a prefix."""
-    return type(f"LastTermPrefix{compiler.__name__}", (compiler,), {"LAST_TERM_IS_PREFIX": True})
-
-
-def _full_text_search(queryset: PageQuerySet, query: str) -> BaseSearchResults:
-    """Search titles and body text, treating the last word as possibly half-typed.
-
-    The dropdown's ``autocomplete()`` matches what has been typed so far, so
-    "wastew" suggests the wastewater pages; pressing Enter has to find them too.
-    ``search()`` only matches whole words, so this runs the backend's own
-    compiler with the switch its autocomplete compiler flips, ``LAST_TERM_IS_PREFIX``,
-    over the full title and body index. The words before the last stay whole
-    and stemmed.
-
-    ``_search`` is the shared entry point behind both ``search()`` and
-    ``autocomplete()`` in modelsearch, the package Wagtail delegates search to.
-    It is internal, so the partial-word tests in ``test_search`` guard it.
-    """
-    backend = get_search_backend()
-    return backend._search(
-        _last_term_prefix(backend.query_compiler_class),
-        query,
-        queryset,
-        fields=None,
-        operator="and",
-        order_by_relevance=True,
-    )
-
-
 def _results_url(query: str, facet: str = "", page: int | None = None) -> str:
     """Return the relative results URL for a query, optionally narrowed to a facet and paged.
 
@@ -114,18 +82,49 @@ def _results_url(query: str, facet: str = "", page: int | None = None) -> str:
     return f"?{urlencode(params)}"
 
 
-def page_type_label(page: Page) -> str:
-    """Return the facet label describing what kind of page this is.
+def _facet(model: type[Page]) -> tuple[str, str]:
+    """Return the ``(key, label)`` of the facet a page type falls under, or blanks.
 
-    Matched with ``isinstance`` rather than an exact type lookup so that
+    Matched with ``issubclass`` rather than an exact type lookup so that
     subclasses reached through multi-table inheritance — a ``DrrDatasetPage`` is
     a ``DashboardPage`` — are labelled instead of falling through to a blank
     badge.
     """
-    for models, _, label in SEARCH_TYPES:
-        if isinstance(page, tuple(models)):
-            return label
-    return ""
+    for models, key, label in SEARCH_TYPES:
+        if issubclass(model, models):
+            return key, label
+    return "", ""
+
+
+def page_type_label(page: Page) -> str:
+    """Return the facet label describing what kind of page this is."""
+    return _facet(type(page))[1]
+
+
+def _matches(query: str) -> list[tuple[int, str]]:
+    """Return ``(page pk, facet key)`` for every page matching the query, best first.
+
+    Two passes, because the last word may still be half-typed:
+
+    - ``search()`` matches whole words, stemmed, so "vaccines" finds "vaccine".
+    - ``autocomplete()`` matches the last word as an unstemmed prefix. The
+      full-text index is stemmed ("monitoring" is stored as "monitor"), so a
+      prefix of it stops matching once typing runs past the stem ("monitorin").
+      The autocomplete index holds the words as written, over the same text:
+      every page model pairs its ``SearchField``s with ``AutocompleteField``s.
+
+    Whole-word matches rank first, then prefix-only ones. Loading just the pk
+    and content type of every match lets one pass serve the facet counts and
+    the page, instead of a search per facet.
+    """
+    base = _base_queryset().only("id", "content_type")
+    found: dict[int, str] = {}
+    for results in (base.search(query, operator="and"), base.autocomplete(query, operator="and")):
+        for page in results:
+            if page.pk not in found:
+                model = ContentType.objects.get_for_id(page.content_type_id).model_class()
+                found[page.pk] = _facet(model)[0]
+    return list(found.items())
 
 
 @vary_on_headers("HX-Request", "HX-History-Restore-Request")
@@ -148,25 +147,25 @@ def search(request: HttpRequest) -> HttpResponse:
     page_obj = None
 
     if query:
-        for models, key, label in SEARCH_TYPES:
-            count = _full_text_search(_queryset_for(models), query).count()
-            if count:
-                facets.append(
-                    {"key": key, "label": label, "count": count, "url": _results_url(query, key)}
-                )
-        total = sum(int(facet["count"]) for facet in facets)
+        matches = _matches(query)
+        counts = Counter(key for _, key in matches)
+        facets = [
+            {"key": key, "label": label, "count": counts[key], "url": _results_url(query, key)}
+            for _, key, label in SEARCH_TYPES
+            if counts[key]
+        ]
+        total = len(matches)
 
-        base = _queryset_for(_MODELS_BY_KEY[selected]) if selected else _base_queryset()
-        results = _full_text_search(base, query)
-
-        paginator = Paginator(results, PAGE_SIZE)
+        paginator = Paginator(
+            [pk for pk, key in matches if key == selected or not selected], PAGE_SIZE
+        )
         page_obj = paginator.get_page(request.GET.get("page"))
         # What the visitor is actually looking at: narrowed by the facet, where
         # `total` stays the count across every type for the "All" tab.
         shown = paginator.count
         # One batched fetch per content type instead of one per result: the
         # excerpt and the type label both need the concrete subclass.
-        ordered_pks = [page.pk for page in page_obj]
+        ordered_pks = list(page_obj)
         by_pk = {page.pk: page for page in Page.objects.filter(pk__in=ordered_pks).specific()}
         results_page = [by_pk[pk] for pk in ordered_pks if pk in by_pk]
 
@@ -212,7 +211,8 @@ def search_autocomplete(request: HttpRequest) -> HttpResponse:
     query = _clean_query(request)
     results: list[dict[str, object]] = []
     if query:
-        matches = _base_queryset().autocomplete(query)[:AUTOCOMPLETE_LIMIT]
+        # Titles only: the autocomplete index now holds body text too (see _matches).
+        matches = _base_queryset().autocomplete(query, fields=["title"])[:AUTOCOMPLETE_LIMIT]
         for page in matches:
             specific = page.specific
             results.append(

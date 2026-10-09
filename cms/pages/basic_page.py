@@ -56,6 +56,7 @@ class BasicPage(Page):
 
     search_fields = Page.search_fields + [
         index.SearchField("content"),
+        index.AutocompleteField("content"),
         index.AutocompleteField("title"),
     ]
 

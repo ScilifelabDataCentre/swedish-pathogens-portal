@@ -59,7 +59,9 @@ class CataloguePage(Page):
 
     search_fields = Page.search_fields + [
         index.SearchField("content"),
+        index.AutocompleteField("content"),
         index.SearchField("filter_label"),
+        index.AutocompleteField("filter_label"),
         index.AutocompleteField("title"),
     ]
 

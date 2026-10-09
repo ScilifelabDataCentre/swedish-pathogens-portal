@@ -116,8 +116,11 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
 
     search_fields = DashboardPage.search_fields + [
         index.SearchField("organism"),
+        index.AutocompleteField("organism"),
         index.SearchField("cell_line"),
+        index.AutocompleteField("cell_line"),
         index.SearchField("screen_type"),
+        index.AutocompleteField("screen_type"),
     ]
 
     content_panels = [

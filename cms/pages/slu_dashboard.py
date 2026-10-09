@@ -99,7 +99,9 @@ class SLUDashboardPage(DashboardPage):
     # The inherited "content" field is unused here, so index "slu_content" in its place.
     search_fields = DashboardPage.search_fields + [
         index.SearchField("notice"),
+        index.AutocompleteField("notice"),
         index.SearchField("slu_content"),
+        index.AutocompleteField("slu_content"),
     ]
 
     # No need to include the last panel from the parent class, which is the "content" field,

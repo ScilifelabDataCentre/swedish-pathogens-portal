@@ -86,6 +86,7 @@ class SLUDashboardSubPage(Page):
 
     search_fields = Page.search_fields + [
         index.SearchField("slu_content"),
+        index.AutocompleteField("slu_content"),
         index.AutocompleteField("title"),
     ]
 

@@ -1,7 +1,7 @@
 """Tests for site-wide search (indexing, results view, autocomplete)."""
 
 from io import StringIO
-from unittest import mock
+from unittest import mock, skipUnless
 
 from django.core.management import call_command
 from django.db import connection
@@ -349,3 +349,67 @@ class SearchTestCase(WagtailPageTestCase):
         counts = {facet["key"]: facet["count"] for facet in resp.context["facets"]}
         self.assertEqual(counts, {"dashboards": 1, "pages": 1})
         self.assertEqual(resp.context["total"], resp.context["shown"])
+
+
+@skipUnless(connection.vendor == "postgresql", "PostgreSQL stems indexed words; SQLite does not.")
+class SearchStemmingTestCase(WagtailPageTestCase):
+    """Partial words on PostgreSQL, whose English config indexes "monitoring" as "monitor".
+
+    A half-typed word can run past that stem ("monitorin"), so a prefix of the
+    stemmed index stops matching mid-word. Run with ``core.settings.test_postgres``.
+    """
+
+    @classmethod
+    def setUpTestData(cls) -> None:
+        """Build a live site with one title match and one body-only match."""
+        root = Page.get_first_root_node()
+        for child in root.get_children():
+            child.delete()
+        root = Page.get_first_root_node()
+        cls.home = HomePage(title="Home", slug="home")
+        root.add_child(instance=cls.home)
+        Site.objects.update_or_create(
+            is_default_site=True,
+            defaults={"hostname": "testserver", "root_page": cls.home},
+        )
+        cls.titled = BasicPage(title="Wastewater monitoring", slug="wastewater-monitoring")
+        cls.home.add_child(instance=cls.titled)
+        cls.titled.save_revision().publish()
+
+        cls.bodied = BasicPage(
+            title="Antibiotic resistance",
+            slug="antibiotic-resistance",
+            content=[
+                ("text", RichText("<p>Environmental surveillance of resistant bacteria.</p>"))
+            ],
+        )
+        cls.home.add_child(instance=cls.bodied)
+        cls.bodied.save_revision().publish()
+
+        call_command("update_index", stdout=StringIO())
+
+    def _titles(self, query: str) -> list[str]:
+        """Return the result titles the search page lists for a query."""
+        resp = self.client.get("/search/", {"q": query})
+        return [item["title"] for item in resp.context["items"]]
+
+    def test_word_typed_past_its_stem_matches_a_title(self) -> None:
+        """Typing "monitorin" runs past the stem "monitor", yet the page stays found."""
+        self.assertEqual(self._titles("monitorin"), [self.titled.title])
+
+    def test_word_typed_past_its_stem_matches_body_text(self) -> None:
+        """The same holds for words that are only in the body."""
+        self.assertEqual(self._titles("surveillanc"), [self.bodied.title])
+
+    def test_results_do_not_vanish_while_typing(self) -> None:
+        """Every prefix of a word on the way to typing it finds the same page."""
+        for typed in ("surv", "surveil", "surveilla", "surveillanc", "surveillance"):
+            with self.subTest(typed=typed):
+                self.assertEqual(self._titles(typed), [self.bodied.title])
+
+    def test_enter_keeps_every_dropdown_suggestion(self) -> None:
+        """What the dropdown suggests for a half-typed word, Enter finds too."""
+        suggested = self.client.get("/search/autocomplete/", {"q": "wastewater monitorin"})
+        titles = [result["title"] for result in suggested.context["results"]]
+        self.assertEqual(titles, [self.titled.title])
+        self.assertEqual(self._titles("wastewater monitorin"), titles)

@@ -148,8 +148,11 @@ class DashboardPage(Page):
 
     search_fields = Page.search_fields + [
         index.SearchField("description"),
+        index.AutocompleteField("description"),
         index.SearchField("content"),
+        index.AutocompleteField("content"),
         index.SearchField("keywords"),
+        index.AutocompleteField("keywords"),
         index.AutocompleteField("title"),
     ]
 

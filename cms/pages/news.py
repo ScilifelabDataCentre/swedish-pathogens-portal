@@ -50,7 +50,9 @@ class NewsPage(Page):
 
     search_fields = Page.search_fields + [
         index.SearchField("description"),
+        index.AutocompleteField("description"),
         index.SearchField("content"),
+        index.AutocompleteField("content"),
         index.AutocompleteField("title"),
     ]
 
