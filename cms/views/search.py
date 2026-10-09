@@ -128,13 +128,14 @@ def page_type_label(page: Page) -> str:
     return ""
 
 
-@vary_on_headers("HX-Request")
+@vary_on_headers("HX-Request", "HX-History-Restore-Request")
 def search(request: HttpRequest) -> HttpResponse:
     """Render the site-wide search results page, faceted by page type.
 
     Facet and pagination links are htmx requests: they get only the results
     partial, which swaps in place and updates the result count. A history
     restore (back button after htmx's cache was evicted) gets the full page.
+    It sends ``HX-Request`` as well, so both headers are in ``Vary``.
     """
     query = _clean_query(request)
     selected = request.GET.get("type", "").strip()

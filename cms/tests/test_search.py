@@ -293,10 +293,15 @@ class SearchTestCase(WagtailPageTestCase):
         self.assertContains(resp, "<header")
         self.assertNotContains(resp, "hx-swap-oob")
 
-    def test_search_varies_on_the_htmx_header(self) -> None:
-        """One URL serves both the page and the partial, so caches must tell them apart."""
+    def test_search_varies_on_the_htmx_headers(self) -> None:
+        """One URL serves the page and the partial, so caches must tell them apart.
+
+        A history restore sends ``HX-Request`` too, so that header alone would
+        let a cache hand it a stored facet partial instead of the full page.
+        """
         resp = self.client.get("/search/", {"q": "influenza"})
-        self.assertIn("HX-Request", resp["Vary"])
+        vary = {header.strip() for header in resp["Vary"].split(",")}
+        self.assertLessEqual({"HX-Request", "HX-History-Restore-Request"}, vary)
 
     def test_pagination_links_swap_results_in_place(self) -> None:
         """Next/previous carry the facet and fetch the neighbouring page with htmx."""
