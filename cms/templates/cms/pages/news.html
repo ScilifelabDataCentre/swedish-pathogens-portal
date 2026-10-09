@@ -5,7 +5,7 @@
 {% block content %}
 
 {% cms_image page.image "format-webp" as cover %}
-<article class="after:block after:clear-both after:content-['']">
+<article>
     <h3>{{ page.title }}</h3>
     <p class="text-sm text-pp-dark-grey mb-6">{{ page.first_published_at|date:"F d, Y" }}</p>
 
