@@ -1,65 +1,82 @@
 (() => {
-  const form = document.querySelector("[data-search-suggest]");
-  if (!form) return; // Exit if the header search box is not on this page
+  const toggle = document.querySelector("[data-search-toggle]");
+  const panel = document.querySelector("[data-search-panel]");
+  if (!toggle || !panel) return; // Exit if the header search is not on this page
 
-  const input = form.querySelector("input[type='search']");
-  const panel = form.querySelector("[data-search-suggest-panel]");
-  if (!input || !panel) return;
+  const input = panel.querySelector("input[type='search']");
+  const results = panel.querySelector("[data-search-suggest-panel]");
+  const close = panel.querySelector("[data-search-close]");
 
-  // Set by Escape only. Focus returns to the input afterwards, so without this
-  // the focus handler would reopen the panel the user just dismissed. Typing
-  // again clears it, as does leaving the search box altogether.
-  let dismissed = false;
+  // Without this script the toggle stays a plain link to the search page.
+  toggle.setAttribute("role", "button");
+  toggle.setAttribute("aria-expanded", "false");
 
-  const isEmpty = () => panel.innerHTML.trim() === "";
-  const hasFocus = () => form.contains(document.activeElement);
-  const hide = () => panel.setAttribute("hidden", "");
-  const show = () => panel.removeAttribute("hidden");
-  // A reply can land after the user has moved on: only ever open the panel
-  // while they are still in the search box and have not dismissed it.
-  const mayShow = () => !dismissed && hasFocus();
+  const isOpen = () => !panel.hidden;
 
-  // Reveal before the swap, not after: the panel is an aria-live region, and a
-  // region that is still hidden when its content changes is not announced.
-  panel.addEventListener("htmx:beforeSwap", () => {
-    if (mayShow()) show();
-  });
-  panel.addEventListener("htmx:afterSwap", () => {
-    // A cleared field returns an empty partial — collapse rather than leave a gap.
-    if (isEmpty()) hide();
-  });
+  const open = () => {
+    panel.hidden = false;
+    toggle.setAttribute("aria-expanded", "true");
+    toggle.classList.add("btn-active");
+    input.focus();
+  };
 
-  input.addEventListener("input", () => {
-    dismissed = false;
-  });
+  // Focus goes back to the toggle unless the user moved it somewhere else
+  // themselves, by clicking or tabbing out of the panel.
+  const shut = ({ returnFocus = true } = {}) => {
+    if (!isOpen()) return;
+    panel.hidden = true;
+    toggle.setAttribute("aria-expanded", "false");
+    toggle.classList.remove("btn-active");
+    if (returnFocus) toggle.focus();
+  };
 
-  // Returning to the field brings back suggestions that are still loaded.
-  input.addEventListener("focus", () => {
-    if (mayShow() && !isEmpty()) show();
+  toggle.addEventListener("click", (event) => {
+    event.preventDefault();
+    if (isOpen()) shut();
+    else open();
   });
 
-  // Tabbing out dismisses, but moving focus onto a suggestion inside the panel
-  // must not — relatedTarget is the element focus is going to.
-  form.addEventListener("focusout", (event) => {
-    if (form.contains(event.relatedTarget)) return;
-    dismissed = false; // leaving resets; coming back may show again
-    hide();
+  // A link only reacts to Enter; with role="button" it must react to Space too.
+  toggle.addEventListener("keydown", (event) => {
+    if (event.key !== " ") return;
+    event.preventDefault();
+    toggle.click();
   });
 
-  // pointerdown rather than click, so the panel is gone before the press
-  // completes; presses inside the panel still reach their link.
-  document.addEventListener("pointerdown", (event) => {
-    if (!form.contains(event.target)) hide();
-  });
+  close.addEventListener("click", () => shut());
 
-  form.addEventListener("keydown", (event) => {
-    if (event.key !== "Escape" || panel.hasAttribute("hidden")) return;
+  panel.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
     // Stop the page-level handler from also closing the mobile menu.
     event.stopPropagation();
-    // Set before focusing: Escape can come from a suggestion link, and pulling
-    // focus back to the input fires the focus handler synchronously.
-    dismissed = true;
-    input.focus();
-    hide();
+    shut();
+  });
+
+  // Tabbing past the panel closes it, so it does not hang over the page.
+  // relatedTarget is null when the window itself loses focus: leave it open then.
+  panel.addEventListener("focusout", (event) => {
+    const next = event.relatedTarget;
+    if (next && !panel.contains(next) && next !== toggle) shut({ returnFocus: false });
+  });
+
+  // pointerdown rather than click, so the panel is gone before the press lands.
+  document.addEventListener("pointerdown", (event) => {
+    if (panel.contains(event.target) || toggle.contains(event.target)) return;
+    shut({ returnFocus: false });
+  });
+
+  // The mobile menu covers the header; close the panel rather than leave it under it.
+  document.getElementById("mobile-menu-button")?.addEventListener("click", () => {
+    shut({ returnFocus: false });
+  });
+
+  // Reveal before the swap, not after: the list is an aria-live region, and a
+  // region that is still hidden when its content changes is not announced.
+  results.addEventListener("htmx:beforeSwap", () => {
+    results.hidden = false;
+  });
+  results.addEventListener("htmx:afterSwap", () => {
+    // A cleared field returns an empty partial: collapse rather than leave a gap.
+    if (results.innerHTML.trim() === "") results.hidden = true;
   });
 })();

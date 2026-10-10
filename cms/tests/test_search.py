@@ -178,15 +178,19 @@ class SearchTestCase(WagtailPageTestCase):
         """Every page's header exposes a no-JS search form posting to /search/."""
         resp = self.client.get("/")
         self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, 'action="/search/"')
-        self.assertContains(resp, 'name="q"')
-        # Header bar and mobile menu each offer a visible magnifier to submit with.
+        # The header panel and the mobile menu each hold a form posting to /search/.
+        self.assertContains(resp, 'action="/search/"', count=2)
         self.assertContains(resp, '<button type="submit"', count=2)
-        self.assertContains(resp, 'aria-label="Search"', count=2)
-        # Both boxes say the same thing, and their <label>s name them, not aria-label.
-        self.assertContains(resp, 'placeholder="Search the portal"', count=2)
-        self.assertContains(resp, 'class="sr-only">Search the portal</label>', count=2)
-        self.assertNotContains(resp, 'aria-label="Search the portal"')
+        # The toggle opens the panel with JS and is a plain link to /search/ without it.
+        self.assertContains(resp, 'href="/search/" id="header-search-toggle"')
+        self.assertContains(resp, 'aria-controls="header-search-panel"')
+        self.assertContains(resp, 'id="header-search-panel" data-search-panel hidden')
+        # Each field is named by its <label>, which repeats the visible placeholder.
+        panel_text = "Search datasets, dashboards, news and more"
+        self.assertContains(resp, f'placeholder="{panel_text}"')
+        self.assertContains(resp, f'class="sr-only">{panel_text}</label>')
+        self.assertContains(resp, 'placeholder="Search the portal"')
+        self.assertContains(resp, 'class="sr-only">Search the portal</label>')
 
     def test_page_without_image_renders(self) -> None:
         """A matching page whose model has no image field renders without error."""

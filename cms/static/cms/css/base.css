@@ -33,8 +33,8 @@
     --color-pp-almost-black: #1a1c1a;
 
     /* Header: full menu from `nav` (medium logos + 20px-gap menu ~995px), hamburger below;
-       full-size logos from `logos` (~1075px). The search box sits above the menu, so it
-       takes no width. ~15px spare at each, with 17px scrollbars. */
+       full-size logos from `logos` (~1075px). The search toggle sits in the margin outside
+       the column, so it takes no width. ~15px spare at each, with 17px scrollbars. */
     --breakpoint-nav: 80rem;
     --breakpoint-logos: 86rem;
 }

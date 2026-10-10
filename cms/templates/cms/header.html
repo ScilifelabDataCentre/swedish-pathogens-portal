@@ -5,7 +5,7 @@
 <header class="bg-white border-b border-pp-pale-grey sticky top-0 z-50 shadow-sm
     motion-safe:transition-all motion-safe:duration-700 motion-safe:delay-200 ease-in-out">
     <div class="container">
-        <div class="flex items-center md:gap-6 nav:gap-4 h-16 lg:h-20 w-full">
+        <div class="relative flex items-center md:gap-4 h-16 lg:h-20 w-full">
             <!-- Logos: left-aligned, minimal gutter on mobile; full spacing on desktop -->
             <div class="flex items-center gap-2 lg:gap-3 logos:gap-5 min-w-0 shrink-0 me-auto">
                 <a href="/" class="focus-visible:rounded focus-visible:outline-none
@@ -20,82 +20,65 @@
                 </a>
             </div>
 
-            <!-- Search above the menu on wide screens, beside the hamburger from md;
-                 phones use the one inside the mobile menu. Stacked, the two never
-                 compete for the row's width. -->
-            <div class="flex flex-col items-end gap-2">
-                <form method="get" action="{% url 'search' %}" role="search"
-                    class="relative hidden md:block shrink-0" data-search-suggest>
-                    <label for="header-search" class="sr-only">Search the portal</label>
-                    <div class="input input-sm input-accent w-60 pe-1">
-                        <input id="header-search" type="search" name="q" autocomplete="off" required
-                            class="grow" placeholder="Search the portal" maxlength="100"
-                            aria-controls="header-search-results"
-                            hx-get="{% url 'search_autocomplete' %}"
-                            hx-trigger="input changed delay:300ms"
-                            hx-target="#header-search-results"
-                            hx-swap="innerHTML">
-                        <button type="submit" class="btn btn-ghost btn-xs btn-square" aria-label="Search">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"></path>
-                            </svg>
-                        </button>
+            <!-- Desktop Navigation (agreed menu structure) -->
+            <nav class="hidden nav:flex items-center gap-5 2xl:gap-6" aria-label="Main navigation">
+                {% for item in header_menu %}
+                    {% if item.has_submenu %}
+                    <div class="relative group">
+                    <button
+                        class="flex items-center gap-1 whitespace-nowrap text-pp-dark-blue font-medium hover:text-pp-teal
+                        transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pp-teal
+                        focus-visible:ring-offset-2 focus-visible:rounded"
+                        aria-expanded="false"
+                        aria-haspopup="true"
+                        aria-controls="{{ item.title|slugify }}-menu"
+                        type="button">
+                        {{ item.title }}
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
+                        </svg>
+                    </button>
+                    <!-- The last panel opens leftwards: hidden panels still widen the page -->
+                    <div id="{{ item.title|slugify }}-menu" role="menu"
+                        class="absolute {% if forloop.last %}right-0{% else %}left-0{% endif %} pt-2 w-56
+                        opacity-0 invisible group-hover:opacity-100
+                        group-hover:visible [.group:focus-within_&]:opacity-100
+                        [.group:focus-within_&]:visible transition-all">
+                        <div class="flex flex-col bg-white border border-gray-200 rounded-lg p-2 shadow-lg
+                             *:p-2 *:text-pp-mid-blue *:hover:bg-pp-pale-grey/20 *:hover:text-pp-teal
+                             *:transition-colors *:focus-visible:outline-none *:focus-visible:ring-2
+                             *:focus-visible:ring-offset-2 *:focus-visible:bg-pp-pale-grey">
+                             {% for sub_item in item.sub_menu_items.all %}
+                             <a href="{{ sub_item.link }}" role="menuitem">{{ sub_item.title }}</a>
+                             {% endfor %}
+                        </div>
                     </div>
-                    <!-- Anchored right: the box sits at the right edge, so a panel
-                         wider than the input has to grow leftwards to stay on screen. -->
-                    <div id="header-search-results" role="region" aria-live="polite"
-                        aria-label="Search suggestions" data-search-suggest-panel hidden
-                        class="absolute right-0 top-full z-50 mt-1 w-104 max-w-[calc(100vw-2rem)]"></div>
-                </form>
-
-                <!-- Desktop Navigation (agreed menu structure) -->
-                <nav class="hidden nav:flex items-center gap-5 2xl:gap-6" aria-label="Main navigation">
-                    {% for item in header_menu %}
-                        {% if item.has_submenu %}
-                        <div class="relative group">
-                        <button
-                            class="flex items-center gap-1 whitespace-nowrap text-pp-dark-blue font-medium hover:text-pp-teal
-                            transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pp-teal
-                            focus-visible:ring-offset-2 focus-visible:rounded"
-                            aria-expanded="false"
-                            aria-haspopup="true"
-                            aria-controls="{{ item.title|slugify }}-menu"
-                            type="button">
+                </div>
+                    {% else %}
+                    <div>
+                        <a href="{{ item.link }}"
+                        class="whitespace-nowrap text-pp-dark-blue font-medium hover:text-pp-teal transition-colors
+                        focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pp-teal
+                        focus-visible:ring-offset-2 focus-visible:rounded">
                             {{ item.title }}
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                            </svg>
-                        </button>
-                        <!-- The last panel opens leftwards: hidden panels still widen the page -->
-                        <div id="{{ item.title|slugify }}-menu" role="menu"
-                            class="absolute {% if forloop.last %}right-0{% else %}left-0{% endif %} pt-2 w-56
-                            opacity-0 invisible group-hover:opacity-100
-                            group-hover:visible [.group:focus-within_&]:opacity-100
-                            [.group:focus-within_&]:visible transition-all">
-                            <div class="flex flex-col bg-white border border-gray-200 rounded-lg p-2 shadow-lg
-                                 *:p-2 *:text-pp-mid-blue *:hover:bg-pp-pale-grey/20 *:hover:text-pp-teal
-                                 *:transition-colors *:focus-visible:outline-none *:focus-visible:ring-2
-                                 *:focus-visible:ring-offset-2 *:focus-visible:bg-pp-pale-grey">
-                                 {% for sub_item in item.sub_menu_items.all %}
-                                 <a href="{{ sub_item.link }}" role="menuitem">{{ sub_item.title }}</a>
-                                 {% endfor %}
-                            </div>
-                        </div>
+                        </a>
                     </div>
-                        {% else %}
-                        <div>
-                            <a href="{{ item.link }}"
-                            class="whitespace-nowrap text-pp-dark-blue font-medium hover:text-pp-teal transition-colors
-                            focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pp-teal
-                            focus-visible:ring-offset-2 focus-visible:rounded">
-                                {{ item.title }}
-                            </a>
-                        </div>
-                        {% endif %}
-                    {% endfor %}
-                </nav>
-            </div>
+                    {% endif %}
+                {% endfor %}
+            </nav>
+
+            <!-- Search toggle: opens the panel below. A plain link to the search page without
+                 JavaScript. With the full menu it sits just outside the column, in the margin,
+                 so it takes no width from the menu. Phones search from the mobile menu. -->
+            <a href="{% url 'search' %}" id="header-search-toggle" data-search-toggle
+                aria-controls="header-search-panel" aria-label="Search" title="Search"
+                class="btn btn-ghost btn-circle btn-sm text-pp-dark-blue hover:text-pp-teal hidden md:inline-flex
+                nav:absolute nav:left-full nav:ml-4 nav:top-1/2 nav:-translate-y-1/2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"></path>
+                </svg>
+            </a>
 
             <!-- Mobile Menu Button: right-aligned, minimal gutter on mobile -->
             <div class="nav:hidden shrink-0">
@@ -113,6 +96,39 @@
                             d="M4 6h16M4 12h16M4 18h16"></path>
                     </svg>
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search panel: drops under the header, over the page. header_search.js opens and closes it. -->
+    <div id="header-search-panel" data-search-panel hidden
+        class="absolute inset-x-0 top-full z-40 border-t border-pp-pale-grey bg-white shadow-lg">
+        <div class="container py-5">
+            <div class="mx-auto max-w-3xl">
+                <form method="get" action="{% url 'search' %}" role="search" class="flex items-center gap-3">
+                    <label for="header-search" class="sr-only">Search datasets, dashboards, news and more</label>
+                    <div class="input input-accent h-12 w-full text-base">
+                        <svg class="w-5 h-5 shrink-0 text-pp-dark-grey" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"></path>
+                        </svg>
+                        <input id="header-search" type="search" name="q" autocomplete="off" required
+                            class="grow" placeholder="Search datasets, dashboards, news and more" maxlength="100"
+                            aria-controls="header-search-results"
+                            hx-get="{% url 'search_autocomplete' %}"
+                            hx-trigger="input changed delay:300ms"
+                            hx-target="#header-search-results"
+                            hx-swap="innerHTML">
+                    </div>
+                    <button type="submit" class="btn btn-primary h-12 px-6">Search</button>
+                    <button type="button" class="btn btn-ghost btn-circle" aria-label="Close search" data-search-close>
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </form>
+                <div id="header-search-results" role="region" aria-live="polite"
+                    aria-label="Search suggestions" data-search-suggest-panel hidden class="mt-2"></div>
             </div>
         </div>
     </div>
