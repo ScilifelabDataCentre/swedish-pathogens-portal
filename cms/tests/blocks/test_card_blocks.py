@@ -343,6 +343,32 @@ class TestChildPageCardBlock(TestCase):
 
         self.assertEqual(context["child_pages"][0].title, "E page")
 
+    def test_pages_without_a_publish_date_sort_last(self) -> None:
+        """A live child that never went through publish() has no date to sort by.
+
+        The four fixture children are live but unpublished, so both newest-first
+        orderings have to put them behind the one page that carries a date.
+        PostgreSQL sorts nulls first on a descending order, so they used to lead
+        the list there while SQLite answered the other way.
+        """
+        published = self.parent.add_child(instance=Page(title="E page", slug="e"))
+        published.save_revision().publish()
+
+        for order_by in ("created", "updated"):
+            with self.subTest(order_by=order_by):
+                value = self.block.to_python(
+                    {
+                        "parent_page": self.parent.id,
+                        "order_by": order_by,
+                    }
+                )
+
+                context = self.block.get_context(self.block.clean(value))
+                titles = [page.title for page in context["child_pages"]]
+
+                self.assertEqual(titles[0], "E page")
+                self.assertEqual(sorted(titles[1:]), ["A page", "B page", "C page", "D page"])
+
     def test_parent_with_no_children_returns_empty_list(self):
         """Test that a parent page with no children returns an empty list."""
         empty_parent = self.root.add_child(instance=Page(title="Empty parent", slug="empty-parent"))

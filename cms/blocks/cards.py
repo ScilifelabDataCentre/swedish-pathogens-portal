@@ -3,6 +3,7 @@
 from typing import Any
 
 from django import forms
+from django.db.models import F
 from wagtail import blocks
 from wagtail.images.blocks import ImageChooserBlock
 
@@ -213,11 +214,15 @@ class ChildPageCardBlock(blocks.StructBlock):
         if parent:
             pages = parent.get_children().live().specific()
 
-            # Order pages
+            # Order pages. A live page can still carry no publish date, having
+            # never gone through `publish()`, and PostgreSQL sorts nulls first
+            # on a descending order: without `nulls_last` those dateless pages
+            # lead a newest-first list. SQLite sorts them last, which is why
+            # this only shows on the engine production runs.
             if value.get("order_by") == "created":
-                pages = pages.order_by("-first_published_at")
+                pages = pages.order_by(F("first_published_at").desc(nulls_last=True))
             elif value.get("order_by") == "updated":
-                pages = pages.order_by("-last_published_at")
+                pages = pages.order_by(F("last_published_at").desc(nulls_last=True))
             elif value.get("order_by") == "title":
                 pages = pages.order_by("title")
 
