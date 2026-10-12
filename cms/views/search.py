@@ -1,5 +1,6 @@
 """Site-wide search: a faceted, paginated results page over Wagtail pages."""
 
+import re
 from collections import Counter
 from collections.abc import Sequence
 
@@ -51,11 +52,24 @@ AUTOCOMPLETE_LIMIT = 8
 # and the backend compiles each term into a nested expression, so a query of a
 # few hundred terms overflows the stack while the query is being built.
 MAX_QUERY_LENGTH = 100
+# What the PostgreSQL backend splits a query into terms on. A query made of
+# nothing else leaves it no terms, and it compiles no search query at all:
+# `autocomplete(fields=["title"])` then reads the configuration off that `None`
+# and the request 500s. The header submits whatever has been typed, so a lone
+# "-" arrives on its own.
+_TERM_SEPARATORS = re.compile(r"[\s\-]+")
 
 
 def _clean_query(request: HttpRequest) -> str:
-    """Return the submitted query, trimmed and capped at a safe length."""
-    return request.GET.get("q", "").strip()[:MAX_QUERY_LENGTH]
+    """Return the submitted query, trimmed, capped, and blank unless it holds a term.
+
+    NUL bytes go first: ``strip()`` leaves them, and PostgreSQL refuses them in
+    a text parameter, so one reaches the database as an error rather than a
+    search. Nothing can be searched for either way, which is what a blank query
+    already means.
+    """
+    query = request.GET.get("q", "").replace("\x00", "").strip()[:MAX_QUERY_LENGTH]
+    return query if any(_TERM_SEPARATORS.split(query)) else ""
 
 
 def _queryset_for(models: Sequence[type[Page]]) -> PageQuerySet:

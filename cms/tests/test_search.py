@@ -250,6 +250,41 @@ class SearchTestCase(WagtailPageTestCase):
         resp = self.client.get("/search/", {"q": "z" * 250})
         self.assertEqual(len(resp.context["query"]), MAX_QUERY_LENGTH)
 
+    def test_separator_only_query_is_not_a_query(self) -> None:
+        """Nothing but separators leaves no term, so it is treated as no query at all.
+
+        PostgreSQL splits a query on whitespace and hyphens and compiles no
+        search query when nothing survives, which used to make the autocomplete
+        endpoint 500 on a lone "-" -- and the header submits whatever has been
+        typed.
+        """
+        for typed in ("-", "--", "- -"):
+            with self.subTest(typed=typed):
+                suggestions = self.client.get("/search/autocomplete/", {"q": typed})
+                self.assertEqual(suggestions.status_code, 200)
+                self.assertEqual(suggestions.context["results"], [])
+
+                resp = self.client.get("/search/", {"q": typed})
+                self.assertEqual(resp.status_code, 200)
+                self.assertEqual(resp.context["query"], "")
+                self.assertContains(resp, "Enter a search term")
+
+    def test_nul_byte_never_reaches_the_database(self) -> None:
+        """PostgreSQL refuses a NUL byte in a text parameter, and strip() leaves it."""
+        suggestions = self.client.get("/search/autocomplete/", {"q": "\x00"})
+        self.assertEqual(suggestions.status_code, 200)
+        self.assertEqual(suggestions.context["results"], [])
+
+        resp = self.client.get("/search/", {"q": "influenza\x00"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual([item["title"] for item in resp.context["items"]], [self.article.title])
+
+    def test_a_term_beside_a_separator_is_still_searched(self) -> None:
+        """Only a query with no term at all is dropped, not one that merely starts with."""
+        resp = self.client.get("/search/", {"q": "- influenza"})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.context["query"], "- influenza")
+
     def test_result_rendering_does_not_scale_queries_with_results(self) -> None:
         """Specific pages are fetched in one batch, so more hits cost no more queries."""
         for index in range(12):
