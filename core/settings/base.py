@@ -211,9 +211,10 @@ WAGTAILIMAGES_IMAGE_FORM_BASE = "cms.forms.image.AIImageForm"
 
 # SEARCH (https://docs.wagtail.org/en/stable/topics/search/backends.html)
 # ------------------------------------------------------------------------------
-# Wagtail's built-in database backend uses native PostgreSQL full-text search in
-# dev/prod and SQLite FTS5 in tests. AUTO_UPDATE reindexes a page when it is saved
-# or deleted, but never backfills: pages that exist before a model is indexed or its
+# Wagtail's built-in database backend uses native PostgreSQL full-text search,
+# under test as well as in dev and prod -- its stemming is what decides which
+# words a query matches. AUTO_UPDATE reindexes a page when it is saved or deleted,
+# but never backfills: pages that exist before a model is indexed or its
 # search_fields change need `manage.py update_index`, which prod-entrypoint.sh runs
 # on every start.
 WAGTAILSEARCH_BACKENDS = {

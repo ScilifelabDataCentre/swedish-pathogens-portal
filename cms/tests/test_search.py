@@ -1,7 +1,7 @@
 """Tests for site-wide search (indexing, results view, autocomplete)."""
 
 from io import StringIO
-from unittest import mock, skipUnless
+from unittest import mock
 
 from django.core.management import call_command
 from django.db import connection
@@ -408,12 +408,11 @@ class SearchTestCase(WagtailPageTestCase):
         self.assertEqual(resp.context["total"], resp.context["shown"])
 
 
-@skipUnless(connection.vendor == "postgresql", "PostgreSQL stems indexed words; SQLite does not.")
 class SearchStemmingTestCase(WagtailPageTestCase):
     """Partial words on PostgreSQL, whose English config indexes "monitoring" as "monitor".
 
     A half-typed word can run past that stem ("monitorin"), so a prefix of the
-    stemmed index stops matching mid-word. Run with ``core.settings.test_postgres``.
+    stemmed index stops matching mid-word.
     """
 
     @classmethod
