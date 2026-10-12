@@ -25,8 +25,9 @@
                 {% if facet.buckets %}
                     {% with facet_id=facet.field|slugify %}
                     <div class="collapse collapse-arrow border border-secondary rounded bg-base-100 shadow-sm">
-                        <input type="checkbox" checked>
-                        <div class="collapse-title font-semibold text-sm">
+                        {# Collapse toggle: named by the visible facet title so it isn't an unlabelled form control. #}
+                        <input type="checkbox" checked aria-labelledby="facet-title-{{ facet_id }}">
+                        <div id="facet-title-{{ facet_id }}" class="collapse-title font-semibold text-sm">
                             {{ facet.label }}
                         </div>
 
@@ -70,7 +71,7 @@
 
                                 <button
                                     type="button"
-                                    class="facet-toggle btn btn-ghost btn-xs mt-2 text-accent underline"
+                                    class="facet-toggle btn btn-ghost btn-xs mt-2 text-pp-mid-blue underline"
                                     data-target="facet-more-{{ facet_id }}"
                                     data-collapsed-text="Show more"
                                     data-expanded-text="Show less"
@@ -125,7 +126,7 @@
                                 </div>
                                 <button
                                     type="button"
-                                    class="toggle-description btn btn-ghost btn-xs mt-1 text-accent underline"
+                                    class="toggle-description btn btn-ghost btn-xs mt-1 text-pp-mid-blue underline"
                                     data-id="{{ it.id }}"
                                 >
                                     Show more

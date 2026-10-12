@@ -58,6 +58,7 @@
                     </button>
 
                     <a
+                        id="resetSearch"
                         href="{{ reset_url }}"
                         class="btn btn-outline btn-sm"
                         hx-get="{{ reset_url }}"
@@ -233,14 +234,27 @@
                 }
             });
 
+            function clearSelection() {
+                selected.clear();
+                saveSelection(selected);
+                document.querySelectorAll('.selectRow').forEach((cb) => { cb.checked = false; });
+                updateToolbar(selected);
+            }
+
             document.addEventListener('DOMContentLoaded', function () {
                 const clearBtn = document.getElementById('clearSelection');
                 if (clearBtn) {
-                    clearBtn.addEventListener('click', function () {
-                        selected.clear();
-                        saveSelection(selected);
-                        document.querySelectorAll('.selectRow').forEach((cb) => { cb.checked = false; });
-                        updateToolbar(selected);
+                    clearBtn.addEventListener('click', clearSelection);
+                }
+
+                // Reset clears the search box and the study selection; the HTMX
+                // request on the link reloads the listing without query or facets.
+                const resetBtn = document.getElementById('resetSearch');
+                if (resetBtn) {
+                    resetBtn.addEventListener('click', function () {
+                        const searchInput = document.querySelector('#searchForm input[name="q"]');
+                        if (searchInput) searchInput.value = '';
+                        clearSelection();
                     });
                 }
 
