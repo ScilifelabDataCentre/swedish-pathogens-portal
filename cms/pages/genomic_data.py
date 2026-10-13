@@ -78,13 +78,20 @@ class GenomicDataPage(Page):
     def serve(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:  # noqa: ANN401
         """Serve the genomic data page.
 
-        HTMX requests get just the ENA listing partial; anything else, including
-        HTMX history restores (which need a whole page), gets the full page.
+        HTMX requests get a partial: just the results (table and pagination) when
+        they target ``#ena-results`` (filtering and paging, so the filter inputs keep
+        their focus), otherwise the whole ENA listing. Anything else, including HTMX
+        history restores (which need a whole page), gets the full page.
         """
         if request.htmx and not request.htmx.history_restore_request:
+            template_name = (
+                "cms/pages/genomic_data/partials/ena_results.html"
+                if request.htmx.target == "ena-results"
+                else "cms/pages/genomic_data/partials/ena_listing.html"
+            )
             return render(
                 request=request,
-                template_name="cms/pages/genomic_data/partials/ena_listing.html",
+                template_name=template_name,
                 context=build_context_dict(request=request, page=self),
             )
         return super().serve(request, *args, **kwargs)

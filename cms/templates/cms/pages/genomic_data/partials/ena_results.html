@@ -1,0 +1,97 @@
+{% comment %}
+    Results fragment of the "Genomic data" ENA listing: summary, table and pagination.
+    Included by ena_listing.html, and returned on its own for HTMX requests that target
+    #ena-results (filtering and paging), so the filter form isn't re-rendered.
+{% endcomment %}
+
+{% if fetch_error %}
+<div class="text-center mt-8">
+    The {{ record_type.label|lower }} for <b>{{ active_pathogen }}</b> could not be loaded from
+    ENA, please try again later.
+    <br>If the problem persists, please <a href="/contact/">contact the portal team</a>.
+</div>
+{% elif not records %}
+<div class="text-center mt-8">
+    No {{ record_type.label|lower }} match these filters.
+</div>
+{% else %}
+<div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 text-sm">
+    <p class="m-0">
+        Showing {{ start_display }} to {{ end_display }} of {% if filters_active %}{{ matching_display }} {{ record_type.label|lower }} matching the filters (out of {{ count_display }}){% else %}{{ count_display }} {{ record_type.label|lower }}{% endif %}
+        from the
+        <a href="https://www.ebi.ac.uk/ena/browser/" target="_blank" rel="noopener noreferrer">European Nucleotide Archive (ENA)</a>.
+    </p>
+    <a href="{{ download_url }}" class="btn btn-outline btn-sm shrink-0" rel="noopener noreferrer">
+        Download all as TSV from ENA
+    </a>
+</div>
+
+{% if truncated %}
+<p class="mb-3 text-sm">
+    Only the first {{ browsable_display }} {{ record_type.label|lower }} can be browsed here.
+    To see all {{ count_display }}, use the download link above.
+</p>
+{% endif %}
+
+<div class="overflow-x-auto rounded-box shadow border border-base-300">
+    <table class="table table-zebra table-sm">
+        <caption class="sr-only">
+            {{ record_type.label }} from Sweden for {{ active_pathogen }}, page {{ page_obj.number }}
+        </caption>
+        <thead>
+            <tr class="bg-primary text-primary-content">
+                <th scope="col">Accession</th>
+                {% for field, header in record_type.columns %}
+                <th scope="col">{{ header }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            {% for record in records %}
+            <tr>
+                <th scope="row" class="font-normal whitespace-nowrap">
+                    <a href="{{ record.url }}" target="_blank" rel="noopener noreferrer"
+                        class="text-pp-dark-blue hover:underline">
+                        {{ record.accession }}
+                    </a>
+                </th>
+                {% for cell in record.cells %}
+                <td>
+                    {% if cell.url %}
+                    <a href="{{ cell.url }}" target="_blank" rel="noopener noreferrer"
+                        class="text-pp-dark-blue hover:underline">{{ cell.value }}</a>
+                    {% else %}
+                    {{ cell.value|default:"–" }}
+                    {% endif %}
+                </td>
+                {% endfor %}
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% if page_obj.paginator.num_pages > 1 %}
+<nav aria-label="Pagination" class="join mt-6 flex flex-wrap justify-center">
+    {% if previous_url %}
+    <a href="{{ previous_url }}" hx-get="{{ previous_url }}" class="join-item btn btn-sm"
+        aria-label="Previous page">«</a>
+    {% endif %}
+    {% for link in page_links %}
+        {% if link is None %}
+        <span class="join-item btn btn-sm btn-disabled" aria-hidden="true">…</span>
+        {% elif link.current %}
+        <span class="join-item btn btn-sm btn-primary" aria-current="page"
+            aria-label="Page {{ link.number }}">{{ link.number }}</span>
+        {% else %}
+        <a href="{{ link.url }}" hx-get="{{ link.url }}" class="join-item btn btn-sm"
+            aria-label="Page {{ link.number }}">{{ link.number }}</a>
+        {% endif %}
+    {% endfor %}
+    {% if next_url %}
+    <a href="{{ next_url }}" hx-get="{{ next_url }}" class="join-item btn btn-sm"
+        aria-label="Next page">»</a>
+    {% endif %}
+</nav>
+{% endif %}
+{% endif %}

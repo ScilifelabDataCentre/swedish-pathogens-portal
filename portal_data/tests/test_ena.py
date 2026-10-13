@@ -12,12 +12,14 @@ from portal_data.ena import (
     ENA_PORTAL_API_URL,
     MAX_BROWSABLE_RECORDS,
     RECORD_TYPES,
+    Cell,
     EnaRecord,
     _parse_count,
     build_download_url,
     build_query,
     fetch_count,
     fetch_records,
+    filter_records,
 )
 
 READ_RUN = RECORD_TYPES["read_run"]
@@ -76,6 +78,7 @@ class TestEnaRecord(SimpleTestCase):
             {
                 "run_accession": "ERR123",
                 "scientific_name": "Severe acute respiratory syndrome coronavirus 2",
+                "tax_id": "2697049",
                 "collection_date": "2021-03-01",
                 "country": "Sweden: Uppsala",
                 "instrument_platform": "ILLUMINA",
@@ -89,23 +92,78 @@ class TestEnaRecord(SimpleTestCase):
         self.assertEqual(
             record.cells,
             (
-                "Severe acute respiratory syndrome coronavirus 2",
-                "2021-03-01",
-                "Sweden: Uppsala",
-                "ILLUMINA",
-                "AMPLICON",
-                "2021-04-01",
+                Cell("Severe acute respiratory syndrome coronavirus 2"),
+                Cell("2697049", "https://www.ebi.ac.uk/ena/browser/view/Taxon:2697049"),
+                Cell("2021-03-01"),
+                Cell("Sweden: Uppsala"),
+                Cell("ILLUMINA"),
+                Cell("AMPLICON"),
+                Cell("2021-04-01"),
             ),
         )
 
+    def test_every_record_type_has_a_taxon_id_column(self):
+        """Test the taxon id is shown for every record type."""
+        for record_type in RECORD_TYPES.values():
+            with self.subTest(record_type=record_type.result):
+                self.assertIn("tax_id", record_type.fields)
+
+    def test_non_numeric_taxon_id_is_not_linked(self):
+        """Test an unexpected taxon id value is shown as plain text, without a link."""
+        record = EnaRecord.from_ena_result({"run_accession": "ERR1", "tax_id": "n/a"}, READ_RUN)
+        self.assertEqual(record.cells[1], Cell("n/a"))
+
     def test_missing_and_null_fields_are_blank(self):
-        """Test missing or null fields become empty strings."""
+        """Test missing or null fields become empty, unlinked cells."""
         record = EnaRecord.from_ena_result({"run_accession": "ERR1", "country": None}, READ_RUN)
-        self.assertEqual(record.cells, ("",) * len(READ_RUN.columns))
+        self.assertEqual(record.cells, (Cell(""),) * len(READ_RUN.columns))
 
     def test_missing_accession_returns_none(self):
         """Test a result without an accession is skipped."""
         self.assertIsNone(EnaRecord.from_ena_result({"run_accession": " "}, READ_RUN))
+
+
+class TestFilterRecords(SimpleTestCase):
+    """Tests for filter_records."""
+
+    def setUp(self):
+        """Build a few read_run records to filter."""
+        self.records = [
+            EnaRecord.from_ena_result(result, READ_RUN)
+            for result in (
+                {"run_accession": "ERR1", "instrument_platform": "ILLUMINA", "country": "Sweden"},
+                {"run_accession": "ERR2", "instrument_platform": "OXFORD_NANOPORE"},
+                {
+                    "run_accession": "SRR3",
+                    "instrument_platform": "ILLUMINA",
+                    "country": "Sweden: Lund",
+                },
+            )
+        ]
+
+    def accessions(self, filters: dict[str, str]) -> list[str]:
+        """Return the accessions of the records matching ``filters``."""
+        return [r.accession for r in filter_records(self.records, READ_RUN, filters)]
+
+    def test_substring_match_is_case_insensitive(self):
+        """Test a column matches when it contains the filter text, ignoring case."""
+        self.assertEqual(self.accessions({"instrument_platform": "illum"}), ["ERR1", "SRR3"])
+
+    def test_accession_column_can_be_filtered(self):
+        """Test the accession column is filtered by its ENA field name."""
+        self.assertEqual(self.accessions({"run_accession": "err"}), ["ERR1", "ERR2"])
+
+    def test_filters_are_combined_with_and(self):
+        """Test every filter must match."""
+        self.assertEqual(
+            self.accessions({"instrument_platform": "ILLUMINA", "country": "lund"}), ["SRR3"]
+        )
+
+    def test_blank_and_unknown_filters_are_ignored(self):
+        """Test blank values and fields that aren't columns don't filter anything out."""
+        self.assertEqual(
+            self.accessions({"country": "  ", "not_a_column": "x"}), ["ERR1", "ERR2", "SRR3"]
+        )
 
 
 class TestFetchCount(SimpleTestCase):

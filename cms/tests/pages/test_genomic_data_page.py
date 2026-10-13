@@ -13,10 +13,12 @@ from wagtail.test.utils import WagtailPageTestCase
 
 from cms.pages import GenomicDataPage, HomePage
 from cms.services.genomic_data import (
+    MAX_FILTER_LENGTH,
     PAGE_SIZE,
     EnaPathogen,
     build_context_dict,
     resolve_active_pathogen,
+    resolve_filters,
     resolve_record_type,
 )
 from portal_data.ena import fetch_records
@@ -99,9 +101,9 @@ class TestGenomicDataPage(WagtailPageTestCase):
         """Clear the cache so ENA results don't leak between tests."""
         cache.clear()
 
-    def get_htmx(self, **params: str):
-        """GET the page as an HTMX request with the given query parameters."""
-        return self.client.get(self.page.url, params, HTTP_HX_REQUEST="true")
+    def get_htmx(self, target: str = "ena-listing", **params: str):
+        """GET the page as an HTMX request for ``target`` with the given query parameters."""
+        return self.client.get(self.page.url, params, HTTP_HX_REQUEST="true", HTTP_HX_TARGET=target)
 
     # --- Page model ---------------------------------------------------------------
 
@@ -276,6 +278,111 @@ class TestGenomicDataPage(WagtailPageTestCase):
             response = self.get_htmx(pathogen="Nonexistent")
         self.assertContains(response, "isn't recognised")
         mock_fetch.assert_not_called()
+
+    # --- Taxon id column and filters -----------------------------------------------
+
+    FILTER_RECORDS = [
+        {"run_accession": "ERR1", "tax_id": "2697049", "instrument_platform": "ILLUMINA"},
+        {"run_accession": "ERR2", "tax_id": "2697049", "instrument_platform": "OXFORD_NANOPORE"},
+        {"run_accession": "ERR3", "tax_id": "2697049", "instrument_platform": "ILLUMINA"},
+    ]
+
+    @patch_ena
+    def test_taxon_id_column_links_to_ena_taxon_page(self, mock_fetch: MagicMock):
+        """Test each row shows its taxon id, linking to the taxon's ENA browser page."""
+        mock_fetch.side_effect = fake_ena(
+            counts={"read_run": 3, "sample": 0, "sequence": 0}, records=self.FILTER_RECORDS
+        ).side_effect
+        response = self.get_htmx(pathogen="SARS-CoV-2")
+        self.assertContains(response, '<th scope="col">Taxon ID</th>', html=False)
+        self.assertContains(
+            response, 'href="https://www.ebi.ac.uk/ena/browser/view/Taxon:2697049"', count=3
+        )
+
+    @patch_ena
+    def test_listing_renders_a_labelled_filter_per_column(self, mock_fetch: MagicMock):
+        """Test the filter form has a labelled input for the accession and every column."""
+        mock_fetch.side_effect = fake_ena(
+            counts={"read_run": 3, "sample": 0, "sequence": 0}, records=self.FILTER_RECORDS
+        ).side_effect
+        response = self.get_htmx(pathogen="SARS-CoV-2")
+        self.assertContains(response, 'id="ena-filters"')
+        self.assertContains(response, 'id="ena-results"')
+        for field in ("run_accession", "tax_id", "instrument_platform", "first_public"):
+            self.assertContains(response, f'<label for="ena-filter-{field}"')
+            self.assertContains(response, f'name="{field}"')
+
+    @patch_ena
+    def test_filtering_returns_only_the_matching_results(self, mock_fetch: MagicMock):
+        """Test a filter request for #ena-results returns just the filtered results partial."""
+        mock_fetch.side_effect = fake_ena(
+            counts={"read_run": 3, "sample": 0, "sequence": 0}, records=self.FILTER_RECORDS
+        ).side_effect
+        response = self.get_htmx(
+            target="ena-results", pathogen="SARS-CoV-2", instrument_platform="illumina"
+        )
+        self.assertContains(response, '/view/ERR1"')
+        self.assertContains(response, '/view/ERR3"')
+        self.assertNotContains(response, '/view/ERR2"')
+        self.assertContains(response, "of 2 raw reads matching the filters (out of 3)")
+        # the filter form and sidebar aren't re-rendered, so typing keeps focus
+        self.assertNotContains(response, 'id="ena-filters"')
+        self.assertNotContains(response, "Pathogens</h3>")
+
+    @patch_ena
+    def test_no_matching_records_shows_message(self, mock_fetch: MagicMock):
+        """Test filters that match nothing show a message instead of the table."""
+        mock_fetch.side_effect = fake_ena(
+            counts={"read_run": 3, "sample": 0, "sequence": 0}, records=self.FILTER_RECORDS
+        ).side_effect
+        response = self.get_htmx(target="ena-results", pathogen="SARS-CoV-2", run_accession="x")
+        self.assertContains(response, "No raw reads match these filters.")
+        self.assertNotContains(response, "<table")
+
+    @patch_ena
+    def test_pagination_links_keep_the_filters(self, mock_fetch: MagicMock):
+        """Test page links carry the active filters, while clearing drops them."""
+        mock_fetch.side_effect = fake_ena(
+            counts={"read_run": PAGE_SIZE * 3, "sample": 0, "sequence": 0}
+        ).side_effect
+        response = self.get_htmx(pathogen="SARS-CoV-2", run_accession="ERR")
+        self.assertContains(
+            response, "?pathogen=SARS-CoV-2&amp;type=read_run&amp;run_accession=ERR&amp;page=2"
+        )
+        self.assertContains(
+            response, 'href="/genomic-data/?pathogen=SARS-CoV-2&amp;type=read_run" hx-get'
+        )
+
+    @patch_ena
+    def test_filter_form_is_prefilled_and_open_when_filtering(self, mock_fetch: MagicMock):
+        """Test a shared filtered URL loads with the filter values filled in and visible."""
+        mock_fetch.side_effect = fake_ena(
+            counts={"read_run": 3, "sample": 0, "sequence": 0}, records=self.FILTER_RECORDS
+        ).side_effect
+        response = self.get_htmx(pathogen="SARS-CoV-2", instrument_platform="ILLUMINA")
+        self.assertContains(response, 'value="ILLUMINA"')
+        self.assertContains(
+            response, '<details class="rounded-box border border-pp-pale-grey px-3 py-2" open>'
+        )
+
+    def test_resolve_filters(self):
+        """Test only the record type's fields are read as filters, blank ones dropped."""
+        record_type = resolve_record_type(self.factory.get("/"))
+        request = self.factory.get(
+            "/",
+            {
+                "pathogen": "SARS-CoV-2",
+                "page": "2",
+                "host": "Homo",  # a sample field, not a read_run one
+                "country": " ",
+                "instrument_platform": " illumina ",
+                "run_accession": "E" * (MAX_FILTER_LENGTH + 10),
+            },
+        )
+        self.assertEqual(
+            resolve_filters(request, record_type),
+            {"instrument_platform": "illumina", "run_accession": "E" * MAX_FILTER_LENGTH},
+        )
 
     # --- Service helpers ----------------------------------------------------------
 

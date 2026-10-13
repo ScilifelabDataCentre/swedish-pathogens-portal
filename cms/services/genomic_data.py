@@ -1,9 +1,9 @@
 """Service functions for the Genomic data page.
 
 Responsible for:
-(1) resolving the active (selected) pathogen, record type and page number.
-(2) fetching record counts and one page of records from ENA.
-(3) building the context for the ENA listing partial template.
+(1) resolving the active (selected) pathogen, record type, column filters and page number.
+(2) fetching record counts and records from ENA, then filtering and paging them.
+(3) building the context for the ENA listing and results partial templates.
 """
 
 from __future__ import annotations
@@ -25,6 +25,7 @@ from portal_data.ena import (
     build_query,
     fetch_count,
     fetch_records,
+    filter_records,
 )
 
 if TYPE_CHECKING:
@@ -33,6 +34,8 @@ if TYPE_CHECKING:
 LOGGER = structlog.get_logger(__name__)
 
 PAGE_SIZE = 25
+# Longest filter value accepted from the query string.
+MAX_FILTER_LENGTH = 100
 
 
 @dataclass(frozen=True)
@@ -92,12 +95,34 @@ def _page_number(request: HttpRequest) -> int:
         return 1
 
 
-def _url(path: str, *, pathogen: str, record_type: str, page: int = 1) -> str:
-    """Build a link to ``path`` for the given pathogen, record type and page.
+def resolve_filters(request: HttpRequest, record_type: RecordType) -> dict[str, str]:
+    """Return the non-blank column filters for ``record_type`` from the query string.
+
+    Each filter's parameter name is the ENA field it applies to, e.g.
+    ``?host=Homo sapiens``; parameters for other fields are ignored.
+    """
+    filters = {}
+    for field in record_type.fields:
+        value = _clean_param(request, field)[:MAX_FILTER_LENGTH]
+        if value:
+            filters[field] = value
+    return filters
+
+
+def _url(
+    path: str,
+    *,
+    pathogen: str,
+    record_type: str,
+    page: int = 1,
+    filters: dict[str, str] | None = None,
+) -> str:
+    """Build a link to ``path`` for the given pathogen, record type, filters and page.
 
     The page number is left out for the first page, to keep URLs short.
     """
     params: dict[str, str | int] = {"pathogen": pathogen, "type": record_type}
+    params.update(filters or {})
     if page > 1:
         params["page"] = page
     return f"{path}?{urlencode(params)}"
@@ -123,6 +148,7 @@ def build_context_dict(request: HttpRequest, page: GenomicDataPage) -> dict[str,
     path = request.path
     active_pathogen = resolve_active_pathogen(page=page, request=request)
     record_type = resolve_record_type(request)
+    filters = resolve_filters(request, record_type)
 
     pathogen_links = [
         {
@@ -148,6 +174,9 @@ def build_context_dict(request: HttpRequest, page: GenomicDataPage) -> dict[str,
         "download_url": None,
         "truncated": False,
         "browsable_display": "",
+        "filter_fields": [],
+        "filters_active": bool(filters),
+        "clear_filters_url": None,
     }
     if active_pathogen is None:
         return context
@@ -182,13 +211,18 @@ def build_context_dict(request: HttpRequest, page: GenomicDataPage) -> dict[str,
         context["fetch_error"] = True
         return context
 
-    page_obj = Paginator(all_records, PAGE_SIZE).get_page(_page_number(request))
+    matching_records = filter_records(all_records, record_type, filters)
+    page_obj = Paginator(matching_records, PAGE_SIZE).get_page(_page_number(request))
     records = list(page_obj.object_list)
 
     def page_url(number: int) -> str:
-        """Return the link to page ``number`` of the current listing."""
+        """Return the link to page ``number`` of the current (filtered) listing."""
         return _url(
-            path, pathogen=active_pathogen.name, record_type=record_type.result, page=number
+            path,
+            pathogen=active_pathogen.name,
+            record_type=record_type.result,
+            page=number,
+            filters=filters,
         )
 
     context.update(
@@ -213,6 +247,22 @@ def build_context_dict(request: HttpRequest, page: GenomicDataPage) -> dict[str,
             # More records exist than can be browsed here, only the download has them all.
             "truncated": count > len(all_records),
             "browsable_display": _format_count(len(all_records)),
+            "matching_display": _format_count(len(matching_records)),
+            "filter_fields": [
+                {
+                    "field": field,
+                    "label": label,
+                    "value": filters.get(field, ""),
+                    "id": f"ena-filter-{field}",
+                }
+                for field, label in [
+                    (record_type.accession_field, "Accession"),
+                    *record_type.columns,
+                ]
+            ],
+            "clear_filters_url": _url(
+                path, pathogen=active_pathogen.name, record_type=record_type.result
+            ),
         }
     )
     return context

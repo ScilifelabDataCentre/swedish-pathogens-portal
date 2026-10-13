@@ -72,6 +72,7 @@ RECORD_TYPES: dict[str, RecordType] = {
         accession_field="run_accession",
         columns=(
             ("scientific_name", "Organism"),
+            ("tax_id", "Taxon ID"),
             ("collection_date", "Collection date"),
             ("country", "Location"),
             ("instrument_platform", "Platform"),
@@ -85,6 +86,7 @@ RECORD_TYPES: dict[str, RecordType] = {
         accession_field="sample_accession",
         columns=(
             ("scientific_name", "Organism"),
+            ("tax_id", "Taxon ID"),
             ("collection_date", "Collection date"),
             ("country", "Location"),
             ("host", "Host"),
@@ -98,6 +100,7 @@ RECORD_TYPES: dict[str, RecordType] = {
         columns=(
             ("description", "Description"),
             ("scientific_name", "Organism"),
+            ("tax_id", "Taxon ID"),
             ("collection_date", "Collection date"),
             ("country", "Location"),
             ("first_public", "First public"),
@@ -108,6 +111,25 @@ RECORD_TYPES: dict[str, RecordType] = {
 DEFAULT_RECORD_TYPE = next(iter(RECORD_TYPES))
 
 
+# Columns whose values link out to another ENA browser page, by field name.
+LINKED_FIELDS = {"tax_id"}
+
+
+@dataclass(frozen=True)
+class Cell:
+    """One table cell: its display value and an optional link."""
+
+    value: str
+    url: str | None = None
+
+
+def _cell(field: str, value: str) -> Cell:
+    """Build the cell for ``field``, linking taxon ids to their ENA taxon page."""
+    if field in LINKED_FIELDS and value.isascii() and value.isdigit():
+        return Cell(value=value, url=taxon_url(int(value)))
+    return Cell(value=value)
+
+
 @dataclass(frozen=True)
 class EnaRecord:
     """One ENA record, flattened for display in a table row.
@@ -115,12 +137,12 @@ class EnaRecord:
     Attributes:
         accession: The record's primary accession.
         url: Link to the record in the ENA browser.
-        cells: Display values in the same order as ``RecordType.columns``.
+        cells: Cells in the same order as ``RecordType.columns``.
     """
 
     accession: str
     url: str
-    cells: tuple[str, ...]
+    cells: tuple[Cell, ...]
 
     @classmethod
     def from_ena_result(cls, result: dict[str, Any], record_type: RecordType) -> EnaRecord | None:
@@ -128,8 +150,47 @@ class EnaRecord:
         accession = str(result.get(record_type.accession_field) or "").strip()
         if not accession:
             return None
-        cells = tuple(str(result.get(field) or "").strip() for field, _ in record_type.columns)
+        cells = tuple(
+            _cell(field, str(result.get(field) or "").strip()) for field, _ in record_type.columns
+        )
         return cls(accession=accession, url=f"{ENA_BROWSER_VIEW_URL}/{accession}", cells=cells)
+
+
+def filter_records(
+    records: list[EnaRecord], record_type: RecordType, filters: dict[str, str]
+) -> list[EnaRecord]:
+    """Return the records whose columns contain every filter value (case-insensitive).
+
+    ``filters`` maps an ENA field name (the accession field or a column field) to
+    the text it must contain. Unknown fields and blank values are ignored.
+    """
+    positions = {field: index for index, (field, _) in enumerate(record_type.columns)}
+    checks: list[tuple[int | None, str]] = []
+    for field, value in filters.items():
+        needle = value.strip().casefold()
+        if not needle:
+            continue
+        if field == record_type.accession_field:
+            checks.append((None, needle))
+        elif field in positions:
+            checks.append((positions[field], needle))
+    if not checks:
+        return records
+
+    def matches(record: EnaRecord) -> bool:
+        """Return whether ``record`` passes every filter."""
+        for position, needle in checks:
+            text = record.accession if position is None else record.cells[position].value
+            if needle not in text.casefold():
+                return False
+        return True
+
+    return [record for record in records if matches(record)]
+
+
+def taxon_url(taxon_id: int) -> str:
+    """Return the ENA browser page for an NCBI taxonomy id."""
+    return f"{ENA_BROWSER_VIEW_URL}/Taxon:{int(taxon_id)}"
 
 
 def build_query(taxon_ids: Iterable[int]) -> str:
@@ -223,7 +284,7 @@ def fetch_records(
         return records
 
     return cache_get_or_set(
-        key=_cache_key("records", record_type.result, query, limit),
+        key=_cache_key("records", record_type.result, query, limit, *record_type.fields),
         timeout=ENA_RECORDS_CACHE_TTL_SECONDS,
         compute=compute,
     )
