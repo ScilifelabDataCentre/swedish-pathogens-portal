@@ -20,7 +20,7 @@ from urllib.parse import urlencode
 
 import structlog
 
-from cms.services.api_client import fetch_json
+from cms.services.api_client import fetch_json, fetch_text
 from cms.services.caching import cache_get_or_set
 
 LOGGER = structlog.get_logger(__name__)
@@ -146,17 +146,16 @@ def _cache_key(prefix: str, *parts: object) -> str:
     return f"ena_{prefix}_{digest}"
 
 
-def _parse_count(data: object) -> int | None:
-    """Parse the count endpoint's body, which is a bare number (or ``{"count": n}``)."""
-    if isinstance(data, dict):
-        data = data.get("count")
-    if isinstance(data, bool) or not isinstance(data, int | str):
+def _parse_count(body: str) -> int | None:
+    """Parse the count endpoint's plain-text body.
+
+    The body is a "count" header line, then the number on the next line, so the last
+    non-blank line is taken. Returns None if that isn't a non-negative integer.
+    """
+    lines = [line.strip() for line in body.splitlines() if line.strip()]
+    if not lines or not (lines[-1].isascii() and lines[-1].isdigit()):
         return None
-    try:
-        count = int(data)
-    except ValueError:
-        return None
-    return count if count >= 0 else None
+    return int(lines[-1])
 
 
 def fetch_count(record_type: RecordType, query: str) -> int | None:
@@ -164,15 +163,15 @@ def fetch_count(record_type: RecordType, query: str) -> int | None:
 
     def compute() -> int | None:
         """Use in cache_get_or_set to fetch the count if cache miss."""
-        data = fetch_json(
+        body = fetch_text(
             url=f"{ENA_PORTAL_API_URL}/count",
             params={"result": record_type.result, "query": query},
         )
-        if data is None:
+        if body is None:
             return None
-        count = _parse_count(data)
+        count = _parse_count(body)
         if count is None:
-            LOGGER.error("ena.invalid_count_response", result=record_type.result, body=data)
+            LOGGER.error("ena.invalid_count_response", result=record_type.result, body=body[:200])
         return count
 
     return cache_get_or_set(

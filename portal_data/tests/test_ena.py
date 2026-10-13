@@ -49,21 +49,21 @@ class TestBuildQuery(SimpleTestCase):
 
 
 class TestParseCount(SimpleTestCase):
-    """Tests for _parse_count, which handles the count endpoint's body."""
+    """Tests for _parse_count, which handles the count endpoint's plain-text body."""
+
+    def test_header_and_number(self):
+        """Test the real response shape, a "count" header line then the number."""
+        self.assertEqual(_parse_count("count\n333\n"), 333)
 
     def test_bare_number(self):
-        """Test the plain-text body (parsed as JSON into an int) is accepted."""
-        self.assertEqual(_parse_count(1234), 1234)
-
-    def test_json_object(self):
-        """Test a {"count": n} body is accepted, including a string count."""
-        self.assertEqual(_parse_count({"count": "56"}), 56)
+        """Test a body with just the number is also accepted."""
+        self.assertEqual(_parse_count("0"), 0)
 
     def test_invalid_values(self):
-        """Test invalid bodies return None."""
-        for value in ("abc", None, [], {}, True, -1):
-            with self.subTest(value=value):
-                self.assertIsNone(_parse_count(value))
+        """Test bodies without a non-negative integer on the last line return None."""
+        for body in ("", "count\n", "count\nabc", "count\n-1", "count\n\u00b2", '{"count": 3}'):
+            with self.subTest(body=body):
+                self.assertIsNone(_parse_count(body))
 
 
 class TestEnaRecord(SimpleTestCase):
@@ -114,25 +114,25 @@ class TestFetchCount(SimpleTestCase):
         """Clear the cache so results don't leak between tests."""
         cache.clear()
 
-    @patch("portal_data.ena.fetch_json")
+    @patch("portal_data.ena.fetch_text")
     def test_returns_and_caches_count(self, mock_fetch: MagicMock):
         """Test the count is returned, requested with the right params and then cached."""
-        mock_fetch.return_value = 42
+        mock_fetch.return_value = "count\n42\n"
         self.assertEqual(fetch_count(READ_RUN, QUERY), 42)
         self.assertEqual(fetch_count(READ_RUN, QUERY), 42)
         mock_fetch.assert_called_once_with(
             url=f"{ENA_PORTAL_API_URL}/count", params={"result": "read_run", "query": QUERY}
         )
 
-    @patch("portal_data.ena.fetch_json")
+    @patch("portal_data.ena.fetch_text")
     def test_zero_is_cached(self, mock_fetch: MagicMock):
         """Test a count of zero is a valid, cacheable result."""
-        mock_fetch.return_value = 0
+        mock_fetch.return_value = "count\n0\n"
         self.assertEqual(fetch_count(READ_RUN, QUERY), 0)
         self.assertEqual(fetch_count(READ_RUN, QUERY), 0)
         mock_fetch.assert_called_once()
 
-    @patch("portal_data.ena.fetch_json")
+    @patch("portal_data.ena.fetch_text")
     def test_failed_fetch_returns_none_and_is_not_cached(self, mock_fetch: MagicMock):
         """Test a failed fetch returns None and is retried on the next call."""
         mock_fetch.return_value = None
@@ -140,10 +140,10 @@ class TestFetchCount(SimpleTestCase):
         self.assertIsNone(fetch_count(READ_RUN, QUERY))
         self.assertEqual(mock_fetch.call_count, 2)
 
-    @patch("portal_data.ena.fetch_json")
+    @patch("portal_data.ena.fetch_text")
     def test_invalid_body_returns_none(self, mock_fetch: MagicMock):
         """Test an unparseable body is logged and returns None."""
-        mock_fetch.return_value = {"unexpected": "body"}
+        mock_fetch.return_value = "<html>error</html>"
         with self.assertLogs("portal_data.ena", level="ERROR"):
             self.assertIsNone(fetch_count(READ_RUN, QUERY))
 

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+from functools import wraps
 from unittest.mock import MagicMock, patch
 
 from django.core.cache import cache
@@ -20,21 +22,38 @@ from cms.services.genomic_data import (
 
 
 def fake_ena(counts: dict[str, int | None], records: list[dict] | None = None) -> MagicMock:
-    """Build a fake fetch_json answering ENA count and search requests.
+    """Build a fake fetch_text/fetch_json answering ENA count and search requests.
 
-    ``counts`` maps an ENA result type to the count returned for it. Search requests
+    ``counts`` maps an ENA result type to the count returned for it, as the count
+    endpoint's plain-text body (None meaning a failed fetch). Search requests
     return ``records`` (or a page of generated read_run records if not given).
     """
 
     def side_effect(url: str, params: dict) -> object:
         if url.endswith("/count"):
-            return counts.get(params["result"])
+            count = counts.get(params["result"])
+            return None if count is None else f"count\n{count}\n"
         if records is not None:
             return records
         start = params["offset"]
         return [{"run_accession": f"ERR{n}"} for n in range(start, start + params["limit"])]
 
     return MagicMock(side_effect=side_effect)
+
+
+def patch_ena(test: Callable) -> Callable:
+    """Patch ENA's fetch_json (search) and fetch_text (count) with one shared mock.
+
+    The mock is passed to the test, like ``@patch`` does.
+    """
+
+    @wraps(test)
+    def wrapper(self: WagtailPageTestCase) -> None:
+        mock = MagicMock()
+        with patch("portal_data.ena.fetch_json", mock), patch("portal_data.ena.fetch_text", mock):
+            test(self, mock)
+
+    return wrapper
 
 
 class TestGenomicDataPage(WagtailPageTestCase):
@@ -99,7 +118,7 @@ class TestGenomicDataPage(WagtailPageTestCase):
             ],
         )
 
-    @patch("portal_data.ena.fetch_json")
+    @patch_ena
     def test_full_page_load_does_not_call_ena(self, mock_fetch: MagicMock):
         """Test the full page renders the lazy-load container without fetching from ENA."""
         response = self.client.get(self.page.url, {"pathogen": "Influenza"})
@@ -109,7 +128,7 @@ class TestGenomicDataPage(WagtailPageTestCase):
         self.assertContains(response, 'hx-get="/genomic-data/?pathogen=Influenza"')
         mock_fetch.assert_not_called()
 
-    @patch("portal_data.ena.fetch_json")
+    @patch_ena
     def test_htmx_history_restore_gets_full_page(self, mock_fetch: MagicMock):
         """Test an HTMX history restore request gets the full page, not the partial."""
         response = self.client.get(
@@ -120,7 +139,7 @@ class TestGenomicDataPage(WagtailPageTestCase):
 
     # --- HTMX listing -------------------------------------------------------------
 
-    @patch("portal_data.ena.fetch_json")
+    @patch_ena
     def test_htmx_load_renders_records_for_first_pathogen(self, mock_fetch: MagicMock):
         """Test the default listing shows raw reads for the first pathogen alphabetically."""
         mock_fetch.side_effect = fake_ena(
@@ -143,7 +162,7 @@ class TestGenomicDataPage(WagtailPageTestCase):
         search_query = mock_fetch.call_args_list[-1].kwargs["params"]["query"]
         self.assertEqual(search_query, '(tax_tree(11320) OR tax_tree(11520)) AND country="Sweden*"')
 
-    @patch("portal_data.ena.fetch_json")
+    @patch_ena
     def test_record_type_tabs_show_counts(self, mock_fetch: MagicMock):
         """Test each record type tab shows its count with thousands separators."""
         mock_fetch.side_effect = fake_ena(
@@ -155,7 +174,7 @@ class TestGenomicDataPage(WagtailPageTestCase):
         # a failed count shows "?" on its tab
         self.assertContains(response, '<span class="badge badge-sm">?</span>')
 
-    @patch("portal_data.ena.fetch_json")
+    @patch_ena
     def test_selected_record_type_is_listed(self, mock_fetch: MagicMock):
         """Test the ``type`` parameter selects which ENA result is listed."""
         mock_fetch.side_effect = fake_ena(
@@ -168,7 +187,7 @@ class TestGenomicDataPage(WagtailPageTestCase):
         self.assertContains(response, '<th scope="col">Host</th>', html=False)
         self.assertEqual(mock_fetch.call_args_list[-1].kwargs["params"]["result"], "sample")
 
-    @patch("portal_data.ena.fetch_json")
+    @patch_ena
     def test_pagination_requests_the_right_offset(self, mock_fetch: MagicMock):
         """Test page 3 asks ENA for the third page and renders pagination links."""
         mock_fetch.side_effect = fake_ena(
@@ -182,7 +201,7 @@ class TestGenomicDataPage(WagtailPageTestCase):
         # the first page's link has no page parameter
         self.assertContains(response, 'href="/genomic-data/?pathogen=SARS-CoV-2&amp;type=read_run"')
 
-    @patch("portal_data.ena.fetch_json")
+    @patch_ena
     def test_page_beyond_last_shows_last_page(self, mock_fetch: MagicMock):
         """Test an out-of-range page number falls back to the last page."""
         mock_fetch.side_effect = fake_ena(
@@ -191,7 +210,7 @@ class TestGenomicDataPage(WagtailPageTestCase):
         self.get_htmx(pathogen="SARS-CoV-2", page="999")
         self.assertEqual(mock_fetch.call_args_list[-1].kwargs["params"]["offset"], PAGE_SIZE)
 
-    @patch("portal_data.ena.fetch_json")
+    @patch_ena
     def test_no_records(self, mock_fetch: MagicMock):
         """Test a zero count shows a message and skips the search request."""
         mock_fetch.side_effect = fake_ena(
@@ -201,25 +220,25 @@ class TestGenomicDataPage(WagtailPageTestCase):
         self.assertContains(response, "No raw reads from Sweden were found")
         self.assertTrue(all(c.kwargs["url"].endswith("/count") for c in mock_fetch.call_args_list))
 
-    @patch("portal_data.ena.fetch_json")
+    @patch_ena
     def test_failed_count_shows_error(self, mock_fetch: MagicMock):
         """Test ENA being unreachable shows an error message."""
         mock_fetch.return_value = None
         response = self.get_htmx(pathogen="SARS-CoV-2")
         self.assertContains(response, "could not be loaded from")
 
-    @patch("portal_data.ena.fetch_json")
+    @patch_ena
     def test_failed_search_shows_error(self, mock_fetch: MagicMock):
         """Test a failed records request after a successful count shows an error message."""
 
         def side_effect(url: str, params: dict) -> object:
-            return 10 if url.endswith("/count") else None
+            return "count\n10\n" if url.endswith("/count") else None
 
         mock_fetch.side_effect = side_effect
         response = self.get_htmx(pathogen="SARS-CoV-2")
         self.assertContains(response, "could not be loaded from")
 
-    @patch("portal_data.ena.fetch_json")
+    @patch_ena
     def test_unknown_pathogen_shows_message(self, mock_fetch: MagicMock):
         """Test an unconfigured pathogen shows the "isn't recognised" message without fetching."""
         with self.assertLogs("cms.services.genomic_data", level="WARNING"):
@@ -246,7 +265,7 @@ class TestGenomicDataPage(WagtailPageTestCase):
                 request = self.factory.get("/", params)
                 self.assertEqual(resolve_record_type(request).result, "read_run")
 
-    @patch("portal_data.ena.fetch_json")
+    @patch_ena
     def test_invalid_page_number_defaults_to_first_page(self, mock_fetch: MagicMock):
         """Test a non-numeric page parameter is treated as page 1."""
         mock_fetch.side_effect = fake_ena(
