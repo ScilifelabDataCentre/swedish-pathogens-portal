@@ -1,9 +1,9 @@
 """Client for the ENA (European Nucleotide Archive) Portal API.
 
 Fetches Swedish pathogen records from ENA for the Genomic data page. Nothing is
-stored locally beyond a short-lived cache: record counts and one page of records
-at a time are requested live, since some pathogens (e.g. SARS-CoV-2) have far
-too many Swedish records to load wholesale the way MetaboLights studies are.
+stored locally beyond a short-lived cache: record counts and up to
+MAX_BROWSABLE_RECORDS records per pathogen and record type are requested live,
+and the full set is only offered as a TSV download served by ENA itself.
 
 API documentation:
 - https://ena-docs.readthedocs.io/en/latest/retrieval/programmatic-access.html
@@ -33,6 +33,12 @@ SWEDEN_QUERY = 'country="Sweden*"'
 
 ENA_COUNT_CACHE_TTL_SECONDS = 6 * 60 * 60  # 6 hours
 ENA_RECORDS_CACHE_TTL_SECONDS = 60 * 60  # 1 hour
+
+# The Portal API has no offset parameter ("Unsupported param offset"), so a listing
+# can't be fetched one page at a time. Instead the first MAX_BROWSABLE_RECORDS
+# records are fetched in one request, cached and paged locally; anything beyond
+# that is only available through the full TSV download.
+MAX_BROWSABLE_RECORDS = 5_000
 
 
 @dataclass(frozen=True)
@@ -182,9 +188,13 @@ def fetch_count(record_type: RecordType, query: str) -> int | None:
 
 
 def fetch_records(
-    record_type: RecordType, query: str, *, offset: int, limit: int
+    record_type: RecordType, query: str, *, limit: int = MAX_BROWSABLE_RECORDS
 ) -> list[EnaRecord] | None:
-    """Return one page of records matching ``query``, or None on failure."""
+    """Return the first ``limit`` records matching ``query``, or None on failure.
+
+    ENA returns records in a stable order, so callers page through this list
+    themselves (see ``MAX_BROWSABLE_RECORDS``).
+    """
 
     def compute() -> list[EnaRecord] | None:
         """Use in cache_get_or_set to fetch and parse records if cache miss."""
@@ -196,7 +206,6 @@ def fetch_records(
                 "fields": ",".join(record_type.fields),
                 "format": "json",
                 "limit": limit,
-                "offset": offset,
             },
         )
         if not isinstance(data, list):
@@ -214,7 +223,7 @@ def fetch_records(
         return records
 
     return cache_get_or_set(
-        key=_cache_key("records", record_type.result, query, offset, limit),
+        key=_cache_key("records", record_type.result, query, limit),
         timeout=ENA_RECORDS_CACHE_TTL_SECONDS,
         compute=compute,
     )

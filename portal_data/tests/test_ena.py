@@ -10,6 +10,7 @@ from django.test import SimpleTestCase
 
 from portal_data.ena import (
     ENA_PORTAL_API_URL,
+    MAX_BROWSABLE_RECORDS,
     RECORD_TYPES,
     EnaRecord,
     _parse_count,
@@ -157,14 +158,14 @@ class TestFetchRecords(SimpleTestCase):
 
     @patch("portal_data.ena.fetch_json")
     def test_returns_parsed_records(self, mock_fetch: MagicMock):
-        """Test results are parsed, skipping invalid entries, with paging params passed on."""
+        """Test results are parsed, skipping invalid entries, with the right params sent."""
         mock_fetch.return_value = [
             {"run_accession": "ERR1", "scientific_name": "Virus"},
             {"scientific_name": "No accession"},
             "not a dict",
             {"run_accession": "ERR2"},
         ]
-        records = fetch_records(READ_RUN, QUERY, offset=50, limit=25)
+        records = fetch_records(READ_RUN, QUERY)
         self.assertEqual([r.accession for r in records], ["ERR1", "ERR2"])
 
         params = mock_fetch.call_args.kwargs["params"]
@@ -173,26 +174,32 @@ class TestFetchRecords(SimpleTestCase):
         self.assertEqual(params["query"], QUERY)
         self.assertEqual(params["fields"], ",".join(READ_RUN.fields))
         self.assertEqual(params["format"], "json")
-        self.assertEqual(params["offset"], 50)
-        self.assertEqual(params["limit"], 25)
+        self.assertEqual(params["limit"], MAX_BROWSABLE_RECORDS)
 
     @patch("portal_data.ena.fetch_json")
-    def test_pages_are_cached_separately(self, mock_fetch: MagicMock):
-        """Test each page is cached under its own key."""
+    def test_offset_is_never_sent(self, mock_fetch: MagicMock):
+        """Test no offset is sent, as ENA rejects it with "Unsupported param offset"."""
+        mock_fetch.return_value = []
+        fetch_records(READ_RUN, QUERY, limit=10)
+        self.assertNotIn("offset", mock_fetch.call_args.kwargs["params"])
+
+    @patch("portal_data.ena.fetch_json")
+    def test_records_are_cached(self, mock_fetch: MagicMock):
+        """Test repeat calls are served from the cache, with each limit cached separately."""
         mock_fetch.return_value = [{"run_accession": "ERR1"}]
-        fetch_records(READ_RUN, QUERY, offset=0, limit=25)
-        fetch_records(READ_RUN, QUERY, offset=0, limit=25)
-        fetch_records(READ_RUN, QUERY, offset=25, limit=25)
+        fetch_records(READ_RUN, QUERY)
+        fetch_records(READ_RUN, QUERY)
+        fetch_records(READ_RUN, QUERY, limit=10)
         self.assertEqual(mock_fetch.call_count, 2)
 
     @patch("portal_data.ena.fetch_json")
     def test_failed_or_invalid_fetch_returns_none(self, mock_fetch: MagicMock):
         """Test a failed fetch or a non-list body returns None."""
         mock_fetch.return_value = None
-        self.assertIsNone(fetch_records(READ_RUN, QUERY, offset=0, limit=25))
+        self.assertIsNone(fetch_records(READ_RUN, QUERY))
         mock_fetch.return_value = {"message": "error"}
         with self.assertLogs("portal_data.ena", level="ERROR"):
-            self.assertIsNone(fetch_records(READ_RUN, QUERY, offset=0, limit=25))
+            self.assertIsNone(fetch_records(READ_RUN, QUERY))
 
 
 class TestBuildDownloadUrl(SimpleTestCase):

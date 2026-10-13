@@ -78,6 +78,13 @@
             </a>
         </div>
 
+        {% if truncated %}
+        <p class="mb-3 text-sm">
+            Only the first {{ browsable_display }} {{ record_type.label|lower }} can be browsed here.
+            To see all {{ count_display }}, use the download link above.
+        </p>
+        {% endif %}
+
         <div class="overflow-x-auto rounded-box shadow border border-base-300">
             <table class="table table-zebra table-sm">
                 <caption class="sr-only">

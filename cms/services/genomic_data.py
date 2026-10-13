@@ -146,6 +146,8 @@ def build_context_dict(request: HttpRequest, page: GenomicDataPage) -> dict[str,
         "previous_url": None,
         "next_url": None,
         "download_url": None,
+        "truncated": False,
+        "browsable_display": "",
     }
     if active_pathogen is None:
         return context
@@ -173,13 +175,15 @@ def build_context_dict(request: HttpRequest, page: GenomicDataPage) -> dict[str,
     if count == 0:
         return context
 
-    # A range stands in for the records, so Django can do the page maths without
-    # loading anything: only the requested page is fetched from ENA.
-    page_obj = Paginator(range(count), PAGE_SIZE).get_page(_page_number(request))
-    records = fetch_records(record_type, query, offset=page_obj.start_index() - 1, limit=PAGE_SIZE)
-    if records is None:
+    # ENA can't serve one page at a time (no offset parameter), so the first
+    # MAX_BROWSABLE_RECORDS records are fetched once, cached, and sliced per page.
+    all_records = fetch_records(record_type, query)
+    if all_records is None:
         context["fetch_error"] = True
         return context
+
+    page_obj = Paginator(all_records, PAGE_SIZE).get_page(_page_number(request))
+    records = list(page_obj.object_list)
 
     def page_url(number: int) -> str:
         """Return the link to page ``number`` of the current listing."""
@@ -206,6 +210,9 @@ def build_context_dict(request: HttpRequest, page: GenomicDataPage) -> dict[str,
             ),
             "next_url": page_url(page_obj.next_page_number()) if page_obj.has_next() else None,
             "download_url": build_download_url(record_type, query),
+            # More records exist than can be browsed here, only the download has them all.
+            "truncated": count > len(all_records),
+            "browsable_display": _format_count(len(all_records)),
         }
     )
     return context

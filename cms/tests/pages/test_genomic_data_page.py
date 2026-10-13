@@ -19,6 +19,7 @@ from cms.services.genomic_data import (
     resolve_active_pathogen,
     resolve_record_type,
 )
+from portal_data.ena import fetch_records
 
 
 def fake_ena(counts: dict[str, int | None], records: list[dict] | None = None) -> MagicMock:
@@ -26,7 +27,8 @@ def fake_ena(counts: dict[str, int | None], records: list[dict] | None = None) -
 
     ``counts`` maps an ENA result type to the count returned for it, as the count
     endpoint's plain-text body (None meaning a failed fetch). Search requests
-    return ``records`` (or a page of generated read_run records if not given).
+    return ``records``, or if not given one generated read_run record per count
+    (up to the request's limit), numbered from ERR0.
     """
 
     def side_effect(url: str, params: dict) -> object:
@@ -35,8 +37,8 @@ def fake_ena(counts: dict[str, int | None], records: list[dict] | None = None) -
             return None if count is None else f"count\n{count}\n"
         if records is not None:
             return records
-        start = params["offset"]
-        return [{"run_accession": f"ERR{n}"} for n in range(start, start + params["limit"])]
+        total = min(counts.get(params["result"]) or 0, params["limit"])
+        return [{"run_accession": f"ERR{n}"} for n in range(total)]
 
     return MagicMock(side_effect=side_effect)
 
@@ -188,18 +190,32 @@ class TestGenomicDataPage(WagtailPageTestCase):
         self.assertEqual(mock_fetch.call_args_list[-1].kwargs["params"]["result"], "sample")
 
     @patch_ena
-    def test_pagination_requests_the_right_offset(self, mock_fetch: MagicMock):
-        """Test page 3 asks ENA for the third page and renders pagination links."""
+    def test_pagination_shows_the_requested_page(self, mock_fetch: MagicMock):
+        """Test page 3 shows the third slice of records and renders pagination links."""
         mock_fetch.side_effect = fake_ena(
             counts={"read_run": PAGE_SIZE * 10, "sample": 0, "sequence": 0}
         ).side_effect
         response = self.get_htmx(pathogen="SARS-CoV-2", page="3")
-        self.assertEqual(mock_fetch.call_args_list[-1].kwargs["params"]["offset"], PAGE_SIZE * 2)
-        self.assertContains(response, f"ERR{PAGE_SIZE * 2}")
+        self.assertContains(response, f'/view/ERR{PAGE_SIZE * 2}"')
+        self.assertNotContains(response, f'/view/ERR{PAGE_SIZE * 2 - 1}"')
+        self.assertNotContains(response, f'/view/ERR{PAGE_SIZE * 3}"')
+        self.assertContains(response, f"Showing {PAGE_SIZE * 2 + 1} to {PAGE_SIZE * 3} of")
         self.assertContains(response, 'aria-label="Pagination"')
         self.assertContains(response, "?pathogen=SARS-CoV-2&amp;type=read_run&amp;page=4")
         # the first page's link has no page parameter
         self.assertContains(response, 'href="/genomic-data/?pathogen=SARS-CoV-2&amp;type=read_run"')
+
+    @patch_ena
+    def test_paging_reuses_one_cached_search(self, mock_fetch: MagicMock):
+        """Test moving between pages doesn't send another search request to ENA."""
+        mock_fetch.side_effect = fake_ena(
+            counts={"read_run": PAGE_SIZE * 3, "sample": 0, "sequence": 0}
+        ).side_effect
+        for page in ("1", "2", "3"):
+            self.get_htmx(pathogen="SARS-CoV-2", page=page)
+        searches = [c for c in mock_fetch.call_args_list if c.kwargs["url"].endswith("/search")]
+        self.assertEqual(len(searches), 1)
+        self.assertNotIn("offset", searches[0].kwargs["params"])
 
     @patch_ena
     def test_page_beyond_last_shows_last_page(self, mock_fetch: MagicMock):
@@ -207,8 +223,23 @@ class TestGenomicDataPage(WagtailPageTestCase):
         mock_fetch.side_effect = fake_ena(
             counts={"read_run": 30, "sample": 0, "sequence": 0}
         ).side_effect
-        self.get_htmx(pathogen="SARS-CoV-2", page="999")
-        self.assertEqual(mock_fetch.call_args_list[-1].kwargs["params"]["offset"], PAGE_SIZE)
+        response = self.get_htmx(pathogen="SARS-CoV-2", page="999")
+        self.assertContains(response, "Showing 26 to 30 of 30")
+
+    @patch_ena
+    def test_more_records_than_browsable_shows_note(self, mock_fetch: MagicMock):
+        """Test a count above the browsable cap pages only the cap and points to the download."""
+        mock_fetch.side_effect = fake_ena(
+            counts={"read_run": 60, "sample": 0, "sequence": 0}
+        ).side_effect
+        # cap the browsable records at 50 rather than MAX_BROWSABLE_RECORDS
+        with patch(
+            "cms.services.genomic_data.fetch_records",
+            side_effect=lambda record_type, query: fetch_records(record_type, query, limit=50),
+        ):
+            response = self.get_htmx(pathogen="SARS-CoV-2", page="99")
+        self.assertContains(response, "Only the first 50 raw reads can be browsed here")
+        self.assertContains(response, "Showing 26 to 50 of 60")
 
     @patch_ena
     def test_no_records(self, mock_fetch: MagicMock):
