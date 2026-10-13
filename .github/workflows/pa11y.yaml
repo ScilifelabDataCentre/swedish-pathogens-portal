@@ -13,9 +13,8 @@ name: Pa11y Accessibility Check
 
 on:
   workflow_dispatch:
-  # TODO: Uncomment the following lines to enable scheduled runs
-  # schedule:
-  #   - cron: '12 12 * * MON'
+  schedule:
+    - cron: '12 12 * * MON'
 
 jobs:
   pa11y:
@@ -39,7 +38,7 @@ jobs:
         run: |
           pa11y-ci \
             --config ${GITHUB_WORKSPACE}/.github/pa11y/pa11y.config \
-            --sitemap https://swedish-pathogens-portal.scilifelab-2-dev.sys.kth.se/sitemap.xml
+            --sitemap https://www.pathogens.se/sitemap.xml
 
       - name: Generate Pa11y summary
         if: always()
