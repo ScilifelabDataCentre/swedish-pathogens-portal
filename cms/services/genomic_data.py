@@ -8,6 +8,7 @@ Responsible for:
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
@@ -26,6 +27,7 @@ from portal_data.ena import (
     fetch_count,
     fetch_records,
     filter_records,
+    sort_records,
 )
 
 if TYPE_CHECKING:
@@ -109,6 +111,26 @@ def resolve_filters(request: HttpRequest, record_type: RecordType) -> dict[str, 
     return filters
 
 
+@dataclass(frozen=True)
+class Sort:
+    """The column the table is sorted on, and in which direction."""
+
+    field: str
+    descending: bool = False
+
+
+def resolve_sort(request: HttpRequest, record_type: RecordType) -> Sort | None:
+    """Return the requested sort, from the ``sort`` and ``order`` query parameters.
+
+    ``sort`` must be one of the record type's fields, otherwise the records keep
+    ENA's order. ``order=desc`` sorts descending; anything else ascending.
+    """
+    field = _clean_param(request, "sort")
+    if field not in record_type.fields:
+        return None
+    return Sort(field=field, descending=_clean_param(request, "order") == "desc")
+
+
 def _url(
     path: str,
     *,
@@ -116,16 +138,40 @@ def _url(
     record_type: str,
     page: int = 1,
     filters: dict[str, str] | None = None,
+    sort: Sort | None = None,
 ) -> str:
-    """Build a link to ``path`` for the given pathogen, record type, filters and page.
+    """Build a link to ``path`` for the given pathogen, record type, filters, sort and page.
 
     The page number is left out for the first page, to keep URLs short.
     """
     params: dict[str, str | int] = {"pathogen": pathogen, "type": record_type}
     params.update(filters or {})
+    if sort is not None:
+        params["sort"] = sort.field
+        params["order"] = "desc" if sort.descending else "asc"
     if page > 1:
         params["page"] = page
     return f"{path}?{urlencode(params)}"
+
+
+def _sort_header(
+    field: str, label: str, sort: Sort | None, url_for: Callable[[Sort], str]
+) -> dict[str, Any]:
+    """Build a table header that sorts on ``field`` when clicked.
+
+    Clicking the column already sorted ascending flips it to descending; any
+    other column starts ascending. ``state`` is the header's ``aria-sort`` value.
+    """
+    is_sorted = sort is not None and sort.field == field
+    state = ("descending" if sort.descending else "ascending") if is_sorted else None
+    next_sort = Sort(field=field, descending=state == "ascending")
+    return {
+        "field": field,
+        "label": label,
+        "state": state,
+        "url": url_for(next_sort),
+        "next_order": "descending" if next_sort.descending else "ascending",
+    }
 
 
 def _format_count(count: int | None) -> str:
@@ -149,6 +195,7 @@ def build_context_dict(request: HttpRequest, page: GenomicDataPage) -> dict[str,
     active_pathogen = resolve_active_pathogen(page=page, request=request)
     record_type = resolve_record_type(request)
     filters = resolve_filters(request, record_type)
+    sort = resolve_sort(request, record_type)
 
     pathogen_links = [
         {
@@ -177,6 +224,8 @@ def build_context_dict(request: HttpRequest, page: GenomicDataPage) -> dict[str,
         "filter_fields": [],
         "filters_active": bool(filters),
         "clear_filters_url": None,
+        "sort": sort,
+        "sort_headers": [],
     }
     if active_pathogen is None:
         return context
@@ -212,6 +261,11 @@ def build_context_dict(request: HttpRequest, page: GenomicDataPage) -> dict[str,
         return context
 
     matching_records = filter_records(all_records, record_type, filters)
+    if sort is not None:
+        # Sorting applies to every matching record, before the page is sliced out.
+        matching_records = sort_records(
+            matching_records, record_type, sort.field, descending=sort.descending
+        )
     page_obj = Paginator(matching_records, PAGE_SIZE).get_page(_page_number(request))
     records = list(page_obj.object_list)
 
@@ -223,6 +277,7 @@ def build_context_dict(request: HttpRequest, page: GenomicDataPage) -> dict[str,
             record_type=record_type.result,
             page=number,
             filters=filters,
+            sort=sort,
         )
 
     context.update(
@@ -261,8 +316,26 @@ def build_context_dict(request: HttpRequest, page: GenomicDataPage) -> dict[str,
                 ]
             ],
             "clear_filters_url": _url(
-                path, pathogen=active_pathogen.name, record_type=record_type.result
+                path, pathogen=active_pathogen.name, record_type=record_type.result, sort=sort
             ),
+            "sort_headers": [
+                _sort_header(
+                    field,
+                    label,
+                    sort,
+                    lambda new_sort: _url(
+                        path,
+                        pathogen=active_pathogen.name,
+                        record_type=record_type.result,
+                        filters=filters,
+                        sort=new_sort,
+                    ),
+                )
+                for field, label in [
+                    (record_type.accession_field, "Accession"),
+                    *record_type.columns,
+                ]
+            ],
         }
     )
     return context

@@ -1,5 +1,6 @@
 {% comment %}
     Results fragment of the "Genomic data" ENA listing: summary, table and pagination.
+    Column headings sort the table; clicking the sorted column again reverses the order.
     Included by ena_listing.html, and returned on its own for HTMX requests that target
     #ena-results (filtering and paging), so the filter form isn't re-rendered.
 {% endcomment %}
@@ -36,13 +37,21 @@
 <div class="overflow-x-auto rounded-box shadow border border-base-300">
     <table class="table table-zebra table-sm">
         <caption class="sr-only">
-            {{ record_type.label }} from Sweden for {{ active_pathogen }}, page {{ page_obj.number }}
+            {{ record_type.label }} from Sweden for {{ active_pathogen }}, page {{ page_obj.number }}.
+            Select a column heading to sort by it.
         </caption>
         <thead>
             <tr class="bg-primary text-primary-content">
-                <th scope="col">Accession</th>
-                {% for field, header in record_type.columns %}
-                <th scope="col">{{ header }}</th>
+                {% for header in sort_headers %}
+                <th scope="col" class="whitespace-nowrap"{% if header.state %} aria-sort="{{ header.state }}"{% endif %}>
+                    {# Sorting re-renders the whole listing, so the filter form picks up the new sort. #}
+                    <a href="{{ header.url }}" hx-get="{{ header.url }}" hx-target="#ena-listing"
+                        class="inline-flex items-center gap-1 text-primary-content hover:underline">
+                        {{ header.label }}
+                        <span aria-hidden="true">{% if header.state == "ascending" %}▲{% elif header.state == "descending" %}▼{% else %}↕{% endif %}</span>
+                        <span class="sr-only">(sort {{ header.next_order }})</span>
+                    </a>
+                </th>
                 {% endfor %}
             </tr>
         </thead>

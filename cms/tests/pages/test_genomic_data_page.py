@@ -7,6 +7,7 @@ from functools import wraps
 from unittest.mock import MagicMock, patch
 
 from django.core.cache import cache
+from django.http import HttpResponse
 from django.test import RequestFactory
 from wagtail.models import Page, Site
 from wagtail.test.utils import WagtailPageTestCase
@@ -16,10 +17,12 @@ from cms.services.genomic_data import (
     MAX_FILTER_LENGTH,
     PAGE_SIZE,
     EnaPathogen,
+    Sort,
     build_context_dict,
     resolve_active_pathogen,
     resolve_filters,
     resolve_record_type,
+    resolve_sort,
 )
 from portal_data.ena import fetch_records
 
@@ -188,7 +191,7 @@ class TestGenomicDataPage(WagtailPageTestCase):
         response = self.get_htmx(pathogen="SARS-CoV-2", type="sample")
         self.assertContains(response, "SAMEA1")
         self.assertContains(response, "Homo sapiens")
-        self.assertContains(response, '<th scope="col">Host</th>', html=False)
+        self.assertContains(response, "sort=host&amp;order=asc")
         self.assertEqual(mock_fetch.call_args_list[-1].kwargs["params"]["result"], "sample")
 
     @patch_ena
@@ -294,7 +297,7 @@ class TestGenomicDataPage(WagtailPageTestCase):
             counts={"read_run": 3, "sample": 0, "sequence": 0}, records=self.FILTER_RECORDS
         ).side_effect
         response = self.get_htmx(pathogen="SARS-CoV-2")
-        self.assertContains(response, '<th scope="col">Taxon ID</th>', html=False)
+        self.assertContains(response, "sort=tax_id&amp;order=asc")
         self.assertContains(
             response, 'href="https://www.ebi.ac.uk/ena/browser/view/Taxon:2697049"', count=3
         )
@@ -383,6 +386,100 @@ class TestGenomicDataPage(WagtailPageTestCase):
             resolve_filters(request, record_type),
             {"instrument_platform": "illumina", "run_accession": "E" * MAX_FILTER_LENGTH},
         )
+
+    # --- Sorting ------------------------------------------------------------------
+
+    SORT_RECORDS = [
+        {"run_accession": "ERR10", "collection_date": "2021-03-01"},
+        {"run_accession": "ERR2", "collection_date": ""},
+        {"run_accession": "ERR1", "collection_date": "2020-12-24"},
+    ]
+
+    def row_order(self, response: HttpResponse) -> list[str]:
+        """Return the accessions in the order their rows appear in ``response``."""
+        content = response.content.decode()
+        positions = {acc: content.index(f'/view/{acc}"') for acc in ("ERR1", "ERR2", "ERR10")}
+        return sorted(positions, key=positions.get)
+
+    @patch_ena
+    def test_sort_ascending_and_descending(self, mock_fetch: MagicMock):
+        """Test sorting by accession is natural (ERR2 before ERR10), in both directions."""
+        mock_fetch.side_effect = fake_ena(
+            counts={"read_run": 3, "sample": 0, "sequence": 0}, records=self.SORT_RECORDS
+        ).side_effect
+        response = self.get_htmx(pathogen="SARS-CoV-2", sort="run_accession", order="asc")
+        self.assertEqual(self.row_order(response), ["ERR1", "ERR2", "ERR10"])
+        response = self.get_htmx(pathogen="SARS-CoV-2", sort="run_accession", order="desc")
+        self.assertEqual(self.row_order(response), ["ERR10", "ERR2", "ERR1"])
+
+    @patch_ena
+    def test_blank_values_sort_last(self, mock_fetch: MagicMock):
+        """Test rows with a blank value in the sorted column come last in either direction."""
+        mock_fetch.side_effect = fake_ena(
+            counts={"read_run": 3, "sample": 0, "sequence": 0}, records=self.SORT_RECORDS
+        ).side_effect
+        response = self.get_htmx(pathogen="SARS-CoV-2", sort="collection_date", order="asc")
+        self.assertEqual(self.row_order(response), ["ERR1", "ERR10", "ERR2"])
+        response = self.get_htmx(pathogen="SARS-CoV-2", sort="collection_date", order="desc")
+        self.assertEqual(self.row_order(response), ["ERR10", "ERR1", "ERR2"])
+
+    @patch_ena
+    def test_sorted_header_has_aria_sort_and_toggles(self, mock_fetch: MagicMock):
+        """Test the sorted column is marked for screen readers and its link flips the order."""
+        mock_fetch.side_effect = fake_ena(
+            counts={"read_run": 3, "sample": 0, "sequence": 0}, records=self.SORT_RECORDS
+        ).side_effect
+        response = self.get_htmx(pathogen="SARS-CoV-2", sort="run_accession", order="asc")
+        self.assertContains(response, 'aria-sort="ascending"', count=1)
+        self.assertContains(response, "sort=run_accession&amp;order=desc")
+        # other columns start ascending
+        self.assertContains(response, "sort=collection_date&amp;order=asc")
+
+    @patch_ena
+    def test_sort_is_kept_by_pagination_filters_and_clear(self, mock_fetch: MagicMock):
+        """Test page links, the filter form and "Clear filters" all keep the sort."""
+        mock_fetch.side_effect = fake_ena(
+            counts={"read_run": PAGE_SIZE * 3, "sample": 0, "sequence": 0}
+        ).side_effect
+        response = self.get_htmx(
+            pathogen="SARS-CoV-2", run_accession="ERR", sort="run_accession", order="desc"
+        )
+        self.assertContains(
+            response,
+            "type=read_run&amp;run_accession=ERR&amp;sort=run_accession&amp;order=desc&amp;page=2",
+        )
+        self.assertContains(response, '<input type="hidden" name="sort" value="run_accession">')
+        self.assertContains(response, '<input type="hidden" name="order" value="desc">')
+        self.assertContains(
+            response,
+            'href="/genomic-data/?pathogen=SARS-CoV-2&amp;type=read_run'
+            '&amp;sort=run_accession&amp;order=desc" hx-get',
+        )
+
+    @patch_ena
+    def test_sorting_applies_before_paging(self, mock_fetch: MagicMock):
+        """Test descending sort puts the last record on the first page."""
+        mock_fetch.side_effect = fake_ena(
+            counts={"read_run": PAGE_SIZE * 2, "sample": 0, "sequence": 0}
+        ).side_effect
+        response = self.get_htmx(pathogen="SARS-CoV-2", sort="run_accession", order="desc")
+        self.assertContains(response, f'/view/ERR{PAGE_SIZE * 2 - 1}"')
+        self.assertNotContains(response, '/view/ERR0"')
+
+    def test_resolve_sort(self):
+        """Test the sort field is validated against the record type and order defaults to asc."""
+        record_type = resolve_record_type(self.factory.get("/"))
+        cases = [
+            ({}, None),
+            ({"sort": "host"}, None),  # a sample field, not a read_run one
+            ({"sort": "tax_id"}, Sort("tax_id", descending=False)),
+            ({"sort": "tax_id", "order": "desc"}, Sort("tax_id", descending=True)),
+            ({"sort": "tax_id", "order": "sideways"}, Sort("tax_id", descending=False)),
+        ]
+        for params, expected in cases:
+            with self.subTest(params=params):
+                request = self.factory.get("/", params)
+                self.assertEqual(resolve_sort(request, record_type), expected)
 
     # --- Service helpers ----------------------------------------------------------
 

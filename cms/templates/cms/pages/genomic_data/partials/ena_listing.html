@@ -74,6 +74,10 @@
             hx-trigger="input changed delay:400ms from:#ena-filters input[type='search'], submit">
             <input type="hidden" name="pathogen" value="{{ active_pathogen }}">
             <input type="hidden" name="type" value="{{ record_type.result }}">
+            {% if sort %}
+            <input type="hidden" name="sort" value="{{ sort.field }}">
+            <input type="hidden" name="order" value="{% if sort.descending %}desc{% else %}asc{% endif %}">
+            {% endif %}
             <details class="rounded-box border border-pp-pale-grey px-3 py-2" {% if filters_active %}open{% endif %}>
                 <summary class="cursor-pointer text-sm font-medium">Filter the table</summary>
                 <p class="mt-2 mb-2 text-xs text-gray-600">

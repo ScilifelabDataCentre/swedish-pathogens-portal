@@ -20,6 +20,7 @@ from portal_data.ena import (
     fetch_count,
     fetch_records,
     filter_records,
+    sort_records,
 )
 
 READ_RUN = RECORD_TYPES["read_run"]
@@ -164,6 +165,36 @@ class TestFilterRecords(SimpleTestCase):
         self.assertEqual(
             self.accessions({"country": "  ", "not_a_column": "x"}), ["ERR1", "ERR2", "SRR3"]
         )
+
+
+class TestSortRecords(SimpleTestCase):
+    """Tests for sort_records."""
+
+    def records(self, *results: dict) -> list[EnaRecord]:
+        """Build read_run records from raw results."""
+        return [EnaRecord.from_ena_result(result, READ_RUN) for result in results]
+
+    def test_numbers_sort_by_value(self):
+        """Test taxon ids sort numerically, not as text (9 before 10)."""
+        records = self.records(
+            {"run_accession": "A", "tax_id": "10"}, {"run_accession": "B", "tax_id": "9"}
+        )
+        sorted_records = sort_records(records, READ_RUN, "tax_id")
+        self.assertEqual([r.accession for r in sorted_records], ["B", "A"])
+
+    def test_text_sorts_case_insensitively(self):
+        """Test text values sort ignoring case."""
+        records = self.records(
+            {"run_accession": "A", "instrument_platform": "oxford_nanopore"},
+            {"run_accession": "B", "instrument_platform": "ILLUMINA"},
+        )
+        sorted_records = sort_records(records, READ_RUN, "instrument_platform", descending=True)
+        self.assertEqual([r.accession for r in sorted_records], ["A", "B"])
+
+    def test_unknown_field_keeps_order(self):
+        """Test a field that isn't a column leaves the records unchanged."""
+        records = self.records({"run_accession": "B"}, {"run_accession": "A"})
+        self.assertEqual(sort_records(records, READ_RUN, "host"), records)
 
 
 class TestFetchCount(SimpleTestCase):

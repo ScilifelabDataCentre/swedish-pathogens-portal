@@ -13,6 +13,7 @@ API documentation:
 from __future__ import annotations
 
 import hashlib
+import re
 from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import Any
@@ -156,6 +157,25 @@ class EnaRecord:
         return cls(accession=accession, url=f"{ENA_BROWSER_VIEW_URL}/{accession}", cells=cells)
 
 
+def _value_position(record_type: RecordType, field: str) -> int | None | bool:
+    """Return where ``field``'s value lives in a record of ``record_type``.
+
+    None means the accession, an int is the index into ``EnaRecord.cells`` and
+    False means ``field`` isn't shown for this record type.
+    """
+    if field == record_type.accession_field:
+        return None
+    for index, (column_field, _) in enumerate(record_type.columns):
+        if column_field == field:
+            return index
+    return False
+
+
+def _value_at(record: EnaRecord, position: int | None) -> str:
+    """Return the record's value at a position from ``_value_position``."""
+    return record.accession if position is None else record.cells[position].value
+
+
 def filter_records(
     records: list[EnaRecord], record_type: RecordType, filters: dict[str, str]
 ) -> list[EnaRecord]:
@@ -164,28 +184,51 @@ def filter_records(
     ``filters`` maps an ENA field name (the accession field or a column field) to
     the text it must contain. Unknown fields and blank values are ignored.
     """
-    positions = {field: index for index, (field, _) in enumerate(record_type.columns)}
     checks: list[tuple[int | None, str]] = []
     for field, value in filters.items():
         needle = value.strip().casefold()
-        if not needle:
-            continue
-        if field == record_type.accession_field:
-            checks.append((None, needle))
-        elif field in positions:
-            checks.append((positions[field], needle))
+        position = _value_position(record_type, field)
+        if needle and position is not False:
+            checks.append((position, needle))
     if not checks:
         return records
 
     def matches(record: EnaRecord) -> bool:
         """Return whether ``record`` passes every filter."""
-        for position, needle in checks:
-            text = record.accession if position is None else record.cells[position].value
-            if needle not in text.casefold():
-                return False
-        return True
+        return all(needle in _value_at(record, pos).casefold() for pos, needle in checks)
 
     return [record for record in records if matches(record)]
+
+
+_NUMBER_RE = re.compile(r"(\d+)")
+
+
+def _natural_key(value: str) -> tuple[tuple[int, int | str], ...]:
+    """Return a key sorting text naturally: "ERR2" before "ERR10", numbers by value.
+
+    ISO dates ("2021-03-01") also sort correctly, as their parts are compared as numbers.
+    """
+    return tuple(
+        (0, int(part)) if part.isdigit() else (1, part)
+        for part in _NUMBER_RE.split(value.casefold())
+        if part
+    )
+
+
+def sort_records(
+    records: list[EnaRecord], record_type: RecordType, field: str, *, descending: bool = False
+) -> list[EnaRecord]:
+    """Return the records sorted on ``field``, with blank values always last.
+
+    An unknown field leaves the records in ENA's order.
+    """
+    position = _value_position(record_type, field)
+    if position is False:
+        return records
+    filled = [record for record in records if _value_at(record, position)]
+    blank = [record for record in records if not _value_at(record, position)]
+    filled.sort(key=lambda record: _natural_key(_value_at(record, position)), reverse=descending)
+    return filled + blank
 
 
 def taxon_url(taxon_id: int) -> str:
