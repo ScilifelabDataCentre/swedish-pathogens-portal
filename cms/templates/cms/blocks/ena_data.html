@@ -1,0 +1,39 @@
+{% comment %}
+    EnaDataBlock's template:
+    A container whose content (pathogen sidebar, record type tabs and records table) is
+    lazy-loaded via HTMX on page load, and swapped as a whole whenever a link inside it is
+    followed. The current query string is passed on, so shared or bookmarked URLs
+    (e.g. ?pathogen=Influenza&type=sample&page=2) load that same view.
+{% endcomment %}
+
+<div class="relative min-h-40 mt-6"
+    hx-get="{{ ena_listing_url|default:request.get_full_path }}"
+    hx-trigger="load once"
+    hx-target="#ena-listing"
+    hx-swap="innerHTML"
+    hx-indicator="#ena-listing-loading">
+    <div id="ena-listing-loading"
+        class="htmx-indicator absolute inset-0 bg-base-100/80 flex items-center justify-center z-10 rounded-box">
+        <span class="loading loading-spinner text-accent loading-lg" aria-label="Loading"></span>
+    </div>
+    <div id="ena-listing" aria-live="polite" aria-busy="false">
+        <!-- ENA listing loaded lazily by HTMX -->
+        <noscript>
+            <p>This list of records is loaded with JavaScript, please enable it to see the data.</p>
+        </noscript>
+    </div>
+</div>
+
+<script>
+    // Mark the listing as busy while HTMX swaps it, so screen readers announce the new content once.
+    document.body.addEventListener("htmx:beforeRequest", (event) => {
+        if (event.detail.target && event.detail.target.id === "ena-listing") {
+            event.detail.target.setAttribute("aria-busy", "true");
+        }
+    });
+    document.body.addEventListener("htmx:afterSettle", (event) => {
+        if (event.detail.target && event.detail.target.id === "ena-listing") {
+            event.detail.target.setAttribute("aria-busy", "false");
+        }
+    });
+</script>

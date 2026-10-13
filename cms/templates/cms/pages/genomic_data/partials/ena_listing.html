@@ -1,0 +1,138 @@
+{% comment %}
+    ENA listing fragment returned for the "Genomic data" page via HTMX.
+    Contains the pathogen sidebar, record type tabs and one page of records.
+    Every link swaps this whole fragment (the target and swap are inherited from the
+    wrapper below) and pushes its URL, so the browser history and shared links work.
+    States:
+    1. No active pathogen (unknown query param) -> show error message.
+    2. ENA could not be reached -> show error message.
+    3. No records -> show "no records" message.
+    4. Records found -> show table, pagination and download link.
+{% endcomment %}
+
+<div class="lg:flex lg:gap-4" hx-target="#ena-listing" hx-swap="innerHTML"
+    hx-indicator="#ena-listing-loading" hx-push-url="true">
+    <div class="lg:w-56 lg:shrink-0">
+        <h3 id="ena-pathogen-heading" class="px-4 py-2 m-0 text-base bg-pp-pale-grey">Pathogens</h3>
+        <nav aria-labelledby="ena-pathogen-heading" class="px-4 py-3 border border-pp-pale-grey">
+            <ul class="m-0 p-0 list-none flex flex-col gap-1">
+                {% for link in pathogen_links %}
+                <li>
+                    {% if link.active %}
+                    <span class="font-medium text-gray-600" aria-current="page">{{ link.name }}</span>
+                    {% else %}
+                    <a href="{{ link.url }}" hx-get="{{ link.url }}"
+                        class="font-medium text-pp-dark-blue hover:underline hover:underline-offset-3">
+                        {{ link.name }}
+                    </a>
+                    {% endif %}
+                </li>
+                {% endfor %}
+            </ul>
+        </nav>
+    </div>
+
+    <div class="lg:flex-1 min-w-0 mt-6 lg:mt-0">
+        {% if not active_pathogen %}
+        <div class="text-center text-red-500 mt-8">
+            That pathogen isn't recognised.<br>
+            Please select a different pathogen from the list.
+        </div>
+        {% else %}
+        <h3 class="px-3 py-2 m-0 text-base bg-pp-pale-grey">{{ active_pathogen }} data from Sweden</h3>
+
+        <nav aria-label="Record types" class="my-3">
+            <ul class="m-0 p-0 list-none flex flex-wrap gap-2">
+                {% for link in type_links %}
+                <li>
+                    <a href="{{ link.url }}" hx-get="{{ link.url }}"
+                        class="btn btn-sm {% if link.active %}btn-primary{% else %}btn-outline{% endif %}"
+                        {% if link.active %}aria-current="page"{% endif %}>
+                        {{ link.label }}
+                        <span class="badge badge-sm">{{ link.count_display }}</span>
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+        </nav>
+
+        {% if fetch_error %}
+        <div class="text-center mt-8">
+            The {{ record_type.label|lower }} for <b>{{ active_pathogen }}</b> could not be loaded from
+            ENA, please try again later.
+            <br>If the problem persists, please <a href="/contact/">contact the portal team</a>.
+        </div>
+        {% elif not records %}
+        <div class="text-center mt-8">
+            No {{ record_type.label|lower }} from Sweden were found in ENA for <b>{{ active_pathogen }}</b>.
+        </div>
+        {% else %}
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3 text-sm">
+            <p class="m-0">
+                Showing {{ start_display }} to {{ end_display }} of {{ count_display }} {{ record_type.label|lower }}
+                from the
+                <a href="https://www.ebi.ac.uk/ena/browser/" target="_blank" rel="noopener noreferrer">European Nucleotide Archive (ENA)</a>.
+            </p>
+            <a href="{{ download_url }}" class="btn btn-outline btn-sm shrink-0" rel="noopener noreferrer">
+                Download all as TSV from ENA
+            </a>
+        </div>
+
+        <div class="overflow-x-auto rounded-box shadow border border-base-300">
+            <table class="table table-zebra table-sm">
+                <caption class="sr-only">
+                    {{ record_type.label }} from Sweden for {{ active_pathogen }}, page {{ page_obj.number }}
+                </caption>
+                <thead>
+                    <tr class="bg-primary text-primary-content">
+                        <th scope="col">Accession</th>
+                        {% for field, header in record_type.columns %}
+                        <th scope="col">{{ header }}</th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for record in records %}
+                    <tr>
+                        <th scope="row" class="font-normal whitespace-nowrap">
+                            <a href="{{ record.url }}" target="_blank" rel="noopener noreferrer"
+                                class="text-pp-dark-blue hover:underline">
+                                {{ record.accession }}
+                            </a>
+                        </th>
+                        {% for cell in record.cells %}
+                        <td>{{ cell|default:"–" }}</td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if page_obj.paginator.num_pages > 1 %}
+        <nav aria-label="Pagination" class="join mt-6 flex flex-wrap justify-center">
+            {% if previous_url %}
+            <a href="{{ previous_url }}" hx-get="{{ previous_url }}" class="join-item btn btn-sm"
+                aria-label="Previous page">«</a>
+            {% endif %}
+            {% for link in page_links %}
+                {% if link is None %}
+                <span class="join-item btn btn-sm btn-disabled" aria-hidden="true">…</span>
+                {% elif link.current %}
+                <span class="join-item btn btn-sm btn-primary" aria-current="page"
+                    aria-label="Page {{ link.number }}">{{ link.number }}</span>
+                {% else %}
+                <a href="{{ link.url }}" hx-get="{{ link.url }}" class="join-item btn btn-sm"
+                    aria-label="Page {{ link.number }}">{{ link.number }}</a>
+                {% endif %}
+            {% endfor %}
+            {% if next_url %}
+            <a href="{{ next_url }}" hx-get="{{ next_url }}" class="join-item btn btn-sm"
+                aria-label="Next page">»</a>
+            {% endif %}
+        </nav>
+        {% endif %}
+        {% endif %}
+        {% endif %}
+    </div>
+</div>
