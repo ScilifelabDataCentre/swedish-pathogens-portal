@@ -6,7 +6,6 @@ from .cards import (
     CardGridBlock,
     CatalogueCardBlock,
     CatalogueCardGridBlock,
-    ChildPageCardBlock,
 )
 from .collapsible import CollapsibleBlock
 from .data_table import DataTableBlock
@@ -23,7 +22,6 @@ __all__ = [
     "CardGridBlock",
     "CatalogueCardBlock",
     "CatalogueCardGridBlock",
-    "ChildPageCardBlock",
     "CollapsibleBlock",
     "DataTableBlock",
     "LastUpdatedBlock",

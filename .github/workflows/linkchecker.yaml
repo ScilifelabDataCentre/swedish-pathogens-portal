@@ -11,9 +11,8 @@ name: Link Checker
 
 on:
   workflow_dispatch:
-  # TODO: Uncomment the following lines to enable scheduled runs
-  # schedule:
-  #   - cron: '11 11 * * MON'
+  schedule:
+    - cron: '11 11 * * MON'
 
 jobs:
   test:
@@ -38,7 +37,7 @@ jobs:
         run: |
           linkchecker \
             --config ${GITHUB_WORKSPACE}/.github/linkchecker/linkcheckerrc \
-            https://swedish-pathogens-portal.scilifelab-2-dev.sys.kth.se/sitemap.xml
+            https://www.pathogens.se/sitemap.xml
 
       - name: Generate LinkChecker summary
         if: always()

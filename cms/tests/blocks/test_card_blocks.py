@@ -2,7 +2,6 @@
 
 from django.test import TestCase
 from wagtail.blocks import StructBlockValidationError
-from wagtail.models import Page, Site
 
 from cms.blocks.cards import (
     ALLOWED_CARD_DESCRIPTION_FEATURES,
@@ -10,7 +9,6 @@ from cms.blocks.cards import (
     CardGridBlock,
     CatalogueCardBlock,
     CatalogueCardGridBlock,
-    ChildPageCardBlock,
 )
 from cms.tests.utils import create_test_image
 
@@ -251,137 +249,3 @@ class TestCatalogueCardGridBlock(TestCase):
         self.assertEqual(result["cards"][1]["url"], "https://example.com/card2")
         self.assertEqual(result["cards"][1]["type"], "type2")
         self.assertEqual(result["cards"][1]["keywords"], "")
-
-
-#######################################################################
-####################   ChildPageCardBlock tests   #####################
-#######################################################################
-
-
-class TestChildPageCardBlock(TestCase):
-    """Tests for the ChildPageCardBlock."""
-
-    def setUp(self):
-        """Set up test data."""
-
-        self.root = Page.objects.get(id=1)
-
-        Site.objects.update_or_create(
-            id=1,
-            defaults={
-                "hostname": "localhost",
-                "root_page": self.root,
-                "is_default_site": True,
-            },
-        )
-
-        self.parent = self.root.add_child(instance=Page(title="Parent", slug="parent"))
-        self.child_b = self.parent.add_child(instance=Page(title="B page", slug="b"))  # noqa: F841
-        self.child_a = self.parent.add_child(instance=Page(title="A page", slug="a"))  # noqa: F841
-        self.child_d = self.parent.add_child(instance=Page(title="D page", slug="d"))  # noqa: F841
-        self.child_c = self.parent.add_child(instance=Page(title="C page", slug="c"))  # noqa: F841
-
-        self.block = ChildPageCardBlock()
-
-    def test_returns_all_children_by_default(self):
-        """Test that all child pages are returned by default."""
-
-        value = self.block.to_python(
-            {
-                "parent_page": self.parent.id,
-            }
-        )
-
-        result = self.block.clean(value)
-        context = self.block.get_context(result)
-
-        self.assertEqual(len(context["child_pages"]), 4)
-
-    def test_limits_to_3(self):
-        """Test that the number of child pages can be limited to 3."""
-        value = self.block.to_python(
-            {
-                "parent_page": self.parent.id,
-                "num_children": "3",
-            }
-        )
-
-        result = self.block.clean(value)
-        context = self.block.get_context(result)
-
-        self.assertLessEqual(len(context["child_pages"]), 3)
-
-    def test_order_by_title(self):
-        """Test that child pages can be ordered by title."""
-        value = self.block.to_python(
-            {
-                "parent_page": self.parent.id,
-                "order_by": "title",
-            }
-        )
-
-        result = self.block.clean(value)
-        context = self.block.get_context(result)
-
-        titles = [p.title for p in context["child_pages"]]
-        self.assertEqual(titles, sorted(titles))
-
-    def test_order_by_created(self):
-        """Test that child pages can be ordered by creation date."""
-        self.child_e = self.parent.add_child(instance=Page(title="E page", slug="e"))
-        self.child_e.save_revision().publish()
-
-        value = self.block.to_python(
-            {
-                "parent_page": self.parent.id,
-                "order_by": "created",
-            }
-        )
-
-        result = self.block.clean(value)
-        context = self.block.get_context(result)
-
-        self.assertEqual(context["child_pages"][0].title, "E page")
-
-    def test_pages_without_a_publish_date_sort_last(self) -> None:
-        """A live child that never went through publish() has no date to sort by.
-
-        The four fixture children are live but unpublished, so both newest-first
-        orderings have to put them behind the one page that carries a date.
-        PostgreSQL sorts nulls first on a descending order, so they used to lead
-        the list there while SQLite answered the other way.
-        """
-        published = self.parent.add_child(instance=Page(title="E page", slug="e"))
-        published.save_revision().publish()
-
-        for order_by in ("created", "updated"):
-            with self.subTest(order_by=order_by):
-                value = self.block.to_python(
-                    {
-                        "parent_page": self.parent.id,
-                        "order_by": order_by,
-                    }
-                )
-
-                context = self.block.get_context(self.block.clean(value))
-                titles = [page.title for page in context["child_pages"]]
-
-                self.assertEqual(titles[0], "E page")
-                self.assertEqual(sorted(titles[1:]), ["A page", "B page", "C page", "D page"])
-
-    def test_parent_with_no_children_returns_empty_list(self):
-        """Test that a parent page with no children returns an empty list."""
-        empty_parent = self.root.add_child(instance=Page(title="Empty parent", slug="empty-parent"))
-
-        value = self.block.to_python(
-            {
-                "parent_page": empty_parent.id,
-                "num_children": "all",
-                "order_by": "created",
-            }
-        )
-
-        result = self.block.clean(value)
-        context = self.block.get_context(result)
-
-        self.assertEqual(list(context["child_pages"]), [])

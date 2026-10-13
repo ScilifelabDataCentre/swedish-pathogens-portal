@@ -26,7 +26,7 @@
 
 <!-- Featured Image (floated right on medium+ screens) -->
 {% cms_image page.image "format-webp" as cover %}
-<figure class="float-none md:float-right mx-0 md:mx-2 mb-4 md:mb-0 w-96">
+<figure class="float-none md:float-right mx-0 md:mx-2 mb-4 w-full md:w-1/2">
     <img src="{{ cover.url }}"
             alt="{{ page.image|ai_image_alt:page.title }}"
             class="w-full h-auto rounded border border-pp-pale-grey block">
