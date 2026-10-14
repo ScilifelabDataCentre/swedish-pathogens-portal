@@ -19,6 +19,8 @@ wait-for-it --service ${POSTGRES_HOST}:${POSTGRES_PORT} -t 60
 
 # Prepare database and static files
 python manage.py migrate --settings core.settings.production --noinput
+# AUTO_UPDATE only reindexes pages as they are saved; backfill new or changed search_fields
+python manage.py update_index --settings core.settings.production
 python manage.py collectstatic --settings core.settings.production --noinput
 
 # If first arg looks like a flag, assume we want to run gunicorn
