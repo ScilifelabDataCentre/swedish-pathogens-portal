@@ -16,7 +16,7 @@ dependencies = [
     "numpy==2.5.4",
     "pillow==12.3.0",
     "plotly==7.1.0",
-    "polars==1.44.2",
+    "polars==2.0.0",
     "wagtail==8.0",
 ]
 
