@@ -1,6 +1,6 @@
 # Swedish Pathogens Portal
 
-The Swedish Pathogens Portal was formerly available as an application built in Hugo. The code for that repository can be found in the [pathogens-portal repository](https://github.com/ScilifelabDataCentre/pathogens-portal). This new version of the site was built using Django and Wagtail. 
+This is new version of the _Swedish Pathogens Portal_ built using Django and Wagtail, previously it was built using Hugo. (old repo [link](https://github.com/ScilifelabDataCentre/pathogens-portal)).
 
 ## Technology Stack
 
