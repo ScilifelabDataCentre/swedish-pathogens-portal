@@ -183,7 +183,9 @@ For dashboards that no longer receive updates:
 ## Related
 
 - [Repository tour](../repository-tour.md)
+- [Dashboard uploads — researcher access](../dashboard_uploads.md) — handoff, groups, and permissions after the viz module exists
 - [Add a StreamField block](add-a-streamfield-block.md) — `PlotlyFigureBlock` lives in `cms/blocks/plotly_figure.py`
 - [Add a snippet](add-a-snippet.md) — `DashboardData` pattern
 - [ADR-0004 — Plotly](../../architecture/decisions/0004-visualisation-tool-for-dashboards.md)
 - [ADR-0007 — Data hosting](../../architecture/decisions/0007-data-hosting-architecture.md)
+- [ADR-0014 — Dashboard data-flow](../../architecture/decisions/0014-dashboard-data-flow-strategy.md)

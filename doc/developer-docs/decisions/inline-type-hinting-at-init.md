@@ -20,5 +20,5 @@ Use correct element and key types (e.g. `dict[str, PageQuerySet]`, not `dict[str
 **Where can I find the outcome of this decision?**
 
 - Code: e.g. `cms/pages/catalogue.py`, `cms/pages/dashboard_index.py`, `cms/services/validators.py`
-- PR: [#49](https://github.com/ScilifelabDataCentre/spp-wagtail/pull/49)
+- PR: [#49](https://github.com/ScilifelabDataCentre/swedish-pathogens-portal/pull/49)
 - Convention summary: [Typing](../dev-conventions.md#typing)

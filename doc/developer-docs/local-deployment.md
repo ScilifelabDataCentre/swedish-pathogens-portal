@@ -2,7 +2,7 @@
 
 Run Django on your machine with **uv**, connecting to PostgreSQL on `localhost`.
 
-**Before starting:** [Configure `.env`](getting-started.md#environment-file-env) for the uv example (`POSTGRES_HOST=localhost` and `DATABASE_URL=psql://…@localhost:5432/…`).
+**Before starting:** [Configure `.env`](getting-started.md#environment-file-env) for the uv example (`POSTGRES_HOST=localhost` and `DATABASE_URL=psql://app:password@localhost:5432/spp`).
 
 All commands are from the **repository root**. Settings module defaults to `core.settings.development` (`manage.py`).
 
@@ -40,6 +40,7 @@ Use the same `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB` as in `.env
 ```bash
 uv sync
 uv run python manage.py migrate
+uv run python manage.py createsuperuser
 uv run python manage.py runserver
 ```
 
@@ -48,11 +49,7 @@ uv run python manage.py runserver
 | http://127.0.0.1:8000 | Public site |
 | http://127.0.0.1:8000/wagtail/ | Wagtail admin |
 
-**Create an admin user:**
-
-```bash
-uv run python manage.py createsuperuser
-```
+Run `migrate` before `createsuperuser` on a fresh database.
 
 ---
 
