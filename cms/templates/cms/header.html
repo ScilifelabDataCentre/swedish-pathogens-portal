@@ -154,7 +154,9 @@
             </button>
             <hr class="my-4 border-pp-pale-grey">
             <div class="flex flex-col gap-4" aria-label="Main links">
-                <form method="get" action="{% url 'search' %}" role="search" class="mb-2">
+                <!-- Phones only: from `md` up the header search toggle is visible, even with
+                     this menu open, so a field here would be the second one on screen. -->
+                <form method="get" action="{% url 'search' %}" role="search" class="mb-2 md:hidden">
                     <label for="mobile-search" class="sr-only">Search the portal</label>
                     <div class="input input-accent w-full pe-1">
                         <input id="mobile-search" type="search" name="q" required

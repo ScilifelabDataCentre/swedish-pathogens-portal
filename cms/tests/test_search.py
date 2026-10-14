@@ -191,6 +191,9 @@ class SearchTestCase(WagtailPageTestCase):
         self.assertContains(resp, f'class="sr-only">{panel_text}</label>')
         self.assertContains(resp, 'placeholder="Search the portal"')
         self.assertContains(resp, 'class="sr-only">Search the portal</label>')
+        # The toggle shows from `md` up, so the menu's own field stops there: below the
+        # `nav` breakpoint both are on screen, and two search boxes is one too many.
+        self.assertContains(resp, 'role="search" class="mb-2 md:hidden"')
 
     def test_page_without_image_renders(self) -> None:
         """A matching page whose model has no image field renders without error."""
