@@ -17,7 +17,7 @@ subpage_types = ["cms.YourDetailPage"]    # allowed children (or [] for none)
 
 Optional: `max_count = 1` if only one instance should exist (e.g. `NewsIndexPage`).
 
-**Examples in repo:** `standard_page.py` (no children), `news_index.py` / `news.py` (index + detail).
+**Examples in repo:** `basic_page.py` (no children), `news_index.py` / `news.py` (index + detail).
 
 ---
 
@@ -81,7 +81,7 @@ Create `cms/templates/cms/pages/event.html`:
 {% endblock %}
 ```
 
-Match patterns in `standard_page.html` or `news_index.html` as needed.
+Match patterns in `basic_page.html` or `news_index.html` as needed.
 
 ---
 
@@ -111,10 +111,12 @@ Wagtail only lists types allowed by `parent_page_types` / `subpage_types`.
 
 ## Tests (recommended)
 
-Add or extend `cms/tests/test_<area>_pages.py`. Use helpers from `cms/tests/utils.py` to build a page tree, then assert the public URL or context.
+Add or extend a module under `cms/tests/pages/` (e.g. `test_<area>_pages.py`). Build a minimal page tree in the test with `Page.get_first_root_node()`, `add_child()`, and a default `Site` — same pattern as existing suites (`test_news_pages.py`, `test_plp_pages.py`). See [testing — Wagtail patterns](../testing.md#wagtail-test-patterns).
+
+`cms/tests/utils.py` has shared helpers such as `create_test_image()`; it does **not** provide a generic page-tree builder.
 
 ```bash
-uv run python manage.py test cms.tests.test_news_pages --settings core.settings.test
+uv run python manage.py test cms.tests.pages.test_news_pages --settings core.settings.test
 ```
 
 ---

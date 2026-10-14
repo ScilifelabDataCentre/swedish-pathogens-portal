@@ -1,6 +1,6 @@
 # Add a StreamField block
 
-Reusable content units editors add inside a page **StreamField** (e.g. on `StandardPage`).
+Reusable content units editors add inside a page **StreamField** (e.g. on `BasicPage`).
 
 **Example in repo:** `cms/blocks/alerts.py` → `AlertBlock` → `cms/templates/cms/blocks/alert.html`.
 

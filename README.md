@@ -35,9 +35,14 @@ docker compose up
 | Site | http://localhost:8000 |
 | Wagtail admin | http://localhost:8000/wagtail/ |
 
-First admin user: `docker compose exec web python manage.py createsuperuser`
+First admin user (after the stack is up):
 
-More detail (uv, migrations, tests): [developer documentation](doc/developer-docs/README.md).
+```bash
+docker compose exec web python manage.py migrate
+docker compose exec web python manage.py createsuperuser
+```
+
+More detail (uv, email/Mailpit, migrations, tests): [developer documentation](doc/developer-docs/README.md).
 
 ---
 

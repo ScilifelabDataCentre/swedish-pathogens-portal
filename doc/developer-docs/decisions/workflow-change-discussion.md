@@ -11,6 +11,7 @@
 **Where can I find the outcome of this decision?**
 
 - This `decisions/` folder
+- Confluence: [Tasks that could change current workflow](https://scilifelab.atlassian.net/wiki/spaces/TE/pages/4615045181/Tasks+that+could+change+current+workflow) (Decision archive)
 - [Developer conventions — process](../dev-conventions.md#process-and-pull-requests)
 - PR descriptions that link a decision file
 - Team Slack / FREYA process notes

@@ -1,6 +1,6 @@
 # Testing
 
-How we run and write tests for `spp-wagtail`.
+How we run and write tests for the Swedish Pathogens Portal.
 
 ---
 
@@ -38,7 +38,7 @@ docker compose exec web python manage.py test cms.tests --settings core.settings
 
 ### CI
 
-GitHub Actions runs Ruff on push and PR. Run locally before opening a PR — see [operations — CI](operations.md#ci-and-quality).
+GitHub Actions runs Ruff and the Django test suite on push and PR — see [operations — CI](operations.md#ci-and-quality). Run the same checks locally before opening a PR.
 
 `core/settings/test.py` extends base settings with Wagtail admin URL constants. Always pass `--settings core.settings.test`.
 
@@ -46,7 +46,7 @@ GitHub Actions runs Ruff on push and PR. Run locally before opening a PR — see
 
 | You changed | Run at least |
 |-------------|--------------|
-| Page model | `cms.tests.test_<area>_pages` or add tests there |
+| Page model | `cms.tests.pages.test_<area>_pages` (or the matching module under `cms/tests/`) |
 | Snippet / upload | Matching `test_*` module (e.g. `test_dashboard_data_upload`) |
 | `cms/services/` | `test_validators`, `test_decorators`, or new module tests |
 | Viz module | `test_dashboard_data_upload` (registry dispatch) + module unit tests |
@@ -77,10 +77,13 @@ Publish when the public URL or `live()` queryset matters: `page.save_revision().
 
 ### Helpers
 
-`cms/tests/utils.py`:
+`cms/tests/utils.py` (not a page-tree factory):
 
 - **`create_test_image()`** — Wagtail image for page/block tests that need thumbnails.
+- **`use_temp_media_root()`** — temporary `MEDIA_ROOT` for upload-style tests.
 - **`validate_csv()`** — re-export of dashboard CSV validation (shared with upload tests).
+
+Some areas add local helpers (e.g. `cms/tests/liver_resource/liver_helpers.py`). Prefer copying the pattern from a nearby `test_*_pages.py` when building trees.
 
 ### Snippet and form tests
 

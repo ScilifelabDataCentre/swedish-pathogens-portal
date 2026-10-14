@@ -1,6 +1,6 @@
 # Troubleshooting
 
-Common developer issues when working on `spp-wagtail`.
+Common developer issues when working on the Swedish Pathogens Portal.
 
 ---
 
@@ -8,9 +8,10 @@ Common developer issues when working on `spp-wagtail`.
 
 | Symptom | Check |
 |---------|--------|
-| `SECRET_KEY` / DB errors on start | [Getting started — `.env`](getting-started.md#environment-file-env); Docker uses `POSTGRES_HOST=db`, local uv uses `localhost` |
+| `SECRET_KEY` / DB errors on start | [Getting started — `.env`](getting-started.md#environment-file-env); Docker uses `POSTGRES_HOST=db`, local uv uses `localhost`; defaults match `.env.example` (`app` / `spp`) |
 | Cannot connect to database | Postgres running? `docker compose ps` or local Postgres on port 5432 |
 | Wrong settings module | Use `core.settings.development` (Docker/local dev) or `core.settings.test` for tests |
+| Contact form mail not visible locally | Start Mailpit (`docker compose --profile mailpit up`) or use console email backend — [email](getting-started.md#email-local-and-production) |
 
 ---
 
@@ -21,6 +22,7 @@ Common developer issues when working on `spp-wagtail`.
 | Stale DB after migration changes | `docker compose down -v` then `docker compose up` and `migrate` |
 | Code changes not visible | Rebuild if Dockerfile changed; otherwise volume mount should pick up edits |
 | `web` exits on migrate error | Read container logs; fix migration conflict before retry |
+| `createsuperuser` fails on fresh DB | Run `migrate` first — [Docker deployment](docker-deployment.md#first-time-setup) |
 
 See [Docker deployment](docker-deployment.md).
 
@@ -56,7 +58,7 @@ Policy: [operations — migrations](operations.md#migrations).
 | Docker: CSS never rebuilds | Ensure `tailwind` service is running in `compose.yaml` |
 | Local uv: no watch | Run Tailwind build manually per project README / Docker workflow |
 
-After adding a new top-level app with templates, add an `@source` line — [PR #48](https://github.com/ScilifelabDataCentre/spp-wagtail/pull/48).
+After adding a new top-level app with templates, add an `@source` line — [PR #48](https://github.com/ScilifelabDataCentre/swedish-pathogens-portal/pull/48).
 
 ---
 

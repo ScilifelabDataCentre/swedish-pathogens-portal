@@ -29,21 +29,40 @@ docker compose up -d
 
 `compose.yaml` runs `runserver_plus` on port 8000 and starts `db` + `tailwind` with the web service.
 
+### Optional: Mailpit (local email)
+
+To catch outbound mail in a web UI:
+
+```bash
+docker compose --profile mailpit up
+```
+
+| URL | Purpose |
+|-----|---------|
+| http://localhost:8025 | Mailpit UI |
+| `localhost:1025` | SMTP (Compose sets `EMAIL_HOST=mailpit` on `web`) |
+
+Without the profile, contact-form sends fail gracefully (`EMAIL_SEND_ERROR`) and do not crash the app. More: [Getting started — email](getting-started.md#email-local-and-production).
+
 ---
 
 ## First-time setup
 
-**Create an admin user** (Wagtail login):
-
-```bash
-docker compose exec web python manage.py createsuperuser
-```
-
-**Migrations** — apply if the database is new or after pulling model changes:
+Apply migrations **before** creating a superuser (a fresh DB has no auth tables until migrate runs):
 
 ```bash
 docker compose exec web python manage.py migrate
+docker compose exec web python manage.py createsuperuser
 ```
+
+After pulling model changes, run `migrate` again. If you add or change models yourself, create migrations then apply them:
+
+```bash
+docker compose exec web python manage.py makemigrations cms
+docker compose exec web python manage.py migrate
+```
+
+Commit new files under `cms/migrations/` with your PR.
 
 ---
 
@@ -60,8 +79,6 @@ Prefix app commands with `docker compose exec web`:
 | Add dev dependency | `docker compose exec web uv add --group dev <package>` |
 | Tests | `docker compose exec web python manage.py test cms.tests --settings core.settings.test` |
 
-Commit new files under `cms/migrations/` after `makemigrations`.
-
 ---
 
 ## Reset environment
@@ -69,7 +86,13 @@ Commit new files under `cms/migrations/` after `makemigrations`.
 Remove containers and images:
 
 ```bash
-docker compose down --rmi
+docker compose down --rmi all
+```
+
+To also wipe the Postgres volume (full DB reset):
+
+```bash
+docker compose down -v --rmi all
 ```
 
 ---

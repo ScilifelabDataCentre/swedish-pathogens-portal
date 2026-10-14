@@ -1,6 +1,6 @@
 # Developer documentation
 
-Setup, conventions, and how-tos for **developing** `spp-wagtail`. Wagtail admin help: [Wagtail docs](https://docs.wagtail.org/).
+Setup, conventions, and how-tos for developing the **Swedish Pathogens Portal**. Wagtail admin help: [Wagtail docs](https://docs.wagtail.org/).
 
 **New here?** [Getting started](getting-started.md) → [Docker](docker-deployment.md) or [uv](local-deployment.md) → [repository tour](repository-tour.md) → [how-tos](how-to-guides/).
 
@@ -10,7 +10,7 @@ Setup, conventions, and how-tos for **developing** `spp-wagtail`. Wagtail admin 
 
 | Topic | Doc |
 |-------|-----|
-| Environment (`.env`, prerequisites) | [getting-started.md](getting-started.md) |
+| Environment (`.env`, prerequisites, email) | [getting-started.md](getting-started.md) |
 | Docker deployment | [docker-deployment.md](docker-deployment.md) |
 | Local deployment (uv) | [local-deployment.md](local-deployment.md) |
 | Repo layout | [repository-tour.md](repository-tour.md) |
@@ -18,8 +18,10 @@ Setup, conventions, and how-tos for **developing** `spp-wagtail`. Wagtail admin 
 | Add a StreamField block | [add-a-streamfield-block.md](how-to-guides/add-a-streamfield-block.md) |
 | Add a snippet | [add-a-snippet.md](how-to-guides/add-a-snippet.md) |
 | Add a dashboard | [add-a-dashboard.md](how-to-guides/add-a-dashboard.md) |
+| Portal Data (listing / downloads) | [portal_data.md](portal_data.md) |
+| Dashboard uploads (researcher access) | [dashboard_uploads.md](dashboard_uploads.md) |
 | Conventions | [dev-conventions.md](dev-conventions.md) |
-| Team decisions | [decisions/](decisions/README.md) |
+| Team decisions (in-repo + Confluence archive) | [decisions/](decisions/README.md) |
 | Testing | [testing.md](testing.md) |
 | Operations (CI, migrations, deps) | [operations.md](operations.md) |
 | Troubleshooting | [troubleshooting.md](troubleshooting.md) |
