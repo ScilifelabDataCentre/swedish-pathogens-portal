@@ -25,6 +25,9 @@
   const shut = ({ returnFocus = true } = {}) => {
     if (!isOpen()) return;
     panel.hidden = true;
+    // Reopening starts clean: Escape clears the field in some browsers, and the
+    // suggestions left behind would then answer a query that is no longer there.
+    results.hidden = true;
     toggle.setAttribute("aria-expanded", "false");
     toggle.classList.remove("btn-active");
     if (returnFocus) toggle.focus();
