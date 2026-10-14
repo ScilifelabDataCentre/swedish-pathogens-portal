@@ -195,6 +195,18 @@ class SearchTestCase(WagtailPageTestCase):
         # `nav` breakpoint both are on screen, and two search boxes is one too many.
         self.assertContains(resp, 'role="search" class="mb-2 md:hidden"')
 
+    def test_post_is_rejected(self) -> None:
+        """Both endpoints take their query from the URL, so a POST gets 405."""
+        self.assertEqual(self.client.post("/search/", {"q": "influenza"}).status_code, 405)
+        self.assertEqual(
+            self.client.post("/search/autocomplete/", {"q": "influenza"}).status_code, 405
+        )
+
+    def test_head_request_is_served(self) -> None:
+        """The results page answers HEAD, which crawlers and uptime checks send."""
+        resp = self.client.head("/search/", {"q": "influenza"})
+        self.assertEqual(resp.status_code, 200)
+
     def test_page_without_image_renders(self) -> None:
         """A matching page whose model has no image field renders without error."""
         resp = self.client.get("/search/", {"q": "preparedness"})

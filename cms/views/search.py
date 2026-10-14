@@ -9,6 +9,7 @@ from django.core.paginator import Paginator
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
 from django.utils.http import urlencode
+from django.views.decorators.http import require_GET, require_safe
 from django.views.decorators.vary import vary_on_headers
 from wagtail.models import Page
 from wagtail.query import PageQuerySet
@@ -154,6 +155,8 @@ def _matches(query: str) -> list[tuple[int, str]]:
     return list(found.items())
 
 
+# HEAD as well as GET: this one is a page, and crawlers and uptime checks ask for it.
+@require_safe
 @vary_on_headers("HX-Request", "HX-History-Restore-Request")
 def search(request: HttpRequest) -> HttpResponse:
     """Render the site-wide search results page, faceted by page type.
@@ -233,6 +236,7 @@ def search(request: HttpRequest) -> HttpResponse:
     return render(request, template, context)
 
 
+@require_GET
 def search_autocomplete(request: HttpRequest) -> HttpResponse:
     """Return an htmx partial of top title matches for the typeahead dropdown."""
     query = _clean_query(request)
