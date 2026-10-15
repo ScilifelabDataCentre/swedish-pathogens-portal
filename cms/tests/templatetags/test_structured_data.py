@@ -12,6 +12,7 @@ import json
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
+from django.conf import settings
 from django.template import Context, Template
 from django.test import SimpleTestCase
 from wagtail.models import Site
@@ -256,9 +257,9 @@ class UnresolvableSiteTest(SimpleTestCase):
         return page
 
     @patch(f"{_MODULE}.LOGGER")
-    def test_site_name_falls_back_to_the_portal_default(self, mock_logger: MagicMock):
-        """The lookup failure is logged once and the default name is used."""
-        self.assertEqual(_site_name(self._page_with_broken_site()), "Swedish Pathogens Portal")
+    def test_site_name_falls_back_to_the_configured_name(self, mock_logger: MagicMock):
+        """The lookup failure is logged once and ``WAGTAIL_SITE_NAME`` is used."""
+        self.assertEqual(_site_name(self._page_with_broken_site()), settings.WAGTAIL_SITE_NAME)
         mock_logger.warning.assert_called_once_with("structured_data.site_unresolved", page_id=5)
 
     @patch(f"{_MODULE}.LOGGER")
@@ -272,7 +273,7 @@ class UnresolvableSiteTest(SimpleTestCase):
         payload = build_payload(self._page_with_broken_site())
 
         self.assertEqual(payload["@type"], "WebSite")
-        self.assertEqual(payload["name"], "Swedish Pathogens Portal")
+        self.assertEqual(payload["name"], settings.WAGTAIL_SITE_NAME)
         self.assertNotIn("url", payload)
 
 

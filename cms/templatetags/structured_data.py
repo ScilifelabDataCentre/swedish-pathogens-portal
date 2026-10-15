@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any, Protocol
 
 import structlog
 from django import template
+from django.conf import settings
 from django.utils.safestring import SafeString, mark_safe
 from wagtail.models import Site
 
@@ -41,9 +42,6 @@ LOGGER = structlog.get_logger(__name__)
 
 SCHEMA_CONTEXT = "https://schema.org"
 
-DEFAULT_SITE_NAME = "Swedish Pathogens Portal"
-SITE_ALTERNATE_NAME = "The Swedish Pathogens Portal"
-
 ORGANIZATION: dict[str, Any] = {
     "@type": "Organization",
     "name": "SciLifeLab Data Centre",
@@ -51,7 +49,7 @@ ORGANIZATION: dict[str, Any] = {
     "sameAs": [
         "https://x.com/scilifelab_DC",
         "https://www.linkedin.com/company/scilifelab-data-centre/",
-        "https://github.com/ScilifelabDataCentre/swedish-pathogens-portal",
+        "https://github.com/ScilifelabDataCentre",
     ],
 }
 
@@ -88,8 +86,8 @@ def _site(page: Page) -> Site | None:
 
 
 def _site_name(page: Page) -> str:
-    """Return the site name the page head resolves, or the portal default."""
-    return getattr(_site(page), "site_name", "") or DEFAULT_SITE_NAME
+    """Return the site name the page head resolves, or ``WAGTAIL_SITE_NAME``."""
+    return getattr(_site(page), "site_name", "") or settings.WAGTAIL_SITE_NAME
 
 
 def _site_root_url(page: Page) -> str:
@@ -162,11 +160,16 @@ def _image_url(page: Page) -> str:
 
 
 def _website(page: Page) -> dict[str, Any]:
-    """Build the ``WebSite`` node describing the portal as a whole."""
+    """Build the ``WebSite`` node describing the portal as a whole.
+
+    ``alternateName`` is derived from the resolved name, so an editor renaming
+    the site cannot leave the two disagreeing.
+    """
+    name = _site_name(page)
     payload: dict[str, Any] = {
         "@type": "WebSite",
-        "name": _site_name(page),
-        "alternateName": SITE_ALTERNATE_NAME,
+        "name": name,
+        "alternateName": f"The {name}",
     }
     _set_if(payload, "url", _site_root_url(page))
     return payload

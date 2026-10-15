@@ -14,6 +14,7 @@ import tempfile
 from unittest.mock import patch
 from urllib.parse import urlsplit
 
+from django.conf import settings
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.http import HttpResponse
 from django.template.loader import render_to_string
@@ -232,19 +233,22 @@ class HomePagePayloadTest(StructuredDataPageTestCase):
     """Criterion 2: the homepage describes the site and its organisation."""
 
     def test_home_page_emits_website_with_names_and_url(self):
-        """The homepage is the ``WebSite``, with the portal's fallback name."""
+        """The homepage is the ``WebSite``, named after ``WAGTAIL_SITE_NAME``."""
         payload = self.payload(self.home)
 
         self.assertEqual(payload["@type"], "WebSite")
-        self.assertEqual(payload["name"], "Swedish Pathogens Portal")
-        self.assertEqual(payload["alternateName"], "The Swedish Pathogens Portal")
+        self.assertEqual(payload["name"], settings.WAGTAIL_SITE_NAME)
+        self.assertEqual(payload["alternateName"], f"The {settings.WAGTAIL_SITE_NAME}")
         self.assertEqual(payload["url"], "http://testserver")
 
     def test_home_page_website_name_follows_the_site_record(self):
-        """An editor-set site name is used in place of the fallback."""
+        """An editor-set site name is used in place of the fallback, in both names."""
         Site.objects.filter(is_default_site=True).update(site_name="Pathogens Portal")
 
-        self.assertEqual(self.payload(self.home)["name"], "Pathogens Portal")
+        payload = self.payload(self.home)
+
+        self.assertEqual(payload["name"], "Pathogens Portal")
+        self.assertEqual(payload["alternateName"], "The Pathogens Portal")
 
     def test_home_page_names_the_organization(self):
         """The Organization carries its name, URL and social profiles."""
@@ -258,7 +262,7 @@ class HomePagePayloadTest(StructuredDataPageTestCase):
             [
                 "https://x.com/scilifelab_DC",
                 "https://www.linkedin.com/company/scilifelab-data-centre/",
-                "https://github.com/ScilifelabDataCentre/swedish-pathogens-portal",
+                "https://github.com/ScilifelabDataCentre",
             ],
         )
 
@@ -420,7 +424,7 @@ class WebPageFallbackTest(StructuredDataPageTestCase):
         self.assertEqual(payload["name"], "About the portal")
         self.assertEqual(payload["url"], "http://testserver/about/")
         self.assertEqual(payload["isPartOf"]["@type"], "WebSite")
-        self.assertEqual(payload["isPartOf"]["name"], "Swedish Pathogens Portal")
+        self.assertEqual(payload["isPartOf"]["name"], settings.WAGTAIL_SITE_NAME)
 
     def test_slu_subpage_emits_web_page(self):
         """Virus subpages share the overview's file, so they are not separate Datasets."""
