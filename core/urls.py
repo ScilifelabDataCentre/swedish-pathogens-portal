@@ -23,46 +23,63 @@ from django.contrib import admin
 from django.urls import include, path
 from wagtail import urls as wagtail_urls
 from wagtail.admin import urls as wagtailadmin_urls
-from wagtail.contrib.sitemaps.views import sitemap
+from wagtail.contrib.sitemaps.views import sitemap as wagtail_sitemap
 from wagtail.documents import urls as wagtaildocs_urls
 
 # Local imports
 from cms.views.search import search, search_autocomplete
 from core.views import ebi_index, healthz
 
-urlpatterns = []
-
-# Include Django admin URLs if enabled in settings.
-if settings.INCLUDE_DJANGO_ADMIN:
-    urlpatterns += [
-        path(settings.DJANGO_ADMIN_URL, admin.site.urls),
-    ]
-
-# Core URLs
-urlpatterns += [
+# Own handled URLs (takes precedence over third-party apps)
+# These are URLs that are handled by views we develop and maintain, not by third-party apps.
+# ----------------------------------------------------------------------------------------
+own_view_urls = [
+    path("cms/", include("cms.urls")),
     path("ebi-index.json", ebi_index, name="ebi_index"),
     path("healthz/", healthz, name="healthz"),
-    path("sitemap.xml", sitemap, name="sitemap"),
-]
-
-# Auto browser reload addition for local development
-if settings.DEBUG:
-    urlpatterns += [
-        path("__reload__/", include("django_browser_reload.urls")),
-    ]
-    # Serve media files in development
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-
-# Wagtail admin and CMS URLs
-urlpatterns += [
-    # Wagtail admin URLs
-    path(settings.WAGTAILADMIN_URL, include(wagtailadmin_urls)),
-    path("documents/", include(wagtaildocs_urls)),
-    # Our own URLs
     path("search/", search, name="search"),
     path("search/autocomplete/", search_autocomplete, name="search_autocomplete"),
-    path("cms/", include("cms.urls")),
+]
+
+
+# Third-party app URLs (Wagtail, Django, etc.)
+# These are URLs that are handled by third-party apps, we don't control the views.
+# ----------------------------------------------------------------------------------------
+third_party_view_urls = [
+    path(settings.WAGTAILADMIN_URL, include(wagtailadmin_urls)),
+    path("documents/", include(wagtaildocs_urls)),
+    path("sitemap.xml", wagtail_sitemap, name="sitemap"),
     # Any URL that was not matched by an explicit URL above are tried and handled by Wagtail.
     # Wagtail raises 404, if it couldn't find a Page or Route handler for the URL
     path("", include(wagtail_urls)),
 ]
+
+
+# Django admin URL (optional)
+# No need for this as most of the admin functionality is handled by Wagtail, but it can be
+# included if needed for special cases. If included, it takes precedence over Wagtail URLs
+# ----------------------------------------------------------------------------------------
+if settings.INCLUDE_DJANGO_ADMIN:
+    third_party_view_urls = [
+        path(settings.DJANGO_ADMIN_URL, admin.site.urls),
+    ] + third_party_view_urls
+
+
+# Combine all URL patterns into a single list, in order of precedence.
+urlpatterns = own_view_urls + third_party_view_urls
+
+
+# Local development URLs (when DEBUG is True)
+# Adds support for django-browser-reload and serving media files in development.
+# ----------------------------------------------------------------------------------------
+if settings.DEBUG:
+    debug_urls = [
+        path("__reload__/", include("django_browser_reload.urls")),
+    ]
+    # Serve media files in development
+    debug_urls += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+
+    # Though added first, this doesn't affect other URL patterns. Adding it last causes
+    # issues because of path("", include(wagtail_urls)) which matches everything and would
+    # prevent the debug URLs from being matched.
+    urlpatterns = debug_urls + urlpatterns
