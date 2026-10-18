@@ -549,11 +549,11 @@ wheels = [
 
 [[package]]
 name = "markdown"
-version = "3.11"
+version = "3.11.1"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/f8/4f/700155c8c20d9e655dd0732b5fc3c7614f291b9148da271d7388e50bf774/markdown-3.11.tar.gz", hash = "sha256:180224db6aed87ba9ce1f2781ebcd5826253de8ff637112090e24b84502bbf9f", size = 485623, upload-time = "2026-09-25T13:46:23.473Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/4e/d4/f3f4b6ed70b7c7608fa026ff3bbe59ace9b1ebca43d8ae4886c87c95e81d/markdown-3.11.1.tar.gz", hash = "sha256:496f4f80f9ebd3395a04c8ec9595c40bbe8ec19e9c67d21fe071a1643e876606", size = 492927, upload-time = "2026-10-13T19:29:13.343Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ec/1e/32971905a7ab47f8b66866ed949fa48b104ba1c4a6fa57794c4f2c4b2cb8/markdown-3.11-py3-none-any.whl", hash = "sha256:cd6c89e7eb308c8b332ed673215a52d208a43f8bacc030b1419376129408719e", size = 111296, upload-time = "2026-09-25T13:46:22.163Z" },
+    { url = "https://files.pythonhosted.org/packages/75/e6/1c7b7a48aa3f2c2a5d3c71a6c9c90a6c8c2903e5c73663b5f5e38f87257f/markdown-3.11.1-py3-none-any.whl", hash = "sha256:f1fa378ba5d682900c9ecb55ccceacca936016dda7c3b27097e8ae03ff78feb5", size = 116774, upload-time = "2026-10-13T19:29:12.066Z" },
 ]
 
 [[package]]
@@ -1074,20 +1074,15 @@ wheels = [
 
 [[package]]
 name = "pygraphviz"
-version = "2.0.3"
+version = "2.0.4"
 source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/01/f7/a82e7f47573168960ce7e2a6c937a084a14d58599fe2a48ea3cde8ca555b/pygraphviz-2.0.3.tar.gz", hash = "sha256:e46818608638959ceabec66a36d2efc1d60b790a845f29705e403feecc7ee0c0", size = 82969, upload-time = "2026-10-01T17:14:04.075Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/f5/56/92b970deefddb2c31f92a9c8c794db89e4d6562a8a11af93269107cf30d2/pygraphviz-2.0.4.tar.gz", hash = "sha256:510164db9abc5b7ffd79007ed94638958c0190c8206853b07dda05fa1050b829", size = 82048, upload-time = "2026-10-15T19:50:53.517Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0d/09/74630d9f4e279ab8a105255b9c8b503181c0b552fad95f2a096ce5285552/pygraphviz-2.0.3-cp314-cp314-macosx_11_0_arm64.whl", hash = "sha256:84e01f6abaddc163defa2c56c4211966370d66ac94f00541a72caf5ba2bcc6bd", size = 1412520, upload-time = "2026-10-01T17:13:46.375Z" },
-    { url = "https://files.pythonhosted.org/packages/bd/fc/99138c9f1c9b43313e15ec7ebdac2ebe70ed8d6c44d339db2018a13c63b4/pygraphviz-2.0.3-cp314-cp314-macosx_11_0_x86_64.whl", hash = "sha256:9a2f9ae31f6dc5033345a17f2d68db7a37641c87da475bd7e25662b9ac5593ee", size = 1585149, upload-time = "2026-10-01T17:13:48.134Z" },
-    { url = "https://files.pythonhosted.org/packages/91/ac/dc3c8ee261010d5b78213146c35e5f5eb11ed4fa1f07d68fe1f2c7f6a3a7/pygraphviz-2.0.3-cp314-cp314-manylinux_2_28_aarch64.whl", hash = "sha256:bafeb8186da499b945017fd26776ed9dc39e2efcdfe09edae06f5a307e3873eb", size = 5154375, upload-time = "2026-10-01T17:13:49.849Z" },
-    { url = "https://files.pythonhosted.org/packages/40/25/ed3e0ace7b9045d53be959d7138fa55971c94e3fbd5823be5640f85e715f/pygraphviz-2.0.3-cp314-cp314-manylinux_2_28_x86_64.whl", hash = "sha256:c83851acd4e5638087bf1d2fca420c8a2393d117fe0619dba8cf92fdd780b860", size = 5501232, upload-time = "2026-10-01T17:13:52.064Z" },
-    { url = "https://files.pythonhosted.org/packages/49/10/2aeb033e6dd9a385b1b54fcd5c77ad6812268126dde86dbd93b2c427e7c3/pygraphviz-2.0.3-cp314-cp314-win_amd64.whl", hash = "sha256:b0a764665b52922d95d829d7a5dc922a248e1b3b317eed6593d46ccdc4eadc11", size = 7195968, upload-time = "2026-10-01T17:13:53.771Z" },
-    { url = "https://files.pythonhosted.org/packages/ff/62/9aa31b39b546c00660b8aef984e9cf27c3e7be5c39730618b36f2426c09f/pygraphviz-2.0.3-cp315-cp315-macosx_11_0_arm64.whl", hash = "sha256:ae7f2375b3adc3537adf921d97e537a97c350e647b78e2ffaf1a35bd0f8c0222", size = 1412495, upload-time = "2026-10-01T17:13:55.363Z" },
-    { url = "https://files.pythonhosted.org/packages/9b/4a/f06347cfdf76f7495ea32e9a3062cdb7f9a0d780c998b97658b8c097b6f9/pygraphviz-2.0.3-cp315-cp315-macosx_11_0_x86_64.whl", hash = "sha256:16cb4be3ae995921ed0401f8cd05c7b80780c5ccc465f8cec74d9c41f00b16f2", size = 1585150, upload-time = "2026-10-01T17:13:57.235Z" },
-    { url = "https://files.pythonhosted.org/packages/26/31/8e6608c8e6ada4d3416201010d0bae3f6556d26055892ab2fce024449d94/pygraphviz-2.0.3-cp315-cp315-manylinux_2_28_aarch64.whl", hash = "sha256:f11086e1a6f003bf09a2bb86f7b8b5e13c2a743c84df8ef0f93eb201f32efbb3", size = 5154905, upload-time = "2026-10-01T17:13:59.058Z" },
-    { url = "https://files.pythonhosted.org/packages/ea/cb/d3454844ff55147bb6f2d4c1ec53acf7a42eedd5c3dffecd0f3d9978ad44/pygraphviz-2.0.3-cp315-cp315-manylinux_2_28_x86_64.whl", hash = "sha256:54e538064f5d8f66b1f871fbbbe25d7b2963ac66e949a093040716672c4a26e1", size = 5500956, upload-time = "2026-10-01T17:14:00.693Z" },
-    { url = "https://files.pythonhosted.org/packages/fa/33/c4f9747052fe338d0e8fcc3d5b8e0f148e6c377387b38f24b4c13c7c03ca/pygraphviz-2.0.3-cp315-cp315-win_amd64.whl", hash = "sha256:21fa2e479ff88f3b62310bdc288b70e2883e3ae754b6e916fb217a5383306310", size = 7195968, upload-time = "2026-10-01T17:14:02.457Z" },
+    { url = "https://files.pythonhosted.org/packages/7b/a8/6918aa92e4c5745e95f4ee3dfadf5aa82153c8e9341dfb7a17fcb5c55ea9/pygraphviz-2.0.4-cp310-abi3-macosx_11_0_arm64.whl", hash = "sha256:6454122030c33b73b10722f335bb1ffce6bbe50e74643739ea92b3b0e860be90", size = 1439293, upload-time = "2026-10-15T19:50:45.288Z" },
+    { url = "https://files.pythonhosted.org/packages/75/00/c6c0f783be59820f2896d7c29b0074e8018e78c3802e7ff25dc31abf1457/pygraphviz-2.0.4-cp310-abi3-macosx_11_0_x86_64.whl", hash = "sha256:613556c622ed6d1527a2959012c80db8e2c50e2988fec5ec257027cc2f7d350a", size = 1610632, upload-time = "2026-10-15T19:50:46.897Z" },
+    { url = "https://files.pythonhosted.org/packages/ee/f4/7b4bed465c1cbb88fa6f3175499704b18ec57f98eb7b5905047ea456e4c2/pygraphviz-2.0.4-cp310-abi3-manylinux_2_28_aarch64.whl", hash = "sha256:b699f002b0290196ff3255805855c5561029777c68dfc0451853ae113e8afee2", size = 5123877, upload-time = "2026-10-15T19:50:48.406Z" },
+    { url = "https://files.pythonhosted.org/packages/14/8e/458b0d7283bd81b21262ac10cc4bea2d069f7111afa6099b532eb03e75df/pygraphviz-2.0.4-cp310-abi3-manylinux_2_28_x86_64.whl", hash = "sha256:bb324ad5012a7a844e190be831260240113a1847cff901c4096bbef812f7e470", size = 5473639, upload-time = "2026-10-15T19:50:50.136Z" },
+    { url = "https://files.pythonhosted.org/packages/7f/32/c4480b6110ab3e9f7c6f3c57524438e78033605a31dc80ccdd18b37d22c6/pygraphviz-2.0.4-cp310-abi3-win_amd64.whl", hash = "sha256:60d066faedb10fc4aa775a6ff9fbf09533320a9f93630491c40d08aa8eaf1b6c", size = 6971616, upload-time = "2026-10-15T19:50:51.869Z" },
 ]
 
 [[package]]
@@ -1271,7 +1266,7 @@ requires-dist = [
     { name = "django-structlog", specifier = "==10.1.0" },
     { name = "fastexcel", specifier = "==0.21.0" },
     { name = "httpx", specifier = "==0.28.1" },
-    { name = "markdown", specifier = "==3.11" },
+    { name = "markdown", specifier = "==3.11.1" },
     { name = "nh3", specifier = "==0.3.7" },
     { name = "numpy", specifier = "==2.5.4" },
     { name = "pillow", specifier = "==12.3.0" },
@@ -1297,7 +1292,7 @@ extensions = [
     { name = "django-extensions", specifier = "==4.1" },
     { name = "pre-commit", specifier = "==4.7.0" },
     { name = "psycopg", extras = ["binary"], specifier = "==3.3.6" },
-    { name = "pygraphviz", specifier = "==2.0.3" },
+    { name = "pygraphviz", specifier = "==2.0.4" },
     { name = "ruff", specifier = "==0.17.0" },
     { name = "watchdog", specifier = "==6.0.0" },
     { name = "werkzeug", extras = ["watchdog"], specifier = "==3.1.9" },

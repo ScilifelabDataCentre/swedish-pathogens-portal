@@ -11,7 +11,7 @@ dependencies = [
     "django-structlog==10.1.0",
     "fastexcel==0.21.0",
     "httpx==0.28.1",
-    "markdown==3.11",
+    "markdown==3.11.1",
     "nh3==0.3.7",
     "numpy==2.5.4",
     "pillow==12.3.0",
@@ -39,7 +39,7 @@ prod = [
 ]
 extensions = [
     {include-group = "dev"},
-    "pygraphviz==2.0.3",
+    "pygraphviz==2.0.4",
 ]
 
 # Disable UV default dependency-groups
