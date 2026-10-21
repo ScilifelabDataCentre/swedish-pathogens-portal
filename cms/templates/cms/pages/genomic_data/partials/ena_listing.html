@@ -1,11 +1,12 @@
 {% comment %}
     Listing fragment of the "Genomic data" page, returned via HTMX into #ena-listing,
-    inside the block's search form. Contains the data type tabs, the facet sidebar and
-    one page of results. Checkbox changes submit the form; tab, sort and page links carry
-    the full state in their URLs. The target and URL pushing are inherited from the form.
+    inside the block's search form. Styled to match the Portal data (Metabolomics) listing:
+    a toolbar with the data type tabs, collapsible facet cards on the left and the
+    results on the right. Facet checkbox changes submit the form; tab, sort and page links
+    carry the full state in their URLs. The target and URL pushing come from the form.
     States:
     1. EBI Search could not be reached -> show error message.
-    2. Nothing matches -> show "no records" message (facets still shown).
+    2. Nothing matches -> show "no records found" (facets still shown).
     3. Records found -> show table and pagination.
 {% endcomment %}
 
@@ -15,73 +16,103 @@
 <input type="hidden" name="order" value="{% if state.sort.descending %}desc{% else %}asc{% endif %}">
 {% endif %}
 
-<nav aria-label="Data types" class="mb-4">
-    <ul class="m-0 p-0 list-none flex flex-wrap gap-2">
+<nav aria-label="Data types"
+    class="mb-4 rounded border border-pp-pale-grey bg-white p-3 text-sm shadow-sm">
+    <ul class="m-0 flex list-none flex-wrap gap-2 p-0">
         {% for link in type_links %}
         <li>
             <a href="{{ link.url }}" hx-get="{{ link.url }}"
                 class="btn btn-sm {% if link.active %}btn-primary{% else %}btn-outline{% endif %}"
                 {% if link.active %}aria-current="page"{% endif %}>
                 {{ link.label }}
-                <span class="badge badge-sm">{{ link.count_display }}</span>
+                <span class="badge badge-ghost badge-sm">{{ link.count_display }}</span>
             </a>
         </li>
         {% endfor %}
     </ul>
 </nav>
 
-<div class="lg:flex lg:gap-4">
-    <div class="lg:w-64 lg:shrink-0">
-        <h3 id="ena-facets-heading" class="px-4 py-2 m-0 text-base bg-pp-pale-grey">Filter results</h3>
-        <div class="px-4 py-3 border border-pp-pale-grey flex flex-col gap-4" aria-labelledby="ena-facets-heading"
-            role="group">
-            {% if facets_active %}
-            <a href="{{ clear_facets_url }}" hx-get="{{ clear_facets_url }}"
-                class="text-sm text-pp-dark-blue underline">Clear all filters</a>
-            {% endif %}
-            {% for facet in facets %}
-            <fieldset class="m-0 p-0 border-0">
-                <legend class="mb-1 text-sm font-semibold">{{ facet.label }}</legend>
-                {% for item in facet.values %}
-                    {% include "cms/pages/genomic_data/partials/facet_option.html" %}
-                {% endfor %}
-                {% if facet.more_values %}
-                <details {% if facet.more_selected %}open{% endif %}>
-                    <summary class="cursor-pointer text-sm text-pp-dark-blue">
-                        Show more<span class="sr-only"> {{ facet.label|lower }} options</span>
-                    </summary>
-                    {% for item in facet.more_values %}
-                        {% include "cms/pages/genomic_data/partials/facet_option.html" %}
-                    {% endfor %}
-                </details>
-                {% endif %}
-            </fieldset>
-            {% empty %}
-            <p class="m-0 text-sm">No filters are available.</p>
-            {% endfor %}
-            <noscript>
-                <button type="submit" class="btn btn-primary btn-sm">Apply filters</button>
-            </noscript>
-        </div>
-    </div>
+<div class="grid grid-cols-1 gap-6 lg:grid-cols-12">
 
-    <div class="lg:flex-1 min-w-0 mt-6 lg:mt-0">
+    <aside class="flex flex-col gap-4 lg:col-span-3" aria-label="Filter results">
+        {% for facet in facets %}
+        {% with facet_id=facet.field|slugify %}
+        <details class="collapse collapse-arrow border border-secondary rounded bg-base-100 shadow-sm" open>
+            <summary class="collapse-title font-semibold text-sm">{{ facet.label }}</summary>
+
+            <div class="collapse-content">
+                <fieldset class="m-0 border-0 p-0">
+                    <legend class="sr-only">{{ facet.label }}</legend>
+                    <ul class="mt-1 list-none space-y-1 pl-0">
+                        {% for item in facet.values %}
+                            {% include "cms/pages/genomic_data/partials/facet_option.html" %}
+                        {% endfor %}
+                    </ul>
+
+                    {% if facet.more_values %}
+                    <ul id="ena-facet-more-{{ facet_id }}"
+                        class="mt-1 list-none space-y-1 pl-0{% if not facet.more_selected %} hidden{% endif %}">
+                        {% for item in facet.more_values %}
+                            {% include "cms/pages/genomic_data/partials/facet_option.html" %}
+                        {% endfor %}
+                    </ul>
+
+                    <button type="button"
+                        class="facet-toggle btn btn-ghost btn-xs mt-2 text-accent underline"
+                        data-target="ena-facet-more-{{ facet_id }}"
+                        data-collapsed-text="Show more"
+                        data-expanded-text="Show less"
+                        aria-expanded="{% if facet.more_selected %}true{% else %}false{% endif %}"
+                        aria-controls="ena-facet-more-{{ facet_id }}">
+                        {% if facet.more_selected %}Show less{% else %}Show more{% endif %}
+                    </button>
+                    {% endif %}
+                </fieldset>
+            </div>
+        </details>
+        {% endwith %}
+        {% endfor %}
+
+        {% if facets_active %}
+        <a href="{{ clear_facets_url }}" hx-get="{{ clear_facets_url }}"
+            class="btn btn-ghost btn-xs self-start text-accent underline">
+            Clear all filters
+        </a>
+        {% endif %}
+
+        <noscript>
+            <button type="submit" class="btn btn-primary btn-sm">Apply filters</button>
+        </noscript>
+    </aside>
+
+    <div class="min-w-0 lg:col-span-9">
         {% if fetch_error %}
-        <div class="text-center mt-8">
+        <p class="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800">
             The {{ data_type.label|lower }} could not be loaded from ENA, please try again later.
-            <br>If the problem persists, please <a href="/contact/">contact the portal team</a>.
-        </div>
+            If the problem persists, please <a href="/contact/">contact the portal team</a>.
+        </p>
         {% elif not records %}
-        <div class="text-center mt-8">
-            No {{ data_type.label|lower }} from Sweden match your search{% if facets_active %} and filters{% endif %}.
+        <div class="text-center py-16">
+            <div class="max-w-md mx-auto">
+                <div class="w-20 h-20 bg-pp-pale-grey rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-10 h-10 text-pp-dark-grey" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"/>
+                    </svg>
+                </div>
+                <h3 class="text-xl font-semibold text-pp-dark-grey mb-2">No {{ data_type.label|lower }} found</h3>
+                <p class="text-pp-dark-grey">
+                    No {{ data_type.label|lower }} from Sweden match your current search{% if facets_active %} or filters{% endif %}.
+                    Try adjusting your search terms{% if facets_active %} or clearing the filters{% endif %}.
+                </p>
+            </div>
         </div>
         {% else %}
-        <p class="mt-0 mb-3 text-sm">
+        <div class="mb-3 text-sm text-pp-dark-grey">
             Showing {{ start_display }} to {{ end_display }} of {{ total_display }} {{ data_type.label|lower }} from Sweden in the
             <a href="https://www.ebi.ac.uk/ena/browser/" target="_blank" rel="noopener noreferrer">European Nucleotide Archive (ENA)</a>.
-        </p>
+        </div>
 
-        <div class="overflow-x-auto rounded-box shadow border border-base-300">
+        <div class="overflow-x-auto rounded border border-pp-pale-grey bg-white shadow-sm">
             <table class="table table-zebra table-sm">
                 <caption class="sr-only">
                     {{ data_type.label }} from Sweden, page {{ page_obj.number }}.
@@ -131,22 +162,22 @@
         {% if page_obj.paginator.num_pages > 1 %}
         <nav aria-label="Pagination" class="join mt-6 flex flex-wrap justify-center">
             {% if previous_url %}
-            <a href="{{ previous_url }}" hx-get="{{ previous_url }}" class="join-item btn btn-sm"
+            <a href="{{ previous_url }}" hx-get="{{ previous_url }}" class="join-item btn"
                 aria-label="Previous page">«</a>
             {% endif %}
             {% for link in page_links %}
                 {% if link is None %}
-                <span class="join-item btn btn-sm btn-disabled" aria-hidden="true">…</span>
+                <span class="join-item btn btn-disabled" aria-hidden="true">…</span>
                 {% elif link.current %}
-                <span class="join-item btn btn-sm btn-primary" aria-current="page"
+                <span class="join-item btn btn-active" aria-current="page"
                     aria-label="Page {{ link.number }}">{{ link.number }}</span>
                 {% else %}
-                <a href="{{ link.url }}" hx-get="{{ link.url }}" class="join-item btn btn-sm"
+                <a href="{{ link.url }}" hx-get="{{ link.url }}" class="join-item btn"
                     aria-label="Page {{ link.number }}">{{ link.number }}</a>
                 {% endif %}
             {% endfor %}
             {% if next_url %}
-            <a href="{{ next_url }}" hx-get="{{ next_url }}" class="join-item btn btn-sm"
+            <a href="{{ next_url }}" hx-get="{{ next_url }}" class="join-item btn"
                 aria-label="Next page">»</a>
             {% endif %}
         </nav>

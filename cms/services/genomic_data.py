@@ -35,7 +35,7 @@ PAGE_SIZE = 25
 # Longest search text accepted from the query string.
 MAX_SEARCH_LENGTH = 200
 # Facet values shown before the rest are tucked behind "Show more".
-FACET_VALUES_SHOWN = 5
+FACET_VALUES_SHOWN = 4
 
 
 @dataclass(frozen=True)

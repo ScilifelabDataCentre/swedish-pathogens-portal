@@ -115,6 +115,8 @@ class TestGenomicDataPage(WagtailPageTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Some descriptive text.")
         self.assertContains(response, 'id="ena-search-input" name="q" value="coli"')
+        self.assertContains(response, "<h1>Genomic data</h1>")
+        self.assertContains(response, 'href="/genomic-data/" class="btn btn-outline btn-sm"')
         self.assertContains(response, 'hx-get="/genomic-data/?q=coli&amp;type=samples"')
         mock_fetch.assert_not_called()
 
@@ -169,11 +171,23 @@ class TestGenomicDataPage(WagtailPageTestCase):
         # the selected value is ticked, the other isn't
         self.assertRegex(content, r'value="viruses"\s+class="[^"]*" checked')
         self.assertNotRegex(content, r'value="bacteria"\s+class="[^"]*" checked')
-        # hosts beyond the first five are behind "Show more"
-        self.assertIn("Show more", content)
-        self.assertLess(content.index("Host 4"), content.index("Show more"))
-        self.assertGreater(content.index("Host 5"), content.index("Show more"))
+        # hosts beyond the first four are in a hidden list, revealed by "Show more"
+        more_list = content.index('<ul id="ena-facet-more-host"')
+        self.assertLess(content.index("Host 3"), more_list)
+        self.assertGreater(content.index("Host 4"), more_list)
+        self.assertRegex(content, r'<ul id="ena-facet-more-host"\s+class="[^"]* hidden"')
+        self.assertIn('aria-controls="ena-facet-more-host"', content)
+        self.assertIn('aria-expanded="false"', content)
         self.assertContains(response, "Clear all filters")
+
+    @patch("portal_data.ebi_search.fetch_json")
+    def test_selected_hidden_facet_value_keeps_its_list_open(self, mock_fetch: MagicMock):
+        """Test a ticked value beyond the first four keeps "Show more" expanded."""
+        mock_fetch.side_effect = fake_ebi_search(facets=[HOSTS]).side_effect
+        content = self.get_htmx({"host": "Host 6"}).content.decode()
+        self.assertNotRegex(content, r'<ul id="ena-facet-more-host"\s+class="[^"]* hidden"')
+        self.assertIn('aria-expanded="true"', content)
+        self.assertIn("Show less", content)
 
     @patch("portal_data.ebi_search.fetch_json")
     def test_selected_facets_and_search_are_sent(self, mock_fetch: MagicMock):
@@ -235,7 +249,8 @@ class TestGenomicDataPage(WagtailPageTestCase):
         """Test a search with no hits shows a message."""
         mock_fetch.side_effect = fake_ebi_search(total=0).side_effect
         response = self.get_htmx({"q": "nothing"})
-        self.assertContains(response, "No sequences from Sweden match your search.")
+        self.assertContains(response, "No sequences found")
+        self.assertContains(response, "No sequences from Sweden match your current search.")
         self.assertNotContains(response, "<table")
 
     @patch("portal_data.ebi_search.fetch_json")
