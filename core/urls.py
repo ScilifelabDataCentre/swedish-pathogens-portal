@@ -60,7 +60,7 @@ if settings.INCLUDE_DJANGO_ADMIN:
 
 
 # Wagtail admin, documents, and sitemap URLs
-third_party_view_urls = [
+third_party_view_urls += [
     path(settings.WAGTAILADMIN_URL, include(wagtailadmin_urls)),
     path("documents/", include(wagtaildocs_urls)),
     path("sitemap.xml", wagtail_sitemap, name="sitemap"),
