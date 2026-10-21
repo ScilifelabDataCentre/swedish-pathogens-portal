@@ -1,114 +1,41 @@
 """Service functions for the Genomic data page.
 
 Responsible for:
-(1) resolving the active (selected) pathogen, record type, column filters and page number.
-(2) fetching record counts and records from ENA, then filtering and paging them.
-(3) building the context for the ENA listing and results partial templates.
+(1) reading the selected data type, search words, facets, sort and page from the request.
+(2) searching EBI Search's ENA pathogen indexes for one page of Swedish records.
+(3) building the context for the listing partial template.
 """
 
 from __future__ import annotations
 
+import hashlib
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
-import structlog
 from django.core.paginator import Paginator
 from django.http import HttpRequest
 from django.utils.http import urlencode
 
-from portal_data.ena import (
-    DEFAULT_RECORD_TYPE,
-    RECORD_TYPES,
-    RecordType,
-    build_download_url,
-    build_query,
+from portal_data.ebi_search import (
+    DATA_TYPES,
+    DEFAULT_DATA_TYPE,
+    FACET_FIELDS,
+    DataType,
     fetch_count,
-    fetch_records,
-    filter_records,
-    sort_records,
+    is_valid_facet_value,
+    search,
 )
 
 if TYPE_CHECKING:
     from cms.pages.genomic_data import GenomicDataPage
 
-LOGGER = structlog.get_logger(__name__)
-
 PAGE_SIZE = 25
-# Longest filter value accepted from the query string.
-MAX_FILTER_LENGTH = 100
-
-
-@dataclass(frozen=True)
-class EnaPathogen:
-    """A pathogen whose Swedish records are listed from ENA.
-
-    Attributes:
-        name: The pathogen name shown on the page.
-        taxon_ids: NCBI taxonomy ids; records in any of these taxa (or below) match.
-    """
-
-    name: str
-    taxon_ids: tuple[int, ...]
-
-    @property
-    def query(self) -> str:
-        """Return the ENA query for this pathogen's Swedish records."""
-        return build_query(self.taxon_ids)
-
-
-def _clean_param(request: HttpRequest, name: str) -> str:
-    """Return a single-line, stripped query parameter value."""
-    return request.GET.get(name, "").strip().replace("\n", "").replace("\r", "")
-
-
-def resolve_active_pathogen(page: GenomicDataPage, request: HttpRequest) -> EnaPathogen | None:
-    """Resolve the selected pathogen from the request's ``pathogen`` query parameter.
-
-    If none is given (e.g. initial page load), return the first pathogen.
-    Otherwise return the matching pathogen, or None if it isn't configured.
-    """
-    requested = _clean_param(request, "pathogen")
-    if not requested:
-        return page.pathogens[0] if page.pathogens else None
-
-    pathogen = page.pathogens_by_name.get(requested)
-    if pathogen is None:
-        LOGGER.warning(
-            "genomic_data.unknown_pathogen",
-            requested=requested,
-            available=list(page.pathogens_by_name),
-        )
-    return pathogen
-
-
-def resolve_record_type(request: HttpRequest) -> RecordType:
-    """Resolve the selected record type, falling back to the default if unknown."""
-    requested = _clean_param(request, "type")
-    return RECORD_TYPES.get(requested) or RECORD_TYPES[DEFAULT_RECORD_TYPE]
-
-
-def _page_number(request: HttpRequest) -> int:
-    """Parse the requested page number, defaulting to 1 for missing or invalid values."""
-    try:
-        return max(int(_clean_param(request, "page") or 1), 1)
-    except ValueError:
-        return 1
-
-
-def resolve_filters(request: HttpRequest, record_type: RecordType) -> dict[str, str]:
-    """Return the non-blank column filters for ``record_type`` from the query string.
-
-    Each filter's parameter name is the ENA field it applies to, e.g.
-    ``?host=Homo sapiens``; parameters for other fields are ignored.
-    """
-    filters = {}
-    for field in record_type.fields:
-        value = _clean_param(request, field)[:MAX_FILTER_LENGTH]
-        if value:
-            filters[field] = value
-    return filters
+# Longest search text accepted from the query string.
+MAX_SEARCH_LENGTH = 200
+# Facet values shown before the rest are tucked behind "Show more".
+FACET_VALUES_SHOWN = 5
 
 
 @dataclass(frozen=True)
@@ -119,59 +46,76 @@ class Sort:
     descending: bool = False
 
 
-def resolve_sort(request: HttpRequest, record_type: RecordType) -> Sort | None:
-    """Return the requested sort, from the ``sort`` and ``order`` query parameters.
+@dataclass(frozen=True)
+class ListingState:
+    """Everything the request selects: data type, search words, facets and sort."""
 
-    ``sort`` must be one of the record type's fields, otherwise the records keep
-    ENA's order. ``order=desc`` sorts descending; anything else ascending.
+    data_type: DataType
+    text: str
+    facets: dict[str, list[str]]
+    sort: Sort | None
+
+    def url(
+        self,
+        path: str,
+        *,
+        page: int = 1,
+        data_type: DataType | None = None,
+        facets: dict[str, list[str]] | None = None,
+        sort: Sort | None | bool = True,
+    ) -> str:
+        """Build a link to ``path`` for this state, with any of its parts replaced.
+
+        ``sort=True`` (the default) keeps the current sort, None drops it. The
+        page number is left out for the first page, to keep URLs short.
+        """
+        sort = self.sort if sort is True else sort
+        params: list[tuple[str, str | int]] = [("type", (data_type or self.data_type).key)]
+        if self.text:
+            params.append(("q", self.text))
+        for facet_field, values in (self.facets if facets is None else facets).items():
+            params.extend((facet_field, value) for value in values)
+        if isinstance(sort, Sort):
+            params.extend([("sort", sort.field), ("order", "desc" if sort.descending else "asc")])
+        if page > 1:
+            params.append(("page", page))
+        return f"{path}?{urlencode(params)}"
+
+
+def _clean(value: str) -> str:
+    """Return a single-line, stripped query parameter value."""
+    return value.strip().replace("\n", "").replace("\r", "")
+
+
+def resolve_state(request: HttpRequest) -> ListingState:
+    """Read the listing state from the request's query parameters.
+
+    Unknown data types fall back to the default, facet parameters are limited to
+    known facet fields, and the sort must be a sortable field of the data type.
     """
-    field = _clean_param(request, "sort")
-    if field not in record_type.fields:
-        return None
-    return Sort(field=field, descending=_clean_param(request, "order") == "desc")
+    data_type = DATA_TYPES.get(_clean(request.GET.get("type", ""))) or DATA_TYPES[DEFAULT_DATA_TYPE]
+    text = _clean(request.GET.get("q", ""))[:MAX_SEARCH_LENGTH]
+
+    facets: dict[str, list[str]] = {}
+    for facet_field in FACET_FIELDS:
+        values = [_clean(v) for v in request.GET.getlist(facet_field)]
+        values = list(dict.fromkeys(v for v in values if is_valid_facet_value(v)))
+        if values:
+            facets[facet_field] = values
+
+    sort = None
+    sort_field = _clean(request.GET.get("sort", ""))
+    if sort_field in data_type.sortable_fields:
+        sort = Sort(field=sort_field, descending=_clean(request.GET.get("order", "")) == "desc")
+    return ListingState(data_type=data_type, text=text, facets=facets, sort=sort)
 
 
-def _url(
-    path: str,
-    *,
-    pathogen: str,
-    record_type: str,
-    page: int = 1,
-    filters: dict[str, str] | None = None,
-    sort: Sort | None = None,
-) -> str:
-    """Build a link to ``path`` for the given pathogen, record type, filters, sort and page.
-
-    The page number is left out for the first page, to keep URLs short.
-    """
-    params: dict[str, str | int] = {"pathogen": pathogen, "type": record_type}
-    params.update(filters or {})
-    if sort is not None:
-        params["sort"] = sort.field
-        params["order"] = "desc" if sort.descending else "asc"
-    if page > 1:
-        params["page"] = page
-    return f"{path}?{urlencode(params)}"
-
-
-def _sort_header(
-    field: str, label: str, sort: Sort | None, url_for: Callable[[Sort], str]
-) -> dict[str, Any]:
-    """Build a table header that sorts on ``field`` when clicked.
-
-    Clicking the column already sorted ascending flips it to descending; any
-    other column starts ascending. ``state`` is the header's ``aria-sort`` value.
-    """
-    is_sorted = sort is not None and sort.field == field
-    state = ("descending" if sort.descending else "ascending") if is_sorted else None
-    next_sort = Sort(field=field, descending=state == "ascending")
-    return {
-        "field": field,
-        "label": label,
-        "state": state,
-        "url": url_for(next_sort),
-        "next_order": "descending" if next_sort.descending else "ascending",
-    }
+def _page_number(request: HttpRequest) -> int:
+    """Parse the requested page number, defaulting to 1 for missing or invalid values."""
+    try:
+        return max(int(_clean(request.GET.get("page", "")) or 1), 1)
+    except ValueError:
+        return 1
 
 
 def _format_count(count: int | None) -> str:
@@ -179,111 +123,136 @@ def _format_count(count: int | None) -> str:
     return "?" if count is None else f"{count:,}"
 
 
-def _fetch_counts(query: str) -> dict[str, int | None]:
-    """Fetch the record count for every record type concurrently."""
-    with ThreadPoolExecutor(max_workers=len(RECORD_TYPES)) as executor:
+def _fetch_counts(text: str) -> dict[str, int | None]:
+    """Fetch the number of matching records for every data type concurrently."""
+    with ThreadPoolExecutor(max_workers=len(DATA_TYPES)) as executor:
         futures = {
-            key: executor.submit(fetch_count, record_type, query)
-            for key, record_type in RECORD_TYPES.items()
+            key: executor.submit(fetch_count, data_type, text)
+            for key, data_type in DATA_TYPES.items()
         }
         return {key: future.result() for key, future in futures.items()}
 
 
-def build_context_dict(request: HttpRequest, page: GenomicDataPage) -> dict[str, Any]:
-    """Build the context for the ENA listing partial template."""
-    path = request.path
-    active_pathogen = resolve_active_pathogen(page=page, request=request)
-    record_type = resolve_record_type(request)
-    filters = resolve_filters(request, record_type)
-    sort = resolve_sort(request, record_type)
+def _sort_header(
+    field: str, label: str, sortable: bool, sort: Sort | None, url_for: Callable[[Sort], str]
+) -> dict[str, Any]:
+    """Build a table header, linking sortable columns to sort on them.
 
-    pathogen_links = [
-        {
-            "name": pathogen.name,
-            "url": _url(path, pathogen=pathogen.name, record_type=record_type.result),
-            "active": active_pathogen is not None and pathogen.name == active_pathogen.name,
-        }
-        for pathogen in page.pathogens
-    ]
+    Clicking the column already sorted ascending flips it to descending; any
+    other column starts ascending. ``state`` is the header's ``aria-sort`` value.
+    """
+    header: dict[str, Any] = {"label": label, "state": None, "url": None}
+    if not sortable:
+        return header
+    if sort is not None and sort.field == field:
+        header["state"] = "descending" if sort.descending else "ascending"
+    next_sort = Sort(field=field, descending=header["state"] == "ascending")
+    header["url"] = url_for(next_sort)
+    header["next_order"] = "descending" if next_sort.descending else "ascending"
+    return header
+
+
+def _facet_input_id(facet_field: str, value: str) -> str:
+    """Return a stable, unique checkbox id, so HTMX can restore focus after a swap."""
+    digest = hashlib.sha1(value.encode(), usedforsecurity=False).hexdigest()[:10]
+    return f"ena-facet-{facet_field}-{digest}"
+
+
+def build_context_dict(request: HttpRequest, page: GenomicDataPage | None = None) -> dict[str, Any]:
+    """Build the context for the Genomic data listing partial template."""
+    path = request.path
+    state = resolve_state(request)
+    data_type = state.data_type
+    page_number = _page_number(request)
+
+    counts = _fetch_counts(state.text)
+    result = search(
+        data_type,
+        text=state.text,
+        selected_facets=state.facets,
+        start=(page_number - 1) * PAGE_SIZE,
+        size=PAGE_SIZE,
+        sort=(state.sort.field, state.sort.descending) if state.sort else None,
+    )
+
     context: dict[str, Any] = {
-        "pathogen_links": pathogen_links,
-        "active_pathogen": active_pathogen.name if active_pathogen else None,
-        "record_type": record_type,
-        "type_links": [],
-        "count": None,
-        "count_display": "",
+        "state": state,
+        "data_type": data_type,
+        "search_text": state.text,
+        "type_links": [
+            {
+                "label": dt.label,
+                "count_display": _format_count(counts[key]),
+                # switching data type keeps the search words but not the facets or sort,
+                # as each index has its own facets and sortable fields
+                "url": state.url(path, data_type=dt, facets={}, sort=None),
+                "active": dt.key == data_type.key,
+            }
+            for key, dt in DATA_TYPES.items()
+        ],
+        "facets": [],
+        "facets_active": bool(state.facets),
+        "clear_facets_url": state.url(path, facets={}),
+        "fetch_error": result is None,
         "records": [],
-        "fetch_error": False,
         "page_obj": None,
-        "page_links": [],
-        "previous_url": None,
-        "next_url": None,
-        "download_url": None,
-        "truncated": False,
-        "browsable_display": "",
-        "filter_fields": [],
-        "filters_active": bool(filters),
-        "clear_filters_url": None,
-        "sort": sort,
         "sort_headers": [],
     }
-    if active_pathogen is None:
+    if result is None:
         return context
 
-    query = active_pathogen.query
-    counts = _fetch_counts(query)
-    count = counts[record_type.result]
-
-    context["type_links"] = [
-        {
-            "label": rt.label,
-            "count": counts[key],
-            "count_display": _format_count(counts[key]),
-            "url": _url(path, pathogen=active_pathogen.name, record_type=rt.result),
-            "active": rt.result == record_type.result,
-        }
-        for key, rt in RECORD_TYPES.items()
-    ]
-    context["count"] = count
-    context["count_display"] = _format_count(count)
-
-    if count is None:
-        context["fetch_error"] = True
-        return context
-    if count == 0:
-        return context
-
-    # ENA can't serve one page at a time (no offset parameter), so the first
-    # MAX_BROWSABLE_RECORDS records are fetched once, cached, and sliced per page.
-    all_records = fetch_records(record_type, query)
-    if all_records is None:
-        context["fetch_error"] = True
-        return context
-
-    matching_records = filter_records(all_records, record_type, filters)
-    if sort is not None:
-        # Sorting applies to every matching record, before the page is sliced out.
-        matching_records = sort_records(
-            matching_records, record_type, sort.field, descending=sort.descending
+    context["facets"] = []
+    for facet in result.facets:
+        values = [
+            {
+                "value": v,
+                "id": _facet_input_id(facet.field, v.value),
+                "count_display": _format_count(v.count),
+            }
+            for v in facet.values
+        ]
+        context["facets"].append(
+            {
+                "field": facet.field,
+                "label": facet.label,
+                "values": values[:FACET_VALUES_SHOWN],
+                "more_values": values[FACET_VALUES_SHOWN:],
+                # keep "Show more" open when one of its values is selected
+                "more_selected": any(v.selected for v in facet.values[FACET_VALUES_SHOWN:]),
+            }
         )
-    page_obj = Paginator(matching_records, PAGE_SIZE).get_page(_page_number(request))
-    records = list(page_obj.object_list)
+    if result.total == 0:
+        return context
+
+    # A range stands in for the results, so Django can do the page maths: only the
+    # requested page is fetched from EBI Search. A page past the end is clamped.
+    page_obj = Paginator(range(result.total), PAGE_SIZE).get_page(page_number)
+    if page_obj.number != page_number:
+        result = search(
+            data_type,
+            text=state.text,
+            selected_facets=state.facets,
+            start=page_obj.start_index() - 1,
+            size=PAGE_SIZE,
+            sort=(state.sort.field, state.sort.descending) if state.sort else None,
+        )
+        if result is None:
+            context["fetch_error"] = True
+            return context
 
     def page_url(number: int) -> str:
-        """Return the link to page ``number`` of the current (filtered) listing."""
-        return _url(
-            path,
-            pathogen=active_pathogen.name,
-            record_type=record_type.result,
-            page=number,
-            filters=filters,
-            sort=sort,
-        )
+        """Return the link to page ``number`` of the current results."""
+        return state.url(path, page=number)
+
+    def sort_url(sort: Sort) -> str:
+        """Return the link that sorts the results by ``sort`` (back on page 1)."""
+        return state.url(path, sort=sort)
 
     context.update(
         {
-            "records": records,
+            "records": result.records,
             "page_obj": page_obj,
+            "total_display": _format_count(result.total),
             "start_display": _format_count(page_obj.start_index()),
             "end_display": _format_count(page_obj.end_index()),
             "page_links": [
@@ -298,43 +267,12 @@ def build_context_dict(request: HttpRequest, page: GenomicDataPage) -> dict[str,
                 page_url(page_obj.previous_page_number()) if page_obj.has_previous() else None
             ),
             "next_url": page_url(page_obj.next_page_number()) if page_obj.has_next() else None,
-            "download_url": build_download_url(record_type, query),
-            # More records exist than can be browsed here, only the download has them all.
-            "truncated": count > len(all_records),
-            "browsable_display": _format_count(len(all_records)),
-            "matching_display": _format_count(len(matching_records)),
-            "filter_fields": [
-                {
-                    "field": field,
-                    "label": label,
-                    "value": filters.get(field, ""),
-                    "id": f"ena-filter-{field}",
-                }
-                for field, label in [
-                    (record_type.accession_field, "Accession"),
-                    *record_type.columns,
-                ]
-            ],
-            "clear_filters_url": _url(
-                path, pathogen=active_pathogen.name, record_type=record_type.result, sort=sort
-            ),
             "sort_headers": [
-                _sort_header(
-                    field,
-                    label,
-                    sort,
-                    lambda new_sort: _url(
-                        path,
-                        pathogen=active_pathogen.name,
-                        record_type=record_type.result,
-                        filters=filters,
-                        sort=new_sort,
-                    ),
-                )
-                for field, label in [
-                    (record_type.accession_field, "Accession"),
-                    *record_type.columns,
-                ]
+                _sort_header("acc", "Accession", True, state.sort, sort_url),
+                *(
+                    _sort_header(c.field, c.label, c.sortable, state.sort, sort_url)
+                    for c in data_type.columns
+                ),
             ],
         }
     )

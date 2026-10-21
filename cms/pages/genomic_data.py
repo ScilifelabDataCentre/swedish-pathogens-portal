@@ -4,27 +4,27 @@ from typing import Any
 
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
-from django.utils.functional import cached_property
 from wagtail.admin.panels import FieldPanel
 from wagtail.blocks import RichTextBlock
 from wagtail.fields import StreamField
 from wagtail.models import Page
 
 from cms.blocks import AlertBlock, EnaDataBlock
-from cms.services.genomic_data import EnaPathogen, build_context_dict
+from cms.services.genomic_data import MAX_SEARCH_LENGTH, build_context_dict
 
 
 class GenomicDataPage(Page):
     """Genomic data page that lists Swedish pathogen records from ENA.
 
-    Records are fetched live from the ENA Portal API, filtered by pathogen
-    (configured in the ENA data block) and record type (raw reads, samples, sequences).
+    Records are searched live in EBI Search's ENA pathogen indexes (the same
+    source as the central Pathogens Portal), one page at a time, with facets,
+    a search box, data type tabs and sortable columns.
 
     Attributes:
         content (StreamField): StreamField with three content block types:
             - RichTextBlock: formatted text (headings, bold, italic, links, lists).
             - AlertBlock: callout/notice box.
-            - EnaDataBlock: the ENA records listing, with its pathogens.
+            - EnaDataBlock: the searchable records listing.
     """
 
     template = "cms/pages/genomic_data/index.html"
@@ -48,50 +48,24 @@ class GenomicDataPage(Page):
 
         verbose_name = "Genomic data page"
 
-    @cached_property
-    def pathogens(self) -> list[EnaPathogen]:
-        """Return the pathogens from the ENA data block, sorted by name."""
-        pathogens: list[EnaPathogen] = []
-        for block in self.content:
-            if block.block_type != "ena_data":
-                continue
-            for pathogen_data in block.value["pathogens"]:
-                pathogens.append(
-                    EnaPathogen(
-                        name=pathogen_data["name"],
-                        taxon_ids=tuple(pathogen_data["taxon_ids"]),
-                    )
-                )
-        return sorted(pathogens, key=lambda pathogen: pathogen.name.casefold())
-
-    @cached_property
-    def pathogens_by_name(self) -> dict[str, EnaPathogen]:
-        """Return a mapping of pathogen name to EnaPathogen for lookups by name."""
-        return {pathogen.name: pathogen for pathogen in self.pathogens}
-
     def get_context(self, request: HttpRequest, *args: Any, **kwargs: Any) -> dict[str, Any]:  # noqa: ANN401
-        """Add the URL the ENA listing is lazy-loaded from to the template context."""
+        """Add the lazy-load URL and the search box's current value to the context."""
         context = super().get_context(request, *args, **kwargs)
         context["ena_listing_url"] = request.get_full_path()
+        context["ena_search_text"] = request.GET.get("q", "").strip()[:MAX_SEARCH_LENGTH]
         return context
 
     def serve(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:  # noqa: ANN401
         """Serve the genomic data page.
 
-        HTMX requests get a partial: just the results (table and pagination) when
-        they target ``#ena-results`` (filtering and paging, so the filter inputs keep
-        their focus), otherwise the whole ENA listing. Anything else, including HTMX
-        history restores (which need a whole page), gets the full page.
+        HTMX requests get just the listing partial (tabs, facets and results).
+        Anything else, including HTMX history restores (which need a whole page),
+        gets the full page.
         """
         if request.htmx and not request.htmx.history_restore_request:
-            template_name = (
-                "cms/pages/genomic_data/partials/ena_results.html"
-                if request.htmx.target == "ena-results"
-                else "cms/pages/genomic_data/partials/ena_listing.html"
-            )
             return render(
                 request=request,
-                template_name=template_name,
+                template_name="cms/pages/genomic_data/partials/ena_listing.html",
                 context=build_context_dict(request=request, page=self),
             )
         return super().serve(request, *args, **kwargs)

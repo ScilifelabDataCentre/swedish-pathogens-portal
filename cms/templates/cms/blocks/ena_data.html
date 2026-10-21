@@ -1,28 +1,43 @@
 {% comment %}
-    EnaDataBlock's template:
-    A container whose content (pathogen sidebar, record type tabs and records table) is
-    lazy-loaded via HTMX on page load, and swapped as a whole whenever a link inside it is
-    followed. The current query string is passed on, so shared or bookmarked URLs
-    (e.g. ?pathogen=Influenza&type=sample&page=2) load that same view.
+    EnaDataBlock's template: a search form whose body (data type tabs, facets and
+    results) is lazy-loaded via HTMX, then swapped whenever the search, a facet, a tab,
+    a sort or a page changes. The search box sits outside the swapped body so typing
+    isn't interrupted; facet checkboxes keep stable ids, so HTMX restores their focus.
+    The current query string is passed on, so shared or bookmarked URLs load that same view.
 {% endcomment %}
 
-<div class="relative min-h-40 mt-6"
-    hx-get="{{ ena_listing_url|default:request.get_full_path }}"
-    hx-trigger="load once"
-    hx-target="#ena-listing"
-    hx-swap="innerHTML"
-    hx-indicator="#ena-listing-loading">
-    <div id="ena-listing-loading"
-        class="htmx-indicator absolute inset-0 bg-base-100/80 flex items-center justify-center z-10 rounded-box">
-        <span class="loading loading-spinner text-accent loading-lg" aria-label="Loading"></span>
+<form id="ena-search-form" method="get" action="{{ request.path }}" role="search"
+    class="mt-6" aria-label="Search genomic data"
+    hx-get="{{ request.path }}" hx-target="#ena-listing" hx-swap="innerHTML"
+    hx-push-url="true" hx-sync="this:replace" hx-indicator="#ena-listing-loading"
+    hx-trigger="change, input changed delay:500ms from:#ena-search-input, submit">
+    <div class="flex flex-col sm:flex-row gap-2 sm:items-end mb-4">
+        <div class="grow">
+            <label for="ena-search-input" class="block text-sm font-medium mb-1">
+                Search records, e.g. an organism, accession or host
+            </label>
+            <input type="search" id="ena-search-input" name="q" value="{{ ena_search_text }}"
+                maxlength="200" autocomplete="off" class="input input-bordered input-accent w-full">
+        </div>
+        <button type="submit" class="btn btn-primary">Search</button>
     </div>
-    <div id="ena-listing" aria-live="polite" aria-busy="false">
-        <!-- ENA listing loaded lazily by HTMX -->
-        <noscript>
-            <p>This list of records is loaded with JavaScript, please enable it to see the data.</p>
-        </noscript>
+
+    <div class="relative min-h-40"
+        hx-get="{{ ena_listing_url|default:request.get_full_path }}"
+        hx-trigger="load once"
+        hx-target="#ena-listing">
+        <div id="ena-listing-loading"
+            class="htmx-indicator absolute inset-0 bg-base-100/80 flex items-center justify-center z-10 rounded-box">
+            <span class="loading loading-spinner text-accent loading-lg" aria-label="Loading"></span>
+        </div>
+        <div id="ena-listing" aria-live="polite" aria-busy="false">
+            <!-- Listing loaded lazily by HTMX -->
+            <noscript>
+                <p>This list of records is loaded with JavaScript, please enable it to see the data.</p>
+            </noscript>
+        </div>
     </div>
-</div>
+</form>
 
 <script>
     // Mark the listing as busy while HTMX swaps it, so screen readers announce the new content once.
