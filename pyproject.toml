@@ -14,7 +14,7 @@ dependencies = [
     "markdown==3.11",
     "nh3==0.3.7",
     "numpy==2.5.4",
-    "pillow==12.3.0",
+    "pillow==13.0.0",
     "plotly==7.1.0",
     "polars==2.0.0",
     "wagtail==8.0",
