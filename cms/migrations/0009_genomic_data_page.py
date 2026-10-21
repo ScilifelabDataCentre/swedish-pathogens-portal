@@ -10,6 +10,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('cms', '0007_available_data_portal_data_summary'),
+        ('cms', '0008_newspage_image_caption'),
         ('wagtailcore', '0098_apitoken'),
     ]
 
