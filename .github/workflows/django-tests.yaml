@@ -9,13 +9,17 @@
 # what this workflow exists to verify -- ruff.yaml's '*/**.py' filter is the
 # reason they went unverified. Excluding docs keeps the default "run".
 #
-# Two steps below look redundant and are not. Either one missing fails the
+# Three things below look redundant and are not. Any one missing fails the
 # job before a single test runs:
 #   SECRET_KEY   core/settings/base.py reads it with no default, and CI has
 #                no .env for environ.Env.read_env to find.
 #   --group dev  django.contrib.postgres is in INSTALLED_APPS and needs
 #                psycopg, which lives only in the dev and prod groups
 #                because pyproject.toml sets [tool.uv] default-groups = [].
+#   postgres     the suite runs on the engine production runs, so there has to
+#                be a server to create test_pathogens_portal in. SQLite needed
+#                none, but it does not stem indexed words, so every full-text
+#                search assertion proved something untrue of production.
 ---
 name: Django Tests
 
@@ -42,6 +46,23 @@ jobs:
     timeout-minutes: 20
     permissions:
       contents: read
+    services:
+      postgres:
+        # Same image as compose.yaml
+        image: postgres:18.6-trixie@sha256:1957b2ff3137e4ef7f3bc813e74fff50b1e1ffddc85c8b9d6f14ade972be8687
+        env:
+          POSTGRES_PASSWORD: ci-not-a-secret  # A throwaway service, not a credential
+          POSTGRES_DB: pathogens_portal
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      # The runner creates and drops test_pathogens_portal beside this one.
+      DATABASE_URL: postgres://postgres:ci-not-a-secret@localhost:5432/pathogens_portal
     steps:
       - name: Checkout the repo
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -49,7 +70,7 @@ jobs:
       # uv reads .python-version and provisions CPython itself, so no
       # separate actions/setup-python step is needed.
       - name: Install uv
-        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
         with:
           enable-cache: true  # Default is 'auto'; explicit for PR events
           cache-dependency-glob: uv.lock
@@ -58,7 +79,7 @@ jobs:
         run: uv sync --frozen --group dev
 
       - name: Run the test suite
-        run: uv run python manage.py test --settings=core.settings.test
+        run: uv run python manage.py test --settings=core.settings.test --noinput
 
       # Last, and not gated on the suite passing, so one run always reports
       # both facts. Ordered after the tests because the suite is the primary

@@ -31,6 +31,12 @@
     --color-pp-pale-grey: #d8d8d8;
     --color-pp-dark-grey: #55585a;
     --color-pp-almost-black: #1a1c1a;
+
+    /* Header: full menu from `nav` (medium logos + 20px-gap menu ~995px), hamburger below;
+       full-size logos from `logos` (~1075px). The search toggle sits in the margin outside
+       the column, so it takes no width. ~15px spare at each, with 17px scrollbars. */
+    --breakpoint-nav: 80rem;
+    --breakpoint-logos: 86rem;
 }
 
 /* Daisy UI, downloaded to path specified during build time */

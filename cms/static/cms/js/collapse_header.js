@@ -21,6 +21,10 @@
         });
     });
 
+    // the search panel hangs below the header, so it would slide away with it
+    const searchPanel = header.querySelector("[data-search-panel]");
+    const isSearchOpen = () => searchPanel && !searchPanel.hidden;
+
     const minimumScrollThreshold = 80;
     let lastScrollY = window.scrollY;
 
@@ -29,7 +33,7 @@
         const currentScrollY = window.scrollY;
 
         // hide header only if any menu is NOT open and visible
-        if (!isMenuOpen) {
+        if (!isMenuOpen && !isSearchOpen()) {
             if (currentScrollY > lastScrollY && currentScrollY > minimumScrollThreshold) {
                 // Scrolling down
                 header.classList.add("-translate-y-[95%]", "shadow-lg");

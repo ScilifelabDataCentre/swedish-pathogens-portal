@@ -11,9 +11,8 @@ name: Link Checker
 
 on:
   workflow_dispatch:
-  # TODO: Uncomment the following lines to enable scheduled runs
-  # schedule:
-  #   - cron: '11 11 * * MON'
+  schedule:
+    - cron: '11 11 * * MON'
 
 jobs:
   test:
@@ -29,7 +28,7 @@ jobs:
       # uv reads .python-version and provisions CPython itself, so no
       # separate actions/setup-python step is needed.
       - name: Install uv
-        uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+        uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
 
       - name: Install LinkChecker
         run: uv tool install linkchecker==10.6.0
@@ -38,7 +37,7 @@ jobs:
         run: |
           linkchecker \
             --config ${GITHUB_WORKSPACE}/.github/linkchecker/linkcheckerrc \
-            https://swedish-pathogens-portal.scilifelab-2-dev.sys.kth.se/sitemap.xml
+            https://www.pathogens.se/sitemap.xml
 
       - name: Generate LinkChecker summary
         if: always()

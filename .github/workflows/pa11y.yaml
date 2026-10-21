@@ -13,9 +13,8 @@ name: Pa11y Accessibility Check
 
 on:
   workflow_dispatch:
-  # TODO: Uncomment the following lines to enable scheduled runs
-  # schedule:
-  #   - cron: '12 12 * * MON'
+  schedule:
+    - cron: '12 12 * * MON'
 
 jobs:
   pa11y:
@@ -27,7 +26,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Set up Node.js 24
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7
         with:
           node-version: 24
 
@@ -39,7 +38,7 @@ jobs:
         run: |
           pa11y-ci \
             --config ${GITHUB_WORKSPACE}/.github/pa11y/pa11y.config \
-            --sitemap https://swedish-pathogens-portal.scilifelab-2-dev.sys.kth.se/sitemap.xml
+            --sitemap https://www.pathogens.se/sitemap.xml
 
       - name: Generate Pa11y summary
         if: always()

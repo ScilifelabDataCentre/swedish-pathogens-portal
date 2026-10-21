@@ -5,7 +5,7 @@ description = "The Swedish Pathogens Portal provides information about available
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
-    "django==6.1.1",
+    "django==6.1.2",
     "django-environ==0.14.0",
     "django-htmx==1.29.0",
     "django-structlog==10.1.0",
@@ -13,10 +13,10 @@ dependencies = [
     "httpx==0.28.1",
     "markdown==3.11",
     "nh3==0.3.7",
-    "numpy==2.5.3",
+    "numpy==2.5.4",
     "pillow==12.3.0",
     "plotly==7.1.0",
-    "polars==1.44.2",
+    "polars==2.0.0",
     "wagtail==8.0",
 ]
 
@@ -25,9 +25,9 @@ dev = [
     "debugpy>=1.8.21",
     "django-browser-reload==1.21.0",
     "django-extensions==4.1",
-    "pre-commit==4.6.2",
+    "pre-commit==4.7.0",
     "psycopg[binary]==3.3.6",
-    "ruff==0.16.10",
+    "ruff==0.17.0",
     "watchdog==6.0.0",
     "werkzeug[watchdog]==3.1.9",
 ]

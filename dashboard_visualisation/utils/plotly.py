@@ -45,6 +45,7 @@ def plot_html_from_json(
     height: str | int = "100%",
     skip_invalid: bool = False,
     include_plotlyjs: str | bool = False,
+    display_modebar: bool = True,
 ) -> str | None:
     """Build a Plotly HTML fragment from pre-computed figure JSON.
 
@@ -53,6 +54,7 @@ def plot_html_from_json(
         height: Passed to Plotly's ``to_html`` as ``default_height``.
         skip_invalid: When True, invalid JSON properties are ignored.
         include_plotlyjs: Passed to Plotly's ``to_html`` (False when JS is loaded once).
+        display_modebar: Passed to Plotly's ``to_html`` as ``config.displayModeBar``.
 
     Returns:
         HTML fragment for template embedding, or None if conversion fails.
@@ -61,14 +63,19 @@ def plot_html_from_json(
         _HTML_LOGGER.warning("plot_html_from_json called with None data")
         return None
 
+    html_settings = {
+        "full_html": False,
+        "default_height": height,
+        "include_plotlyjs": include_plotlyjs,
+    }
+
+    if not display_modebar:
+        html_settings["config"] = {"displayModeBar": False}
+
     try:
         jstring = data if isinstance(data, str) else json.dumps(data)
         fig = pio.from_json(jstring, skip_invalid=skip_invalid)
-        return fig.to_html(
-            full_html=False,
-            default_height=height,
-            include_plotlyjs=include_plotlyjs,
-        )
+        return fig.to_html(**html_settings)
     except ValueError:
         _HTML_LOGGER.warning("Invalid Plotly JSON for plot HTML conversion", exc_info=True)
     except Exception:

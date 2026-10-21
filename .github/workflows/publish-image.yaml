@@ -5,11 +5,8 @@ name: Publish Docker image
 
 on:
   workflow_dispatch:
-#  push:
-#    branches:
-#      - main
-#  release:
-#    types: [published]
+  release:
+    types: [published]
 jobs:
   push_to_registry:
     if: github.repository == 'scilifelabdatacentre/swedish-pathogens-portal'
@@ -37,8 +34,8 @@ jobs:
           images: ghcr.io/scilifelabdatacentre/swedish-pathogens-portal
           tags: |
              type=sha,format=long
-             type=sha,prefix={{branch}}-
              type=ref,event=branch
+             type=ref,event=branch,suffix=-{{sha}}
              type=semver,pattern={{version}}
              type=semver,pattern={{major}}.{{minor}}
              type=semver,pattern={{major}}
