@@ -266,6 +266,7 @@ class TestGenomicDataPage(WagtailPageTestCase):
         self.assertContains(response, "sort=acc&amp;order=asc")
         # Organism isn't sortable in EBI Search, so its header isn't a link
         self.assertNotContains(response, "sort=scientific_name")
+        self.assertContains(response, "the others can't be sorted by the data source")
         # checkbox changes keep the sort through hidden inputs
         self.assertContains(response, '<input type="hidden" name="sort" value="collection_date">')
 

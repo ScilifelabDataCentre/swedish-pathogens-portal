@@ -110,6 +110,9 @@
         <div class="mb-3 text-sm text-pp-dark-grey">
             Showing {{ start_display }} to {{ end_display }} of {{ total_display }} {{ data_type.label|lower }} from Sweden in the
             <a href="https://www.ebi.ac.uk/ena/browser/" target="_blank" rel="noopener noreferrer">European Nucleotide Archive (ENA)</a>.
+            {# EBI Search only allows sorting on some fields, which differ per data type. #}
+            Columns marked <span aria-hidden="true">↕</span><span class="sr-only">as sortable</span> can be sorted;
+            the others can't be sorted by the data source.
         </div>
 
         <div class="overflow-x-auto rounded border border-pp-pale-grey bg-white shadow-sm">
