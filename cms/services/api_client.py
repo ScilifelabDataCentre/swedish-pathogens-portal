@@ -35,20 +35,3 @@ def fetch_json(url: str, params: dict[str, Any] | None = None) -> dict[str, Any]
     except json.JSONDecodeError as e:
         LOGGER.error("api_client.fetch_invalid_json", url=url, error=str(e), exc_info=True)
     return None
-
-
-def fetch_text(url: str, params: dict[str, Any] | None = None) -> str | None:
-    """GET `url` with `params` and return the response body as text.
-
-    For APIs that answer in plain text rather than JSON. `params` behaves as in
-    `fetch_json`. Returns None if the request times out or fails.
-    """
-    try:
-        response = CLIENT.get(url, params=params)
-        response.raise_for_status()
-        return response.text
-    except httpx.TimeoutException as e:
-        LOGGER.error("api_client.fetch_timeout", url=url, error=str(e), exc_info=False)
-    except httpx.HTTPError as e:
-        LOGGER.error("api_client.fetch_http_error", url=url, error=str(e), exc_info=True)
-    return None
