@@ -31,7 +31,9 @@ from portal_data.ebi_search import (
 if TYPE_CHECKING:
     from cms.pages.genomic_data import GenomicDataPage
 
-PAGE_SIZE = 25
+# Results per page the visitor can choose from, and the one used by default.
+PAGE_SIZE_OPTIONS: tuple[int, ...] = (25, 50, 100)
+DEFAULT_PAGE_SIZE = PAGE_SIZE_OPTIONS[0]
 # Longest search text accepted from the query string.
 MAX_SEARCH_LENGTH = 200
 # Facet values shown before the rest are tucked behind "Show more".
@@ -48,12 +50,13 @@ class Sort:
 
 @dataclass(frozen=True)
 class ListingState:
-    """Everything the request selects: data type, search words, facets and sort."""
+    """Everything the request selects: data type, search words, facets, sort and page size."""
 
     data_type: DataType
     text: str
     facets: dict[str, list[str]]
     sort: Sort | None
+    page_size: int = DEFAULT_PAGE_SIZE
 
     def url(
         self,
@@ -66,8 +69,9 @@ class ListingState:
     ) -> str:
         """Build a link to ``path`` for this state, with any of its parts replaced.
 
-        ``sort=True`` (the default) keeps the current sort, None drops it. The
-        page number is left out for the first page, to keep URLs short.
+        ``sort=True`` (the default) keeps the current sort, None drops it. The page
+        size is always kept. The page number and the default page size are left out,
+        to keep URLs short.
         """
         sort = self.sort if sort is True else sort
         params: list[tuple[str, str | int]] = [("type", (data_type or self.data_type).key)]
@@ -77,6 +81,8 @@ class ListingState:
             params.extend((facet_field, value) for value in values)
         if isinstance(sort, Sort):
             params.extend([("sort", sort.field), ("order", "desc" if sort.descending else "asc")])
+        if self.page_size != DEFAULT_PAGE_SIZE:
+            params.append(("size", self.page_size))
         if page > 1:
             params.append(("page", page))
         return f"{path}?{urlencode(params)}"
@@ -91,7 +97,8 @@ def resolve_state(request: HttpRequest) -> ListingState:
     """Read the listing state from the request's query parameters.
 
     Unknown data types fall back to the default, facet parameters are limited to
-    known facet fields, and the sort must be a sortable field of the data type.
+    known facet fields, the sort must be a sortable field of the data type, and
+    the page size must be one of ``PAGE_SIZE_OPTIONS``.
     """
     data_type = DATA_TYPES.get(_clean(request.GET.get("type", ""))) or DATA_TYPES[DEFAULT_DATA_TYPE]
     text = _clean(request.GET.get("q", ""))[:MAX_SEARCH_LENGTH]
@@ -107,7 +114,15 @@ def resolve_state(request: HttpRequest) -> ListingState:
     sort_field = _clean(request.GET.get("sort", ""))
     if sort_field in data_type.sortable_fields:
         sort = Sort(field=sort_field, descending=_clean(request.GET.get("order", "")) == "desc")
-    return ListingState(data_type=data_type, text=text, facets=facets, sort=sort)
+    try:
+        page_size = int(_clean(request.GET.get("size", "")))
+    except ValueError:
+        page_size = DEFAULT_PAGE_SIZE
+    if page_size not in PAGE_SIZE_OPTIONS:
+        page_size = DEFAULT_PAGE_SIZE
+    return ListingState(
+        data_type=data_type, text=text, facets=facets, sort=sort, page_size=page_size
+    )
 
 
 def _page_number(request: HttpRequest) -> int:
@@ -170,8 +185,8 @@ def build_context_dict(request: HttpRequest, page: GenomicDataPage | None = None
         data_type,
         text=state.text,
         selected_facets=state.facets,
-        start=(page_number - 1) * PAGE_SIZE,
-        size=PAGE_SIZE,
+        start=(page_number - 1) * state.page_size,
+        size=state.page_size,
         sort=(state.sort.field, state.sort.descending) if state.sort else None,
     )
 
@@ -197,6 +212,8 @@ def build_context_dict(request: HttpRequest, page: GenomicDataPage | None = None
         "records": [],
         "page_obj": None,
         "sort_headers": [],
+        "page_size": state.page_size,
+        "page_size_options": PAGE_SIZE_OPTIONS,
     }
     if result is None:
         return context
@@ -226,14 +243,14 @@ def build_context_dict(request: HttpRequest, page: GenomicDataPage | None = None
 
     # A range stands in for the results, so Django can do the page maths: only the
     # requested page is fetched from EBI Search. A page past the end is clamped.
-    page_obj = Paginator(range(result.total), PAGE_SIZE).get_page(page_number)
+    page_obj = Paginator(range(result.total), state.page_size).get_page(page_number)
     if page_obj.number != page_number:
         result = search(
             data_type,
             text=state.text,
             selected_facets=state.facets,
             start=page_obj.start_index() - 1,
-            size=PAGE_SIZE,
+            size=state.page_size,
             sort=(state.sort.field, state.sort.descending) if state.sort else None,
         )
         if result is None:

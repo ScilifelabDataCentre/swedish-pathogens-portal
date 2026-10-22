@@ -13,7 +13,7 @@
     hx-push-url="true" hx-sync="this:replace" hx-indicator="#ena-listing-loading"
     hx-trigger="
     input changed delay:400ms from:#ena-search-input,
-    change[target.matches('input.facet-checkbox')],
+    change[target.matches('input.facet-checkbox, select.page-size')],
     submit
     ">
     <header class="mb-6 lg:mb-8">

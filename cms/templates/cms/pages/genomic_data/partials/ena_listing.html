@@ -159,29 +159,50 @@
             </table>
         </div>
 
-        {% if page_obj.paginator.num_pages > 1 %}
-        <nav aria-label="Pagination" class="join mt-6 flex flex-wrap justify-center">
-            {% if previous_url %}
-            <a href="{{ previous_url }}" hx-get="{{ previous_url }}" class="join-item btn"
-                aria-label="Previous page">«</a>
-            {% endif %}
-            {% for link in page_links %}
-                {% if link is None %}
-                <span class="join-item btn btn-disabled" aria-hidden="true">…</span>
-                {% elif link.current %}
-                <span class="join-item btn btn-active" aria-current="page"
-                    aria-label="Page {{ link.number }}">{{ link.number }}</span>
-                {% else %}
-                <a href="{{ link.url }}" hx-get="{{ link.url }}" class="join-item btn"
-                    aria-label="Page {{ link.number }}">{{ link.number }}</a>
+        {% comment %}
+            Three columns on wider screens: an empty spacer, the pagination (centred under
+            the table, if more than one page) and the page size (bottom right). The equal
+            outer columns keep the pagination centred whatever the dropdown's width.
+            On narrow screens they stack, centred.
+        {% endcomment %}
+        <div class="mt-6 flex flex-col items-center gap-3 sm:grid sm:grid-cols-[1fr_auto_1fr]">
+            <div class="hidden sm:block" aria-hidden="true"></div>
+            {% if page_obj.paginator.num_pages > 1 %}
+            <nav aria-label="Pagination" class="join flex flex-wrap justify-center">
+                {% if previous_url %}
+                <a href="{{ previous_url }}" hx-get="{{ previous_url }}" class="join-item btn"
+                    aria-label="Previous page">«</a>
                 {% endif %}
-            {% endfor %}
-            {% if next_url %}
-            <a href="{{ next_url }}" hx-get="{{ next_url }}" class="join-item btn"
-                aria-label="Next page">»</a>
+                {% for link in page_links %}
+                    {% if link is None %}
+                    <span class="join-item btn btn-disabled" aria-hidden="true">…</span>
+                    {% elif link.current %}
+                    <span class="join-item btn btn-active" aria-current="page"
+                        aria-label="Page {{ link.number }}">{{ link.number }}</span>
+                    {% else %}
+                    <a href="{{ link.url }}" hx-get="{{ link.url }}" class="join-item btn"
+                        aria-label="Page {{ link.number }}">{{ link.number }}</a>
+                    {% endif %}
+                {% endfor %}
+                {% if next_url %}
+                <a href="{{ next_url }}" hx-get="{{ next_url }}" class="join-item btn"
+                    aria-label="Next page">»</a>
+                {% endif %}
+            </nav>
+            {% else %}
+            <div class="hidden sm:block" aria-hidden="true"></div>
             {% endif %}
-        </nav>
-        {% endif %}
+
+            {# Changing this submits the form (see the block's hx-trigger), back on page 1. #}
+            <div class="flex shrink-0 items-center gap-2 text-sm text-pp-dark-grey sm:justify-self-end">
+                <label for="ena-page-size">Per page</label>
+                <select id="ena-page-size" name="size" class="page-size select select-bordered select-sm w-auto">
+                    {% for option in page_size_options %}
+                    <option value="{{ option }}"{% if option == page_size %} selected{% endif %}>{{ option }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
         {% endif %}
     </div>
 </div>

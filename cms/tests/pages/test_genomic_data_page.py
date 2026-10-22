@@ -11,7 +11,7 @@ from wagtail.test.utils import WagtailPageTestCase
 
 from cms.pages import GenomicDataPage, HomePage
 from cms.services.genomic_data import (
-    PAGE_SIZE,
+    DEFAULT_PAGE_SIZE,
     Sort,
     build_context_dict,
     resolve_state,
@@ -201,17 +201,51 @@ class TestGenomicDataPage(WagtailPageTestCase):
     @patch("portal_data.ebi_search.fetch_json")
     def test_pagination_requests_the_right_start(self, mock_fetch: MagicMock):
         """Test page 3 asks EBI Search for the third page, and links keep the state."""
-        mock_fetch.side_effect = fake_ebi_search(total=PAGE_SIZE * 10).side_effect
+        mock_fetch.side_effect = fake_ebi_search(total=DEFAULT_PAGE_SIZE * 10).side_effect
         response = self.get_htmx(
             {"type": "raw-reads", "q": "coli", "classification": "bacteria", "page": "3"}
         )
         params = self.searches(mock_fetch)[0]
-        self.assertEqual(params["start"], PAGE_SIZE * 2)
-        self.assertEqual(params["size"], PAGE_SIZE)
-        self.assertContains(response, f'/view/ERX{PAGE_SIZE * 2}"')
+        self.assertEqual(params["start"], DEFAULT_PAGE_SIZE * 2)
+        self.assertEqual(params["size"], DEFAULT_PAGE_SIZE)
+        self.assertContains(response, f'/view/ERX{DEFAULT_PAGE_SIZE * 2}"')
         self.assertContains(
             response, "?type=raw-reads&amp;q=coli&amp;classification=bacteria&amp;page=4"
         )
+
+    @patch("portal_data.ebi_search.fetch_json")
+    def test_page_size_can_be_chosen(self, mock_fetch: MagicMock):
+        """Test a chosen page size is requested from EBI Search and kept in every link."""
+        mock_fetch.side_effect = fake_ebi_search(total=500).side_effect
+        response = self.get_htmx({"type": "raw-reads", "size": "50", "page": "2"})
+        params = self.searches(mock_fetch)[0]
+        self.assertEqual(params["size"], 50)
+        self.assertEqual(params["start"], 50)
+        self.assertContains(response, "Showing 51 to 100 of 500")
+        self.assertContains(response, '<option value="50" selected>50</option>')
+        # pagination, tabs and sorting all keep the page size
+        self.assertContains(response, "?type=raw-reads&amp;size=50&amp;page=3")
+        self.assertContains(response, 'href="/genomic-data/?type=samples&amp;size=50"')
+        self.assertContains(response, "sort=acc&amp;order=asc&amp;size=50")
+
+    @patch("portal_data.ebi_search.fetch_json")
+    def test_default_page_size(self, mock_fetch: MagicMock):
+        """Test the default page size is preselected and left out of links."""
+        mock_fetch.side_effect = fake_ebi_search(total=500).side_effect
+        response = self.get_htmx({"type": "raw-reads"})
+        self.assertEqual(self.searches(mock_fetch)[0]["size"], DEFAULT_PAGE_SIZE)
+        self.assertContains(
+            response, f'<option value="{DEFAULT_PAGE_SIZE}" selected>{DEFAULT_PAGE_SIZE}</option>'
+        )
+        self.assertContains(response, '<label for="ena-page-size">Per page</label>')
+        self.assertNotContains(response, "size=")
+
+    def test_unsupported_page_size_falls_back_to_default(self):
+        """Test page sizes outside the offered options are ignored."""
+        for size in ("10", "1000", "abc", ""):
+            with self.subTest(size=size):
+                request = self.factory.get("/", {"size": size})
+                self.assertEqual(resolve_state(request).page_size, DEFAULT_PAGE_SIZE)
 
     @patch("portal_data.ebi_search.fetch_json")
     def test_page_beyond_last_is_clamped(self, mock_fetch: MagicMock):
@@ -219,7 +253,7 @@ class TestGenomicDataPage(WagtailPageTestCase):
         mock_fetch.side_effect = fake_ebi_search(total=30).side_effect
         response = self.get_htmx({"page": "999"})
         self.assertContains(response, "Showing 26 to 30 of 30")
-        self.assertEqual(self.searches(mock_fetch)[-1]["start"], PAGE_SIZE)
+        self.assertEqual(self.searches(mock_fetch)[-1]["start"], DEFAULT_PAGE_SIZE)
 
     @patch("portal_data.ebi_search.fetch_json")
     def test_sortable_headers(self, mock_fetch: MagicMock):
