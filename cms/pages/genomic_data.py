@@ -8,6 +8,7 @@ from wagtail.admin.panels import FieldPanel
 from wagtail.blocks import RichTextBlock
 from wagtail.fields import StreamField
 from wagtail.models import Page
+from wagtail.search import index
 
 from cms.blocks import AlertBlock, EnaDataBlock
 from cms.services.genomic_data import MAX_SEARCH_LENGTH, build_context_dict
@@ -41,6 +42,11 @@ class GenomicDataPage(Page):
         blank=False,
         block_counts={"ena_data": {"min_num": 1, "max_num": 1}},
     )
+    search_fields = Page.search_fields + [
+        index.SearchField("content"),
+        index.AutocompleteField("content"),
+        index.AutocompleteField("title"),
+    ]
     content_panels = Page.content_panels + [FieldPanel("content")]
 
     class Meta:
