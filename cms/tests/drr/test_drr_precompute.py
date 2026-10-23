@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-import base64
 import json
 import re
 import tempfile
 from datetime import date
+from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
@@ -16,16 +16,21 @@ from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.test import TestCase, override_settings
 from django.utils import timezone
+from openpyxl import Workbook
 
 from cms.snippets.drr_dataset_data import DrrDatasetData
-from dashboard_visualisation.drr.channels import channel_map, figure_feature_columns
+from dashboard_visualisation.drr.channels import (
+    CHANNEL_MAPS,
+    channel_map,
+    figure_feature_columns,
+)
 from dashboard_visualisation.drr.figures import (
-    FEATURE_CATEGORIES,
     FIGURE_CLIP_BOUND,
     SNIPPET_FIGURE_BYTE_CEILING,
     clip_figure_values,
 )
 from dashboard_visualisation.drr.loader import load_feature_table
+from dashboard_visualisation.drr.radar import POPULATION_LABELS
 
 # The registered screen: its channel-to-stain map is what the run resolves, and
 # an unregistered slug is a failure case of its own below (FREYA-2923).
@@ -69,11 +74,11 @@ N_DOWNLOAD_FEATURES = 8
 N_FIGURE_FEATURES = 6
 
 # Per-category means of the fixture rows **on the figure basis**, in the input's
-# own units: the two control rows (CBK2's heatmap row), the four trt rows (the
-# default "compound" radar), the uninfected row alone (the infection radar's own
-# condition), and the two remaining compounds' heatmap rows. These hold only
-# while the figures run on the values as delivered; standardising the columns
-# again drives each of them to a z-score around -1 to 1 instead.
+# own units: the two control rows (the infected DMSO baseline), the four trt
+# rows (the default "compound" radar), and the uninfected row alone (the
+# infection radar's own condition). These hold only while the figures run on
+# the values as delivered; standardising the columns again drives each of them
+# to a z-score around -1 to 1 instead.
 #
 # Only Intensity and Correlation differ from the download basis, because those
 # are the two categories the fixture's antibody columns sit in — so these numbers
@@ -122,20 +127,32 @@ CBK1_CATEGORY_MEANS = {
     "RadialDistribution": 0.55,
     "Neighbors": 2.05,
 }
-CBK3_CATEGORY_MEANS = {
-    "AreaShape": 1.55,
-    "Intensity": 4.7,
-    "Granularity": 4.0,
-    "Correlation": 0.71,
-    "RadialDistribution": 0.725,
-    "Neighbors": 2.45,
-}
 
 # CBK3 is intentionally absent to exercise the unmatched-cbkid path.
 METADATA_TSV = (
     "cbkid\tname\tbroad_moa\tbroad_target\tFiles\n"
     "CBK1\tcompoundA\tinhibitor\tTGT1\tcovid-repurpose/a.ome.zarr.zip\n"
     "CBK2\tcompoundB\tnull\tnull\tcovid-repurpose/b.ome.zarr.zip\n"
+)
+
+# The deposit's image metadata in miniature: one deposited image per fixture well,
+# its barcode carrying the experiment suffix the real file does (FREYA-3008).
+PLATE_METADATA_TSV = (
+    "Files\tbarcode\twell_id\tcbkid\n"
+    "covid-repurpose/P1_SSS-val_2023.ome.zarr.zip\tP1_SSS-val_2023\tA01\tCBK1\n"
+    "covid-repurpose/P1_SSS-val_2023.ome.zarr.zip\tP1_SSS-val_2023\tA02\tCBK1\n"
+    "covid-repurpose/P1_SSS-val_2023.ome.zarr.zip\tP1_SSS-val_2023\tA03\tCBK2\n"
+    "covid-repurpose/P2_SSS-val_2023.ome.zarr.zip\tP2_SSS-val_2023\tB01\tCBK3\n"
+    "covid-repurpose/P2_SSS-val_2023.ome.zarr.zip\tP2_SSS-val_2023\tB02\tCBK2\n"
+    "covid-repurpose/P2_SSS-val_2023.ome.zarr.zip\tP2_SSS-val_2023\tB03\tCBK3\n"
+)
+
+# Two rows on one of the registered screen's never-deposited plates: a treated
+# compound seen nowhere else, and an uninfected control. Neither may reach any
+# artefact (FREYA-3008 criteria 2 and 4).
+EXCLUDED_PLATE_ROWS = (
+    "6;P103572;C01;10;trt;B1;10;CBK4;1300;9.0;9.0;9.0;0.90;0.90;9.0;9.0;0.90\n"
+    "7;P103572;C02;10;non-inf;B1;0;CBK2;1300;9.0;9.0;9.0;0.90;0.90;9.0;9.0;0.90\n"
 )
 
 # The name lookup in miniature (FREYA-2628): one treated compound the feature
@@ -148,20 +165,11 @@ NAME_LOOKUP_ROWS = {
     "pert_type": ["trt", "negcon", "trt"],
 }
 
-EXPECTED_FIGURE_IDS = {"pca", "heatmap", "radar_compound", "radar_infected"}
+EXPECTED_FIGURE_IDS = {"pca", "radar_compound", "radar_infected"}
 ARTEFACT_SUFFIXES = {".csv", ".parquet", ".json"}
 
 # Figure 3C's ring for a screen with four morphology channels (DS-8 item 2).
 RING_AXES = 24
-
-
-def _decode_array(payload: dict | list) -> np.ndarray:
-    """Return a numeric array from figure JSON, decoding Plotly's base64 form."""
-    if isinstance(payload, list):
-        return np.asarray(payload)
-    shape = tuple(int(part) for part in payload["shape"].split(","))
-    buffer = base64.b64decode(payload["bdata"])
-    return np.frombuffer(buffer, dtype=payload["dtype"]).reshape(shape)
 
 
 def _radar_axes(figure: dict) -> dict[str, float | None]:
@@ -182,6 +190,8 @@ class DrrPrecomputeTests(TestCase):
         self.input_path.write_text(FEATURE_CSV, encoding="utf-8")
         self.metadata_path = self.base / "metadata.tsv"
         self.metadata_path.write_text(METADATA_TSV, encoding="utf-8")
+        self.plate_metadata_path = self.base / "plates.tsv"
+        self.plate_metadata_path.write_text(PLATE_METADATA_TSV, encoding="utf-8")
         self.media = self.base / "media"
         self.out_dir = self.media / "drr" / SLUG
 
@@ -223,18 +233,37 @@ class DrrPrecomputeTests(TestCase):
                 slug=slug,
                 input=str(self.input_path),
                 metadata=str(self.metadata_path),
+                plate_metadata=str(self.plate_metadata_path),
                 title="Test DRR",
                 **extra,
             )
 
+    def _write_table_s8(self, morphology: object = 0.8) -> Path:
+        """Write a two-dose Table S8 naming CBK1's CBCS name, doses stored as text."""
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.append(
+            [
+                "Compound_name",
+                "Concentration (uM)",
+                "morphology_score",
+                "Cell count (%)",
+                "Infection rate (%)",
+            ]
+        )
+        sheet.append(["compoundA", "1", morphology, 100, 20])
+        sheet.append(["compoundA", "0.3", 0.1, 104, 95])
+        path = self.base / "s8.xlsx"
+        workbook.save(path)
+        return path
+
     def test_artefacts_written(self) -> None:
-        """All derived files are written; umap is skipped without coordinates."""
+        """All derived figure and download artefacts are written."""
         self._run()
         for name in ("features.csv", "features.parquet", "compounds.parquet", "summary.json"):
             self.assertTrue((self.out_dir / name).is_file(), name)
         for figure_id in EXPECTED_FIGURE_IDS:
             self.assertTrue((self.out_dir / "figures" / f"{figure_id}.json").is_file(), figure_id)
-        self.assertFalse((self.out_dir / "figures" / "umap.json").exists())
 
     def test_data_row_upserted(self) -> None:
         """A DrrDatasetData row is created with figures, summary, and provenance."""
@@ -298,7 +327,7 @@ class DrrPrecomputeTests(TestCase):
         self.assertEqual(feature_sets["figures"]["excluded_channels"], ["illumCONC"])
         self.assertEqual(
             feature_sets["figures"]["used_by"],
-            ["pca", "heatmap", "radar_compound", "radar_infected"],
+            ["pca", "radar_compound", "radar_infected"],
         )
 
     def test_antibody_columns_stay_in_the_downloads(self) -> None:
@@ -396,6 +425,33 @@ class DrrPrecomputeTests(TestCase):
         self.assertEqual(second_summary["source"]["sha256"], first_source["sha256"])
         self.assertEqual(second_summary["source"]["inputs_sha256"], first_source["inputs_sha256"])
         self.assertEqual(second_summary["feature_sets"]["figures"]["clip"]["upper"], 25.0)
+
+    def test_renaming_a_population_busts_the_render_cache(self) -> None:
+        """A relabelled PCA gets a new digest, so no cached legend outlives it.
+
+        The names are figure content no input carries: a rebuild on unchanged
+        inputs would otherwise keep the key, and ``PlotlyFigureBlock`` would serve
+        the previous legend for 24 hours (FREYA-3009).
+        """
+        self._run()
+        first = DrrDatasetData.get_data(SLUG)
+        first_inputs = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))[
+            "source"
+        ]["inputs_sha256"]
+
+        reworded = {**POPULATION_LABELS, "negcon": "Infected DMSO wells"}
+        with patch("dashboard_visualisation.drr.radar.POPULATION_LABELS", reworded):
+            self._run()
+        second = DrrDatasetData.get_data(SLUG)
+        second_inputs = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))[
+            "source"
+        ]["inputs_sha256"]
+
+        self.assertNotEqual(second.source_file_hash, first.source_file_hash)
+        self.assertEqual(second_inputs, first_inputs)
+        self.assertIn(
+            "Infected DMSO wells", [trace["name"] for trace in second.data["pca"]["data"]]
+        )
 
     def test_summary_carries_an_inputs_digest_beside_the_feature_digest(self) -> None:
         """Three provenance digests, each answering a different question."""
@@ -638,22 +694,6 @@ class DrrPrecomputeTests(TestCase):
         self.assertEqual((self.out_dir / "figures" / "radar_infected.json").read_bytes(), first)
         self.assertEqual((self.out_dir / "features.csv").read_bytes(), features)
 
-    def test_heatmap_cells_are_not_standardised(self) -> None:
-        """Heatmap cells are per-compound category means, one row per compound."""
-        self._run()
-        trace = DrrDatasetData.get_data(SLUG).data["heatmap"]["data"][0]
-
-        self.assertEqual(trace["y"], ["CBK1", "CBK2", "CBK3"])
-        self.assertEqual(trace["x"], FEATURE_CATEGORIES)
-        cells = _decode_array(trace["z"])
-        for row, expected in enumerate(
-            (CBK1_CATEGORY_MEANS, CTRL_CATEGORY_MEANS, CBK3_CATEGORY_MEANS)
-        ):
-            for column, category in enumerate(FEATURE_CATEGORIES):
-                self.assertAlmostEqual(
-                    float(cells[row][column]), expected[category], places=6, msg=category
-                )
-
     def test_pca_axes_carry_the_variance_they_explain(self) -> None:
         """Each PCA axis states its own share of the variance, as paper Fig 1C does.
 
@@ -865,52 +905,6 @@ class DrrPrecomputeTests(TestCase):
             if path.is_file():
                 self.assertIn(path.suffix, ARTEFACT_SUFFIXES, str(path))
 
-    def test_umap_included_with_coords(self) -> None:
-        """Supplying UMAP coordinates adds the umap figure and artefact."""
-        coords_path = self.base / "umap.parquet"
-        pl.DataFrame(
-            {
-                "umap_x": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
-                "umap_y": [1.1, 1.2, 1.3, 1.4, 1.5, 1.6],
-                "pert_type": ["trt", "trt", "ctrl", "trt", "ctrl", "trt"],
-            }
-        ).write_parquet(coords_path)
-
-        self._run(umap_coords=str(coords_path))
-
-        self.assertTrue((self.out_dir / "figures" / "umap.json").is_file())
-        row = DrrDatasetData.get_data(SLUG)
-        self.assertIn("umap", row.data)
-
-    def test_umap_coords_change_busts_source_hash(self) -> None:
-        """Changing only the UMAP coords changes source_file_hash (busts the render cache)."""
-        coords_a = self.base / "umap_a.parquet"
-        pl.DataFrame(
-            {
-                "umap_x": [0.1, 0.2, 0.3, 0.4, 0.5, 0.6],
-                "umap_y": [1.1, 1.2, 1.3, 1.4, 1.5, 1.6],
-                "pert_type": ["trt", "trt", "ctrl", "trt", "ctrl", "trt"],
-            }
-        ).write_parquet(coords_a)
-        self._run(umap_coords=str(coords_a))
-        first = DrrDatasetData.get_data(SLUG)
-        first_hash = first.source_file_hash
-        first_umap = json.dumps(first.data["umap"], sort_keys=True)
-
-        coords_b = self.base / "umap_b.parquet"
-        pl.DataFrame(
-            {
-                "umap_x": [5.1, 5.2, 5.3, 5.4, 5.5, 5.6],
-                "umap_y": [9.1, 9.2, 9.3, 9.4, 9.5, 9.6],
-                "pert_type": ["trt", "trt", "ctrl", "trt", "ctrl", "trt"],
-            }
-        ).write_parquet(coords_b)
-        self._run(umap_coords=str(coords_b))
-        second = DrrDatasetData.get_data(SLUG)
-
-        self.assertNotEqual(second.source_file_hash, first_hash)
-        self.assertNotEqual(json.dumps(second.data["umap"], sort_keys=True), first_umap)
-
     def test_metadata_change_busts_snippet_hash_only(self) -> None:
         """A metadata-only change folds into the snippet hash; summary keeps the feature digest."""
         self._run()
@@ -934,3 +928,166 @@ class DrrPrecomputeTests(TestCase):
         self.assertEqual(second_summary["source"]["sha256"], first_summary_sha)
         # And the reconciliation reflects the new annotation (CBK3 now matched).
         self.assertEqual(second_summary["compound_reconciliation"]["unmatched_cbkids"], [])
+
+    # The published plate basis is the screen's, and it is artefact-wide (FREYA-3008).
+
+    def _artefact_bytes(self) -> dict[str, bytes]:
+        """Return every artefact the run wrote, keyed by its path under the dataset."""
+        return {
+            str(path.relative_to(self.out_dir)): path.read_bytes()
+            for path in sorted(self.out_dir.rglob("*"))
+            if path.is_file()
+        }
+
+    def test_summary_states_the_plate_basis(self) -> None:
+        """The run records which basis it used, and that every row has an image."""
+        self._run()
+        summary = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))
+
+        self.assertEqual(
+            summary["plate_basis"],
+            {
+                "n_plates_excluded": 4,
+                "n_rows_excluded": 0,
+                "n_unresolved_rows": 0,
+                "plate_metadata": "plates.tsv",
+            },
+        )
+
+    def test_excluded_plate_rows_reach_no_artefact(self) -> None:
+        """Rows on a never-deposited plate are dropped from downloads, counts and figures."""
+        self.input_path.write_text(FEATURE_CSV + EXCLUDED_PLATE_ROWS, encoding="utf-8")
+        self._run()
+        summary = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))
+
+        self.assertEqual(summary["n_profiles"], 6)
+        self.assertEqual(summary["n_plates"], 2)
+        self.assertEqual(summary["n_compounds"], 3)
+        self.assertEqual(summary["pert_type_counts"], {"negcon": 1, "non-inf": 1, "trt": 4})
+        self.assertEqual(summary["plate_basis"]["n_rows_excluded"], 2)
+        self.assertEqual(summary["plate_basis"]["n_unresolved_rows"], 0)
+
+        features = pl.read_parquet(self.out_dir / "features.parquet")
+        self.assertEqual(features.height, 6)
+        self.assertNotIn("CBK4", pl.read_parquet(self.out_dir / "compounds.parquet")["cbkid"])
+        for name, content in self._artefact_bytes().items():
+            self.assertNotIn(b"P103572", content, name)
+            self.assertNotIn(b"CBK4", content, name)
+
+    def test_excluded_rows_leave_the_artefacts_as_if_never_there(self) -> None:
+        """Beyond the provenance block, the artefacts equal a run without those rows."""
+        self._run(data_updated_at="2023-11-24")
+        clean = self._artefact_bytes()
+
+        self.input_path.write_text(FEATURE_CSV + EXCLUDED_PLATE_ROWS, encoding="utf-8")
+        self._run(data_updated_at="2023-11-24")
+        with_excluded = self._artefact_bytes()
+
+        self.assertEqual(sorted(with_excluded), sorted(clean))
+        for name in clean:
+            if name != "summary.json":
+                self.assertEqual(with_excluded[name], clean[name], name)
+        first, second = (json.loads(files["summary.json"]) for files in (clean, with_excluded))
+        for summary in (first, second):
+            del summary["source"]
+            del summary["plate_basis"]["n_rows_excluded"]
+        self.assertEqual(second, first)
+
+    def test_a_row_with_no_deposited_image_is_counted(self) -> None:
+        """The guard reports rows the deposit cannot name, rather than assuming none."""
+        self.plate_metadata_path.write_text(
+            PLATE_METADATA_TSV.replace(
+                "covid-repurpose/P2_SSS-val_2023.ome.zarr.zip\tP2_SSS-val_2023\tB03\tCBK3\n", ""
+            ),
+            encoding="utf-8",
+        )
+        out = StringIO()
+        self._run(stdout=out)
+        summary = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))
+
+        self.assertEqual(summary["plate_basis"]["n_unresolved_rows"], 1)
+        self.assertIn("1 published row(s) resolve to no deposited image", out.getvalue())
+
+    def test_unregistered_plate_basis_writes_nothing(self) -> None:
+        """A screen with a channel map but no plate basis fails before any artefact exists."""
+        with (
+            patch.dict(CHANNEL_MAPS, {"other-screen": channel_map(SLUG)}),
+            self.assertRaisesMessage(CommandError, "No plate basis is registered"),
+        ):
+            self._run("other-screen")
+
+        self.assertFalse((self.media / "drr" / "other-screen").exists())
+        self.assertIsNone(DrrDatasetData.get_data("other-screen"))
+
+    def test_plate_metadata_missing_a_column_fails(self) -> None:
+        """An image-metadata file without well ids cannot check anything, so it stops the run."""
+        self.plate_metadata_path.write_text("Files\tbarcode\nx\tP1\n", encoding="utf-8")
+        with self.assertRaisesMessage(CommandError, "well_id"):
+            self._run()
+        self.assertFalse(self.out_dir.exists())
+
+    def test_plate_metadata_is_an_input_to_the_digests(self) -> None:
+        """A changed deposit record moves the inputs digest, as any input does."""
+        self._run()
+        first = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))["source"]
+
+        self.plate_metadata_path.write_text(
+            PLATE_METADATA_TSV + "covid-repurpose/P2.ome.zarr.zip\tP2_SSS-val_2023\tB04\tCBK3\n",
+            encoding="utf-8",
+        )
+        self._run()
+        second = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))["source"]
+
+        self.assertEqual(second["sha256"], first["sha256"])
+        self.assertNotEqual(second["inputs_sha256"], first["inputs_sha256"])
+
+    def test_table_s8_writes_one_row_per_treated_compound(self) -> None:
+        """CBK1 and CBK3 are treated; CBK2 holds only controls and gets no row."""
+        self._run(table_s8=str(self._write_table_s8()))
+
+        table = pl.read_parquet(self.out_dir / "table.parquet")
+        self.assertEqual(table["cbkid"].to_list(), ["CBK1", "CBK3"])
+        cbk1 = table.row(0, named=True)
+        self.assertEqual(
+            (cbk1["morphology_score"], cbk1["infection_rate_pct"], cbk1["dose_um"]),
+            (0.8, 20.0, 1.0),
+        )
+        self.assertIsNone(table.row(1, named=True)["morphology_score"])
+
+    def test_summary_records_the_table_and_its_source(self) -> None:
+        """The table block names the workbook, its digest and what the join did."""
+        self._run(table_s8=str(self._write_table_s8()))
+        summary = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))
+
+        block = summary["table"]
+        self.assertEqual(block["filename"], "s8.xlsx")
+        self.assertEqual(len(block["sha256"]), 64)
+        self.assertEqual((block["n_rows"], block["n_scored"]), (2, 1))
+        self.assertEqual(block["unmatched_names"], [])
+
+    def test_without_table_s8_no_table_is_written_and_a_stale_one_goes(self) -> None:
+        """A run without the workbook leaves no table from an earlier generation."""
+        self._run(table_s8=str(self._write_table_s8()))
+        with_table = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))
+
+        self._run()
+        without = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))
+
+        self.assertFalse((self.out_dir / "table.parquet").exists())
+        self.assertNotIn("table", without)
+        self.assertNotEqual(
+            with_table["source"]["inputs_sha256"], without["source"]["inputs_sha256"]
+        )
+
+    def test_the_workbook_is_never_copied_into_media(self) -> None:
+        """Only the derived table lands under media; the xlsx stays where it was."""
+        self._run(table_s8=str(self._write_table_s8()))
+
+        self.assertEqual(list(self.media.rglob("*.xlsx")), [])
+
+    def test_a_malformed_table_s8_fails_before_anything_is_written(self) -> None:
+        """A non-numeric score stops the run with no artefact directory created."""
+        with self.assertRaisesMessage(CommandError, "morphology_score"):
+            self._run(table_s8=str(self._write_table_s8(morphology="n/a")))
+
+        self.assertFalse(self.out_dir.exists())
