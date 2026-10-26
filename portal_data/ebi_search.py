@@ -167,7 +167,7 @@ DATA_TYPES: dict[str, DataType] = {
             columns=(
                 ORGANISM,
                 Column("TAXON", "Taxon ID", kind="taxon"),
-                Column("assembly_title", "Title"),
+                Column("description", "Description"),
                 Column("assembly_level", "Assembly level", sortable=True),
                 COLLECTION_DATE,
                 Column("host", "Host", sortable=True),
