@@ -13,6 +13,7 @@ from portal_data.ebi_search import (
     EBI_SEARCH_URL,
     FACET_VALUE_COUNT,
     MAX_PAGE_SIZE,
+    REQUEST_TIMEOUT_SECONDS,
     Cell,
     build_query,
     fetch_count,
@@ -42,24 +43,51 @@ class TestBuildQuery(SimpleTestCase):
         """Test an empty search is limited to Swedish pathogen records."""
         self.assertEqual(build_query(""), '(country:"Sweden") AND tag:pathogen')
 
-    def test_words_are_anded(self):
-        """Test every search word must match."""
+    def test_words_are_anded_and_matched_as_prefixes(self):
+        """Test every search word must match, as a prefix."""
         self.assertEqual(
-            build_query("Escherichia coli"), f"{BASE_QUERY} AND (Escherichia AND coli)"
+            build_query("Escherichi coli"), f"{BASE_QUERY} AND (Escherichi* AND coli*)"
         )
+
+    def test_accession_prefix(self):
+        """Test a partial accession matches the accessions starting with it."""
+        self.assertEqual(build_query("PQ0642"), f"{BASE_QUERY} AND (PQ0642*)")
+
+    def test_short_dashed_and_dotted_words_match_as_typed(self):
+        """Test words EBI Search can't use wildcards on are matched in full."""
+        self.assertEqual(
+            build_query("ab GII.4 SARS-CoV-2 a_b"),
+            f"{BASE_QUERY} AND (ab AND GII.4 AND SARS-CoV-2 AND a_b*)",
+        )
+
+    def test_and_or_are_ignored_in_any_case(self):
+        """Test AND and OR (any case) are dropped rather than breaking the query."""
+        expected = f"{BASE_QUERY} AND (coli* AND Escherichia*)"
+        for text in ("coli AND Escherichia", "coli OR Escherichia", "coli and Escherichia"):
+            with self.subTest(text=text):
+                self.assertEqual(build_query(text), expected)
+
+    def test_not_and_minus_exclude_the_next_word(self):
+        """Test NOT (any case) or a leading "-" excludes a word instead of requiring it."""
+        expected = f"{BASE_QUERY} AND (coli*) AND NOT Escherichia*"
+        for text in ("coli NOT Escherichia", "coli not Escherichia", "coli -Escherichia"):
+            with self.subTest(text=text):
+                self.assertEqual(build_query(text), expected)
+
+    def test_only_excluded_words(self):
+        """Test a search with only excluded words excludes them from everything."""
+        self.assertEqual(build_query("NOT coli"), f"{BASE_QUERY} AND NOT coli*")
+
+    def test_dangling_operators_are_ignored(self):
+        """Test operators with nothing to apply to leave just the base query."""
+        self.assertEqual(build_query("AND OR NOT"), BASE_QUERY)
+        self.assertEqual(build_query("coli NOT"), f"{BASE_QUERY} AND (coli*)")
 
     def test_query_syntax_is_stripped(self):
-        """Test quotes, brackets, colons and operators can't alter the query."""
+        """Test quotes, brackets, colons and wildcards can't alter the query."""
         self.assertEqual(
-            build_query('host:"Homo" OR (x) *'),
-            f"{BASE_QUERY} AND (host AND Homo AND OR AND x)",
-        )
-
-    def test_accessions_and_dotted_names_survive(self):
-        """Test accessions and names with dots, dashes and underscores are kept whole."""
-        self.assertEqual(
-            build_query("ERX123 GII.4 SARS-CoV-2 a_b"),
-            f"{BASE_QUERY} AND (ERX123 AND GII.4 AND SARS-CoV-2 AND a_b)",
+            build_query('host:"Homo" (x) * ?'),
+            f"{BASE_QUERY} AND (host* AND Homo* AND x)",
         )
 
 
@@ -93,8 +121,9 @@ class TestSearch(SimpleTestCase):
             sort=("collection_date", True),
         )
         self.assertEqual(mock_fetch.call_args.kwargs["url"], f"{EBI_SEARCH_URL}/sra-experiment")
+        self.assertEqual(mock_fetch.call_args.kwargs["timeout"], REQUEST_TIMEOUT_SECONDS)
         params = mock_fetch.call_args.kwargs["params"]
-        self.assertEqual(params["query"], f"{BASE_QUERY} AND (coli)")
+        self.assertEqual(params["query"], f"{BASE_QUERY} AND (coli*)")
         self.assertEqual(params["fields"], ",".join(RAW_READS.fields))
         self.assertEqual(params["start"], 50)
         self.assertEqual(params["size"], 25)
@@ -235,7 +264,7 @@ class TestFetchCount(SimpleTestCase):
         params = mock_fetch.call_args.kwargs["params"]
         self.assertEqual(params["size"], 0)
         self.assertEqual(params["facetcount"], 0)
-        self.assertEqual(params["query"], f"{BASE_QUERY} AND (coli)")
+        self.assertEqual(params["query"], f"{BASE_QUERY} AND (coli*)")
 
     @patch("portal_data.ebi_search.fetch_json")
     def test_failure_returns_none(self, mock_fetch: MagicMock):

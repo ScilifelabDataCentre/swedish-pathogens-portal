@@ -32,6 +32,9 @@ BASE_QUERY = '(country:"Sweden") AND tag:pathogen'
 
 SEARCH_CACHE_TTL_SECONDS = 30 * 60  # 30 minutes
 COUNT_CACHE_TTL_SECONDS = 6 * 60 * 60  # 6 hours
+# EBI Search can take several seconds, e.g. for a prefix search on a large index,
+# so allow longer than the shared API client's default of 10 seconds.
+REQUEST_TIMEOUT_SECONDS = 20
 
 # EBI Search returns at most 100 entries per request.
 MAX_PAGE_SIZE = 100
@@ -229,41 +232,58 @@ def taxon_url(taxon_id: str | int) -> str:
     return f"{ENA_BROWSER_VIEW_URL}/Taxon:{int(taxon_id)}"
 
 
+# Query operators typed in the search box are not passed on as operators: AND and OR
+# are dropped (every remaining word must match) and NOT excludes the word after it.
+IGNORED_OPERATORS = frozenset({"AND", "OR", "TO"})
+# EBI Search rejects wildcards on shorter words, so they must match in full.
+MIN_PREFIX_LENGTH = 3
+
+
+def _search_term(word: str) -> str:
+    """Return the query term for one search word, matching it as a prefix where possible.
+
+    A trailing ``*`` makes "Escherichi" match "Escherichia" and "PQ0642" match
+    accessions such as "PQ064201". EBI Search rejects wildcards on words shorter
+    than ``MIN_PREFIX_LENGTH`` and on words containing "-" or ".", which are
+    therefore matched as typed.
+    """
+    if len(word) >= MIN_PREFIX_LENGTH and "-" not in word and "." not in word:
+        return f"{word}*"
+    return word
+
+
 def build_query(text: str = "") -> str:
     """Return the EBI Search query: Swedish pathogen records, plus any search words.
 
-    Search words are reduced to letters, digits, ".", "_" and "-" so user input
-    can't change the query's meaning or make it invalid; every word must match.
+    Search words are reduced to letters, digits, ".", "_" and "-", so user input
+    can't make the query invalid. Every word must match (as a prefix, see
+    ``_search_term``), except words after NOT or starting with "-", which must
+    not match. AND, OR and TO are ignored, in any case.
     """
-    words = re.findall(r"[\w.\-]+", text)[:MAX_SEARCH_TERMS]
-    if not words:
-        return BASE_QUERY
-def build_query(text: str = "") -> str:
-    """Return the EBI Search query: Swedish pathogen records, plus any search words.
-
-    Search words are reduced to letters, digits, ".", "_" and "-".
-    words that can change the query's meaning or make it invalid are removed.
-
-    Prefix matching supported for words of at least 3 characters
-    """
-    operator_words = frozenset({"AND", "OR", "NOT", "TO"})
-    min_prefix_length = 3  # (EBI Search rejects wildcards on shorter ones).
-
-    words = []
-    for word in re.findall(r"[\w.\-]+", text):
-        word = word.lstrip("-")
-        if not word or word.upper() in operator_words:
+    included: list[str] = []
+    excluded: list[str] = []
+    exclude_next = False
+    for raw_word in re.findall(r"[\w.\-]+", text):
+        word = raw_word.lstrip("-")
+        if not word:
             continue
-        # EBI Search rejects wildcard matches for these types of words.
-        if len(word) >= min_prefix_length and "-" not in word and "." not in word:
-            word += "*"  # allows match as a prefix
-        words.append(word)
-        if len(words) == MAX_SEARCH_TERMS:
+        if word.upper() == "NOT":
+            exclude_next = True
+            continue
+        if word.upper() in IGNORED_OPERATORS:
+            continue
+        exclude = exclude_next or raw_word.startswith("-")
+        (excluded if exclude else included).append(_search_term(word))
+        exclude_next = False
+        if len(included) + len(excluded) == MAX_SEARCH_TERMS:
             break
 
-    if not words:
-        return BASE_QUERY
-    return f"{BASE_QUERY} AND ({' AND '.join(words)})"
+    query = BASE_QUERY
+    if included:
+        query += f" AND ({' AND '.join(included)})"
+    for term in excluded:
+        query += f" AND NOT {term}"
+    return query
 
 
 def is_valid_facet_value(value: str) -> bool:
@@ -400,7 +420,11 @@ def search(
 
     def compute() -> SearchResult | None:
         """Use in cache_get_or_set to run the search if cache miss."""
-        data = fetch_json(url=f"{EBI_SEARCH_URL}/{data_type.domain}", params=params)
+        data = fetch_json(
+            url=f"{EBI_SEARCH_URL}/{data_type.domain}",
+            params=params,
+            timeout=REQUEST_TIMEOUT_SECONDS,
+        )
         if not isinstance(data, dict) or "hitCount" not in data:
             if data is not None:
                 LOGGER.error("ebi_search.invalid_response", domain=data_type.domain)
@@ -431,7 +455,11 @@ def fetch_count(data_type: DataType, text: str = "") -> int | None:
 
     def compute() -> int | None:
         """Use in cache_get_or_set to fetch the count if cache miss."""
-        data = fetch_json(url=f"{EBI_SEARCH_URL}/{data_type.domain}", params=params)
+        data = fetch_json(
+            url=f"{EBI_SEARCH_URL}/{data_type.domain}",
+            params=params,
+            timeout=REQUEST_TIMEOUT_SECONDS,
+        )
         if not isinstance(data, dict):
             return None
         try:

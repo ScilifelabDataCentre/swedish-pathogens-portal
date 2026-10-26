@@ -25,7 +25,7 @@ def fake_ebi_search(total: int = 3, facets: list[dict] | None = None) -> MagicMo
     page of generated entries (accessions ERX0, ERX1, ...) asked for by start/size.
     """
 
-    def side_effect(url: str, params: dict) -> dict:
+    def side_effect(url: str, params: dict, timeout: float | None = None) -> dict:
         if params["size"] == 0:
             return {"hitCount": total}
         start, size = params["start"], params["size"]
@@ -196,7 +196,7 @@ class TestGenomicDataPage(WagtailPageTestCase):
         self.get_htmx({"type": "raw-reads", "q": "coli", "classification": ["bacteria", "viruses"]})
         params = self.searches(mock_fetch)[0]
         self.assertEqual(params["facets"], "classification:bacteria,classification:viruses")
-        self.assertEqual(params["query"], '(country:"Sweden") AND tag:pathogen AND (coli)')
+        self.assertEqual(params["query"], '(country:"Sweden") AND tag:pathogen AND (coli*)')
 
     @patch("portal_data.ebi_search.fetch_json")
     def test_pagination_requests_the_right_start(self, mock_fetch: MagicMock):
