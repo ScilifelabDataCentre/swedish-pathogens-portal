@@ -238,6 +238,31 @@ def build_query(text: str = "") -> str:
     words = re.findall(r"[\w.\-]+", text)[:MAX_SEARCH_TERMS]
     if not words:
         return BASE_QUERY
+def build_query(text: str = "") -> str:
+    """Return the EBI Search query: Swedish pathogen records, plus any search words.
+
+    Search words are reduced to letters, digits, ".", "_" and "-".
+    words that can change the query's meaning or make it invalid are removed.
+
+    Prefix matching supported for words of at least 3 characters
+    """
+    operator_words = frozenset({"AND", "OR", "NOT", "TO"})
+    min_prefix_length = 3  # (EBI Search rejects wildcards on shorter ones).
+
+    words = []
+    for word in re.findall(r"[\w.\-]+", text):
+        word = word.lstrip("-")
+        if not word or word.upper() in operator_words:
+            continue
+        # EBI Search rejects wildcard matches for these types of words.
+        if len(word) >= min_prefix_length and "-" not in word and "." not in word:
+            word += "*"  # allows match as a prefix
+        words.append(word)
+        if len(words) == MAX_SEARCH_TERMS:
+            break
+
+    if not words:
+        return BASE_QUERY
     return f"{BASE_QUERY} AND ({' AND '.join(words)})"
 
 
