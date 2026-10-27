@@ -17,7 +17,8 @@
     submit
     ">
     <header class="mb-6 lg:mb-8">
-        <h1>{{ page.title }}</h1>
+        {# The page's only <h1> (the banner title is an <h2>). Visually hidden, as the banner already shows the title. #}
+        <h1 class="sr-only">{{ page.title }}</h1>
 
         <div class="mt-4 flex w-full flex-col gap-3 sm:flex-row sm:items-center">
             <input type="search" id="ena-search-input" name="q" value="{{ ena_search_text }}"
