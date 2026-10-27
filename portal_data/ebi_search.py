@@ -287,26 +287,49 @@ def build_query(text: str = "") -> str:
 
 
 def is_valid_facet_value(value: str) -> bool:
-    """Return whether a facet value can be sent to EBI Search.
+    """Return whether a facet value can be used as a filter.
 
-    Selected facets are sent comma-separated, and EBI Search rejects or misreads
-    values containing commas, so those can't be offered as filters.
+    Any printable value up to 200 characters can: values the ``facets``
+    parameter rejects are sent in the query instead, see ``_facet_filters``.
     """
-    return bool(value) and "," not in value and len(value) <= 200
+    return bool(value) and len(value) <= 200 and value.isprintable()
 
 
-def _facets_param(selected: dict[str, list[str]]) -> str:
-    """Build the ``facets`` parameter: ``field:value`` pairs, comma-separated.
+# Values the ``facets`` parameter accepts as they are. It rejects others, such as
+# the square brackets around every host on the Sequences index ("[mallard]"),
+# and uses commas to separate values.
+_FACETS_PARAM_VALUE = re.compile(r"[\w .\-]+")
 
-    EBI Search ORs values of the same facet and ANDs different facets.
+
+def _regex_escape(value: str) -> str:
+    """Escape every character but ASCII letters and digits, for a Lucene regex."""
+    return "".join(c if c.isascii() and c.isalnum() else f"\\{c}" for c in value)
+
+
+def _facet_filters(selected: dict[str, list[str]]) -> tuple[str, str]:
+    """Return the selected facets as ``(facets parameter, extra query clause)``.
+
+    Values of the same facet are ORed and different facets are ANDed. A facet
+    whose values the ``facets`` parameter accepts is sent there as
+    ``field:value`` pairs, comma-separated. Otherwise the whole facet is sent in
+    the query as ``(field:/value/ OR ...)``: an exact-match regex on the field,
+    with every special character escaped. EBI Search matches these regexes
+    case-insensitively, so "[mallard]" also matches "[Mallard]".
     """
-    return ",".join(
-        f"{facet_field}:{value}"
-        for facet_field, values in selected.items()
-        if facet_field in FACET_FIELDS
-        for value in values
-        if is_valid_facet_value(value)
-    )
+    facets_param: list[str] = []
+    query_clauses: list[str] = []
+    for facet_field, values in selected.items():
+        if facet_field not in FACET_FIELDS:
+            continue
+        values = [value for value in values if is_valid_facet_value(value)]
+        if not values:
+            continue
+        if all(_FACETS_PARAM_VALUE.fullmatch(value) for value in values):
+            facets_param.extend(f"{facet_field}:{value}" for value in values)
+        else:
+            regexes = (f"{facet_field}:/{_regex_escape(value)}/" for value in values)
+            query_clauses.append(f"({' OR '.join(regexes)})")
+    return ",".join(facets_param), " AND ".join(query_clauses)
 
 
 def _cache_key(prefix: str, params: dict[str, Any]) -> str:
@@ -404,15 +427,16 @@ def search(
         sort: ``(field, descending)``, ignored unless the field is sortable.
     """
     selected = selected_facets or {}
+    query = build_query(text)
+    facets_param, facet_query = _facet_filters(selected)
     params: dict[str, Any] = {
-        "query": build_query(text),
+        "query": f"{query} AND {facet_query}" if facet_query else query,
         "format": "json",
         "fields": ",".join(data_type.fields),
         "size": max(1, min(size, MAX_PAGE_SIZE)),
         "start": max(0, start),
         "facetcount": FACET_VALUE_COUNT,
     }
-    facets_param = _facets_param(selected)
     if facets_param:
         params["facets"] = facets_param
     if sort is not None and sort[0] in data_type.sortable_fields:
