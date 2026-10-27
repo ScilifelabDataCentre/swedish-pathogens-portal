@@ -58,7 +58,7 @@
                     </ul>
 
                     <button type="button"
-                        class="facet-toggle btn btn-ghost btn-xs mt-2 text-accent underline"
+                        class="facet-toggle btn btn-ghost btn-xs mt-2 text-pp-mid-blue underline"
                         data-target="ena-facet-more-{{ facet_id }}"
                         data-collapsed-text="Show more"
                         data-expanded-text="Show less"
@@ -75,7 +75,7 @@
 
         {% if facets_active %}
         <a href="{{ clear_facets_url }}" hx-get="{{ clear_facets_url }}"
-            class="btn btn-ghost btn-xs self-start text-accent underline">
+            class="btn btn-ghost btn-xs self-start text-pp-mid-blue underline">
             Clear all filters
         </a>
         {% endif %}
