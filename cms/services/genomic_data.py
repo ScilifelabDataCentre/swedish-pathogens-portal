@@ -22,6 +22,7 @@ from portal_data.ebi_search import (
     DATA_TYPES,
     DEFAULT_DATA_TYPE,
     FACET_FIELDS,
+    Column,
     DataType,
     SearchResult,
     fetch_count,
@@ -33,6 +34,8 @@ if TYPE_CHECKING:
     from cms.pages.genomic_data import GenomicDataPage
 
 # Results per page the visitor can choose from, and the one used by default.
+# The accession column is always first, always shown and always sortable.
+ACCESSION_COLUMN = Column("acc", "Accession", sortable=True)
 PAGE_SIZE_OPTIONS: tuple[int, ...] = (25, 50, 100)
 DEFAULT_PAGE_SIZE = PAGE_SIZE_OPTIONS[0]
 # Longest search text accepted from the query string.
@@ -167,15 +170,16 @@ def _search_with_counts(
 
 
 def _sort_header(
-    field: str, label: str, sortable: bool, sort: Sort | None, url_for: Callable[[Sort], str]
+    column: Column, sort: Sort | None, url_for: Callable[[Sort], str]
 ) -> dict[str, Any]:
     """Build a table header, linking sortable columns to sort on them.
 
     Clicking the column already sorted ascending flips it to descending; any
     other column starts ascending. ``state`` is the header's ``aria-sort`` value.
     """
-    header: dict[str, Any] = {"label": label, "state": None, "url": None}
-    if not sortable:
+    field = column.field
+    header: dict[str, Any] = {"column": column, "label": column.label, "state": None, "url": None}
+    if not column.sortable:
         return header
     if sort is not None and sort.field == field:
         header["state"] = "descending" if sort.descending else "ascending"
@@ -295,12 +299,16 @@ def build_context_dict(request: HttpRequest, page: GenomicDataPage | None = None
             ),
             "next_url": page_url(page_obj.next_page_number()) if page_obj.has_next() else None,
             "sort_headers": [
-                _sort_header("acc", "Accession", True, state.sort, sort_url),
-                *(
-                    _sort_header(c.field, c.label, c.sortable, state.sort, sort_url)
-                    for c in data_type.columns
-                ),
+                _sort_header(ACCESSION_COLUMN, state.sort, sort_url),
+                *(_sort_header(column, state.sort, sort_url) for column in data_type.columns),
             ],
+            # each row's cells paired with their column, for per-column styling and hiding
+            "rows": [
+                {"record": record, "cells": list(zip(data_type.columns, record.cells, strict=True))}
+                for record in result.records
+            ],
+            # the columns visitors can show or hide (the accession is always shown)
+            "columns": data_type.columns,
         }
     )
     return context

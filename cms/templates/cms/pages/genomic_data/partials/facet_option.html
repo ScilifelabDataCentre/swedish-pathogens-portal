@@ -1,9 +1,10 @@
 {# One facet checkbox, styled as on the Portal data page. Expects "facet" and "item" ({value, id, count_display}). #}
 <li>
-    <label for="{{ item.id }}" class="flex cursor-pointer items-center gap-2 py-0.5">
+    <label for="{{ item.id }}" class="flex cursor-pointer items-start gap-2 py-0.5">
         <input type="checkbox" id="{{ item.id }}" name="{{ facet.field }}" value="{{ item.value.value }}"
-            class="checkbox checkbox-accent checkbox-sm facet-checkbox" {% if item.value.selected %}checked{% endif %}>
-        <span class="text-sm">{{ item.value.label }}</span>
-        <span class="badge badge-ghost badge-sm ml-auto">{{ item.count_display }}</span>
+            class="checkbox checkbox-accent checkbox-sm facet-checkbox mt-0.5 shrink-0" {% if item.value.selected %}checked{% endif %}>
+        {# Very long names (e.g. influenza strain names) wrap anywhere rather than overflow the box. #}
+        <span class="min-w-0 text-sm [overflow-wrap:anywhere]">{{ item.value.label }}</span>
+        <span class="badge badge-ghost badge-sm ml-auto mt-0.5 shrink-0">{{ item.count_display }}</span>
     </label>
 </li>

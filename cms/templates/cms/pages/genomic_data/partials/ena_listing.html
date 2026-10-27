@@ -107,24 +107,56 @@
             </div>
         </div>
         {% else %}
-        <div class="mb-3 text-sm text-pp-dark-grey">
-            Showing {{ start_display }} to {{ end_display }} of {{ total_display }} {{ data_type.label|lower }} from Sweden in the
-            <a href="https://www.ebi.ac.uk/ena/browser/" target="_blank" rel="noopener noreferrer">European Nucleotide Archive (ENA)</a>.
-            {# EBI Search only allows sorting on some fields, which differ per data type. #}
-            Columns marked <span aria-hidden="true">↕</span><span class="sr-only">as sortable</span> can be sorted;
-            the others can't be sorted by the data source.
+        <div class="mb-3 flex flex-col gap-2 text-sm text-pp-dark-grey sm:flex-row sm:items-start sm:justify-between">
+            <p class="m-0">
+                Showing {{ start_display }} to {{ end_display }} of {{ total_display }} {{ data_type.label|lower }} from Sweden in the
+                <a href="https://www.ebi.ac.uk/ena/browser/" target="_blank" rel="noopener noreferrer">European Nucleotide Archive (ENA)</a>.
+                {# EBI Search only allows sorting on some fields, which differ per data type. #}
+                Columns marked <span aria-hidden="true">↕</span><span class="sr-only">as sortable</span> can be sorted;
+                the others can't be sorted by the data source.
+            </p>
+
+            {% comment %}
+                Column chooser. Hiding is done in the browser (see the block's script) and
+                remembered per data type, so it needs no request. The checkboxes have no name,
+                so they are never submitted with the search form.
+            {% endcomment %}
+            <details class="dropdown dropdown-end shrink-0">
+                <summary class="btn btn-outline btn-sm">Columns</summary>
+                <fieldset class="dropdown-content z-30 mt-1 w-56 rounded border border-pp-pale-grey bg-base-100 p-3 shadow-sm">
+                    <legend class="sr-only">Columns to show</legend>
+                    <ul class="m-0 list-none space-y-1 p-0">
+                        {% for column in columns %}
+                        <li>
+                            <label class="flex cursor-pointer items-center gap-2 py-0.5">
+                                <input type="checkbox" class="checkbox checkbox-accent checkbox-sm column-toggle"
+                                    data-col="{{ column.field }}" checked>
+                                <span class="text-sm">{{ column.label }}</span>
+                            </label>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                </fieldset>
+            </details>
         </div>
 
+        {% comment %}
+            The table grows with the page and only scrolls sideways inside its box, with
+            the accession column staying in place so rows stay identifiable. Long free text
+            is capped at two lines (the full text is in the tooltip and on ENA).
+        {% endcomment %}
         <div class="overflow-x-auto rounded border border-pp-pale-grey bg-white shadow-sm">
-            <table class="table table-zebra table-sm">
+            <table class="table table-sm" data-data-type="{{ data_type.key }}">
                 <caption class="sr-only">
                     {{ data_type.label }} from Sweden, page {{ page_obj.number }}.
                     Select a sortable column heading to sort by it.
                 </caption>
                 <thead>
-                    <tr class="bg-primary text-primary-content">
+                    <tr>
                         {% for header in sort_headers %}
-                        <th scope="col" class="whitespace-nowrap"{% if header.state %} aria-sort="{{ header.state }}"{% endif %}>
+                        <th scope="col" data-col="{{ header.column.field }}"
+                            class="whitespace-nowrap bg-primary text-primary-content{% if forloop.first %} sticky left-0 z-20{% endif %}"
+                            {% if header.state %}aria-sort="{{ header.state }}"{% endif %}>
                             {% if header.url %}
                             <a href="{{ header.url }}" hx-get="{{ header.url }}"
                                 class="inline-flex items-center gap-1 text-primary-content hover:underline">
@@ -140,17 +172,20 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for record in records %}
+                    {% for row in rows %}
                     <tr>
-                        <th scope="row" class="font-normal whitespace-nowrap">
-                            <a href="{{ record.url }}" target="_blank" rel="noopener noreferrer"
-                                class="text-pp-dark-blue hover:underline">{{ record.accession }}</a>
+                        <th scope="row" class="sticky left-0 z-10 whitespace-nowrap bg-base-100 font-normal">
+                            <a href="{{ row.record.url }}" target="_blank" rel="noopener noreferrer"
+                                class="text-pp-dark-blue hover:underline">{{ row.record.accession }}</a>
                         </th>
-                        {% for cell in record.cells %}
-                        <td>
+                        {% for column, cell in row.cells %}
+                        <td data-col="{{ column.field }}"
+                            class="{% if column.kind == 'long' %}min-w-64 max-w-md{% elif column.kind == 'date' or column.kind == 'taxon' %}whitespace-nowrap{% else %}min-w-32{% endif %}">
                             {% if cell.url %}
                             <a href="{{ cell.url }}" target="_blank" rel="noopener noreferrer"
                                 class="text-pp-dark-blue hover:underline">{{ cell.value }}</a>
+                            {% elif column.kind == 'long' and cell.value %}
+                            <span class="line-clamp-2" title="{{ cell.value }}">{{ cell.value }}</span>
                             {% else %}
                             {{ cell.value|default:"–" }}
                             {% endif %}

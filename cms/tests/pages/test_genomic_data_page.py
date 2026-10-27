@@ -171,6 +171,57 @@ class TestGenomicDataPage(WagtailPageTestCase):
         self.assertContains(response, "Showing 1 to 3 of 3 sequences from Sweden")
 
     @patch("portal_data.ebi_search.fetch_json")
+    def test_column_chooser_and_table_layout(self, mock_fetch: MagicMock):
+        """Test the column chooser, per-column cell markers and the sticky accession column."""
+        mock_fetch.side_effect = fake_ebi_search(total=3).side_effect
+        content = self.get_htmx({"type": "raw-reads"}).content.decode()
+        # one unnamed toggle per column (the accession can't be hidden), never submitted
+        for field in ("scientific_name", "TAXON", "collection_date", "host", "first_public_date"):
+            self.assertIn(
+                f'column-toggle"\n                                    data-col="{field}"', content
+            )
+            self.assertIn(f'<td data-col="{field}"', content)
+        self.assertNotIn(
+            'class="checkbox checkbox-accent checkbox-sm column-toggle" name=', content
+        )
+        self.assertIn('data-col="acc"', content)
+        self.assertNotIn(
+            'column-toggle"\n                                    data-col="acc"', content
+        )
+        self.assertIn('<table class="table table-sm" data-data-type="raw-reads">', content)
+        self.assertIn(
+            'class="sticky left-0 z-10 whitespace-nowrap bg-base-100 font-normal"', content
+        )
+
+    @patch("portal_data.ebi_search.fetch_json")
+    def test_long_text_is_capped_with_full_text_in_tooltip(self, mock_fetch: MagicMock):
+        """Test descriptions are capped at two lines, with the full text kept in a tooltip."""
+        description = "Influenza A virus (A/mallard/Sweden/101558/2009(mixed)) segment 4 " * 3
+
+        def side_effect(url: str, params: dict, timeout: float | None = None) -> dict:
+            if params["size"] == 0:
+                return {"hitCount": 1}
+            return {
+                "hitCount": 1,
+                "entries": [
+                    {"acc": "OQ1", "fields": {"acc": ["OQ1"], "description": [description]}}
+                ],
+            }
+
+        mock_fetch.side_effect = side_effect
+        response = self.get_htmx({"type": "sequences"})
+        self.assertContains(response, f'<span class="line-clamp-2" title="{description.strip()}">')
+
+    @patch("portal_data.ebi_search.fetch_json")
+    def test_long_facet_labels_can_wrap(self, mock_fetch: MagicMock):
+        """Test facet labels may wrap anywhere, so very long names stay inside their box."""
+        mock_fetch.side_effect = fake_ebi_search(facets=[CLASSIFICATION]).side_effect
+        self.assertContains(
+            self.get_htmx(),
+            '<span class="min-w-0 text-sm [overflow-wrap:anywhere]">Bacteria</span>',
+        )
+
+    @patch("portal_data.ebi_search.fetch_json")
     def test_data_type_selects_the_index(self, mock_fetch: MagicMock):
         """Test the ``type`` parameter picks the EBI Search domain."""
         mock_fetch.side_effect = fake_ebi_search().side_effect

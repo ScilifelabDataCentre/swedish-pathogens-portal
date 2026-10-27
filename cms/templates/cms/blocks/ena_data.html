@@ -68,6 +68,64 @@
         }
     });
 
+    // Column chooser: hides table columns in the browser, remembered per data type in
+    // localStorage, and re-applied after every HTMX swap of the listing.
+    (function () {
+        const storageKey = (dataType) => "genomicData:hiddenColumns:" + dataType;
+
+        function currentDataType() {
+            const table = document.querySelector("#ena-listing table[data-data-type]");
+            return table ? table.dataset.dataType : null;
+        }
+
+        function loadHidden(dataType) {
+            try {
+                return new Set(JSON.parse(localStorage.getItem(storageKey(dataType)) || "[]"));
+            } catch (err) {
+                return new Set();
+            }
+        }
+
+        function saveHidden(dataType, hidden) {
+            try {
+                localStorage.setItem(storageKey(dataType), JSON.stringify([...hidden]));
+            } catch (err) {
+                // localStorage unavailable (private browsing, quota, etc.) - the choice just won't persist
+            }
+        }
+
+        function applyHidden() {
+            const dataType = currentDataType();
+            if (!dataType) return;
+            const hidden = loadHidden(dataType);
+            document.querySelectorAll("#ena-listing [data-col]").forEach((cell) => {
+                cell.classList.toggle("hidden", hidden.has(cell.dataset.col));
+            });
+            document.querySelectorAll("#ena-listing .column-toggle").forEach((toggle) => {
+                toggle.checked = !hidden.has(toggle.dataset.col);
+            });
+        }
+
+        document.addEventListener("change", (event) => {
+            const toggle = event.target.closest("#ena-listing .column-toggle");
+            if (!toggle) return;
+            const dataType = currentDataType();
+            if (!dataType) return;
+            const hidden = loadHidden(dataType);
+            if (toggle.checked) {
+                hidden.delete(toggle.dataset.col);
+            } else {
+                hidden.add(toggle.dataset.col);
+            }
+            saveHidden(dataType, hidden);
+            applyHidden();
+        });
+
+        document.body.addEventListener("htmx:afterSettle", (event) => {
+            if (event.detail.target && event.detail.target.id === "ena-listing") applyHidden();
+        });
+    })();
+
     // Facet "Show more / Show less", as on the Portal data page. Delegated from the
     // document, so it keeps working after HTMX swaps the listing.
     document.addEventListener("click", (event) => {

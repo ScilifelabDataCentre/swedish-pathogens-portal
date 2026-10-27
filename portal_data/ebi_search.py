@@ -65,7 +65,8 @@ class Column:
         field: The EBI Search field name.
         label: Column header.
         sortable: Whether EBI Search can sort this index on the field.
-        kind: "text", "date" (YYYYMMDD shown as YYYY-MM-DD) or "taxon" (linked to ENA).
+        kind: "text", "long" (free text, capped at two lines in the table),
+            "date" (YYYYMMDD shown as YYYY-MM-DD) or "taxon" (linked to ENA).
     """
 
     field: str
@@ -117,7 +118,7 @@ DATA_TYPES: dict[str, DataType] = {
             columns=(
                 ORGANISM,
                 Column("TAXON", "Taxon ID", sortable=True, kind="taxon"),
-                Column("description", "Description"),
+                Column("description", "Description", kind="long"),
                 COLLECTION_DATE,
                 Column("host", "Host", sortable=True),
                 Column("strain", "Strain", sortable=True),
@@ -170,7 +171,7 @@ DATA_TYPES: dict[str, DataType] = {
             columns=(
                 ORGANISM,
                 Column("TAXON", "Taxon ID", kind="taxon"),
-                Column("description", "Description"),
+                Column("description", "Description", kind="long"),
                 Column("assembly_level", "Assembly level", sortable=True),
                 COLLECTION_DATE,
                 Column("host", "Host", sortable=True),
