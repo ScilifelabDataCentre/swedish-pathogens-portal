@@ -56,6 +56,11 @@ FACET_FIELDS: tuple[str, ...] = (
     "analysis_type",
 )
 
+# Facet headings that replace EBI Search's own label for the field.
+FACET_LABELS: dict[str, str] = {
+    "region": "Location",
+}
+
 
 @dataclass(frozen=True)
 class Column:
@@ -371,6 +376,32 @@ def _parse_record(entry: dict[str, Any], data_type: DataType) -> Record | None:
     return Record(accession=accession, url=f"{ENA_BROWSER_VIEW_URL}/{accession}", cells=cells)
 
 
+def capitalise_first_letter(text: str) -> str:
+    """Capitalise the first letter of ``text``, leaving everything else as it is.
+
+    Skips leading punctuation, so "[mallard]" becomes "[Mallard]", and unlike
+    ``str.capitalize`` keeps the rest unchanged, so "HIV-1 group M" stays as it is.
+    """
+    for index, char in enumerate(text):
+        if char.isalpha():
+            return text[:index] + char.upper() + text[index + 1 :]
+    return text
+
+
+def facet_label(text: str) -> str:
+    """Return how a facet value is shown: without surrounding brackets, capitalised.
+
+    Hosts on the Sequences index come wrapped in square brackets ("[mallard]"),
+    which are dropped for display ("Mallard"). Only a single pair enclosing the
+    whole value is removed, so values such as "[a] and [b]" are left as they are.
+    """
+    text = text.strip()
+    inner = text[1:-1]
+    if text.startswith("[") and text.endswith("]") and inner.strip() and not set("[]") & set(inner):
+        text = inner.strip()
+    return capitalise_first_letter(text)
+
+
 def _parse_facets(raw_facets: object, selected: dict[str, list[str]]) -> tuple[Facet, ...]:
     """Build the sidebar facets, in ``FACET_FIELDS`` order.
 
@@ -398,12 +429,16 @@ def _parse_facets(raw_facets: object, selected: dict[str, list[str]]) -> tuple[F
                 count = int(raw_value.get("count") or 0)
             except TypeError, ValueError:
                 count = 0
-            label = str(raw_value.get("label") or value).strip()
+            label = facet_label(str(raw_value.get("label") or value))
             values.append(FacetValue(value, label, count, selected=value in chosen))
             seen.add(value)
-        values.extend(FacetValue(v, v, 0, selected=True) for v in chosen if v not in seen)
+        values.extend(
+            FacetValue(v, facet_label(v), 0, selected=True) for v in chosen if v not in seen
+        )
         if values:
-            label = str((raw or {}).get("label") or facet_field.replace("_", " ").capitalize())
+            label = FACET_LABELS.get(facet_field) or str(
+                (raw or {}).get("label") or facet_field.replace("_", " ").capitalize()
+            )
             facets.append(Facet(field=facet_field, label=label, values=tuple(values)))
     return tuple(facets)
 

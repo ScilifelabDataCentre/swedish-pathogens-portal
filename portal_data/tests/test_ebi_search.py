@@ -17,6 +17,8 @@ from portal_data.ebi_search import (
     Cell,
     _facet_filters,
     build_query,
+    capitalise_first_letter,
+    facet_label,
     fetch_count,
     is_valid_facet_value,
     search,
@@ -106,6 +108,45 @@ class TestFacetValues(SimpleTestCase):
         for value in ("", "x" * 201, "a\x00b"):
             with self.subTest(value=value):
                 self.assertFalse(is_valid_facet_value(value))
+
+
+class TestCapitaliseFirstLetter(SimpleTestCase):
+    """Tests for capitalise_first_letter, used on facet value labels."""
+
+    def test_capitalisation(self):
+        """Test only the first letter changes, after any leading punctuation."""
+        cases = {
+            "bovine": "Bovine",
+            "[mallard]": "[Mallard]",
+            "[black-headed gull]": "[Black-headed gull]",
+            "HIV-1 group M": "HIV-1 group M",
+            "ILLUMINA": "ILLUMINA",
+            "2024": "2024",
+            "": "",
+        }
+        for text, expected in cases.items():
+            with self.subTest(text=text):
+                self.assertEqual(capitalise_first_letter(text), expected)
+
+
+class TestFacetLabel(SimpleTestCase):
+    """Tests for facet_label, how facet values are shown."""
+
+    def test_surrounding_brackets_are_stripped(self):
+        """Test brackets around the whole value are dropped, others kept."""
+        cases = {
+            "[mallard]": "Mallard",
+            "[black-headed gull]": "Black-headed gull",
+            " [Homo sapiens] ": "Homo sapiens",
+            "Influenza A virus (A/mallard/Sweden/1/2009(mixed))": (
+                "Influenza A virus (A/mallard/Sweden/1/2009(mixed))"
+            ),
+            "[a] and [b]": "[A] and [b]",
+            "[]": "[]",
+        }
+        for text, expected in cases.items():
+            with self.subTest(text=text):
+                self.assertEqual(facet_label(text), expected)
 
 
 class TestFacetFilters(SimpleTestCase):
@@ -279,6 +320,36 @@ class TestSearch(SimpleTestCase):
         self.assertEqual([(v.value, v.selected) for v in taxon.values], [("562", True)])
         host = result.facets[2]
         self.assertEqual([v.value for v in host.values], ["Homo sapiens", "A, B"])
+
+    @patch("portal_data.ebi_search.fetch_json")
+    def test_facet_value_labels_are_capitalised_but_values_unchanged(self, mock_fetch: MagicMock):
+        """Test labels are shown cleaned up while the value sent as a filter stays as-is."""
+        mock_fetch.return_value = ebi_response(
+            facets=[
+                {
+                    "id": "host",
+                    "label": "Host",
+                    "facetValues": [{"value": "[mallard]", "label": "[mallard]", "count": 3}],
+                }
+            ]
+        )
+        value = search(DATA_TYPES["sequences"]).facets[0].values[0]
+        self.assertEqual((value.value, value.label), ("[mallard]", "Mallard"))
+
+    @patch("portal_data.ebi_search.fetch_json")
+    def test_region_facet_is_labelled_location(self, mock_fetch: MagicMock):
+        """Test the region facet is shown as "Location" rather than EBI's "Region"."""
+        mock_fetch.return_value = ebi_response(
+            facets=[
+                {
+                    "id": "region",
+                    "label": "Region",
+                    "facetValues": [{"value": "Stockholm", "label": "Stockholm", "count": 3}],
+                }
+            ]
+        )
+        result = search(RAW_READS)
+        self.assertEqual([(f.field, f.label) for f in result.facets], [("region", "Location")])
 
     @patch("portal_data.ebi_search.fetch_json")
     def test_results_are_cached(self, mock_fetch: MagicMock):
