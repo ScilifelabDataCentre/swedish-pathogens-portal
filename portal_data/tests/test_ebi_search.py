@@ -15,6 +15,7 @@ from portal_data.ebi_search import (
     MAX_PAGE_SIZE,
     REQUEST_TIMEOUT_SECONDS,
     Cell,
+    _facet_filters,
     build_query,
     fetch_count,
     is_valid_facet_value,
@@ -94,11 +95,47 @@ class TestBuildQuery(SimpleTestCase):
 class TestFacetValues(SimpleTestCase):
     """Tests for is_valid_facet_value."""
 
-    def test_values_with_commas_are_rejected(self):
-        """Test values with commas (which EBI Search can't filter on) are rejected."""
-        self.assertTrue(is_valid_facet_value("Homo sapiens"))
-        self.assertFalse(is_valid_facet_value("Sweden, Stockholm"))
-        self.assertFalse(is_valid_facet_value(""))
+    def test_printable_values_are_accepted(self):
+        """Test any printable value, including brackets and commas, can be a filter."""
+        for value in ("Homo sapiens", "[mallard]", "Sweden, Stockholm"):
+            with self.subTest(value=value):
+                self.assertTrue(is_valid_facet_value(value))
+
+    def test_empty_long_and_unprintable_values_are_rejected(self):
+        """Test empty, overlong and control-character values are rejected."""
+        for value in ("", "x" * 201, "a\x00b"):
+            with self.subTest(value=value):
+                self.assertFalse(is_valid_facet_value(value))
+
+
+class TestFacetFilters(SimpleTestCase):
+    """Tests for how selected facets are sent: the facets parameter or the query."""
+
+    def test_plain_values_use_the_facets_parameter(self):
+        """Test values the facets parameter accepts are sent there, comma-separated."""
+        self.assertEqual(
+            _facet_filters({"classification": ["bacteria", "viruses"], "host": ["Homo sapiens"]}),
+            ("classification:bacteria,classification:viruses,host:Homo sapiens", ""),
+        )
+
+    def test_bracketed_values_use_an_escaped_regex_in_the_query(self):
+        """Test values like "[mallard]" (Sequences hosts) become ORed exact-match regexes."""
+        self.assertEqual(
+            _facet_filters({"host": ["[mallard]", "[black-headed gull]"]}),
+            ("", r"(host:/\[mallard\]/ OR host:/\[black\-headed\ gull\]/)"),
+        )
+
+    def test_one_awkward_value_moves_its_whole_facet_to_the_query(self):
+        """Test a facet's values stay ORed together when one needs the regex form."""
+        facets_param, query = _facet_filters(
+            {"classification": ["viruses"], "host": ["Homo sapiens", "Sweden, Stockholm"]}
+        )
+        self.assertEqual(facets_param, "classification:viruses")
+        self.assertEqual(query, r"(host:/Homo\ sapiens/ OR host:/Sweden\,\ Stockholm/)")
+
+    def test_unknown_facets_and_invalid_values_are_dropped(self):
+        """Test fields that aren't facets and invalid values are never sent."""
+        self.assertEqual(_facet_filters({"not_a_facet": ["x"], "host": [""]}), ("", ""))
 
 
 class TestSearch(SimpleTestCase):
@@ -139,7 +176,7 @@ class TestSearch(SimpleTestCase):
         mock_fetch.return_value = ebi_response()
         search(
             RAW_READS,
-            selected_facets={"not_a_facet": ["x"], "host": ["A, B"]},
+            selected_facets={"not_a_facet": ["x"]},
             size=1000,
             sort=("scientific_name", False),
         )
@@ -147,6 +184,19 @@ class TestSearch(SimpleTestCase):
         self.assertNotIn("sort", params)
         self.assertNotIn("facets", params)
         self.assertEqual(params["size"], MAX_PAGE_SIZE)
+
+    @patch("portal_data.ebi_search.fetch_json")
+    def test_bracketed_facet_values_are_added_to_the_query(self, mock_fetch: MagicMock):
+        """Test regex facet filters are ANDed onto the search query, others stay facets."""
+        mock_fetch.return_value = ebi_response()
+        search(
+            DATA_TYPES["sequences"],
+            text="coli",
+            selected_facets={"classification": ["viruses"], "host": ["[mallard]"]},
+        )
+        params = mock_fetch.call_args.kwargs["params"]
+        self.assertEqual(params["query"], rf"{BASE_QUERY} AND (coli*) AND (host:/\[mallard\]/)")
+        self.assertEqual(params["facets"], "classification:viruses")
 
     @patch("portal_data.ebi_search.fetch_json")
     def test_records_are_parsed(self, mock_fetch: MagicMock):
@@ -228,7 +278,7 @@ class TestSearch(SimpleTestCase):
         taxon = result.facets[1]
         self.assertEqual([(v.value, v.selected) for v in taxon.values], [("562", True)])
         host = result.facets[2]
-        self.assertEqual([v.value for v in host.values], ["Homo sapiens"])
+        self.assertEqual([v.value for v in host.values], ["Homo sapiens", "A, B"])
 
     @patch("portal_data.ebi_search.fetch_json")
     def test_results_are_cached(self, mock_fetch: MagicMock):

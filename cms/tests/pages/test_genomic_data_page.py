@@ -320,14 +320,14 @@ class TestGenomicDataPage(WagtailPageTestCase):
     # --- Service helpers ----------------------------------------------------------
 
     def test_resolve_state_validates_input(self):
-        """Test unknown types, facets, comma values and unsortable fields are dropped."""
+        """Test unknown types, facets, overlong values and unsortable fields are dropped."""
         request = self.factory.get(
             "/",
             {
                 "type": "nonsense",
                 "q": "  coli \n",
                 "classification": ["viruses", "viruses", ""],
-                "host": "A, B",
+                "host": "x" * 201,
                 "not_a_facet": "x",
                 "sort": "scientific_name",
             },
