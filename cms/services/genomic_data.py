@@ -23,6 +23,7 @@ from portal_data.ebi_search import (
     DEFAULT_DATA_TYPE,
     FACET_FIELDS,
     DataType,
+    SearchResult,
     fetch_count,
     is_valid_facet_value,
     search,
@@ -138,14 +139,31 @@ def _format_count(count: int | None) -> str:
     return "?" if count is None else f"{count:,}"
 
 
-def _fetch_counts(text: str) -> dict[str, int | None]:
-    """Fetch the number of matching records for every data type concurrently."""
-    with ThreadPoolExecutor(max_workers=len(DATA_TYPES)) as executor:
-        futures = {
-            key: executor.submit(fetch_count, data_type, text)
+def _search_with_counts(
+    state: ListingState, page_number: int
+) -> tuple[dict[str, int | None], SearchResult | None]:
+    """Fetch the tab counts and the requested page of results, all concurrently.
+
+    The count for every data type and the search itself are independent
+    requests, so they share one thread pool and the page waits for the slowest
+    one, rather than for the counts and then the search in turn.
+    """
+    with ThreadPoolExecutor(max_workers=len(DATA_TYPES) + 1) as executor:
+        search_future = executor.submit(
+            search,
+            state.data_type,
+            text=state.text,
+            selected_facets=state.facets,
+            start=(page_number - 1) * state.page_size,
+            size=state.page_size,
+            sort=(state.sort.field, state.sort.descending) if state.sort else None,
+        )
+        count_futures = {
+            key: executor.submit(fetch_count, data_type, state.text)
             for key, data_type in DATA_TYPES.items()
         }
-        return {key: future.result() for key, future in futures.items()}
+        counts = {key: future.result() for key, future in count_futures.items()}
+        return counts, search_future.result()
 
 
 def _sort_header(
@@ -180,15 +198,7 @@ def build_context_dict(request: HttpRequest, page: GenomicDataPage | None = None
     data_type = state.data_type
     page_number = _page_number(request)
 
-    counts = _fetch_counts(state.text)
-    result = search(
-        data_type,
-        text=state.text,
-        selected_facets=state.facets,
-        start=(page_number - 1) * state.page_size,
-        size=state.page_size,
-        sort=(state.sort.field, state.sort.descending) if state.sort else None,
-    )
+    counts, result = _search_with_counts(state, page_number)
 
     context: dict[str, Any] = {
         "state": state,
