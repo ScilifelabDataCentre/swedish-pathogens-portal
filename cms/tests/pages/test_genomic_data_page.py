@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 from unittest.mock import MagicMock, patch
 
 from django.core.cache import cache
@@ -16,6 +17,7 @@ from cms.services.genomic_data import (
     build_context_dict,
     resolve_state,
 )
+from portal_data.ebi_search import DATA_TYPES
 
 
 def fake_ebi_search(total: int = 3, facets: list[dict] | None = None) -> MagicMock:
@@ -147,6 +149,26 @@ class TestGenomicDataPage(WagtailPageTestCase):
         self.assertEqual(
             self.searches(mock_fetch)[0]["query"], '(country:"Sweden") AND tag:pathogen'
         )
+
+    @patch("portal_data.ebi_search.fetch_json")
+    def test_counts_and_search_are_requested_concurrently(self, mock_fetch: MagicMock):
+        """Test the search doesn't wait for the counts: all six requests are in flight at once.
+
+        Every fake request waits at a barrier for the other five, which only works if
+        the counts and the search run at the same time. Run one after another, the
+        first request would time out at the barrier and the listing would fail.
+        """
+        barrier = threading.Barrier(len(DATA_TYPES) + 1, timeout=5)
+        fake = fake_ebi_search(total=3).side_effect
+
+        def side_effect(url: str, params: dict, timeout: float | None = None) -> dict:
+            barrier.wait()
+            return fake(url, params)
+
+        mock_fetch.side_effect = side_effect
+        response = self.get_htmx()
+        self.assertEqual(mock_fetch.call_count, len(DATA_TYPES) + 1)
+        self.assertContains(response, "Showing 1 to 3 of 3 sequences from Sweden")
 
     @patch("portal_data.ebi_search.fetch_json")
     def test_data_type_selects_the_index(self, mock_fetch: MagicMock):
