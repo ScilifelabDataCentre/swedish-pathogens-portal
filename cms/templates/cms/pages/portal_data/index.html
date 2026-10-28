@@ -28,8 +28,7 @@
         "
     >
         <header class="mb-6 lg:mb-8">
-            <h1>{{ datatype_label }} data</h1>
-
+            <h1 class="sr-only">{{ page.title }}</h1>
             {% if page.intro %}
                 <div class="prose mt-3 max-w-none">
                     {{ page.intro|richtext }}
@@ -103,7 +102,7 @@
                     disabled
                     title="Opens direct download links for the selected datasets' files"
                 >
-                    Download data for selected datasets (<span id="download-count">0</span>)
+                    Download metadata for selected datasets (<span id="download-count">0</span>)
                 </button>
             </div>
         </div>
