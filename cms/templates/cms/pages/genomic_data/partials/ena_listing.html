@@ -120,10 +120,19 @@
                 Column chooser. Hiding is done in the browser (see the block's script) and
                 remembered per data type, so it needs no request. The checkboxes have no name,
                 so they are never submitted with the search form.
+                The menu is a native popover, so it closes on Esc or a click outside it, and
+                the browser exposes its open/closed state to screen readers. CSS anchor
+                positioning places it under the button; browsers without anchor positioning
+                show it centred instead, still working the same way.
             {% endcomment %}
-            <details class="dropdown dropdown-end shrink-0">
-                <summary class="btn btn-outline btn-sm">Edit table view</summary>
-                <fieldset class="dropdown-content z-30 mt-1 w-56 rounded border border-pp-pale-grey bg-base-100 p-3 shadow-sm">
+            <div class="shrink-0">
+                <button type="button" class="btn btn-outline btn-sm"
+                    popovertarget="ena-column-chooser" style="anchor-name: --ena-column-chooser">
+                    Edit table view
+                </button>
+                <fieldset id="ena-column-chooser" popover
+                    class="dropdown dropdown-end mt-1 w-56 rounded border border-pp-pale-grey bg-base-100 p-3 shadow-sm"
+                    style="position-anchor: --ena-column-chooser">
                     <legend class="sr-only">Columns to show</legend>
                     <ul class="m-0 list-none space-y-1 p-0">
                         {% for column in columns %}
@@ -137,7 +146,7 @@
                         {% endfor %}
                     </ul>
                 </fieldset>
-            </details>
+            </div>
         </div>
 
         {% comment %}

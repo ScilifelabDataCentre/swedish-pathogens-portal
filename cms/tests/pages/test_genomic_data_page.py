@@ -177,19 +177,19 @@ class TestGenomicDataPage(WagtailPageTestCase):
         """Test the column chooser, per-column cell markers and the sticky accession column."""
         mock_fetch.side_effect = fake_ebi_search(total=3).side_effect
         content = self.get_htmx({"type": "raw-reads"}).content.decode()
+        # the menu is a native popover opened by its button (closes on Esc / click outside)
+        self.assertRegex(
+            content, r'<button type="button"[^>]*\s+popovertarget="ena-column-chooser"'
+        )
+        self.assertRegex(content, r'<fieldset id="ena-column-chooser" popover\s')
+        self.assertIn("Edit table view", content)
         # one unnamed toggle per column (the accession can't be hidden), never submitted
         for field in ("scientific_name", "TAXON", "collection_date", "host", "first_public_date"):
-            self.assertIn(
-                f'column-toggle"\n                                    data-col="{field}"', content
-            )
+            self.assertRegex(content, rf'column-toggle"\s+data-col="{field}"')
             self.assertIn(f'<td data-col="{field}"', content)
-        self.assertNotIn(
-            'class="checkbox checkbox-accent checkbox-sm column-toggle" name=', content
-        )
+        self.assertNotRegex(content, r'column-toggle"[^>]*\sname=')
         self.assertIn('data-col="acc"', content)
-        self.assertNotIn(
-            'column-toggle"\n                                    data-col="acc"', content
-        )
+        self.assertNotRegex(content, r'column-toggle"\s+data-col="acc"')
         self.assertIn('<table class="table table-sm" data-data-type="raw-reads">', content)
         self.assertIn(
             'class="sticky left-0 z-10 whitespace-nowrap bg-base-100 font-normal"', content
