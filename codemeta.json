@@ -1,0 +1,151 @@
+{
+    "@context": "https://doi.org/10.5063/schema/codemeta-2.0",
+    "type": "SoftwareSourceCode",
+    "applicationCategory": "Life Sciences",
+    "author": [
+        {
+            "id": "https://orcid.org/0000-0002-4784-5436",
+            "type": "Person",
+            "affiliation": {
+                "type": "Organization",
+                "name": "Department of Immunology, Genetics and Pathology, Uppsala University, Uppsala, Sweden; Science for Life Laboratory (SciLifeLab), Uppsala University, Uppsala, Sweden"
+            },
+            "email": "liane.hughes@scilifelab.uu.se",
+            "familyName": "Hughes",
+            "givenName": "Liane"
+        },
+        {
+            "id": "_:author_2",
+            "type": "Person",
+            "affiliation": {
+                "type": "Organization",
+                "name": "Department of Immunology, Genetics and Pathology, Uppsala University, Uppsala, Sweden; Science for Life Laboratory (SciLifeLab), Uppsala University, Uppsala, Sweden"
+            },
+            "email": "senthilkumar.panneerselvam@scilifelab.se",
+            "familyName": "Panneerselvam",
+            "givenName": "Senthilkumar"
+        },
+        {
+            "id": "https://orcid.org/0000-0003-4684-4682",
+            "type": "Person",
+            "affiliation": {
+                "type": "Organization",
+                "name": "High Performance Computing Center North, Umeå University, Umeå, Sweden; Science for Life Laboratory (SciLifeLab), Umeå University, Umeå Sweden"
+            },
+            "email": "abdullah.aziz@umu.se",
+            "familyName": "Aziz",
+            "givenName": "Abdullah"
+        },
+        {
+            "id": "https://orcid.org/0000-0003-1373-5121",
+            "type": "Person",
+            "affiliation": {
+                "type": "Organization",
+                "name": "High Performance Computing Center North, Umeå University, Umeå, Sweden; Science for Life Laboratory (SciLifeLab), Umeå University, Umeå Sweden"
+            },
+            "email": "paul.dulaud@umu.se",
+            "familyName": "Dulaud",
+            "givenName": "Paul"
+        },
+        {
+            "id": "https://orcid.org/0000-0002-0641-7953",
+            "type": "Person",
+            "affiliation": {
+                "type": "Organization",
+                "name": "High Performance Computing Center North, Umeå University, Umeå, Sweden; Science for Life Laboratory (SciLifeLab), Umeå University, Umeå Sweden"
+            },
+            "email": "nalina.venkatesh@umu.se",
+            "familyName": "Venkatesh",
+            "givenName": "Nalina Hamsaiyni"
+        },
+        {
+            "id": "https://orcid.org/0000-0001-9017-591X",
+            "type": "Person",
+            "affiliation": {
+                "type": "Organization",
+                "name": "Department of Immunology, Genetics and Pathology, Uppsala University, Uppsala, Sweden; Science for Life Laboratory (SciLifeLab), Uppsala University, Uppsala, Sweden"
+            },
+            "email": "rickard.hammaren@scilifelab.se",
+            "familyName": "Hammarén",
+            "givenName": "Rickard"
+        },
+        {
+            "id": "https://orcid.org/0000-0001-5563-9475",
+            "type": "Person",
+            "affiliation": {
+                "type": "Organization",
+                "name": "Department of Immunology, Genetics and Pathology, Uppsala University, Uppsala, Sweden; Science for Life Laboratory (SciLifeLab), Uppsala University, Uppsala, Sweden"
+            },
+            "email": "jahurul.islam@scilifelab.uu.se",
+            "familyName": "Islam",
+            "givenName": "Kazi Jahurul"
+        },
+        {
+            "id": "https://orcid.org/0000-0003-4709-5353",
+            "type": "Person",
+            "affiliation": {
+                "type": "Organization",
+                "name": "Department of Immunology, Genetics and Pathology, Uppsala University, Uppsala, Sweden; Science for Life Laboratory (SciLifeLab), Uppsala University, Uppsala, Sweden"
+            },
+            "email": "rory.crean@icm.uu.se",
+            "familyName": "Crean",
+            "givenName": "Rory"
+        },
+        {
+            "id": "_:author_8",
+            "type": "Person",
+            "affiliation": {
+                "type": "Organization",
+                "name": "Science for Life Laboratory (SciLifeLab), Umeå University, Umeå Sweden"
+            },
+            "email": "ina.oden.osterbo@scilifelab.uu.se",
+            "familyName": "Odén Österbo",
+            "givenName": "Ina"
+        },
+        {
+            "id": "https://orcid.org/0000-0001-5875-8429",
+            "type": "Person",
+            "affiliation": {
+                "type": "Organization",
+                "name": "Department of Immunology, Genetics and Pathology, Uppsala University, Uppsala, Sweden; Science for Life Laboratory (SciLifeLab), Uppsala University, Uppsala, Sweden"
+            },
+            "email": "johan.rung@scilifelab.uu.se",
+            "familyName": "Rung",
+            "givenName": "Johan"
+        }
+    ],
+    "codeRepository": "https://github.com/ScilifelabDataCentre/swedish-pathogens-portal",
+    "dateCreated": "2026-03-11",
+    "dateModified": "2026-10-21",
+    "datePublished": "2026-10-13",
+    "description": "Supporting pandemic preparedness research in Sweden by providing access to datasets, resources, and tools.",
+    "downloadUrl": "https://github.com/ScilifelabDataCentre/swedish-pathogens-portal/archive/refs/tags/v1.0.1.tar.gz",
+    "funder": {
+        "type": "Organization",
+        "name": "SciLifeLab, Knut & Alice Wallenberg Foundation, Swedish Foundation for Strategic Research (SSF), Swedish Research Council, BY-COVID, Pandemic Preparedness Laboratory (PLP) Program, and the Data Driven Life Sciences (DDLS) Program"
+    },
+    "identifier": "pathogens.se, 10.5281/zenodo.23365066",
+    "keywords": [
+        "Swedish Pathogens Portal",
+        "pathogen genomics",
+        "infectious disease research",
+        "pathogen surveillance",
+        "antimicrobial resistance",
+        "epidemiology",
+        "pathogen data",
+        "bioinformatics",
+        "FAIR data",
+        "SciLifeLab",
+        "Sweden"
+    ],
+    "license": "https://spdx.org/licenses/MIT",
+    "name": "Swedish Pathogens Portal",
+    "programmingLanguage": [
+        "Python",
+        "HTML",
+        "Javascript"
+    ],
+    "relatedLink": "https://www.pathogens.se/",
+    "version": "1.0.1",
+    "developmentStatus": "active"
+}
