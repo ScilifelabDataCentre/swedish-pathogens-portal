@@ -122,7 +122,7 @@ Without a registry entry, CSV upload succeeds but figure generation returns `{}`
 Add tests for the viz module and registry dispatch. Patterns:
 
 ```bash
-uv run python manage.py test cms.tests.test_dashboard_data_upload cms.tests.test_dashboard_page --settings core.settings.test
+docker compose exec web python manage.py test cms.tests.test_dashboard_data_upload cms.tests.test_dashboard_page --settings core.settings.test
 ```
 
 - Register your module in tests with `patch.dict(VIZ_MODULES, …)` (see `test_dashboard_data_upload.py`).

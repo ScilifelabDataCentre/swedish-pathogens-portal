@@ -30,11 +30,9 @@ Setup, conventions, and how-tos for developing the **Swedish Pathogens Portal**.
 
 ## Run tests
 
-```bash
-# Local
-uv run python manage.py test cms.tests --settings core.settings.test
+Tests use **PostgreSQL** (`core.settings.test`), not SQLite. Prefer Docker:
 
-# Docker
+```bash
 docker compose exec web python manage.py test cms.tests --settings core.settings.test
 ```
 

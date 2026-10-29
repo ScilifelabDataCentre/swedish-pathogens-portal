@@ -116,7 +116,7 @@ Add or extend a module under `cms/tests/pages/` (e.g. `test_<area>_pages.py`). B
 `cms/tests/utils.py` has shared helpers such as `create_test_image()`; it does **not** provide a generic page-tree builder.
 
 ```bash
-uv run python manage.py test cms.tests.pages.test_news_pages --settings core.settings.test
+docker compose exec web python manage.py test cms.tests.pages.test_news_pages --settings core.settings.test
 ```
 
 ---

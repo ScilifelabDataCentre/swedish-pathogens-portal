@@ -71,7 +71,7 @@ The Docker **tailwind** service watches and rebuilds `portal.css`. On a pure uv 
 | Django shell | `uv run python manage.py shell` |
 | Add dependency | `uv add <package>` |
 | Add dev dependency | `uv add --group dev <package>` |
-| Tests | `uv run python manage.py test cms.tests --settings core.settings.test` |
+| Tests | Prefer Docker — see [testing.md](testing.md) (`core.settings.test` needs PostgreSQL) |
 
 Commit new files under `cms/migrations/` after `makemigrations`.
 

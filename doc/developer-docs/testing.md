@@ -11,36 +11,32 @@ How we run and write tests for the Swedish Pathogens Portal.
 - **Wagtail pages** — parent/child rules, public URLs, template context.
 - **Template tags and handlers** — e.g. navigation menu, external link handler.
 
-We use Django’s `TestCase` and `wagtail.test.utils.WagtailPageTestCase`. Settings: `core.settings.test`.
+We use Django’s `TestCase` and `wagtail.test.utils.WagtailPageTestCase`. Settings: `core.settings.test` — these require **PostgreSQL** (not SQLite), so the recommended path is Docker.
 
 ---
 
 ## Running tests
 
-### Local (uv)
+### Docker (recommended)
+
+With the stack up (`docker compose up` or at least `web` + `db`):
 
 ```bash
-uv run python manage.py test cms.tests --settings core.settings.test
+docker compose exec web python manage.py test cms.tests --settings core.settings.test
 ```
 
 Single module or class:
 
 ```bash
-uv run python manage.py test cms.tests.test_dashboard_page --settings core.settings.test
-uv run python manage.py test cms.tests.test_validators.TestValidateFilters --settings core.settings.test
-```
-
-### Docker
-
-```bash
-docker compose exec web python manage.py test cms.tests --settings core.settings.test
+docker compose exec web python manage.py test cms.tests.test_dashboard_page --settings core.settings.test
+docker compose exec web python manage.py test cms.tests.test_validators.TestValidateFilters --settings core.settings.test
 ```
 
 ### CI
 
 GitHub Actions runs Ruff and the Django test suite on push and PR — see [operations — CI](operations.md#ci-and-quality). Run the same checks locally before opening a PR.
 
-`core/settings/test.py` extends base settings with Wagtail admin URL constants. Always pass `--settings core.settings.test`.
+`core/settings/test.py` uses the same Postgres as `DATABASE_URL` and creates a temporary `test_<name>` database. Always pass `--settings core.settings.test`. Bare `uv run … test` without a reachable Postgres cluster will fail (`ImproperlyConfigured` or connection errors).
 
 ### What to run for your change
 

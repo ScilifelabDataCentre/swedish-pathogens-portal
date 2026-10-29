@@ -145,10 +145,10 @@ Match key types to stored values (`int` FK ids vs `str`). Prefer precise return 
 [Testing](testing.md)
 
 ```bash
-uv run python manage.py test cms.tests --settings core.settings.test
+docker compose exec web python manage.py test cms.tests --settings core.settings.test
 ```
 
-Run the module you touched. Model-only tests do not cover admin `Form.clean()` — extract validators or add form tests when validation is critical.
+Tests need PostgreSQL — prefer Docker ([testing.md](testing.md)). Run the module you touched. Model-only tests do not cover admin `Form.clean()` — extract validators or add form tests when validation is critical.
 
 ---
 

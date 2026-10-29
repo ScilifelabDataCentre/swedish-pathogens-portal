@@ -66,6 +66,7 @@ After adding a new top-level app with templates, add an `@source` line — [PR #
 
 | Symptom | Fix |
 |---------|-----|
+| `ImproperlyConfigured` / needs PostgreSQL | `core.settings.test` requires Postgres — run via Docker (`docker compose exec web …`) — [testing.md](testing.md) |
 | `NodeNotFoundError` for migrations | Test DB graph out of date — recreate test DB or run `migrate` with test settings |
 | Wagtail `Site` / URL assertions fail | Ensure test sets default `Site` root to your `HomePage` — [testing — Wagtail patterns](testing.md#wagtail-test-patterns) |
 
