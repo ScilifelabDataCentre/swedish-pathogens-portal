@@ -12,18 +12,9 @@ All commands are from the **repository root**. Settings module defaults to `core
 
 The app needs a running Postgres that matches your `.env` credentials.
 
-**Option A — DB container with published port**
+**Option A — Compose DB (recommended)**
 
-Default `compose.yaml` does not expose Postgres to the host. Publish port 5432, e.g. create `compose.override.yaml`:
-
-```yaml
-services:
-  db:
-    ports:
-      - "5432:5432"
-```
-
-Then:
+`compose.yaml` publishes Postgres on the host (`POSTGRES_PORT`, default `5432`):
 
 ```bash
 docker compose up -d db

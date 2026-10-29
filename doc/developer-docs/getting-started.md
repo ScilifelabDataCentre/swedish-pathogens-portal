@@ -148,7 +148,7 @@ GUNICORN_THREADS=4
 with_pygraphviz=false
 ```
 
-Postgres must listen on `localhost:5432`. Default `compose.yaml` does not publish the DB port — see [local deployment](local-deployment.md).
+Postgres must listen on `localhost:5432` (or your `POSTGRES_PORT`). `compose.yaml` publishes the DB port by default — see [local deployment](local-deployment.md).
 
 ### Email (local and production)
 
