@@ -150,6 +150,89 @@
         </div>
 
         {% comment %}
+            Selection and download toolbar, like the Portal data page's. The selection is
+            kept in the browser per data type (see the block's script), so it survives
+            searching, filtering, sorting and paging.
+        {% endcomment %}
+        <div id="ena-download-toolbar"
+            class="mb-3 flex flex-wrap items-center justify-between gap-2 rounded border border-pp-pale-grey bg-white p-3 text-sm shadow-sm">
+            <div class="text-pp-dark-grey" aria-live="polite">
+                <span class="ena-selected-count">0</span> selected
+            </div>
+            <div class="flex items-center gap-2">
+                <button type="button" id="ena-clear-selection" class="btn btn-outline btn-sm" disabled>
+                    Clear selection
+                </button>
+                <button type="button" id="ena-open-download" class="btn btn-primary btn-sm"
+                    aria-haspopup="dialog" aria-controls="ena-download-dialog">
+                    Download
+                </button>
+            </div>
+        </div>
+
+        {% comment %}
+            Download dialog, with the central Pathogens Portal's options. Its inputs belong to
+            the download form outside the search form (form="ena-download-form"), so they are
+            never part of a search. The dialog is native: it traps focus and closes on Esc.
+        {% endcomment %}
+        {% comment %}
+            The box is styled like the facet boxes (border, rounding, background, shadow), with
+            its padding, size and opacity set explicitly rather than left to DaisyUI's modal
+            styles, so it looks the same in every browser whatever stage the open animation is at.
+        {% endcomment %}
+        <dialog id="ena-download-dialog" class="modal" aria-labelledby="ena-download-title">
+            <div class="modal-box w-11/12 max-w-md scale-100 rounded border border-secondary bg-base-100 p-6 opacity-100 shadow-sm">
+                <h3 id="ena-download-title" class="mt-0 text-lg">Download {{ data_type.label|lower }}</h3>
+
+                <fieldset class="m-0 mt-3 border-0 p-0">
+                    <legend class="mb-1 text-sm font-semibold">Records</legend>
+                    <label class="flex cursor-pointer items-center gap-2 py-0.5 text-sm">
+                        <input type="radio" id="ena-scope-selected" name="scope" value="selected"
+                            form="ena-download-form" class="radio radio-accent radio-sm">
+                        Selected records (<span class="ena-selected-count">0</span>)
+                    </label>
+                    <label class="flex cursor-pointer items-center gap-2 py-0.5 text-sm">
+                        <input type="radio" id="ena-scope-all" name="scope" value="all"
+                            form="ena-download-form" class="radio radio-accent radio-sm" checked>
+                        All results ({{ total_display }})
+                    </label>
+                </fieldset>
+
+                <fieldset class="m-0 mt-4 border-0 p-0">
+                    <legend class="mb-1 text-sm font-semibold">Data format</legend>
+                    {% for format in download_data_formats %}
+                    <label class="flex cursor-pointer items-start gap-2 py-0.5 text-sm">
+                        <input type="radio" name="format" value="{{ format.key }}" form="ena-download-form"
+                            class="radio radio-accent radio-sm mt-0.5"{% if forloop.first %} checked{% endif %}>
+                        <span>{{ format.label }}<span class="block text-xs text-pp-dark-grey">{{ format.description }}</span></span>
+                    </label>
+                    {% endfor %}
+                    <p class="mt-1 mb-0 text-xs text-pp-dark-grey">
+                        Data files come from ENA and can be large: downloading many records can take several minutes.
+                    </p>
+                </fieldset>
+
+                <fieldset class="m-0 mt-4 border-0 p-0">
+                    <legend class="mb-1 text-sm font-semibold">Metadata</legend>
+                    {% for format in download_metadata_formats %}
+                    <label class="flex cursor-pointer items-start gap-2 py-0.5 text-sm">
+                        <input type="radio" name="format" value="{{ format.key }}" form="ena-download-form"
+                            class="radio radio-accent radio-sm mt-0.5">
+                        <span>{{ format.label }}<span class="block text-xs text-pp-dark-grey">{{ format.description }}</span></span>
+                    </label>
+                    {% endfor %}
+                </fieldset>
+
+                <div class="modal-action">
+                    <button type="button" class="btn btn-outline btn-sm" data-close-dialog>Cancel</button>
+                    <button type="submit" form="ena-download-form" class="btn btn-primary btn-sm">Download</button>
+                </div>
+            </div>
+            {# Clicking outside the dialog closes it (a div, as forms can't nest in the search form). #}
+            <div class="modal-backdrop" data-close-dialog></div>
+        </dialog>
+
+        {% comment %}
             The table grows with the page and only scrolls sideways inside its box, with
             the accession column staying in place so rows stay identifiable. Long free text
             is capped at two lines (the full text is in the tooltip and on ENA).
@@ -166,6 +249,11 @@
                         <th scope="col" data-col="{{ header.column.field }}"
                             class="whitespace-nowrap bg-primary text-primary-content{% if forloop.first %} sticky left-0 z-20{% endif %}"
                             {% if header.state %}aria-sort="{{ header.state }}"{% endif %}>
+                            {% if forloop.first %}
+                            <input type="checkbox" id="ena-select-page"
+                                class="checkbox checkbox-sm me-2 border-primary-content align-middle"
+                                aria-label="Select all records on this page">
+                            {% endif %}
                             {% if header.url %}
                             <a href="{{ header.url }}" hx-get="{{ header.url }}"
                                 class="inline-flex items-center gap-1 text-primary-content hover:underline">
@@ -184,6 +272,8 @@
                     {% for row in rows %}
                     <tr>
                         <th scope="row" class="sticky left-0 z-10 whitespace-nowrap bg-base-100 font-normal">
+                            <input type="checkbox" class="ena-select checkbox checkbox-accent checkbox-sm me-2 align-middle"
+                                data-acc="{{ row.record.accession }}" aria-label="Select {{ row.record.accession }}">
                             <a href="{{ row.record.url }}" target="_blank" rel="noopener noreferrer"
                                 class="text-pp-dark-blue hover:underline">{{ row.record.accession }}</a>
                         </th>

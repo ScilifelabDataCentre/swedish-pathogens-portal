@@ -5,6 +5,7 @@ from __future__ import annotations
 import threading
 from unittest.mock import MagicMock, patch
 
+import httpx
 from django.core.cache import cache
 from django.test import RequestFactory
 from wagtail.models import Page, Site
@@ -369,6 +370,121 @@ class TestGenomicDataPage(WagtailPageTestCase):
         mock_fetch.return_value = None
         response = self.get_htmx()
         self.assertContains(response, "could not be loaded from ENA")
+
+    # --- Downloads ----------------------------------------------------------------
+
+    def download(self, data: dict, query: str = "") -> object:
+        """POST to the page's download route, with the view in the query string."""
+        return self.client.post(f"{self.page.url}download/{query}", data)
+
+    @patch("portal_data.ebi_search.fetch_json")
+    def test_listing_has_selection_and_download_dialog(self, mock_fetch: MagicMock):
+        """Test row checkboxes, the toolbar and the dialog with this data type's formats."""
+        mock_fetch.side_effect = fake_ebi_search(total=3).side_effect
+        content = self.get_htmx({"type": "sequences"}).content.decode()
+        self.assertIn('id="ena-select-page"', content)
+        self.assertIn('aria-label="Select all records on this page"', content)
+        self.assertRegex(content, r'class="ena-select[^"]*"\s+data-acc="ERX0"')
+        self.assertIn('id="ena-open-download"', content)
+        self.assertIn('<dialog id="ena-download-dialog"', content)
+        self.assertIn("All results (3)", content)
+        for key in ("embl", "fasta", "accessions", "tsv"):
+            self.assertRegex(content, rf'name="format" value="{key}" form="ena-download-form"')
+        self.assertNotIn('value="xml"', content)
+
+        content = self.get_htmx({"type": "raw-reads"}).content.decode()
+        self.assertIn('name="format" value="xml" form="ena-download-form"', content)
+        self.assertNotIn('value="fasta"', content)
+
+    @patch("portal_data.ebi_search.fetch_json")
+    def test_full_page_has_the_download_form(self, mock_fetch: MagicMock):
+        """Test the download form sits outside the search form, with a CSRF token."""
+        content = self.client.get(self.page.url).content.decode()
+        self.assertIn(
+            '<form id="ena-download-form" method="post" action="/genomic-data/download/"', content
+        )
+        form = content[content.index('<form id="ena-download-form"') :]
+        self.assertIn('name="csrfmiddlewaretoken"', form[: form.index("</form>")])
+        self.assertLess(content.index("</form>"), content.index('<form id="ena-download-form"'))
+
+    def test_download_requires_post(self):
+        """Test the download route only accepts POST."""
+        self.assertEqual(self.client.get(f"{self.page.url}download/").status_code, 405)
+
+    def test_download_rejects_invalid_requests(self):
+        """Test unknown formats and scopes, and an empty selection, are rejected."""
+        cases = [
+            ({"scope": "all", "format": "nonsense"}, "?type=raw-reads"),
+            ({"scope": "all", "format": "fasta"}, "?type=raw-reads"),  # FASTA is for sequences
+            ({"scope": "everything", "format": "tsv"}, ""),
+            ({"scope": "selected", "format": "tsv", "ids": ""}, ""),
+            ({"scope": "selected", "format": "tsv", "ids": "OR,AND"}, ""),
+        ]
+        for data, query in cases:
+            with self.subTest(data=data):
+                self.assertEqual(self.download(data, query).status_code, 400)
+
+    @patch("portal_data.ebi_download.CLIENT")
+    def test_download_selected_metadata_tsv(self, mock_client: MagicMock):
+        """Test selected records download as a TSV attachment named after the data type."""
+        mock_client.get.return_value = httpx.Response(
+            200,
+            text='"acc"\t"scientific_name"\n"ERX1"\t"Escherichia coli"\n',
+            request=httpx.Request("GET", "https://example.test"),
+        )
+        response = self.download(
+            {"scope": "selected", "format": "tsv", "ids": "ERX1,ERX2"}, "?type=raw-reads"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/tab-separated-values; charset=utf-8")
+        self.assertRegex(
+            response["Content-Disposition"],
+            r'^attachment; filename="genomic-data-raw-reads-selected-metadata-'
+            r'\d{4}-\d{2}-\d{2}\.tsv"$',
+        )
+        body = b"".join(response.streaming_content).decode()
+        self.assertTrue(body.startswith("Accession\tOrganism\t"))
+        self.assertIn("ERX1\tEscherichia coli", body)
+        query = mock_client.get.call_args.kwargs["params"]["query"]
+        self.assertTrue(query.endswith("acc:(ERX1 OR ERX2)"))
+
+    @patch("portal_data.ebi_download.CLIENT")
+    def test_download_all_accessions_follows_the_current_view(self, mock_client: MagicMock):
+        """Test "all results" uses the search and facets from the query string."""
+        mock_client.get.return_value = httpx.Response(
+            200, text="ERX1\nERX2\n", request=httpx.Request("GET", "https://example.test")
+        )
+        response = self.download(
+            {"scope": "all", "format": "accessions"},
+            "?type=raw-reads&q=coli&classification=bacteria",
+        )
+        self.assertEqual(b"".join(response.streaming_content), b"ERX1\nERX2\n")
+        params = mock_client.get.call_args.kwargs["params"]
+        self.assertEqual(params["query"], '(country:"Sweden") AND tag:pathogen AND (coli*)')
+        self.assertEqual(params["facets"], "classification:bacteria")
+        self.assertIn("-all-accessions-", response["Content-Disposition"])
+
+    @patch("portal_data.ebi_download.CLIENT")
+    def test_download_selected_sequences_as_fasta(self, mock_client: MagicMock):
+        """Test sequence data comes from ENA's Browser API for the selected accessions."""
+        mock_client.post.return_value = httpx.Response(
+            200, content=b">PQ1\nACGT\n", request=httpx.Request("POST", "https://example.test")
+        )
+        response = self.download(
+            {"scope": "selected", "format": "fasta", "ids": "PQ1"}, "?type=sequences"
+        )
+        self.assertEqual(b"".join(response.streaming_content), b">PQ1\nACGT\n")
+        self.assertEqual(mock_client.post.call_args.kwargs["json"]["accessions"], "PQ1")
+        self.assertIn(".fasta", response["Content-Disposition"])
+
+    @patch("portal_data.ebi_download.CLIENT")
+    def test_download_when_ebi_is_down_shows_an_error(self, mock_client: MagicMock):
+        """Test a failure before any data is sent gives a 502 instead of a broken file."""
+        mock_client.get.side_effect = httpx.ConnectError("down")
+        with self.assertLogs(level="ERROR"):
+            response = self.download({"scope": "all", "format": "accessions"})
+        self.assertEqual(response.status_code, 502)
+        self.assertIn(b"Please try again later.", response.content)
 
     # --- Service helpers ----------------------------------------------------------
 

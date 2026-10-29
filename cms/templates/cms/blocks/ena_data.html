@@ -1,3 +1,4 @@
+{% load wagtailroutablepage_tags %}
 {% comment %}
     EnaDataBlock's template, styled to match the Portal data (Metabolomics) page:
     a search form whose listing (data type tabs, facets and results) is lazy-loaded via
@@ -54,6 +55,17 @@
             </noscript>
         </div>
     </div>
+</form>
+
+{% comment %}
+    Download form, outside the search form (forms can't nest). The download dialog's
+    inputs join it through their form="ena-download-form" attribute. The block's script
+    adds the current view's query string to the action and the selected accessions.
+{% endcomment %}
+<form id="ena-download-form" method="post" action="{% routablepageurl page 'download' %}"
+    data-action="{% routablepageurl page 'download' %}" class="hidden">
+    {% csrf_token %}
+    <input type="hidden" name="ids" id="ena-download-ids" value="">
 </form>
 
 <script>
@@ -124,6 +136,130 @@
 
         document.body.addEventListener("htmx:afterSettle", (event) => {
             if (event.detail.target && event.detail.target.id === "ena-listing") applyHidden();
+        });
+    })();
+
+    // Record selection and the download dialog. The selection is kept in localStorage
+    // per data type, so it survives searching, filtering, sorting and paging, and is
+    // re-applied to the rendered checkboxes after every HTMX swap of the listing.
+    (function () {
+        const storageKey = (dataType) => "genomicData:selected:" + dataType;
+
+        function currentDataType() {
+            const table = document.querySelector("#ena-listing table[data-data-type]");
+            return table ? table.dataset.dataType : null;
+        }
+
+        function loadSelected(dataType) {
+            try {
+                return new Set(JSON.parse(localStorage.getItem(storageKey(dataType)) || "[]"));
+            } catch (err) {
+                return new Set();
+            }
+        }
+
+        function saveSelected(dataType, selected) {
+            try {
+                localStorage.setItem(storageKey(dataType), JSON.stringify([...selected]));
+            } catch (err) {
+                // localStorage unavailable (private browsing, quota, etc.) - the selection just won't persist
+            }
+        }
+
+        function rowCheckboxes() {
+            return [...document.querySelectorAll("#ena-listing .ena-select")];
+        }
+
+        function refresh() {
+            const dataType = currentDataType();
+            if (!dataType) return;
+            const selected = loadSelected(dataType);
+            const rows = rowCheckboxes();
+            rows.forEach((checkbox) => {
+                checkbox.checked = selected.has(checkbox.dataset.acc);
+            });
+            const pageCheckbox = document.getElementById("ena-select-page");
+            if (pageCheckbox) {
+                const ticked = rows.filter((checkbox) => checkbox.checked).length;
+                pageCheckbox.checked = rows.length > 0 && ticked === rows.length;
+                pageCheckbox.indeterminate = ticked > 0 && ticked < rows.length;
+            }
+            document.querySelectorAll("#ena-listing .ena-selected-count").forEach((el) => {
+                el.textContent = selected.size.toLocaleString("en-GB");
+            });
+            const clearButton = document.getElementById("ena-clear-selection");
+            if (clearButton) clearButton.disabled = selected.size === 0;
+        }
+
+        document.addEventListener("change", (event) => {
+            const dataType = currentDataType();
+            if (!dataType) return;
+            const target = event.target;
+            if (target.matches("#ena-listing .ena-select")) {
+                const selected = loadSelected(dataType);
+                if (target.checked) {
+                    selected.add(target.dataset.acc);
+                } else {
+                    selected.delete(target.dataset.acc);
+                }
+                saveSelected(dataType, selected);
+                refresh();
+            } else if (target.id === "ena-select-page") {
+                const selected = loadSelected(dataType);
+                rowCheckboxes().forEach((checkbox) => {
+                    if (target.checked) {
+                        selected.add(checkbox.dataset.acc);
+                    } else {
+                        selected.delete(checkbox.dataset.acc);
+                    }
+                });
+                saveSelected(dataType, selected);
+                refresh();
+            }
+        });
+
+        document.addEventListener("click", (event) => {
+            const dataType = currentDataType();
+            const dialog = document.getElementById("ena-download-dialog");
+            if (event.target.closest("#ena-clear-selection") && dataType) {
+                saveSelected(dataType, new Set());
+                refresh();
+            } else if (event.target.closest("#ena-open-download") && dialog && dataType) {
+                // Offer "Selected records" only when there is a selection, and pick it by default then.
+                const hasSelection = loadSelected(dataType).size > 0;
+                const selectedScope = document.getElementById("ena-scope-selected");
+                selectedScope.disabled = !hasSelection;
+                (hasSelection ? selectedScope : document.getElementById("ena-scope-all")).checked = true;
+                refresh();
+                dialog.showModal();
+            } else if (event.target.closest("#ena-download-dialog [data-close-dialog]") && dialog) {
+                dialog.close();
+            }
+        });
+
+        // The dialog's Download button submits the download form: send the current view
+        // (from the address bar, which HTMX keeps up to date) and, if chosen, the selection.
+        document.getElementById("ena-download-form").addEventListener("submit", (event) => {
+            const form = event.target;
+            const dataType = currentDataType();
+            const scope = document.querySelector('#ena-download-dialog input[name="scope"]:checked');
+            if (!dataType || !scope) {
+                event.preventDefault();
+                return;
+            }
+            const selected = [...loadSelected(dataType)];
+            if (scope.value === "selected" && selected.length === 0) {
+                event.preventDefault();
+                return;
+            }
+            document.getElementById("ena-download-ids").value =
+                scope.value === "selected" ? selected.join(",") : "";
+            form.action = form.dataset.action + window.location.search;
+            document.getElementById("ena-download-dialog").close();
+        });
+
+        document.body.addEventListener("htmx:afterSettle", (event) => {
+            if (event.detail.target && event.detail.target.id === "ena-listing") refresh();
         });
     })();
 
