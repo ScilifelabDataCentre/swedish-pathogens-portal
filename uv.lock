@@ -335,19 +335,6 @@ wheels = [
 ]
 
 [[package]]
-name = "django-scrubber"
-version = "8.0.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "django" },
-    { name = "faker" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/80/8e/e15e924c282be5156383d03e986426707502a8a1beb0677e8fc59e40d439/django_scrubber-8.0.0.tar.gz", hash = "sha256:78e4b88bc704c665c24b78ad9963224a6dd71ca43add0644c22f1af4b9571462", size = 31050, upload-time = "2026-09-15T13:33:37.575Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/ae/34/aa9ff7f01c57d6dc4ece2ba47f87065753c0bf6c19aa26338d074bee43ad/django_scrubber-8.0.0-py3-none-any.whl", hash = "sha256:e218ce672d74fb1adddcd354d2d5c15b184314774eca6dc45b0a14373622e95a", size = 46177, upload-time = "2026-09-15T13:33:36.253Z" },
-]
-
-[[package]]
 name = "django-structlog"
 version = "10.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -441,18 +428,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/d3/38/af70d7ab1ae9d4da450eeec1fa3918940a5fafb9055e934af8d6eb0c2313/et_xmlfile-2.0.0.tar.gz", hash = "sha256:dab3f4764309081ce75662649be815c4c9081e88f0837825f90fd28317d4da54", size = 17234, upload-time = "2024-10-25T17:25:40.039Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/c1/8b/5fe2cc11fee489817272089c4203e679c63b570a5aaeb18d852ae3cbba6a/et_xmlfile-2.0.0-py3-none-any.whl", hash = "sha256:7a91720bc756843502c3b7504c77b8fe44217c85c537d85037f0f536151b2caa", size = 18059, upload-time = "2024-10-25T17:25:39.051Z" },
-]
-
-[[package]]
-name = "faker"
-version = "40.43.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "tzdata", marker = "sys_platform == 'win32'" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/33/6c/b8793efc2f00a912ef17cf0b61b717cddf34607499efcb8a32238c119368/faker-40.43.0.tar.gz", hash = "sha256:02fae4327c03a4a6315e1b428a3878f435bfc276c93435ea349b95c0c9372361", size = 2032713, upload-time = "2026-10-09T20:06:29.652Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/81/ed/0d6d0d6467ae3d009fb82fb411867c7fcfeadbdd25602cab0d7a7963f400/faker-40.43.0-py3-none-any.whl", hash = "sha256:9dd7c0ddfaf30c842b05502d3cf641c135e0120a3a19047008ba8525b72953ed", size = 2069082, upload-time = "2026-10-09T20:06:27.166Z" },
 ]
 
 [[package]]
@@ -1242,7 +1217,6 @@ dependencies = [
     { name = "django" },
     { name = "django-environ" },
     { name = "django-htmx" },
-    { name = "django-scrubber" },
     { name = "django-structlog" },
     { name = "fastexcel" },
     { name = "httpx" },
@@ -1289,7 +1263,6 @@ requires-dist = [
     { name = "django", specifier = "==6.1.2" },
     { name = "django-environ", specifier = "==0.14.0" },
     { name = "django-htmx", specifier = "==1.29.0" },
-    { name = "django-scrubber", specifier = "==8.0.0" },
     { name = "django-structlog", specifier = "==10.1.0" },
     { name = "fastexcel", specifier = "==0.21.0" },
     { name = "httpx", specifier = "==0.28.1" },
