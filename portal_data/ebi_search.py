@@ -301,15 +301,40 @@ def is_valid_facet_value(value: str) -> bool:
     return bool(value) and len(value) <= 200 and value.isprintable()
 
 
-# Values the ``facets`` parameter accepts as they are. It rejects others, such as
-# the square brackets around every host on the Sequences index ("[mallard]"),
-# and uses commas to separate values.
-_FACETS_PARAM_VALUE = re.compile(r"[\w .\-]+")
+# Values the ``facets`` parameter accepts as they are: word characters, spaces, "."
+# and "-", with at most one ", " (it uses commas to separate values, but allows a
+# single comma followed by a space, e.g. the location "Abisko, Stordalen Mire").
+# It rejects others, such as the square brackets around every host on the
+# Sequences index ("[mallard]"), and silently matches nothing for values with
+# two or more commas ("Vasterbotten, Lovanger, Angessjon").
+_FACETS_PARAM_VALUE = re.compile(r"[\w .\-]+(?:, [\w .\-]+)?")
 
 
 def _regex_escape(value: str) -> str:
     """Escape every character but ASCII letters and digits, for a Lucene regex."""
     return "".join(c if c.isascii() and c.isalnum() else f"\\{c}" for c in value)
+
+
+def _query_filter(facet_field: str, value: str) -> str:
+    """Return a query clause matching one facet value the ``facets`` parameter can't take.
+
+    EBI Search fields are either keyword fields, matched as one whole value (e.g.
+    host on Sequences), or text fields split into words (e.g. region). So the
+    clause ORs two matches, one for each kind, and whichever doesn't apply simply
+    matches nothing:
+
+    - an exact-match regex, with every special character escaped, for keyword
+      fields ("[mallard]" becomes a regex on the escaped value). EBI Search matches these
+      case-insensitively, so it also matches "[Mallard]";
+    - a phrase of the value's words, for text fields ("Vasterbotten, Lovanger,
+      Angessjon" -> ``region:"Vasterbotten Lovanger Angessjon"``). A phrase also
+      matches longer values containing it, which is rare for facet values.
+    """
+    matches = [f"{facet_field}:/{_regex_escape(value)}/"]
+    words = re.findall(r"\w+", value)
+    if words:
+        matches.append(f'{facet_field}:"{" ".join(words)}"')
+    return " OR ".join(matches)
 
 
 def _facet_filters(selected: dict[str, list[str]]) -> tuple[str, str]:
@@ -318,9 +343,7 @@ def _facet_filters(selected: dict[str, list[str]]) -> tuple[str, str]:
     Values of the same facet are ORed and different facets are ANDed. A facet
     whose values the ``facets`` parameter accepts is sent there as
     ``field:value`` pairs, comma-separated. Otherwise the whole facet is sent in
-    the query as ``(field:/value/ OR ...)``: an exact-match regex on the field,
-    with every special character escaped. EBI Search matches these regexes
-    case-insensitively, so "[mallard]" also matches "[Mallard]".
+    the query instead, see ``_query_filter``.
     """
     facets_param: list[str] = []
     query_clauses: list[str] = []
@@ -333,8 +356,8 @@ def _facet_filters(selected: dict[str, list[str]]) -> tuple[str, str]:
         if all(_FACETS_PARAM_VALUE.fullmatch(value) for value in values):
             facets_param.extend(f"{facet_field}:{value}" for value in values)
         else:
-            regexes = (f"{facet_field}:/{_regex_escape(value)}/" for value in values)
-            query_clauses.append(f"({' OR '.join(regexes)})")
+            matches = (_query_filter(facet_field, value) for value in values)
+            query_clauses.append(f"({' OR '.join(matches)})")
     return ",".join(facets_param), " AND ".join(query_clauses)
 
 

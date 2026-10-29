@@ -159,20 +159,46 @@ class TestFacetFilters(SimpleTestCase):
             ("classification:bacteria,classification:viruses,host:Homo sapiens", ""),
         )
 
-    def test_bracketed_values_use_an_escaped_regex_in_the_query(self):
-        """Test values like "[mallard]" (Sequences hosts) become ORed exact-match regexes."""
+    def test_a_single_comma_and_space_uses_the_facets_parameter(self):
+        """Test locations like "Abisko, Stordalen Mire" go in the facets parameter."""
+        self.assertEqual(
+            _facet_filters({"region": ["Abisko, Stordalen Mire", "Stockholm"]}),
+            ("region:Abisko, Stordalen Mire,region:Stockholm", ""),
+        )
+
+    def test_bracketed_values_go_in_the_query_as_regex_or_phrase(self):
+        """Test values like "[mallard]" (Sequences hosts) become ORed regex/phrase matches."""
         self.assertEqual(
             _facet_filters({"host": ["[mallard]", "[black-headed gull]"]}),
-            ("", r"(host:/\[mallard\]/ OR host:/\[black\-headed\ gull\]/)"),
+            (
+                "",
+                r'(host:/\[mallard\]/ OR host:"mallard"'
+                r' OR host:/\[black\-headed\ gull\]/ OR host:"black headed gull")',
+            ),
+        )
+
+    def test_two_or_more_commas_go_in_the_query(self):
+        """Test values with several commas, which the facets parameter can't take, use the query."""
+        self.assertEqual(
+            _facet_filters({"region": ["Vasterbotten, Lovanger, Angessjon"]}),
+            (
+                "",
+                r"(region:/Vasterbotten\,\ Lovanger\,\ Angessjon/"
+                r' OR region:"Vasterbotten Lovanger Angessjon")',
+            ),
         )
 
     def test_one_awkward_value_moves_its_whole_facet_to_the_query(self):
-        """Test a facet's values stay ORed together when one needs the regex form."""
+        """Test a facet's values stay ORed together when one needs the query form."""
         facets_param, query = _facet_filters(
-            {"classification": ["viruses"], "host": ["Homo sapiens", "Sweden, Stockholm"]}
+            {"classification": ["viruses"], "host": ["Homo sapiens", "[mallard]"]}
         )
         self.assertEqual(facets_param, "classification:viruses")
-        self.assertEqual(query, r"(host:/Homo\ sapiens/ OR host:/Sweden\,\ Stockholm/)")
+        self.assertEqual(
+            query,
+            r'(host:/Homo\ sapiens/ OR host:"Homo sapiens"'
+            r' OR host:/\[mallard\]/ OR host:"mallard")',
+        )
 
     def test_unknown_facets_and_invalid_values_are_dropped(self):
         """Test fields that aren't facets and invalid values are never sent."""
@@ -236,7 +262,10 @@ class TestSearch(SimpleTestCase):
             selected_facets={"classification": ["viruses"], "host": ["[mallard]"]},
         )
         params = mock_fetch.call_args.kwargs["params"]
-        self.assertEqual(params["query"], rf"{BASE_QUERY} AND (coli*) AND (host:/\[mallard\]/)")
+        self.assertEqual(
+            params["query"],
+            rf'{BASE_QUERY} AND (coli*) AND (host:/\[mallard\]/ OR host:"mallard")',
+        )
         self.assertEqual(params["facets"], "classification:viruses")
 
     @patch("portal_data.ebi_search.fetch_json")
