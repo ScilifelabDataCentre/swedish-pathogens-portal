@@ -176,11 +176,12 @@
             never part of a search. The dialog is native: it traps focus and closes on Esc.
         {% endcomment %}
         {% comment %}
-            The box's opacity, scale and background are set explicitly, so it is fully opaque in
-            every browser whatever stage DaisyUI's open/close animation is at.
+            The box is styled like the facet boxes (border, rounding, background, shadow), with
+            its padding, size and opacity set explicitly rather than left to DaisyUI's modal
+            styles, so it looks the same in every browser whatever stage the open animation is at.
         {% endcomment %}
         <dialog id="ena-download-dialog" class="modal" aria-labelledby="ena-download-title">
-            <div class="modal-box max-w-md scale-100 border border-pp-pale-grey bg-white opacity-100 shadow-xl">
+            <div class="modal-box w-11/12 max-w-md scale-100 rounded border border-secondary bg-base-100 p-6 opacity-100 shadow-sm">
                 <h3 id="ena-download-title" class="mt-0 text-lg">Download {{ data_type.label|lower }}</h3>
 
                 <fieldset class="m-0 mt-3 border-0 p-0">
