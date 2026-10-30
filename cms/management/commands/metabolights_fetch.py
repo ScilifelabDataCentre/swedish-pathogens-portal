@@ -13,6 +13,7 @@ Exits 1 if any study failed to download (after trying all of them).
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 
@@ -67,6 +68,7 @@ class Command(BaseCommand):
         dest: Path = options["dest"] or Path(settings.DATASETS_ROOT)
         remote_dirs = self._remote_dirs(options["accessions"], options["targets"])
         mode = "all files per study" if options["all_files"] else ftp.INVESTIGATION_FILE + " only"
+        self._check_writable(dest)
 
         self.stdout.write(f"Destination: {dest}")
         self.stdout.write(f"Mode:        {mode}")
@@ -82,13 +84,32 @@ class Command(BaseCommand):
 
         self.stdout.write("")
         self.stdout.write(
-            f"{summary.studies} studies: {len(summary.downloaded)} file(s) downloaded, "
-            f"{len(summary.unchanged)} unchanged, {len(summary.failed)} study(ies) failed."
+            f"{_count(summary.studies, 'study', 'studies')}: "
+            f"{_count(len(summary.downloaded), 'file')} downloaded, "
+            f"{len(summary.unchanged)} unchanged, {len(summary.failed)} failed."
         )
         if summary.failed:
             failures = "\n".join(f"  {path}: {reason}" for path, reason in summary.failed.items())
             raise CommandError(f"Some studies could not be fetched:\n{failures}")
         self.stdout.write(self.style.SUCCESS("Done."))
+
+    @staticmethod
+    def _check_writable(dest: Path) -> None:
+        """Fail once, before connecting, if studies can't be saved under dest.
+
+        Otherwise every study would fail separately with the same error -- e.g.
+        when dest is a read-only bind mount, as /datasets is for the web
+        container in some local Docker Compose setups.
+        """
+        try:
+            dest.mkdir(parents=True, exist_ok=True)
+        except OSError as error:
+            raise CommandError(f"Cannot create destination {dest}: {error}") from error
+        if not os.access(dest, os.W_OK):
+            raise CommandError(
+                f"Destination {dest} is not writable (a read-only mount?). "
+                "Pass a writable --dest or set DATASETS_ROOT."
+            )
 
     @staticmethod
     def _remote_dirs(accessions: list[str], targets: Path | None) -> list[str]:
@@ -108,3 +129,8 @@ class Command(BaseCommand):
                 f"Could not read targets file {targets}: {error}. "
                 "Run `manage.py metabolights_search` first, or pass accessions."
             ) from error
+
+
+def _count(n: int, singular: str, plural: str | None = None) -> str:
+    """Return e.g. "1 study" or "3 studies"."""
+    return f"{n} {singular if n == 1 else plural or singular + 's'}"

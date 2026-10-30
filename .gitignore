@@ -77,10 +77,5 @@ Thumbs.db
 # Logging 
 *logs/
 
-# Article finding files
-europepmc_metabolights_papers.csv
-europepmc_metabolights_summary.csv
-publications.csv
-portal_data/scripts/targets.txt
-# Article study data download location
-portal_data/scripts/datasets/
+# MetaboLights study finder inputs/outputs and downloaded studies live under
+# private/ (see METABOLIGHTS_WORK_DIR and DATASETS_ROOT), which is ignored above.

@@ -319,6 +319,23 @@ class MetabolightsFetchCommandTests(FtpTestCase):
         self.assertIn("MTBLS404", str(raised.exception))
         self.assertTrue((self.dest / "MTBLS1" / "i_Investigation.txt").exists())
 
+    def test_read_only_dest_fails_once_before_connecting(self) -> None:
+        """An unwritable destination is one clear error, not one per study."""
+        connect = mock.Mock(side_effect=AssertionError("should not connect"))
+        with (
+            mock.patch.object(ftp, "connect", connect),
+            mock.patch("os.access", return_value=False),
+            self.assertRaises(CommandError) as raised,
+        ):
+            self._call("MTBLS1", "MTBLS2")
+        self.assertIn("not writable", str(raised.exception))
+        connect.assert_not_called()
+
+    def test_summary_pluralises(self) -> None:
+        """The closing summary reads naturally for one study and one file."""
+        output = self._call("MTBLS1")
+        self.assertIn("1 study: 1 file downloaded, 0 unchanged, 0 failed.", output)
+
     def test_dest_defaults_to_datasets_root(self) -> None:
         """Without --dest, studies land in settings.DATASETS_ROOT."""
         with override_settings(DATASETS_ROOT=str(self.dest)):
