@@ -5,14 +5,18 @@ Library behind ``manage.py metabolights_search`` (formerly the standalone
 paths; everything here takes them as arguments.
 
 Inputs:
-    publications.csv
-        CSV with an "Authors" column per publication, holding a
-        comma-separated list of authors in "Lastname Initials" form
-        (e.g. "Keller T, Etana A, Bosch Y"). Unique author names are
-        extracted across all rows and searched individually.
-        This can be gathered from the Scilifelab publications database
-        (https://publications.scilifelab.se/). Under publications,
-        click download CSV.
+    Authors to search, from one of:
+      - the SciLifeLab publications database's researcher list
+        (RESEARCHERS_JSON_URL, the default): each researcher's family name
+        and initials make one "Lastname Initials" author (e.g. "Keller T").
+        Researchers with no publications in the database are skipped, as
+        they never appeared in the publications CSV export either.
+      - a publications CSV export (the fallback, e.g. for offline runs):
+        an "Authors" column per publication, holding a comma-separated list
+        of authors in "Lastname Initials" form (e.g. "Keller T, Etana A,
+        Bosch Y"). Download it from https://publications.scilifelab.se/
+        (Publications -> download CSV).
+    Either way, unique author names are searched individually.
     pathogen_infectious_disease_keywords_just_keywords.csv
         One keyword per line, used to filter results by title/abstract
         content (bundled next to this module, see DEFAULT_KEYWORDS_CSV).
@@ -88,6 +92,8 @@ from urllib3.util.retry import Retry
 BASE_URL = "https://www.ebi.ac.uk/europepmc/webservices/rest/search"
 BASE_FILTER = '((ACCESSION_TYPE:"metabolights") OR (LABS_PUBS:"1782"))'
 
+RESEARCHERS_JSON_URL = "https://publications.scilifelab.se/researchers_json"
+RESEARCHERS_TIMEOUT_SECONDS = 60
 PUBLICATIONS_CSV = "publications.csv"
 PUBLICATIONS_AUTHORS_COLUMN = "Authors"
 PAPERS_OUTPUT_CSV = "europepmc_metabolights_papers.csv"
@@ -643,24 +649,85 @@ def _write_targets(path: Path, targets: list[str]) -> None:
             f.write("\n")
 
 
+def fetch_researchers(url: str = RESEARCHERS_JSON_URL) -> list[dict]:
+    """Download the SciLifeLab publications database's researcher list.
+
+    Raises (a requests exception, or ValueError for an unexpected payload)
+    rather than returning an empty list, so an outage can't silently turn
+    into a "successful" run that searched nobody.
+    """
+    response = SESSION.get(url, timeout=RESEARCHERS_TIMEOUT_SECONDS)
+    response.raise_for_status()
+    payload = response.json()
+    researchers = payload.get("researchers") if isinstance(payload, dict) else None
+    if not isinstance(researchers, list):
+        msg = f"Unexpected response from {url}: no 'researchers' list"
+        raise ValueError(msg)
+    return researchers
+
+
+def _initials_from_given(given: str) -> str:
+    """Derive initials from given names, e.g. "Anna J M" -> "AJM"."""
+    return "".join(part[0].upper() for part in re.split(r"[\s.\-]+", given) if part)
+
+
+def authors_from_researchers(researchers: list[dict]) -> list[str]:
+    """Turn researcher records into unique "Lastname Initials" author names.
+
+    Uses each record's family name and initials (derived from the given
+    names when initials are missing), in order of first appearance.
+    Records with no family name or no initials are skipped -- a bare
+    surname would match far too broadly -- as are researchers with no
+    publications in the database, to match the publications CSV export.
+    """
+    authors: list[str] = []
+    seen: set[str] = set()
+    for researcher in researchers:
+        if not isinstance(researcher, dict):
+            continue
+        if researcher.get("n_publications") == 0:
+            continue
+        family = re.sub(r"\s+", " ", researcher.get("family") or "").strip()
+        initials = re.sub(r"[\s.]+", "", researcher.get("initials") or "")
+        initials = initials or _initials_from_given(researcher.get("given") or "")
+        if not family or not initials:
+            continue
+        author = f"{family} {initials}"
+        if author not in seen:
+            seen.add(author)
+            authors.append(author)
+    return authors
+
+
 def run_search(
     work_dir: Path,
     publications_csv: Path | None = None,
     keywords_csv: Path = DEFAULT_KEYWORDS_CSV,
     progress: Progress = _no_progress,
+    researchers_url: str = RESEARCHERS_JSON_URL,
 ) -> SearchOutcome:
-    """Search Europe PMC for every author in publications_csv.
+    """Search Europe PMC for every SciLifeLab author.
 
-    Overwrites the papers/summary/targets outputs in work_dir. Inputs are
-    read and validated before any request is made, so a missing or
-    malformed input file raises without touching earlier output.
+    Authors come from publications_csv when given, and otherwise from the
+    researcher list at researchers_url. Overwrites the papers/summary/
+    targets outputs in work_dir. The keywords and authors are loaded and
+    validated before any Europe PMC search, so a missing or malformed
+    input raises without touching earlier output.
     """
-    publications_csv = publications_csv or work_dir / PUBLICATIONS_CSV
-    authors = read_authors_from_publications_csv(publications_csv, PUBLICATIONS_AUTHORS_COLUMN)
     keywords = load_keywords(keywords_csv)
     keyword_pattern = build_keyword_pattern(keywords)
     progress(f"Loaded {len(keywords)} keywords from {keywords_csv}")
-    progress(f"Searching {len(authors)} author(s) from {publications_csv}")
+
+    if publications_csv is not None:
+        authors = read_authors_from_publications_csv(publications_csv, PUBLICATIONS_AUTHORS_COLUMN)
+        source = str(publications_csv)
+    else:
+        authors = authors_from_researchers(fetch_researchers(researchers_url))
+        source = researchers_url
+    if not authors:
+        msg = f"No authors found in {source}"
+        raise ValueError(msg)
+    progress(f"Searching {len(authors)} author(s) from {source}")
 
     paper_rows, summary_rows = search_authors(authors, keyword_pattern, progress)
     deduped_paper_rows = dedupe_paper_rows(paper_rows)

@@ -91,20 +91,38 @@ def make_paper(
     return paper
 
 
+def researcher(family: str, initials: str, n_publications: int = 1, **extra: object) -> dict:
+    """Build a researcher record shaped like publications.scilifelab.se/researchers_json."""
+    return {
+        "family": family,
+        "given": "",
+        "initials": initials,
+        "orcid": None,
+        "affiliations": [],
+        "n_publications": n_publications,
+        **extra,
+    }
+
+
 def make_fake_get(
-    fail_authors: set[str], papers_by_author: dict[str, dict]
+    fail_authors: set[str],
+    papers_by_author: dict[str, dict],
+    researchers: list[dict] | None = None,
 ) -> Callable[..., FakeResponse]:
     """Build a fake SESSION.get(...).
 
     Raises (simulating an exhausted-retries network failure) for any
     author name appearing in `fail_authors`'s AUTH: query, and otherwise
     returns a canned single-page result for that author if one was
-    registered in `papers_by_author`, else an empty result.
+    registered in `papers_by_author`, else an empty result. Requests for
+    the SciLifeLab researcher list get `researchers`.
     """
 
     def fake_get(
         url: str, params: dict[str, Any] | None = None, timeout: float | None = None
     ) -> FakeResponse:  # noqa: ARG001
+        if url == sepmc.RESEARCHERS_JSON_URL:
+            return FakeResponse(200, {"entity": "researchers", "researchers": researchers or []})
         query = (params or {}).get("query", "")
         for author in fail_authors:
             if f'AUTH:"{author}"' in query:
@@ -367,9 +385,10 @@ class RetryErroredAuthorsTests(SepmcTestCase):
         papers_csv = tmp_dir / sepmc.PAPERS_OUTPUT_CSV
 
         # --- pass 1: "Bad B" fails, written out by a normal run ---
-        Path(tmp_dir / sepmc.PUBLICATIONS_CSV).write_text('Authors\n"Bad B"\n')
+        publications = tmp_dir / sepmc.PUBLICATIONS_CSV
+        publications.write_text('Authors\n"Bad B"\n')
         self._patch_session(make_fake_get(fail_authors={"Bad B"}, papers_by_author={}))
-        first = sepmc.run_search(tmp_dir, keywords_csv=keywords)
+        first = sepmc.run_search(tmp_dir, publications_csv=publications, keywords_csv=keywords)
 
         self.assertEqual(first.errored_authors, 1)
         self.assertEqual(sepmc.load_errored_authors(summary_csv), ["Bad B"])
@@ -432,14 +451,19 @@ class RunSearchTests(SepmcTestCase):
         """Papers, summary and targets.txt all land in the work dir."""
         tmp_dir = self._make_tmp_dir()
         keywords = self._write_keywords(tmp_dir)
-        (tmp_dir / sepmc.PUBLICATIONS_CSV).write_text('Authors\n"Good A"\n')
         paper = make_paper("1", "Good A")
         paper["dbCrossReferenceList"] = {
             "dbCrossReference": [
                 {"type": "METABOLIGHTS", "accessionList": {"accession": [{"value": "mtbls7"}]}}
             ]
         }
-        self._patch_session(make_fake_get(fail_authors=set(), papers_by_author={"Good A": paper}))
+        self._patch_session(
+            make_fake_get(
+                fail_authors=set(),
+                papers_by_author={"Good A": paper},
+                researchers=[researcher("Good", "A")],
+            )
+        )
         messages: list[str] = []
 
         outcome = sepmc.run_search(tmp_dir, keywords_csv=keywords, progress=messages.append)
@@ -453,13 +477,78 @@ class RunSearchTests(SepmcTestCase):
         self.assertTrue((tmp_dir / sepmc.SUMMARY_OUTPUT_CSV).exists())
         self.assertTrue(any("Good A" in m for m in messages))
 
+    def test_run_search_reads_authors_from_publications_csv_when_given(self) -> None:
+        """--publications bypasses the researcher list entirely."""
+        tmp_dir = self._make_tmp_dir()
+        publications = tmp_dir / "export.csv"
+        publications.write_text('Authors\n"Csv A, Csv B"\n')
+        fake_get = make_fake_get(set(), {}, researchers=[researcher("Feed", "X")])
+        self._patch_session(fake_get)
+
+        sepmc.run_search(
+            tmp_dir, publications_csv=publications, keywords_csv=self._write_keywords(tmp_dir)
+        )
+
+        with (tmp_dir / sepmc.SUMMARY_OUTPUT_CSV).open(newline="", encoding="utf-8") as f:
+            searched = [row["input_author"] for row in csv.DictReader(f)]
+        self.assertEqual(searched, ["Csv A", "Csv B"])
+
     def test_run_search_fails_before_writing_when_publications_missing(self) -> None:
         """A missing input raises without creating any output."""
         tmp_dir = self._make_tmp_dir()
 
         with self.assertRaises(FileNotFoundError):
+            sepmc.run_search(
+                tmp_dir,
+                publications_csv=tmp_dir / "missing.csv",
+                keywords_csv=self._write_keywords(tmp_dir),
+            )
+        self.assertFalse((tmp_dir / sepmc.SUMMARY_OUTPUT_CSV).exists())
+
+    def test_run_search_refuses_an_empty_researcher_list(self) -> None:
+        """An empty feed is an error, not a clean run that searched nobody."""
+        tmp_dir = self._make_tmp_dir()
+        self._patch_session(make_fake_get(set(), {}, researchers=[]))
+
+        with self.assertRaises(ValueError):
             sepmc.run_search(tmp_dir, keywords_csv=self._write_keywords(tmp_dir))
         self.assertFalse((tmp_dir / sepmc.SUMMARY_OUTPUT_CSV).exists())
+
+
+class ResearcherListTests(SepmcTestCase):
+    """Reading authors from the SciLifeLab researcher list."""
+
+    def test_builds_lastname_initials_names(self) -> None:
+        """Family name + initials gives the CSV's "Lastname Initials" form."""
+        records = [researcher("Aaltonen", "K"), researcher("'t Hart", "LM")]
+        self.assertEqual(sepmc.authors_from_researchers(records), ["Aaltonen K", "'t Hart LM"])
+
+    def test_derives_missing_initials_from_given_names(self) -> None:
+        """Initials fall back to the first letters of the given names."""
+        records = [researcher("Aabakke", "", given="Anna J M")]
+        self.assertEqual(sepmc.authors_from_researchers(records), ["Aabakke AJM"])
+
+    def test_skips_unusable_and_unpublished_researchers(self) -> None:
+        """No family name, no initials at all, or no publications -> skipped."""
+        records = [
+            researcher("", "A"),
+            researcher("Nameless", ""),
+            researcher("Unpublished", "U", n_publications=0),
+            researcher("Kept", "K"),
+            "not a record",
+        ]
+        self.assertEqual(sepmc.authors_from_researchers(records), ["Kept K"])
+
+    def test_deduplicates_and_normalises_spacing(self) -> None:
+        """The same person listed twice (or with stray spaces/dots) is searched once."""
+        records = [researcher("Li", "X"), researcher(" Li ", "X."), researcher("Li", "XY")]
+        self.assertEqual(sepmc.authors_from_researchers(records), ["Li X", "Li XY"])
+
+    def test_fetch_researchers_rejects_unexpected_payload(self) -> None:
+        """A response without a researchers list raises instead of returning []."""
+        self._patch_session(lambda url, params=None, timeout=None: FakeResponse(200, {"x": 1}))
+        with self.assertRaises(ValueError):
+            sepmc.fetch_researchers()
 
 
 # ---------------------------------------------------------------------------
@@ -493,9 +582,12 @@ class MetabolightsSearchCommandTests(SepmcTestCase):
 
     def test_exits_3_when_an_author_errors(self) -> None:
         """A full run with one failing author exits 3, not 0."""
-        (self.tmp_dir / sepmc.PUBLICATIONS_CSV).write_text('Authors\n"Good A, Bad B"\n')
         good_paper = make_paper("1", "Good A")
-        fake_get = make_fake_get(fail_authors={"Bad B"}, papers_by_author={"Good A": good_paper})
+        fake_get = make_fake_get(
+            fail_authors={"Bad B"},
+            papers_by_author={"Good A": good_paper},
+            researchers=[researcher("Good", "A"), researcher("Bad", "B")],
+        )
         self._patch_session(fake_get)
 
         with self.assertRaises(CommandError) as raised:
@@ -505,26 +597,50 @@ class MetabolightsSearchCommandTests(SepmcTestCase):
 
     def test_succeeds_when_everything_succeeds(self) -> None:
         """A full run with no failing authors completes without raising."""
-        (self.tmp_dir / sepmc.PUBLICATIONS_CSV).write_text('Authors\n"Good A"\n')
         good_paper = make_paper("1", "Good A")
-        fake_get = make_fake_get(fail_authors=set(), papers_by_author={"Good A": good_paper})
+        fake_get = make_fake_get(
+            fail_authors=set(),
+            papers_by_author={"Good A": good_paper},
+            researchers=[researcher("Good", "A")],
+        )
         self._patch_session(fake_get)
 
         output = self._call()
 
         self.assertIn("1 unique papers", output)
 
+    def test_publications_option_reads_a_csv_export(self) -> None:
+        """--publications searches the CSV's authors instead of the researcher list."""
+        publications = self.tmp_dir / "export.csv"
+        publications.write_text('Authors\n"Good A"\n')
+        good_paper = make_paper("1", "Good A")
+        self._patch_session(make_fake_get(set(), {"Good A": good_paper}, researchers=[]))
+
+        output = self._call("--publications", str(publications))
+
+        self.assertIn("1 unique papers", output)
+
     def test_exits_1_when_publications_missing(self) -> None:
-        """A missing required input file is a failed run -> exit 1."""
-        # deliberately do NOT create publications.csv
+        """A missing --publications file is a failed run -> exit 1."""
+        with self.assertRaises(CommandError) as raised:
+            self._call("--publications", str(self.tmp_dir / "missing.csv"))
+        self.assertEqual(raised.exception.returncode, 1)
+
+    def test_exits_1_when_researcher_list_unreachable(self) -> None:
+        """Failing to download the researcher list is a failed run -> exit 1."""
+
+        def fake_get(url: str, params: object = None, timeout: object = None) -> FakeResponse:
+            raise sepmc.requests.exceptions.ConnectionError("simulated outage")
+
+        self._patch_session(fake_get)
         with self.assertRaises(CommandError) as raised:
             self._call()
         self.assertEqual(raised.exception.returncode, 1)
+        self.assertFalse((self.tmp_dir / sepmc.SUMMARY_OUTPUT_CSV).exists())
 
     def test_retry_errors_exits_3_while_authors_still_fail(self) -> None:
         """--retry-errors keeps exiting 3 until every author has recovered."""
-        (self.tmp_dir / sepmc.PUBLICATIONS_CSV).write_text('Authors\n"Bad B"\n')
-        self._patch_session(make_fake_get(fail_authors={"Bad B"}, papers_by_author={}))
+        self._patch_session(make_fake_get({"Bad B"}, {}, researchers=[researcher("Bad", "B")]))
         with self.assertRaises(CommandError):
             self._call()
 
@@ -537,8 +653,7 @@ class MetabolightsSearchCommandTests(SepmcTestCase):
 
     def test_work_dir_defaults_to_setting(self) -> None:
         """Without --work-dir, settings.METABOLIGHTS_WORK_DIR is used."""
-        (self.tmp_dir / sepmc.PUBLICATIONS_CSV).write_text('Authors\n"Good A"\n')
-        self._patch_session(make_fake_get(fail_authors=set(), papers_by_author={}))
+        self._patch_session(make_fake_get(set(), {}, researchers=[researcher("Good", "A")]))
 
         with override_settings(METABOLIGHTS_WORK_DIR=self.tmp_dir):
             call_command(

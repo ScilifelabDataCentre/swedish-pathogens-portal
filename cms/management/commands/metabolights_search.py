@@ -1,7 +1,8 @@
 """Management command: find MetaboLights studies linked to SciLifeLab authors.
 
-Searches Europe PMC for MetaboLights-linked publications by every author in a
-SciLifeLab publications export, and writes the matching papers, a per-author
+Searches Europe PMC for MetaboLights-linked publications by every researcher
+in the SciLifeLab publications database (or, with --publications, every
+author in a publications CSV export), and writes the matching papers, a per-author
 summary and a targets.txt of study FTP paths for ``metabolights_fetch``. See
 ``portal_data.metabolights.europepmc`` for the matching rules and output
 columns.
@@ -11,7 +12,8 @@ Exit codes, for cron-style scheduling:
   3  Completed, but one or more authors' searches errored (see the error
      column in the summary CSV) -- run again with --retry-errors before
      treating the output as complete or running metabolights_fetch.
-  1  The run did not complete (e.g. a required input file was missing).
+  1  The run did not complete (e.g. the researcher list could not be
+     downloaded, or an input file was missing).
 """
 
 from __future__ import annotations
@@ -31,8 +33,8 @@ class Command(BaseCommand):
     """Search Europe PMC for MetaboLights-linked publications by SciLifeLab authors."""
 
     help = (
-        "Search Europe PMC for MetaboLights-linked publications by the authors in "
-        "publications.csv, and write the MetaboLights study targets for metabolights_fetch."
+        "Search Europe PMC for MetaboLights-linked publications by SciLifeLab researchers, "
+        "and write the MetaboLights study targets for metabolights_fetch."
     )
 
     def add_arguments(self, parser: CommandParser) -> None:
@@ -42,8 +44,8 @@ class Command(BaseCommand):
             type=Path,
             default=None,
             help=(
-                "Directory holding publications.csv and receiving the output CSVs and "
-                "targets.txt (default: settings.METABOLIGHTS_WORK_DIR)."
+                "Directory receiving the output CSVs and targets.txt "
+                "(default: settings.METABOLIGHTS_WORK_DIR)."
             ),
         )
         parser.add_argument(
@@ -51,8 +53,9 @@ class Command(BaseCommand):
             type=Path,
             default=None,
             help=(
-                "SciLifeLab publications CSV export with an 'Authors' column "
-                "(default: <work-dir>/publications.csv)."
+                "Read authors from this SciLifeLab publications CSV export (with an "
+                "'Authors' column) instead of downloading the researcher list from "
+                f"{europepmc.RESEARCHERS_JSON_URL}."
             ),
         )
         parser.add_argument(
@@ -91,9 +94,10 @@ class Command(BaseCommand):
                     progress=self.stdout.write,
                 )
         except (OSError, ValueError, csv.Error) as error:
-            # Missing/unreadable inputs or a malformed CSV: the run never
-            # completed. Network failures don't land here -- they are recorded
-            # per author and reported through outcome.errored_authors.
+            # The researcher list couldn't be downloaded (requests' exceptions
+            # are OSErrors) or an input was missing/malformed: the run never
+            # completed. Per-author Europe PMC failures don't land here -- they
+            # are recorded and reported through outcome.errored_authors.
             raise CommandError(str(error)) from error
 
         self.stdout.write("")
