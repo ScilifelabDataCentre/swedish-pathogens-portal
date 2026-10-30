@@ -1,51 +1,33 @@
-# ruff: noqa: N999
-"""Tests for search_euPMC_rest_API.py.
-
-Run with: python manage.py test portal_data/scripts --settings core.settings.test
-(or directly: python -m unittest test_search_euPMC_rest_API -v)
+"""Tests for portal_data.metabolights.europepmc and the metabolights_search command.
 
 Written against the standard library's unittest (with unittest.mock) rather
-than pytest, so these are actually picked up by Django's own test runner
-instead of silently never running: manage.py test uses unittest's
-discovery, which only executes TestCase methods, and (separately) pytest
-itself wasn't a project dependency, so a pytest-based file here would fail
-to even import under manage.py test. These are plain HTTP-mocked unit
-tests with no database access, so no Django-specific TestCase features are
-needed -- plain unittest.TestCase is enough, and pytest can still run
-these too if it's ever installed, since it natively supports unittest
-TestCase classes.
+than pytest, since Django's test runner (manage.py test) only collects
+unittest-style tests. These are plain HTTP-mocked unit tests with no
+database access, so SimpleTestCase is enough.
 
 Everything here mocks the network layer (SESSION.get) rather than hitting
 the real Europe PMC API: fast, deterministic, and doesn't depend on or add
 load to an external service. Real end-to-end tests against the live API
 are better kept as an occasional manual/scheduled smoke test rather than
 part of this suite.
-
-Requires search_euPMC_rest_API.py to be importable (same directory, or on
-sys.path).
 """
 
 from __future__ import annotations
 
 import csv
-import os
-import sys
+import io
 import tempfile
 import time
-import unittest
 from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 from unittest import mock
 
-# Ensure this directory is importable regardless of how the test is
-# discovered: as part of the portal_data.scripts package (e.g. when
-# Django's test runner scans portal_data/ as a whole) or as its own
-# standalone top-level dir (e.g. `manage.py test portal_data/scripts`),
-# which has no parent package context for a relative import to use.
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+from django.core.management import call_command
+from django.core.management.base import CommandError
+from django.test import SimpleTestCase, override_settings
 
-import search_euPMC_rest_API as sepmc  # noqa: E402
+from portal_data.metabolights import europepmc as sepmc
 
 # ---------------------------------------------------------------------------
 # Small helpers for building fake Europe PMC responses
@@ -138,7 +120,7 @@ def make_fake_get(
     return fake_get
 
 
-class SepmcTestCase(unittest.TestCase):
+class SepmcTestCase(SimpleTestCase):
     """Shared base class: disables real rate-limiter sleeping for every test."""
 
     def setUp(self) -> None:
@@ -150,12 +132,15 @@ class SepmcTestCase(unittest.TestCase):
         self.enterContext(mock.patch.object(sepmc, "SESSION", _FakeSession(get_fn)))
 
     def _make_tmp_dir(self) -> Path:
-        """Create a temp dir, chdir into it, and restore the cwd afterwards."""
-        tmp_dir = Path(self.enterContext(tempfile.TemporaryDirectory()))
-        original_cwd = Path.cwd()
-        os.chdir(tmp_dir)
-        self.addCleanup(os.chdir, original_cwd)
-        return tmp_dir
+        """Create a temp dir that is removed after the test."""
+        return Path(self.enterContext(tempfile.TemporaryDirectory()))
+
+    @staticmethod
+    def _write_keywords(directory: Path) -> Path:
+        """Write a small keyword list into directory and return its path."""
+        path = directory / "keywords.csv"
+        path.write_text("bacteria\npathogen\n")
+        return path
 
 
 # ---------------------------------------------------------------------------
@@ -179,10 +164,15 @@ class PureFunctionTests(SepmcTestCase):
         self.assertTrue(sepmc.has_strong_match(["pathogen"]))
         self.assertFalse(sepmc.has_strong_match([]))
 
-    def test_format_lftp_target(self) -> None:
-        """format_lftp_target builds the expected MetaboLights FTP path."""
+    def test_study_ftp_path(self) -> None:
+        """study_ftp_path builds the expected MetaboLights FTP path."""
         expected = "/pub/databases/metabolights/studies/public/MTBLS42/"
-        self.assertEqual(sepmc.format_lftp_target("MTBLS42"), expected)
+        self.assertEqual(sepmc.study_ftp_path("MTBLS42"), expected)
+
+    def test_bundled_keywords_file_exists(self) -> None:
+        """The default keyword list ships next to the module."""
+        self.assertTrue(sepmc.DEFAULT_KEYWORDS_CSV.is_file())
+        self.assertTrue(sepmc.load_keywords(sepmc.DEFAULT_KEYWORDS_CSV))
 
     def test_europepmc_max_calls_per_second_respects_both_documented_limits(self) -> None:
         """The derived single cap keeps us under both of Europe PMC's documented limits.
@@ -371,28 +361,18 @@ class RetryErroredAuthorsTests(SepmcTestCase):
 
     def test_retry_errored_authors_merges_recovered_result(self) -> None:
         """--retry-errors recovers a previously-failed author and merges it in."""
-        self._make_tmp_dir()
-        Path(sepmc.KEYWORDS_CSV).write_text("bacteria\npathogen\n")
+        tmp_dir = self._make_tmp_dir()
+        keywords = self._write_keywords(tmp_dir)
+        summary_csv = tmp_dir / sepmc.SUMMARY_OUTPUT_CSV
+        papers_csv = tmp_dir / sepmc.PAPERS_OUTPUT_CSV
 
-        # --- pass 1: "Bad B" fails, write it out as a normal run would ---
-        fake_get_failing = make_fake_get(fail_authors={"Bad B"}, papers_by_author={})
-        self._patch_session(fake_get_failing)
-        pattern = sepmc.build_keyword_pattern(["bacteria", "pathogen"])
+        # --- pass 1: "Bad B" fails, written out by a normal run ---
+        Path(tmp_dir / sepmc.PUBLICATIONS_CSV).write_text('Authors\n"Bad B"\n')
+        self._patch_session(make_fake_get(fail_authors={"Bad B"}, papers_by_author={}))
+        first = sepmc.run_search(tmp_dir, keywords_csv=keywords)
 
-        paper_rows, summary_rows = sepmc.search_authors(["Bad B"], pattern)
-        deduped = sepmc.dedupe_paper_rows(paper_rows)
-
-        with Path(sepmc.PAPERS_OUTPUT_CSV).open("w", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=sepmc.PAPER_FIELDNAMES)
-            writer.writeheader()
-            writer.writerows(deduped)
-        with Path(sepmc.SUMMARY_OUTPUT_CSV).open("w", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=sepmc.SUMMARY_FIELDNAMES)
-            writer.writeheader()
-            writer.writerows(summary_rows)
-        Path(sepmc.TARGETS_OUTPUT_TXT).open("w", encoding="utf-8").close()
-
-        self.assertEqual(sepmc.load_errored_authors(sepmc.SUMMARY_OUTPUT_CSV), ["Bad B"])
+        self.assertEqual(first.errored_authors, 1)
+        self.assertEqual(sepmc.load_errored_authors(summary_csv), ["Bad B"])
 
         # --- pass 2: "Bad B" now succeeds -- retry should recover and merge it in ---
         sweden_affiliation = "Karolinska Institutet, Stockholm, Sweden."
@@ -401,86 +381,168 @@ class RetryErroredAuthorsTests(SepmcTestCase):
         fake_get_succeeding = make_fake_get(fail_authors=set(), papers_by_author=papers_by_author)
         self._patch_session(fake_get_succeeding)
 
-        sepmc.retry_errored_authors()
+        outcome = sepmc.retry_errored_authors(tmp_dir, keywords_csv=keywords)
 
-        self.assertEqual(sepmc.load_errored_authors(sepmc.SUMMARY_OUTPUT_CSV), [])
-        with Path(sepmc.PAPERS_OUTPUT_CSV).open(newline="", encoding="utf-8") as f:
+        self.assertEqual(outcome.errored_authors, 0)
+        self.assertEqual(sepmc.load_errored_authors(summary_csv), [])
+        with papers_csv.open(newline="", encoding="utf-8") as f:
             rows = list(csv.DictReader(f))
         self.assertTrue(any(r["epmc_id"] == "42" for r in rows))
         recovered_row = next(r for r in rows if r["epmc_id"] == "42")
         self.assertEqual(recovered_row["sweden_affiliated_matching_authors"], "Bad B")
 
-    def test_retry_errored_authors_returns_zero_when_nothing_to_retry(self) -> None:
-        """No error column entries at all -> nothing to retry -> returns 0."""
-        self._make_tmp_dir()
-        with Path(sepmc.SUMMARY_OUTPUT_CSV).open("w", newline="", encoding="utf-8") as f:
+    def test_retry_errored_authors_does_nothing_when_nothing_to_retry(self) -> None:
+        """No error column entries at all -> nothing to retry, nothing rewritten."""
+        tmp_dir = self._make_tmp_dir()
+        with (tmp_dir / sepmc.SUMMARY_OUTPUT_CSV).open("w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=sepmc.SUMMARY_FIELDNAMES)
             writer.writeheader()
             writer.writerow(
                 {"input_author": "Good A", "query": "q", "match_count": 0, "filtered_count": 0}
             )
 
-        self.assertEqual(sepmc.retry_errored_authors(), 0)
+        outcome = sepmc.retry_errored_authors(tmp_dir)
+
+        self.assertEqual(outcome.authors_searched, 0)
+        self.assertEqual(outcome.errored_authors, 0)
+        self.assertFalse((tmp_dir / sepmc.PAPERS_OUTPUT_CSV).exists())
 
     def test_retry_errored_authors_returns_count_still_erroring(self) -> None:
-        """An author that still fails on retry leaves the return value non-zero."""
-        self._make_tmp_dir()
-        Path(sepmc.KEYWORDS_CSV).write_text("bacteria\npathogen\n")
-        with Path(sepmc.SUMMARY_OUTPUT_CSV).open("w", newline="", encoding="utf-8") as f:
+        """An author that still fails on retry leaves errored_authors non-zero."""
+        tmp_dir = self._make_tmp_dir()
+        keywords = self._write_keywords(tmp_dir)
+        with (tmp_dir / sepmc.SUMMARY_OUTPUT_CSV).open("w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=sepmc.SUMMARY_FIELDNAMES)
             writer.writeheader()
             writer.writerow({"input_author": "Bad B", "query": "", "error": "boom"})
-        Path(sepmc.PAPERS_OUTPUT_CSV).open("w", encoding="utf-8").close()
-        Path(sepmc.TARGETS_OUTPUT_TXT).open("w", encoding="utf-8").close()
 
         # still fails on retry too
         self._patch_session(make_fake_get(fail_authors={"Bad B"}, papers_by_author={}))
 
-        self.assertEqual(sepmc.retry_errored_authors(), 1)
+        outcome = sepmc.retry_errored_authors(tmp_dir, keywords_csv=keywords)
+
+        self.assertEqual(outcome.errored_authors, 1)
+        self.assertEqual(sepmc.load_errored_authors(tmp_dir / sepmc.SUMMARY_OUTPUT_CSV), ["Bad B"])
+
+
+class RunSearchTests(SepmcTestCase):
+    """Tests for a full run_search, end to end against the mocked network."""
+
+    def test_run_search_writes_all_three_outputs(self) -> None:
+        """Papers, summary and targets.txt all land in the work dir."""
+        tmp_dir = self._make_tmp_dir()
+        keywords = self._write_keywords(tmp_dir)
+        (tmp_dir / sepmc.PUBLICATIONS_CSV).write_text('Authors\n"Good A"\n')
+        paper = make_paper("1", "Good A")
+        paper["dbCrossReferenceList"] = {
+            "dbCrossReference": [
+                {"type": "METABOLIGHTS", "accessionList": {"accession": [{"value": "mtbls7"}]}}
+            ]
+        }
+        self._patch_session(make_fake_get(fail_authors=set(), papers_by_author={"Good A": paper}))
+        messages: list[str] = []
+
+        outcome = sepmc.run_search(tmp_dir, keywords_csv=keywords, progress=messages.append)
+
+        self.assertEqual(outcome, sepmc.SearchOutcome(1, 0, 1, 1, 1))
+        self.assertEqual(
+            (tmp_dir / sepmc.TARGETS_OUTPUT_TXT).read_text(),
+            "/pub/databases/metabolights/studies/public/MTBLS7/\n",
+        )
+        self.assertTrue((tmp_dir / sepmc.PAPERS_OUTPUT_CSV).exists())
+        self.assertTrue((tmp_dir / sepmc.SUMMARY_OUTPUT_CSV).exists())
+        self.assertTrue(any("Good A" in m for m in messages))
+
+    def test_run_search_fails_before_writing_when_publications_missing(self) -> None:
+        """A missing input raises without creating any output."""
+        tmp_dir = self._make_tmp_dir()
+
+        with self.assertRaises(FileNotFoundError):
+            sepmc.run_search(tmp_dir, keywords_csv=self._write_keywords(tmp_dir))
+        self.assertFalse((tmp_dir / sepmc.SUMMARY_OUTPUT_CSV).exists())
 
 
 # ---------------------------------------------------------------------------
-# Exit codes: 0 clean, 3 partial (needs --retry-errors), 1 unexpected
+# The management command's exit codes: 0 clean, 3 partial (needs
+# --retry-errors), 1 the run did not complete
 # ---------------------------------------------------------------------------
 
 
-class MainExitCodeTests(SepmcTestCase):
-    """Exit codes: 0 clean, 3 partial (needs --retry-errors), 1 unexpected."""
+class MetabolightsSearchCommandTests(SepmcTestCase):
+    """Exit codes of manage.py metabolights_search."""
 
-    def test_main_returns_3_when_an_author_errors(self) -> None:
+    def _call(self, *args: str) -> str:
+        """Run the command against the temp work dir and return its stdout."""
+        stdout = io.StringIO()
+        call_command(
+            "metabolights_search",
+            "--work-dir",
+            str(self.tmp_dir),
+            "--keywords",
+            str(self.keywords),
+            *args,
+            stdout=stdout,
+        )
+        return stdout.getvalue()
+
+    def setUp(self) -> None:
+        """Give each test a work dir with a keyword list in it."""
+        super().setUp()
+        self.tmp_dir = self._make_tmp_dir()
+        self.keywords = self._write_keywords(self.tmp_dir)
+
+    def test_exits_3_when_an_author_errors(self) -> None:
         """A full run with one failing author exits 3, not 0."""
-        self._make_tmp_dir()
-        self.enterContext(mock.patch.object(sys, "argv", ["search_euPMC_rest_API.py"]))
-        Path(sepmc.KEYWORDS_CSV).write_text("bacteria\npathogen\n")
-        Path("publications.csv").write_text('Authors\n"Good A, Bad B"\n')
-
+        (self.tmp_dir / sepmc.PUBLICATIONS_CSV).write_text('Authors\n"Good A, Bad B"\n')
         good_paper = make_paper("1", "Good A")
         fake_get = make_fake_get(fail_authors={"Bad B"}, papers_by_author={"Good A": good_paper})
         self._patch_session(fake_get)
 
-        self.assertEqual(sepmc.main(), 3)
+        with self.assertRaises(CommandError) as raised:
+            self._call()
+        self.assertEqual(raised.exception.returncode, 3)
+        self.assertIn("--retry-errors", str(raised.exception))
 
-    def test_main_returns_0_when_everything_succeeds(self) -> None:
-        """A full run with no failing authors exits 0."""
-        self._make_tmp_dir()
-        self.enterContext(mock.patch.object(sys, "argv", ["search_euPMC_rest_API.py"]))
-        Path(sepmc.KEYWORDS_CSV).write_text("bacteria\npathogen\n")
-        Path("publications.csv").write_text('Authors\n"Good A"\n')
-
+    def test_succeeds_when_everything_succeeds(self) -> None:
+        """A full run with no failing authors completes without raising."""
+        (self.tmp_dir / sepmc.PUBLICATIONS_CSV).write_text('Authors\n"Good A"\n')
         good_paper = make_paper("1", "Good A")
         fake_get = make_fake_get(fail_authors=set(), papers_by_author={"Good A": good_paper})
         self._patch_session(fake_get)
 
-        self.assertEqual(sepmc.main(), 0)
+        output = self._call()
 
-    def test_main_returns_1_on_unexpected_failure(self) -> None:
-        """A missing required input file is an unexpected failure -> exit 1."""
-        self._make_tmp_dir()
-        self.enterContext(mock.patch.object(sys, "argv", ["search_euPMC_rest_API.py"]))
+        self.assertIn("1 unique papers", output)
+
+    def test_exits_1_when_publications_missing(self) -> None:
+        """A missing required input file is a failed run -> exit 1."""
         # deliberately do NOT create publications.csv
+        with self.assertRaises(CommandError) as raised:
+            self._call()
+        self.assertEqual(raised.exception.returncode, 1)
 
-        self.assertEqual(sepmc.main(), 1)
+    def test_retry_errors_exits_3_while_authors_still_fail(self) -> None:
+        """--retry-errors keeps exiting 3 until every author has recovered."""
+        (self.tmp_dir / sepmc.PUBLICATIONS_CSV).write_text('Authors\n"Bad B"\n')
+        self._patch_session(make_fake_get(fail_authors={"Bad B"}, papers_by_author={}))
+        with self.assertRaises(CommandError):
+            self._call()
 
+        with self.assertRaises(CommandError) as raised:
+            self._call("--retry-errors")
+        self.assertEqual(raised.exception.returncode, 3)
 
-if __name__ == "__main__":
-    unittest.main()
+        self._patch_session(make_fake_get(fail_authors=set(), papers_by_author={}))
+        self._call("--retry-errors")  # recovered: no exception
+
+    def test_work_dir_defaults_to_setting(self) -> None:
+        """Without --work-dir, settings.METABOLIGHTS_WORK_DIR is used."""
+        (self.tmp_dir / sepmc.PUBLICATIONS_CSV).write_text('Authors\n"Good A"\n')
+        self._patch_session(make_fake_get(fail_authors=set(), papers_by_author={}))
+
+        with override_settings(METABOLIGHTS_WORK_DIR=self.tmp_dir):
+            call_command(
+                "metabolights_search", "--keywords", str(self.keywords), stdout=io.StringIO()
+            )
+
+        self.assertTrue((self.tmp_dir / sepmc.SUMMARY_OUTPUT_CSV).exists())

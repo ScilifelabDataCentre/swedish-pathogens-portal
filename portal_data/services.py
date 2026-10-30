@@ -222,7 +222,7 @@ def _items_cache_key(datatype: str, data_root: Path) -> str:
     """Build the cache key for ``load_all_items``.
 
     The datasets root's mtime is part of the key, so adding or removing a
-    study directory (e.g. when fetch_metabolights.sh adds new studies) invalidates
+    study directory (e.g. when manage.py metabolights_fetch adds new studies) invalidates
     the cache immediately. In-place edits to files inside an existing study
     directory don't touch the root's mtime; those are picked up when the
     entry expires (``PORTAL_DATA_CACHE_TIMEOUT``).
@@ -268,7 +268,7 @@ def _scan_all_items(data_root: Path) -> list[dict]:
 
         accession = study_dir.name
         if not ACCESSION_RE.match(accession):
-            # Skip helper dirs like MTBLS_data, fetch_metabolights.sh, targets.txt
+            # Skip anything that isn't a study folder, e.g. MTBLS_data or stray files
             continue
 
         inv_path = find_investigation_file(study_dir)

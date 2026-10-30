@@ -152,6 +152,13 @@ DATASETS_ROOT = env("DATASETS_ROOT", default="/datasets")
 # bounds how long in-place updates to existing studies can stay stale.
 PORTAL_DATA_CACHE_TIMEOUT = env.int("PORTAL_DATA_CACHE_TIMEOUT", default=60 * 60)
 
+# Working directory for the MetaboLights study finder (manage.py metabolights_search
+# / metabolights_fetch): publications.csv goes in here, and the Europe PMC results
+# and targets.txt are written here. Studies themselves are fetched into DATASETS_ROOT.
+METABOLIGHTS_WORK_DIR = Path(
+    env("METABOLIGHTS_WORK_DIR", default=str(BASE_DIR / "private" / "metabolights"))
+)
+
 # Bundled reference data for the DINA Liver Resource dashboard
 LIVER_RESOURCE_DATA_ROOT = Path(
     env(
