@@ -51,7 +51,7 @@ services:
         condition: service_started
   # Postgresql DB
   db:
-    image: postgres:18.6-trixie@sha256:1957b2ff3137e4ef7f3bc813e74fff50b1e1ffddc85c8b9d6f14ade972be8687
+    image: postgres:18.6-trixie@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
     container_name: spp_db
     env_file:
       - .env
@@ -93,7 +93,7 @@ services:
   # service targets this host by default (EMAIL_HOST above); with the profile
   # off, sends fail gracefully (EMAIL_SEND_ERROR), no crash.
   mailpit:
-    image: axllent/mailpit:v1.31@sha256:23fe39e81bde596a918000b3135c0f85dc8bb4c9ea6be274b051143f3e300387
+    image: axllent/mailpit:v1.33@sha256:9b3a463be15354c0f0eba91697d80e3e0d8a5623ef0e627cacc836bc17fd5231
     container_name: spp_mailpit
     profiles:
       - "mailpit"
