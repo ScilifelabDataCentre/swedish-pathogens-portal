@@ -63,3 +63,9 @@ URLs, charts, and source-file downloads continue to work normally.
   restoration. Autosave is disabled, and researchers cannot overwrite revisions.
 
 An upload with no assigned research group is available to internal users only.
+
+## Related
+
+- [How-to: add a dashboard](how-to-guides/add-a-dashboard.md) — viz module and slug registration
+- [ADR-0014 — Dashboard data-flow](../architecture/decisions/0014-dashboard-data-flow-strategy.md)
+- [Developer documentation index](README.md)

@@ -149,3 +149,12 @@ No URL configuration or template changes are needed unless the new data type use
 | `wagtail` | CMS, page model, `RoutablePageMixin` |
 | `django-htmx` | `request.htmx` attribute used to detect partial swap requests |
 | `nh3` | HTML sanitisation of study descriptions |
+
+---
+
+## Related
+
+- [Repository tour — portal_data](repository-tour.md#backend-services-outside-cms)
+- [Getting started — `DATASETS_ROOT`](getting-started.md#production-oriented-placeholders)
+- [ADR-0007 — Data hosting](../architecture/decisions/0007-data-hosting-architecture.md)
+- [Developer documentation index](README.md)
