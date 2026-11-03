@@ -37,7 +37,7 @@ services:
       # env_file:). With mailpit's profile off, sends fail gracefully.
       - EMAIL_HOST=${EMAIL_HOST:-mailpit}
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     working_dir: /app/local
     volumes:
       - type: bind
@@ -56,7 +56,7 @@ services:
     env_file:
       - .env
     ports:
-      - "${POSTGRES_PORT:-5432}:${POSTGRES_PORT:-5432}"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:${POSTGRES_PORT:-5432}"
     volumes:
       - type: volume
         source: postgres_db
@@ -98,8 +98,8 @@ services:
     profiles:
       - "mailpit"
     ports:
-      - "1025:1025"   # SMTP
-      - "8025:8025"   # Web UI
+      - "127.0.0.1:1025:1025"   # SMTP
+      - "127.0.0.1:8025:8025"   # Web UI
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:8025/"]
       interval: 5s
