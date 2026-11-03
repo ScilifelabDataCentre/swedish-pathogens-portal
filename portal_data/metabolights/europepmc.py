@@ -70,9 +70,11 @@ Outputs (written to the work directory):
                                          the local download location.
 
 Requests to Europe PMC are throttled by a shared RateLimiter to stay within
-their documented per-IP limits (10 requests/second, 500 requests/minute),
-and reuse a single requests.Session (with automatic retry/backoff on
-429/5xx responses) instead of opening a new connection per call.
+their documented per-IP limits (10 requests/second, 500 requests/minute).
+All requests go through the project's shared httpx client
+(cms.services.api_client.CLIENT, see ADR 0010), which reuses connections,
+and are retried with backoff on 429/5xx responses and transport errors
+(see _get).
 """
 
 from __future__ import annotations
@@ -81,13 +83,16 @@ import csv
 import re
 import time
 import unicodedata
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
+from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
 from pathlib import Path
+from typing import Any
 
-import requests
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
+import httpx
+
+from cms.services import api_client
 
 BASE_URL = "https://www.ebi.ac.uk/europepmc/webservices/rest/search"
 BASE_FILTER = '((ACCESSION_TYPE:"metabolights") OR (LABS_PUBS:"1782"))'
@@ -191,29 +196,70 @@ class RateLimiter:
 RATE_LIMITER = RateLimiter(EUROPEPMC_MAX_CALLS_PER_SECOND, period=1.0)
 
 
-def _build_session() -> requests.Session:
-    """Build a requests.Session reused for every call.
+# Retry policy for transient failures, so an author's results aren't lost to
+# a momentary throttle or server hiccup: up to MAX_RETRIES further attempts,
+# waiting RETRY_BACKOFF_SECONDS * 2**attempt (1s, 2s, 4s) between them, or
+# the server's Retry-After when it sends one (capped, so a misbehaving
+# server can't stall the run for an hour). httpx has no status-based
+# retries of its own, hence _get.
+MAX_RETRIES = 3
+RETRY_BACKOFF_SECONDS = 1.0
+MAX_RETRY_AFTER_SECONDS = 60.0
+RETRY_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
+DEFAULT_TIMEOUT_SECONDS = 10.0
 
-    Keeps the TCP/TLS connection alive instead of renegotiating it per
-    request, and automatically retries (with backoff, honouring
-    Retry-After) on 429/5xx instead of losing an author's results to a
-    transient throttle or server error.
+
+def _retry_sleep(seconds: float) -> None:
+    """Wait between retries (a seam so tests can skip the wait)."""
+    time.sleep(seconds)
+
+
+def _retry_after_seconds(response: httpx.Response) -> float | None:
+    """Parse a Retry-After header (seconds or an HTTP date), if present."""
+    value = response.headers.get("Retry-After", "").strip()
+    if not value:
+        return None
+    if value.isdigit():
+        return float(value)
+    try:
+        when = parsedate_to_datetime(value)
+    except TypeError, ValueError:
+        return None
+    return max(0.0, (when - datetime.now(UTC)).total_seconds())
+
+
+def _get(
+    url: str,
+    params: Mapping[str, Any] | None = None,
+    timeout: float = DEFAULT_TIMEOUT_SECONDS,
+) -> httpx.Response:
+    """GET url via the shared httpx client, retrying transient failures.
+
+    Retries on RETRY_STATUS_CODES and on transport errors (timeouts,
+    dropped connections). Any other error status, or a failure that
+    outlasts the retries, is raised as an httpx.HTTPError -- callers rely
+    on that to mark an author as errored rather than silently recording
+    no results, which is why this doesn't use api_client.fetch_json (it
+    returns None on any failure).
     """
-    session = requests.Session()
-    retry = Retry(
-        total=3,
-        backoff_factor=1.0,
-        status_forcelist=[429, 500, 502, 503, 504],
-        respect_retry_after_header=True,
-        allowed_methods=["GET"],
-    )
-    adapter = HTTPAdapter(max_retries=retry)
-    session.mount("https://", adapter)
-    session.mount("http://", adapter)
-    return session
-
-
-SESSION = _build_session()
+    for attempt in range(MAX_RETRIES + 1):
+        backoff = RETRY_BACKOFF_SECONDS * 2**attempt
+        try:
+            response = api_client.CLIENT.get(url, params=params, timeout=timeout)
+        except httpx.TransportError:
+            if attempt == MAX_RETRIES:
+                raise
+            _retry_sleep(backoff)
+            continue
+        if response.status_code in RETRY_STATUS_CODES and attempt < MAX_RETRIES:
+            retry_after = _retry_after_seconds(response)
+            delay = backoff if retry_after is None else retry_after
+            _retry_sleep(min(delay, MAX_RETRY_AFTER_SECONDS))
+            continue
+        response.raise_for_status()
+        return response
+    msg = "unreachable: the last attempt either returns or raises"
+    raise AssertionError(msg)
 
 
 def search_europe_pmc(query: str, page_size: int = 1000) -> list[dict]:
@@ -234,9 +280,7 @@ def search_europe_pmc(query: str, page_size: int = 1000) -> list[dict]:
         }
 
         RATE_LIMITER.wait()
-        response = SESSION.get(BASE_URL, params=params, timeout=10)
-        response.raise_for_status()
-        data = response.json()
+        data = _get(BASE_URL, params=params).json()
 
         results = data.get("resultList", {}).get("result", [])
         all_results.extend(results)
@@ -308,17 +352,14 @@ def fetch_textmined_metabolights_accessions(source: str, ext_id: str) -> list[st
         return []
 
     RATE_LIMITER.wait()
-    response = SESSION.get(
+    payload = _get(
         ANNOTATIONS_API_URL,
         params={
             "articleIds": f"{source}:{ext_id}",
             "type": "Accession Numbers",
             "format": "JSON",
         },
-        timeout=10,
-    )
-    response.raise_for_status()
-    payload = response.json()
+    ).json()
 
     accessions = []
     seen = set()
@@ -652,13 +693,11 @@ def _write_targets(path: Path, targets: list[str]) -> None:
 def fetch_researchers(url: str = RESEARCHERS_JSON_URL) -> list[dict]:
     """Download the SciLifeLab publications database's researcher list.
 
-    Raises (a requests exception, or ValueError for an unexpected payload)
-    rather than returning an empty list, so an outage can't silently turn
-    into a "successful" run that searched nobody.
+    Raises (an httpx.HTTPError, or ValueError for an unexpected payload or
+    invalid JSON) rather than returning an empty list, so an outage can't
+    silently turn into a "successful" run that searched nobody.
     """
-    response = SESSION.get(url, timeout=RESEARCHERS_TIMEOUT_SECONDS)
-    response.raise_for_status()
-    payload = response.json()
+    payload = _get(url, timeout=RESEARCHERS_TIMEOUT_SECONDS).json()
     researchers = payload.get("researchers") if isinstance(payload, dict) else None
     if not isinstance(researchers, list):
         msg = f"Unexpected response from {url}: no 'researchers' list"

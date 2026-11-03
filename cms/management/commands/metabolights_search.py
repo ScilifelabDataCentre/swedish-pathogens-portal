@@ -19,8 +19,10 @@ Exit codes, for cron-style scheduling:
 from __future__ import annotations
 
 import csv
+import logging
 from pathlib import Path
 
+import httpx
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 
@@ -75,7 +77,23 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args: object, **options: object) -> None:
-        """Run a full search or a retry, then report and set the exit code."""
+        """Run a full search or a retry, then report and set the exit code.
+
+        httpx logs every request at INFO, which over a full run (one request
+        or more per author) would bury the progress lines, so it is quietened
+        to warnings for the run unless --verbosity 3 asks for everything.
+        """
+        httpx_logger = logging.getLogger("httpx")
+        previous_level = httpx_logger.level
+        if options["verbosity"] < 3:  # noqa: PLR2004 -- Django's highest verbosity
+            httpx_logger.setLevel(logging.WARNING)
+        try:
+            self._search(options)
+        finally:
+            httpx_logger.setLevel(previous_level)
+
+    def _search(self, options: dict[str, object]) -> None:
+        """Do the run that handle() describes."""
         work_dir: Path = options["work_dir"] or Path(settings.METABOLIGHTS_WORK_DIR)
         keywords: Path = options["keywords"]
 
@@ -93,11 +111,11 @@ class Command(BaseCommand):
                     keywords_csv=keywords,
                     progress=self.stdout.write,
                 )
-        except (OSError, ValueError, csv.Error) as error:
-            # The researcher list couldn't be downloaded (requests' exceptions
-            # are OSErrors) or an input was missing/malformed: the run never
-            # completed. Per-author Europe PMC failures don't land here -- they
-            # are recorded and reported through outcome.errored_authors.
+        except (httpx.HTTPError, OSError, ValueError, csv.Error) as error:
+            # The researcher list couldn't be downloaded, or an input was
+            # missing/malformed: the run never completed. Per-author Europe PMC
+            # failures don't land here -- they are recorded and reported
+            # through outcome.errored_authors.
             raise CommandError(str(error)) from error
 
         self.stdout.write("")

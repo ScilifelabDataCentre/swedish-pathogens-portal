@@ -5,8 +5,9 @@ than pytest, since Django's test runner (manage.py test) only collects
 unittest-style tests. These are plain HTTP-mocked unit tests with no
 database access, so SimpleTestCase is enough.
 
-Everything here mocks the network layer (SESSION.get) rather than hitting
-the real Europe PMC API: fast, deterministic, and doesn't depend on or add
+Everything here mocks the network layer -- the shared httpx client is
+swapped for one backed by httpx.MockTransport -- rather than hitting the
+real Europe PMC API: fast, deterministic, and doesn't depend on or add
 load to an external service. Real end-to-end tests against the live API
 are better kept as an occasional manual/scheduled smoke test rather than
 part of this suite.
@@ -16,6 +17,7 @@ from __future__ import annotations
 
 import csv
 import io
+import logging
 import tempfile
 import time
 from collections.abc import Callable
@@ -23,10 +25,12 @@ from pathlib import Path
 from typing import Any
 from unittest import mock
 
+import httpx
 from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.test import SimpleTestCase, override_settings
 
+from cms.services import api_client
 from portal_data.metabolights import europepmc as sepmc
 
 # ---------------------------------------------------------------------------
@@ -35,29 +39,35 @@ from portal_data.metabolights import europepmc as sepmc
 
 
 class FakeResponse:
-    """Minimal stand-in for requests.Response."""
+    """A canned response: status code, JSON body and optional headers."""
 
-    def __init__(self, status_code: int = 200, json_data: dict | None = None) -> None:
-        """Store the status code and JSON body this fake response returns."""
+    def __init__(
+        self,
+        status_code: int = 200,
+        json_data: dict | None = None,
+        headers: dict[str, str] | None = None,
+    ) -> None:
+        """Store what the mock transport should answer with."""
         self.status_code = status_code
-        self._json_data = json_data or {}
-
-    def raise_for_status(self) -> None:
-        """Raise an HTTPError if the status code indicates a failure."""
-        if self.status_code >= 400:
-            raise sepmc.requests.exceptions.HTTPError(f"{self.status_code} error")
-
-    def json(self) -> dict:
-        """Return the canned JSON body."""
-        return self._json_data
+        self.json_data = json_data or {}
+        self.headers = headers or {}
 
 
-class _FakeSession:
-    """A minimal requests.Session stand-in exposing only .get()."""
+def mock_client(get_fn: Callable[..., FakeResponse]) -> httpx.Client:
+    """Build a real httpx.Client whose requests are answered by get_fn.
 
-    def __init__(self, get_fn: Callable[..., FakeResponse]) -> None:
-        """Wrap the given fake get() implementation."""
-        self.get = get_fn
+    get_fn is called as get_fn(url, params=..., timeout=None) with the URL
+    minus its query string and the query parameters as a dict, and returns
+    a FakeResponse -- or raises, e.g. httpx.ConnectError, to simulate a
+    network failure.
+    """
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        url = str(request.url.copy_with(query=None))
+        canned = get_fn(url, params=dict(request.url.params), timeout=None)
+        return httpx.Response(canned.status_code, json=canned.json_data, headers=canned.headers)
+
+    return httpx.Client(transport=httpx.MockTransport(handler))
 
 
 def make_paper(
@@ -109,7 +119,7 @@ def make_fake_get(
     papers_by_author: dict[str, dict],
     researchers: list[dict] | None = None,
 ) -> Callable[..., FakeResponse]:
-    """Build a fake SESSION.get(...).
+    """Build a fake get(...) for mock_client.
 
     Raises (simulating an exhausted-retries network failure) for any
     author name appearing in `fail_authors`'s AUTH: query, and otherwise
@@ -126,9 +136,7 @@ def make_fake_get(
         query = (params or {}).get("query", "")
         for author in fail_authors:
             if f'AUTH:"{author}"' in query:
-                raise sepmc.requests.exceptions.ConnectionError(
-                    f"Max retries exceeded (simulated failure for {author})"
-                )
+                raise httpx.ConnectError(f"Max retries exceeded (simulated failure for {author})")
         for author, paper in papers_by_author.items():
             if f'AUTH:"{author}"' in query:
                 result = {"resultList": {"result": [paper]}, "nextCursorMark": None}
@@ -142,12 +150,16 @@ class SepmcTestCase(SimpleTestCase):
     """Shared base class: disables real rate-limiter sleeping for every test."""
 
     def setUp(self) -> None:
-        """Never actually sleep in tests, even if RATE_LIMITER.wait() is called."""
+        """Never actually sleep in tests: no rate-limiter or retry waits."""
         self.enterContext(mock.patch.object(sepmc.RATE_LIMITER, "wait", lambda: None))
+        self.retry_sleeps: list[float] = []
+        self.enterContext(mock.patch.object(sepmc, "_retry_sleep", self.retry_sleeps.append))
 
     def _patch_session(self, get_fn: Callable[..., FakeResponse]) -> None:
-        """Replace sepmc.SESSION with a fake exposing only the given get_fn."""
-        self.enterContext(mock.patch.object(sepmc, "SESSION", _FakeSession(get_fn)))
+        """Answer every request on the shared httpx client with get_fn."""
+        client = mock_client(get_fn)
+        self.addCleanup(client.close)
+        self.enterContext(mock.patch.object(api_client, "CLIENT", client))
 
     def _make_tmp_dir(self) -> Path:
         """Create a temp dir that is removed after the test."""
@@ -325,7 +337,7 @@ class SearchAuthorsTests(SepmcTestCase):
             url: str, params: dict[str, Any] | None = None, timeout: float | None = None
         ) -> FakeResponse:
             if url == sepmc.ANNOTATIONS_API_URL:
-                raise sepmc.requests.exceptions.ConnectionError("simulated annotations API failure")
+                raise httpx.ConnectError("simulated annotations API failure")
             query = (params or {}).get("query", "")
             if 'AUTH:"Good A"' in query:
                 result = {"resultList": {"result": [paper]}, "nextCursorMark": None}
@@ -355,7 +367,7 @@ class SearchAuthorsTests(SepmcTestCase):
             url: str, params: dict[str, Any] | None = None, timeout: float | None = None
         ) -> FakeResponse:
             if url == sepmc.ANNOTATIONS_API_URL:
-                raise sepmc.requests.exceptions.ConnectionError("simulated annotations API failure")
+                raise httpx.ConnectError("simulated annotations API failure")
             query = (params or {}).get("query", "")
             if 'AUTH:"Good A"' in query:
                 result = {
@@ -442,6 +454,84 @@ class RetryErroredAuthorsTests(SepmcTestCase):
 
         self.assertEqual(outcome.errored_authors, 1)
         self.assertEqual(sepmc.load_errored_authors(tmp_dir / sepmc.SUMMARY_OUTPUT_CSV), ["Bad B"])
+
+
+class RetryTests(SepmcTestCase):
+    """_get's retry policy: transient failures are retried, others raised."""
+
+    def _responses(self, *answers: FakeResponse | Exception) -> list[str]:
+        """Answer successive requests with answers in order; return the URLs requested."""
+        queue = list(answers)
+        requested: list[str] = []
+
+        def fake_get(url: str, params: object = None, timeout: object = None) -> FakeResponse:
+            requested.append(url)
+            answer = queue.pop(0)
+            if isinstance(answer, Exception):
+                raise answer
+            return answer
+
+        self._patch_session(fake_get)
+        return requested
+
+    def test_retries_throttling_then_succeeds(self) -> None:
+        """A 503 then a 200 returns the 200, after an exponential backoff wait."""
+        requested = self._responses(FakeResponse(503), FakeResponse(200, {"ok": True}))
+
+        response = sepmc._get("https://example.org/api")
+
+        self.assertEqual(response.json(), {"ok": True})
+        self.assertEqual(len(requested), 2)
+        self.assertEqual(self.retry_sleeps, [sepmc.RETRY_BACKOFF_SECONDS])
+
+    def test_honours_retry_after_capped(self) -> None:
+        """Retry-After decides the wait, but never beyond MAX_RETRY_AFTER_SECONDS."""
+        self._responses(
+            FakeResponse(429, headers={"Retry-After": "7"}),
+            FakeResponse(429, headers={"Retry-After": "100000"}),
+            FakeResponse(200),
+        )
+
+        sepmc._get("https://example.org/api")
+
+        self.assertEqual(self.retry_sleeps, [7.0, sepmc.MAX_RETRY_AFTER_SECONDS])
+
+    def test_retry_after_http_date(self) -> None:
+        """An HTTP-date Retry-After in the past means no extra wait."""
+        self._responses(
+            FakeResponse(503, headers={"Retry-After": "Wed, 21 Oct 2015 07:28:00 GMT"}),
+            FakeResponse(200),
+        )
+
+        sepmc._get("https://example.org/api")
+
+        self.assertEqual(self.retry_sleeps, [0.0])
+
+    def test_retries_transport_errors(self) -> None:
+        """A dropped connection is retried like a 5xx."""
+        requested = self._responses(httpx.ConnectError("reset"), FakeResponse(200))
+
+        sepmc._get("https://example.org/api")
+
+        self.assertEqual(len(requested), 2)
+
+    def test_gives_up_after_max_retries(self) -> None:
+        """A persistent 503 raises once the retries are used up."""
+        requested = self._responses(*[FakeResponse(503)] * (sepmc.MAX_RETRIES + 1))
+
+        with self.assertRaises(httpx.HTTPStatusError):
+            sepmc._get("https://example.org/api")
+        self.assertEqual(len(requested), sepmc.MAX_RETRIES + 1)
+        self.assertEqual(self.retry_sleeps, [1.0, 2.0, 4.0])
+
+    def test_does_not_retry_client_errors(self) -> None:
+        """A 404 is a real answer, raised straight away."""
+        requested = self._responses(FakeResponse(404))
+
+        with self.assertRaises(httpx.HTTPStatusError):
+            sepmc._get("https://example.org/api")
+        self.assertEqual(len(requested), 1)
+        self.assertEqual(self.retry_sleeps, [])
 
 
 class RunSearchTests(SepmcTestCase):
@@ -630,7 +720,7 @@ class MetabolightsSearchCommandTests(SepmcTestCase):
         """Failing to download the researcher list is a failed run -> exit 1."""
 
         def fake_get(url: str, params: object = None, timeout: object = None) -> FakeResponse:
-            raise sepmc.requests.exceptions.ConnectionError("simulated outage")
+            raise httpx.ConnectError("simulated outage")
 
         self._patch_session(fake_get)
         with self.assertRaises(CommandError) as raised:
@@ -650,6 +740,19 @@ class MetabolightsSearchCommandTests(SepmcTestCase):
 
         self._patch_session(make_fake_get(fail_authors=set(), papers_by_author={}))
         self._call("--retry-errors")  # recovered: no exception
+
+    def test_quietens_httpx_request_logging_during_the_run(self) -> None:
+        """Per-request INFO logs are hidden by default and the level is restored after."""
+        self._patch_session(make_fake_get(set(), {}, researchers=[researcher("Good", "A")]))
+        httpx_logger = logging.getLogger("httpx")
+        before = httpx_logger.level
+
+        with self.assertNoLogs("httpx", level="INFO"):
+            self._call()
+        self.assertEqual(httpx_logger.level, before)
+
+        with self.assertLogs("httpx", level="INFO"):
+            self._call("--verbosity", "3")
 
     def test_work_dir_defaults_to_setting(self) -> None:
         """Without --work-dir, settings.METABOLIGHTS_WORK_DIR is used."""
