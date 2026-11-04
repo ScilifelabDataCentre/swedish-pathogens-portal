@@ -23,6 +23,10 @@ if DATABASES["default"]["ENGINE"] != "django.db.backends.postgresql":  # noqa: F
 
 DEBUG = False
 
+# Only installed by core.settings.scrub on a deployed instance; installed here so
+# the test database has its table and the scrub can be tested
+INSTALLED_APPS = [*INSTALLED_APPS, "django_scrubber"]  # noqa: F405
+
 MEDIA_ROOT = BASE_DIR / "media" / "test"  # noqa: F405
 MEDIA_URL = "/media/test/"
 

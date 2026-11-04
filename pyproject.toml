@@ -8,6 +8,7 @@ dependencies = [
     "django==6.1.2",
     "django-environ==0.14.0",
     "django-htmx==1.29.0",
+    "django-scrubber==8.0.0",
     "django-structlog==10.1.0",
     "fastexcel==0.21.0",
     "httpx==0.28.1",
