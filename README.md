@@ -1,6 +1,9 @@
 # Swedish Pathogens Portal
 
-This is new version of the _Swedish Pathogens Portal_ built using Django and Wagtail, previously it was built using Hugo. (old repo [link](https://github.com/ScilifelabDataCentre/pathogens-portal)).
+This is the repository is for the [Swedish Pathogens Portal](https://www.pathogens.se), built using Django and Wagtail.
+
+This replaces an earlier version of the portal, built using Hugo, which was live between June 2020 and October 2026 ([code for the Hugo version](https://github.com/ScilifelabDataCentre/pathogens-portal)). A [basic toolbox for a Pathogens Portal Node (PPN)](https://github.com/ScilifelabDataCentre/node-pathogens-portal), also built in Hugo, remains available for others to be able to initiate a PPN for their community. 
+
 
 ## Technology Stack
 
