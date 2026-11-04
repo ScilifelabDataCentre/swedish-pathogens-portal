@@ -13,13 +13,13 @@ Exits 1 if any study failed to download (after trying all of them).
 
 from __future__ import annotations
 
-import os
 import re
 from pathlib import Path
 
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 
+from portal_data import services
 from portal_data.metabolights import europepmc, ftp
 
 ACCESSION_PATTERN = re.compile(r"^MTBLS\d+$")
@@ -46,7 +46,8 @@ class Command(BaseCommand):
             default=None,
             help=(
                 "File with one study FTP path per line, as written by metabolights_search "
-                f"(default: settings.METABOLIGHTS_WORK_DIR/{europepmc.TARGETS_OUTPUT_TXT})."
+                "(default: <DATASETS_ROOT>/"
+                f"{services.METABOLIGHTS_SEARCH_DIRNAME}/{europepmc.TARGETS_OUTPUT_TXT})."
             ),
         )
         parser.add_argument(
@@ -68,7 +69,14 @@ class Command(BaseCommand):
         dest: Path = options["dest"] or Path(settings.DATASETS_ROOT)
         remote_dirs = self._remote_dirs(options["accessions"], options["targets"])
         mode = "all files per study" if options["all_files"] else ftp.INVESTIGATION_FILE + " only"
-        self._check_writable(dest)
+        # Fail once, before connecting, rather than once per study.
+        try:
+            services.ensure_writable_dir(dest)
+        except OSError as error:
+            raise CommandError(
+                f"Cannot save studies in {dest}: {error}. "
+                "Pass a writable --dest or set DATASETS_ROOT."
+            ) from error
 
         self.stdout.write(f"Destination: {dest}")
         self.stdout.write(f"Mode:        {mode}")
@@ -94,24 +102,6 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS("Done."))
 
     @staticmethod
-    def _check_writable(dest: Path) -> None:
-        """Fail once, before connecting, if studies can't be saved under dest.
-
-        Otherwise every study would fail separately with the same error -- e.g.
-        when dest is a read-only bind mount, as /datasets is for the web
-        container in some local Docker Compose setups.
-        """
-        try:
-            dest.mkdir(parents=True, exist_ok=True)
-        except OSError as error:
-            raise CommandError(f"Cannot create destination {dest}: {error}") from error
-        if not os.access(dest, os.W_OK):
-            raise CommandError(
-                f"Destination {dest} is not writable (a read-only mount?). "
-                "Pass a writable --dest or set DATASETS_ROOT."
-            )
-
-    @staticmethod
     def _remote_dirs(accessions: list[str], targets: Path | None) -> list[str]:
         """Resolve the studies to fetch from accessions, or else the targets file."""
         if accessions:
@@ -121,7 +111,7 @@ class Command(BaseCommand):
                 raise CommandError(f"Not MetaboLights accessions: {', '.join(invalid)}")
             return [europepmc.study_ftp_path(a) for a in dict.fromkeys(normalized)]
 
-        targets = targets or Path(settings.METABOLIGHTS_WORK_DIR) / europepmc.TARGETS_OUTPUT_TXT
+        targets = targets or services.get_metabolights_work_dir() / europepmc.TARGETS_OUTPUT_TXT
         try:
             return ftp.read_targets(targets)
         except OSError as error:

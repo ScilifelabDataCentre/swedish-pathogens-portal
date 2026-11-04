@@ -23,9 +23,9 @@ import logging
 from pathlib import Path
 
 import httpx
-from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError, CommandParser
 
+from portal_data import services
 from portal_data.metabolights import europepmc
 
 PARTIAL_RUN_EXIT_CODE = 3
@@ -47,7 +47,7 @@ class Command(BaseCommand):
             default=None,
             help=(
                 "Directory receiving the output CSVs and targets.txt "
-                "(default: settings.METABOLIGHTS_WORK_DIR)."
+                f"(default: <DATASETS_ROOT>/{services.METABOLIGHTS_SEARCH_DIRNAME})."
             ),
         )
         parser.add_argument(
@@ -94,8 +94,18 @@ class Command(BaseCommand):
 
     def _search(self, options: dict[str, object]) -> None:
         """Do the run that handle() describes."""
-        work_dir: Path = options["work_dir"] or Path(settings.METABOLIGHTS_WORK_DIR)
+        work_dir: Path = options["work_dir"] or services.get_metabolights_work_dir()
         keywords: Path = options["keywords"]
+
+        # The outputs are only written at the end of a run that can take an hour,
+        # so check the work dir is usable before any of the searching.
+        try:
+            services.ensure_writable_dir(work_dir)
+        except OSError as error:
+            raise CommandError(
+                f"Cannot write search results to {work_dir}: {error}. "
+                "Pass a writable --work-dir or set DATASETS_ROOT."
+            ) from error
 
         try:
             if options["retry_errors"]:

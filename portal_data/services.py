@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import csv
+import errno
 import hashlib
 import io
 import json
 import logging
+import os
 import re
 from collections.abc import Iterable, Mapping
 from concurrent.futures import ThreadPoolExecutor
@@ -102,6 +104,33 @@ def get_data_root() -> Path:
     Calculated at call time so tests and environment overrides work correctly.
     """
     return Path(settings.DATASETS_ROOT).expanduser().resolve()
+
+
+# Folder inside the datasets root where `manage.py metabolights_search` keeps its
+# outputs (result CSVs and the targets.txt that metabolights_fetch reads). It sits
+# next to the studies so it lives on the same persistent volume, and its name
+# doesn't look like an accession, so the study listing never picks it up.
+METABOLIGHTS_SEARCH_DIRNAME = "metabolights_search"
+
+
+def get_metabolights_work_dir() -> Path:
+    """Return the default working directory of the MetaboLights study finder."""
+    return get_data_root() / METABOLIGHTS_SEARCH_DIRNAME
+
+
+def ensure_writable_dir(path: Path) -> None:
+    """Create path if needed, and check this process can write into it.
+
+    Lets a job that will write there fail at once with one clear error -- e.g.
+    on a read-only mount -- instead of after its slow part, or once per item.
+
+    Raises:
+        OSError: if the directory can't be created, or PermissionError if it
+            exists but isn't writable.
+    """
+    path.mkdir(parents=True, exist_ok=True)
+    if not os.access(path, os.W_OK):
+        raise PermissionError(errno.EACCES, "Directory is not writable", str(path))
 
 
 # Fields we include in exports:
