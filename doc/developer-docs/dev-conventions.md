@@ -106,6 +106,7 @@ From [PR #46](https://github.com/ScilifelabDataCentre/swedish-pathogens-portal/p
 ```python
 htmx_template = "cms/components/catalogue_list.html#catalogue_grid"
 
+
 @htmx_request_with_url_update()
 def serve(self, request, *args, **kwargs):
     return super().serve(request, *args, **kwargs)

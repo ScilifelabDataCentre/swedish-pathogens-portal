@@ -7,10 +7,14 @@ on:
   pull_request:
     paths:
       - '*/**.py'
+      - '**/*.md'
+      - 'pyproject.toml'
   push:
     branches: [main]
     paths:
       - '*/**.py'
+      - '**/*.md'
+      - 'pyproject.toml'
 
 jobs:
   ruff:
