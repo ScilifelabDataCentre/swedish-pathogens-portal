@@ -72,8 +72,9 @@ python manage.py metabolights_fetch MTBLS1464 MTBLS2  # specific studies instead
 
 | Setting | Default | Purpose |
 |---|---|---|
-| `METABOLIGHTS_WORK_DIR` | `private/metabolights` | Receives `europepmc_metabolights_papers.csv`, `europepmc_metabolights_summary.csv` and `targets.txt` (`--work-dir` overrides it) |
-| `DATASETS_ROOT` | `/datasets` (`private/datasets` in development) | Where `metabolights_fetch` saves studies (`--dest` overrides it) |
+| `DATASETS_ROOT` | Required in production (`private/datasets` in development) | Where `metabolights_fetch` saves studies (`--dest` overrides it). `metabolights_search` writes `europepmc_metabolights_papers.csv`, `europepmc_metabolights_summary.csv` and `targets.txt` to its `metabolights_search/` subfolder (`--work-dir` overrides it), which the study listing ignores. |
+
+Both commands check before starting that their output folder is writable, so a read-only mount fails straight away with one clear error. In production, `DATASETS_ROOT` must be a persistent volume that is writable wherever the commands run.
 
 `metabolights_search` exits with `0` on a clean run, `3` when the run finished but some authors' Europe PMC searches failed (re-run with `--retry-errors`, which merges recovered results into the existing output), and `1` when the run could not complete. `metabolights_fetch` downloads over anonymous FTP from `ftp.ebi.ac.uk` using Python's `ftplib`, so it needs no system packages. It skips files whose size and modification time already match the server, re-downloads changed files, resumes interrupted downloads, and exits with `1` if any study failed, after trying all of them.
 
