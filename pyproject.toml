@@ -11,13 +11,13 @@ dependencies = [
     "django-structlog==10.1.0",
     "fastexcel==0.21.0",
     "httpx==0.28.1",
-    "markdown==3.11.1",
+    "markdown==3.11.2",
     "nh3==0.3.7",
     "numpy==2.5.4",
     "pillow==13.0.0",
     "plotly==7.1.0",
-    "polars==2.0.0",
-    "wagtail==8.0",
+    "polars==2.1.0",
+    "wagtail==8.0.1",
 ]
 
 [dependency-groups]
@@ -27,7 +27,7 @@ dev = [
     "django-extensions==4.1",
     "pre-commit==4.7.0",
     "psycopg[binary]==3.3.6",
-    "ruff==0.17.1",
+    "ruff==0.17.3",
     "watchdog==6.0.0",
     "werkzeug[watchdog]==3.1.9",
 ]
