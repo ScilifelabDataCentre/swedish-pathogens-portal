@@ -78,4 +78,4 @@ Thumbs.db
 *logs/
 
 # MetaboLights study finder inputs/outputs and downloaded studies live under
-# private/ (see METABOLIGHTS_WORK_DIR and DATASETS_ROOT), which is ignored above.
+# private/ (development defaults, see DATASETS_ROOT), which is ignored above.
