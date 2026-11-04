@@ -8,8 +8,9 @@ from pathlib import Path
 from unittest import mock
 
 from django.core.cache import cache
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 
+from portal_data import services
 from portal_data.services import (
     apply_facet_filters,
     apply_text_search,
@@ -405,3 +406,52 @@ class ApplyFacetFiltersTests(TestCase):
         results = apply_facet_filters(items, {"repository": ["MetaboLights"]})
 
         self.assertEqual(results, [{"repository": "MetaboLights"}])
+
+
+class MetabolightsWorkDirTests(SimpleTestCase):
+    """The study finder's work dir lives inside DATASETS_ROOT but out of the listing."""
+
+    def setUp(self) -> None:
+        """Create a datasets root with one study and the work dir in it."""
+        self.root = Path(self.enterContext(tempfile.TemporaryDirectory()))
+        (self.root / "MTBLS1").mkdir()
+        (self.root / services.METABOLIGHTS_SEARCH_DIRNAME).mkdir()
+        self.enterContext(override_settings(DATASETS_ROOT=str(self.root)))
+
+    def test_work_dir_is_a_subfolder_of_the_datasets_root(self) -> None:
+        """get_metabolights_work_dir follows DATASETS_ROOT."""
+        self.assertEqual(
+            services.get_metabolights_work_dir(),
+            self.root.resolve() / services.METABOLIGHTS_SEARCH_DIRNAME,
+        )
+
+    def test_study_listing_ignores_the_work_dir(self) -> None:
+        """Only accession-named folders are treated as studies."""
+        studies = services._iter_study_dirs("metabolomics")
+        self.assertEqual([p.name for p in studies], ["MTBLS1"])
+
+
+class EnsureWritableDirTests(SimpleTestCase):
+    """ensure_writable_dir creates the directory and rejects unwritable ones."""
+
+    def setUp(self) -> None:
+        """Create a temporary parent directory."""
+        self.tmp = Path(self.enterContext(tempfile.TemporaryDirectory()))
+
+    def test_creates_missing_directories(self) -> None:
+        """Missing parents are created, like mkdir -p."""
+        target = self.tmp / "a" / "b"
+        services.ensure_writable_dir(target)
+        self.assertTrue(target.is_dir())
+
+    def test_existing_unwritable_directory_raises_permission_error(self) -> None:
+        """An existing but read-only directory is reported, not silently accepted."""
+        with mock.patch("os.access", return_value=False), self.assertRaises(PermissionError):
+            services.ensure_writable_dir(self.tmp)
+
+    def test_uncreatable_directory_raises_os_error(self) -> None:
+        """A path that can't be created (here: under a file) raises OSError."""
+        blocker = self.tmp / "file"
+        blocker.write_text("x")
+        with self.assertRaises(OSError):
+            services.ensure_writable_dir(blocker / "sub")

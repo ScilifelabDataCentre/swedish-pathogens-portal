@@ -296,12 +296,12 @@ class MetabolightsFetchCommandTests(FtpTestCase):
             self._call("../etc")
 
     def test_reads_targets_from_work_dir_by_default(self) -> None:
-        """Without accessions, <METABOLIGHTS_WORK_DIR>/targets.txt is used."""
-        work_dir = self.dest / "work"
+        """Without accessions, <DATASETS_ROOT>/metabolights_search/targets.txt is used."""
+        work_dir = self.dest / "metabolights_search"
         work_dir.mkdir()
         (work_dir / "targets.txt").write_text(f"{STUDY}/\n")
 
-        with override_settings(METABOLIGHTS_WORK_DIR=work_dir):
+        with override_settings(DATASETS_ROOT=str(self.dest)):
             self._call()
 
         self.assertTrue((self.dest / "MTBLS1" / "i_Investigation.txt").exists())

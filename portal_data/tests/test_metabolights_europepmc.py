@@ -755,12 +755,31 @@ class MetabolightsSearchCommandTests(SepmcTestCase):
             self._call("--verbosity", "3")
 
     def test_work_dir_defaults_to_setting(self) -> None:
-        """Without --work-dir, settings.METABOLIGHTS_WORK_DIR is used."""
+        """Without --work-dir, <DATASETS_ROOT>/metabolights_search is used."""
         self._patch_session(make_fake_get(set(), {}, researchers=[researcher("Good", "A")]))
 
-        with override_settings(METABOLIGHTS_WORK_DIR=self.tmp_dir):
+        with override_settings(DATASETS_ROOT=str(self.tmp_dir)):
             call_command(
                 "metabolights_search", "--keywords", str(self.keywords), stdout=io.StringIO()
             )
 
-        self.assertTrue((self.tmp_dir / sepmc.SUMMARY_OUTPUT_CSV).exists())
+        self.assertTrue((self.tmp_dir / "metabolights_search" / sepmc.SUMMARY_OUTPUT_CSV).exists())
+
+    def test_unwritable_work_dir_fails_before_any_request(self) -> None:
+        """A read-only work dir is caught up front, not after an hour of searching."""
+        requested: list[str] = []
+
+        def fake_get(url: str, params: object = None, timeout: object = None) -> FakeResponse:
+            requested.append(url)
+            return FakeResponse(200, {"researchers": []})
+
+        self._patch_session(fake_get)
+        with (
+            mock.patch("os.access", return_value=False),
+            self.assertRaises(CommandError) as raised,
+        ):
+            self._call()
+
+        self.assertIn("--work-dir", str(raised.exception))
+        self.assertEqual(raised.exception.returncode, 1)
+        self.assertEqual(requested, [])
