@@ -11,8 +11,8 @@ Steps to add a new Wagtail page type. Public URLs come from the page tree — yo
 On your page class set:
 
 ```python
-parent_page_types = ["cms.HomePage"]      # allowed parents
-subpage_types = ["cms.YourDetailPage"]    # allowed children (or [] for none)
+parent_page_types = ["cms.HomePage"]  # allowed parents
+subpage_types = ["cms.YourDetailPage"]  # allowed children (or [] for none)
 ```
 
 Optional: `max_count = 1` if only one instance should exist (e.g. `NewsIndexPage`).
