@@ -13,13 +13,14 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
+from datetime import datetime
 from typing import Any
 
 import structlog
 
 from cms.services.api_client import fetch_json
-from cms.services.caching import cache_get_or_set
+from cms.services.caching import cache_get_or_set_with_fallback
 
 LOGGER = structlog.get_logger(__name__)
 
@@ -32,6 +33,9 @@ BASE_QUERY = '(country:"Sweden") AND tag:pathogen'
 
 SEARCH_CACHE_TTL_SECONDS = 30 * 60  # 30 minutes
 COUNT_CACHE_TTL_SECONDS = 6 * 60 * 60  # 6 hours
+# How long the last good copy of each search and count is kept, to show instead
+# (marked as such) if EBI Search is down. See cache_get_or_set_with_fallback.
+FALLBACK_TTL_SECONDS = 7 * 24 * 60 * 60  # 7 days
 # EBI Search can take several seconds, e.g. for a prefix search on a large index,
 # so allow longer than the shared API client's default of 10 seconds.
 REQUEST_TIMEOUT_SECONDS = 20
@@ -226,11 +230,16 @@ class Facet:
 
 @dataclass(frozen=True)
 class SearchResult:
-    """One page of results, with the total and facets for the whole result set."""
+    """One page of results, with the total and facets for the whole result set.
+
+    ``stale_since`` is set when EBI Search failed and this is the last good copy
+    of the same search instead: the time that copy was fetched.
+    """
 
     total: int
     records: tuple[Record, ...]
     facets: tuple[Facet, ...] = field(default=())
+    stale_since: datetime | None = None
 
 
 def taxon_url(taxon_id: str | int) -> str:
@@ -367,7 +376,7 @@ def _cache_key(prefix: str, params: dict[str, Any]) -> str:
     return f"ebi_search_{prefix}_{digest}"
 
 
-def _format_value(values: object, kind: str) -> str:
+def format_value(values: object, kind: str) -> str:
     """Join a field's values for display, formatting YYYYMMDD dates as YYYY-MM-DD."""
     if not isinstance(values, list):
         values = [values] if values else []
@@ -382,7 +391,7 @@ def _format_value(values: object, kind: str) -> str:
 
 def _cell(column: Column, values: object) -> Cell:
     """Build the cell for ``column``, linking a single taxon id to its ENA page."""
-    text = _format_value(values, column.kind)
+    text = format_value(values, column.kind)
     if column.kind == "taxon" and text.isascii() and text.isdigit():
         return Cell(value=text, url=taxon_url(text))
     return Cell(value=text)
@@ -391,7 +400,7 @@ def _cell(column: Column, values: object) -> Cell:
 def _parse_record(entry: dict[str, Any], data_type: DataType) -> Record | None:
     """Build a record from one EBI Search entry, or None if it has no accession."""
     fields = entry.get("fields") or {}
-    accession = _format_value(fields.get("acc") or entry.get("acc") or entry.get("id"), "text")
+    accession = format_value(fields.get("acc") or entry.get("acc") or entry.get("id"), "text")
     accession = accession.split(";")[0].strip()
     if not accession:
         return None
@@ -466,6 +475,21 @@ def _parse_facets(raw_facets: object, selected: dict[str, list[str]]) -> tuple[F
     return tuple(facets)
 
 
+def filter_params(
+    text: str = "", selected_facets: dict[str, list[str]] | None = None
+) -> dict[str, str]:
+    """Return the EBI Search ``query`` (and ``facets``, if any) for a search and its facets.
+
+    Shared by the listing and the downloads, so a download matches what is listed.
+    """
+    query = build_query(text)
+    facets_param, facet_query = _facet_filters(selected_facets or {})
+    params = {"query": f"{query} AND {facet_query}" if facet_query else query}
+    if facets_param:
+        params["facets"] = facets_param
+    return params
+
+
 def search(
     data_type: DataType,
     *,
@@ -486,18 +510,14 @@ def search(
         sort: ``(field, descending)``, ignored unless the field is sortable.
     """
     selected = selected_facets or {}
-    query = build_query(text)
-    facets_param, facet_query = _facet_filters(selected)
     params: dict[str, Any] = {
-        "query": f"{query} AND {facet_query}" if facet_query else query,
+        **filter_params(text, selected),
         "format": "json",
         "fields": ",".join(data_type.fields),
         "size": max(1, min(size, MAX_PAGE_SIZE)),
         "start": max(0, start),
         "facetcount": FACET_VALUE_COUNT,
     }
-    if facets_param:
-        params["facets"] = facets_param
     if sort is not None and sort[0] in data_type.sortable_fields:
         params["sort"] = f"{sort[0]}:{'descending' if sort[1] else 'ascending'}"
 
@@ -525,11 +545,15 @@ def search(
             facets=_parse_facets(data.get("facets"), selected),
         )
 
-    return cache_get_or_set(
+    cached = cache_get_or_set_with_fallback(
         key=_cache_key(f"search_{data_type.domain}", params),
         timeout=SEARCH_CACHE_TTL_SECONDS,
+        fallback_timeout=FALLBACK_TTL_SECONDS,
         compute=compute,
     )
+    if cached.value is not None and cached.is_fallback:
+        return replace(cached.value, stale_since=cached.saved_at)
+    return cached.value
 
 
 def fetch_count(data_type: DataType, text: str = "") -> int | None:
@@ -551,8 +575,9 @@ def fetch_count(data_type: DataType, text: str = "") -> int | None:
             LOGGER.error("ebi_search.invalid_hit_count", domain=data_type.domain)
             return None
 
-    return cache_get_or_set(
+    return cache_get_or_set_with_fallback(
         key=_cache_key(f"count_{data_type.domain}", params),
         timeout=COUNT_CACHE_TTL_SECONDS,
+        fallback_timeout=FALLBACK_TTL_SECONDS,
         compute=compute,
-    )
+    ).value
