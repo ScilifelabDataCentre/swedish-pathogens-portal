@@ -52,6 +52,34 @@ $DATASETS_ROOT/
       ...
 ```
 
+### Populating the datasets
+
+Studies are found and downloaded with two management commands, run in order. They can be run by hand or on a schedule (e.g. a Kubernetes CronJob), and both are safe to re-run.
+
+```bash
+# 1. Find MetaboLights studies linked to SciLifeLab authors via Europe PMC.
+#    Authors come from the researcher list at https://publications.scilifelab.se/researchers_json;
+#    writes the matched papers, a per-author summary and targets.txt.
+python manage.py metabolights_search
+python manage.py metabolights_search --publications publications.csv  # authors from a CSV export instead
+python manage.py metabolights_search --retry-errors   # if it exited with code 3
+
+# 2. Download each study's i_Investigation.txt into $DATASETS_ROOT/<accession>/.
+python manage.py metabolights_fetch
+python manage.py metabolights_fetch --all             # every file, not just the investigation file
+python manage.py metabolights_fetch MTBLS1464 MTBLS2  # specific studies instead of targets.txt
+```
+
+| Setting | Default | Purpose |
+|---|---|---|
+| `DATASETS_ROOT` | Required in production (`private/datasets` in development) | Where `metabolights_fetch` saves studies (`--dest` overrides it). `metabolights_search` writes `europepmc_metabolights_papers.csv`, `europepmc_metabolights_summary.csv` and `targets.txt` to its `metabolights_search/` subfolder (`--work-dir` overrides it), which the study listing ignores. |
+
+Both commands check before starting that their output folder is writable, so a read-only mount fails straight away with one clear error. In production, `DATASETS_ROOT` must be a persistent volume that is writable wherever the commands run.
+
+`metabolights_search` exits with `0` on a clean run, `3` when the run finished but some authors' Europe PMC searches failed (re-run with `--retry-errors`, which merges recovered results into the existing output), and `1` when the run could not complete. `metabolights_fetch` downloads over anonymous FTP from `ftp.ebi.ac.uk` using Python's `ftplib`, so it needs no system packages. It skips files whose size and modification time already match the server, re-downloads changed files, resumes interrupted downloads, and exits with `1` if any study failed, after trying all of them.
+
+The logic lives in `portal_data/metabolights/` (`europepmc.py` and `ftp.py`). The commands are in `cms/management/commands/` because `portal_data` is not an installed Django app.
+
 `services.py` locates and parses `i_Investigation.txt` for each study directory it finds. In practice, this file contains the study-level metadata used for the listing page. It prefers the latest revision under `METADATA_REVISIONS/` if that directory exists, falling back to the top-level file.
 
 ### HTML sanitisation

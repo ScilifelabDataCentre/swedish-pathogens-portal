@@ -1,36 +1,31 @@
-# ruff: noqa: N999
 """Search Europe PMC for publications associated with MetaboLights.
 
-Usage:
-    python search_euPMC_rest_API.py
-    python search_euPMC_rest_API.py --retry-errors
+Library behind ``manage.py metabolights_search`` (formerly the standalone
+``portal_data/scripts/search_euPMC_rest_API.py``). The command picks the
+paths; everything here takes them as arguments.
 
---retry-errors re-runs the search only for authors whose row in
-europepmc_metabolights_summary.csv has a non-empty error (e.g. a
-transient "too many 503 error responses" from Europe PMC), and merges
-the results into the existing papers/summary/targets output files
-instead of doing a full re-run. Safe to run repeatedly.
-
-Exit codes (see main()'s docstring for detail): 0 clean run, 3 completed
-but some authors errored (run --retry-errors), 1 unexpected failure.
-
-Expects, in the same directory as this script:
-    publications.csv
-        CSV with an "Authors" column per publication, holding a
-        comma-separated list of authors in "Lastname Initials" form
-        (e.g. "Keller T, Etana A, Bosch Y"). Unique author names are
-        extracted across all rows and searched individually.
-        This can be gathered from the Scilifelab publications database
-        (https://publications.scilifelab.se/). Under publications,
-        click download CSV.
+Inputs:
+    Authors to search, from one of:
+      - the SciLifeLab publications database's researcher list
+        (RESEARCHERS_JSON_URL, the default): each researcher's family name
+        and initials make one "Lastname Initials" author (e.g. "Keller T").
+        Researchers with no publications in the database are skipped, as
+        they never appeared in the publications CSV export either.
+      - a publications CSV export (the fallback, e.g. for offline runs):
+        an "Authors" column per publication, holding a comma-separated list
+        of authors in "Lastname Initials" form (e.g. "Keller T, Etana A,
+        Bosch Y"). Download it from https://publications.scilifelab.se/
+        (Publications -> download CSV).
+    Either way, unique author names are searched individually.
     pathogen_infectious_disease_keywords_just_keywords.csv
         One keyword per line, used to filter results by title/abstract
-        content. A handful of overly generic keywords (see WEAK_KEYWORDS)
-        are only counted as a match when they co-occur with a more
-        specific keyword, since on their own they show up across
-        unrelated fields (plant genomics, yeast biology, cardiology, ...).
+        content (bundled next to this module, see DEFAULT_KEYWORDS_CSV).
+        A handful of overly generic keywords (see WEAK_KEYWORDS) are only
+        counted as a match when they co-occur with a more specific
+        keyword, since on their own they show up across unrelated fields
+        (plant genomics, yeast biology, cardiology, ...).
 
-Writes, to the current working directory:
+Outputs (written to the work directory):
     europepmc_metabolights_papers.csv   One row per unique paper (deduplicated
                                          across every author query that found
                                          it). matching_authors lists every
@@ -68,40 +63,59 @@ Writes, to the current working directory:
                                          keyword only, with no confirmed
                                          MetaboLights dataset link.
     europepmc_metabolights_summary.csv  One row per author, with match counts.
-    targets.txt                         lftp mirror targets for any
-                                         MetaboLights accessions found.
-                                         Consumed by fetch_metabolights.sh,
-                                         which controls the local download
-                                         location.
+    targets.txt                         One MetaboLights study FTP path per
+                                         line for any accessions found.
+                                         Consumed by ``manage.py
+                                         metabolights_fetch``, which controls
+                                         the local download location.
 
 Requests to Europe PMC are throttled by a shared RateLimiter to stay within
-their documented per-IP limits (10 requests/second, 500 requests/minute),
-and reuse a single requests.Session (with automatic retry/backoff on
-429/5xx responses) instead of opening a new connection per call.
+their documented per-IP limits (10 requests/second, 500 requests/minute).
+All requests go through the project's shared httpx client
+(cms.services.api_client.CLIENT, see ADR 0010), which reuses connections,
+and are retried with backoff on 429/5xx responses and transport errors
+(see _get).
 """
 
 from __future__ import annotations
 
-import argparse
 import csv
 import re
-import sys
 import time
-import traceback
 import unicodedata
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass
+from datetime import UTC, datetime
+from email.utils import parsedate_to_datetime
 from pathlib import Path
+from typing import Any
 
-import requests
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
+import httpx
+
+from cms.services import api_client
 
 BASE_URL = "https://www.ebi.ac.uk/europepmc/webservices/rest/search"
 BASE_FILTER = '((ACCESSION_TYPE:"metabolights") OR (LABS_PUBS:"1782"))'
 
+RESEARCHERS_JSON_URL = "https://publications.scilifelab.se/researchers_json"
+RESEARCHERS_TIMEOUT_SECONDS = 60
+PUBLICATIONS_CSV = "publications.csv"
+PUBLICATIONS_AUTHORS_COLUMN = "Authors"
 PAPERS_OUTPUT_CSV = "europepmc_metabolights_papers.csv"
 SUMMARY_OUTPUT_CSV = "europepmc_metabolights_summary.csv"
 TARGETS_OUTPUT_TXT = "targets.txt"
-KEYWORDS_CSV = "pathogen_infectious_disease_keywords_just_keywords.csv"
+DEFAULT_KEYWORDS_CSV = Path(__file__).with_name(
+    "pathogen_infectious_disease_keywords_just_keywords.csv"
+)
+
+# Receives one human-readable progress line at a time (e.g. a management
+# command's stdout.write); the library itself never prints.
+Progress = Callable[[str], None]
+
+
+def _no_progress(_message: str) -> None:
+    """Discard progress messages (the default when no reporter is given)."""
+
 
 PAPER_FIELDNAMES = [
     "matching_authors",
@@ -182,29 +196,70 @@ class RateLimiter:
 RATE_LIMITER = RateLimiter(EUROPEPMC_MAX_CALLS_PER_SECOND, period=1.0)
 
 
-def _build_session() -> requests.Session:
-    """Build a requests.Session reused for every call.
+# Retry policy for transient failures, so an author's results aren't lost to
+# a momentary throttle or server hiccup: up to MAX_RETRIES further attempts,
+# waiting RETRY_BACKOFF_SECONDS * 2**attempt (1s, 2s, 4s) between them, or
+# the server's Retry-After when it sends one (capped, so a misbehaving
+# server can't stall the run for an hour). httpx has no status-based
+# retries of its own, hence _get.
+MAX_RETRIES = 3
+RETRY_BACKOFF_SECONDS = 1.0
+MAX_RETRY_AFTER_SECONDS = 60.0
+RETRY_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
+DEFAULT_TIMEOUT_SECONDS = 10.0
 
-    Keeps the TCP/TLS connection alive instead of renegotiating it per
-    request, and automatically retries (with backoff, honouring
-    Retry-After) on 429/5xx instead of losing an author's results to a
-    transient throttle or server error.
+
+def _retry_sleep(seconds: float) -> None:
+    """Wait between retries (a seam so tests can skip the wait)."""
+    time.sleep(seconds)
+
+
+def _retry_after_seconds(response: httpx.Response) -> float | None:
+    """Parse a Retry-After header (seconds or an HTTP date), if present."""
+    value = response.headers.get("Retry-After", "").strip()
+    if not value:
+        return None
+    if value.isdigit():
+        return float(value)
+    try:
+        when = parsedate_to_datetime(value)
+    except TypeError, ValueError:
+        return None
+    return max(0.0, (when - datetime.now(UTC)).total_seconds())
+
+
+def _get(
+    url: str,
+    params: Mapping[str, Any] | None = None,
+    timeout: float = DEFAULT_TIMEOUT_SECONDS,
+) -> httpx.Response:
+    """GET url via the shared httpx client, retrying transient failures.
+
+    Retries on RETRY_STATUS_CODES and on transport errors (timeouts,
+    dropped connections). Any other error status, or a failure that
+    outlasts the retries, is raised as an httpx.HTTPError -- callers rely
+    on that to mark an author as errored rather than silently recording
+    no results, which is why this doesn't use api_client.fetch_json (it
+    returns None on any failure).
     """
-    session = requests.Session()
-    retry = Retry(
-        total=3,
-        backoff_factor=1.0,
-        status_forcelist=[429, 500, 502, 503, 504],
-        respect_retry_after_header=True,
-        allowed_methods=["GET"],
-    )
-    adapter = HTTPAdapter(max_retries=retry)
-    session.mount("https://", adapter)
-    session.mount("http://", adapter)
-    return session
-
-
-SESSION = _build_session()
+    for attempt in range(MAX_RETRIES + 1):
+        backoff = RETRY_BACKOFF_SECONDS * 2**attempt
+        try:
+            response = api_client.CLIENT.get(url, params=params, timeout=timeout)
+        except httpx.TransportError:
+            if attempt == MAX_RETRIES:
+                raise
+            _retry_sleep(backoff)
+            continue
+        if response.status_code in RETRY_STATUS_CODES and attempt < MAX_RETRIES:
+            retry_after = _retry_after_seconds(response)
+            delay = backoff if retry_after is None else retry_after
+            _retry_sleep(min(delay, MAX_RETRY_AFTER_SECONDS))
+            continue
+        response.raise_for_status()
+        return response
+    msg = "unreachable: the last attempt either returns or raises"
+    raise AssertionError(msg)
 
 
 def search_europe_pmc(query: str, page_size: int = 1000) -> list[dict]:
@@ -225,9 +280,7 @@ def search_europe_pmc(query: str, page_size: int = 1000) -> list[dict]:
         }
 
         RATE_LIMITER.wait()
-        response = SESSION.get(BASE_URL, params=params, timeout=10)
-        response.raise_for_status()
-        data = response.json()
+        data = _get(BASE_URL, params=params).json()
 
         results = data.get("resultList", {}).get("result", [])
         all_results.extend(results)
@@ -281,14 +334,11 @@ def extract_metabolights_accessions(paper: dict) -> list[str]:
     return accessions
 
 
-def format_lftp_target(accession: str) -> str:
-    """Format a single MTBLS accession as an lftp target line (remote path only).
+def study_ftp_path(accession: str) -> str:
+    """Return the MetaboLights FTP directory for a study accession (remote path only).
 
-    fetch_metabolights.sh decides the local download location, so no local
-    path is written here. There is also no leading flag: fetch_metabolights.sh
-    fetches a single file (i_Investigation.txt) per study rather than
-    mirroring a whole directory, so a recurse/no-recurse flag no longer
-    applies.
+    One of these is written per line to targets.txt. ``metabolights_fetch``
+    decides the local download location, so no local path is written here.
     """
     return f"{METABOLIGHTS_FTP_BASE}/{accession}/"
 
@@ -302,17 +352,14 @@ def fetch_textmined_metabolights_accessions(source: str, ext_id: str) -> list[st
         return []
 
     RATE_LIMITER.wait()
-    response = SESSION.get(
+    payload = _get(
         ANNOTATIONS_API_URL,
         params={
             "articleIds": f"{source}:{ext_id}",
             "type": "Accession Numbers",
             "format": "JSON",
         },
-        timeout=10,
-    )
-    response.raise_for_status()
-    payload = response.json()
+    ).json()
 
     accessions = []
     seen = set()
@@ -584,7 +631,7 @@ def expand_deduped_row_to_author_rows(row: dict) -> list[dict]:
     return expanded
 
 
-def load_errored_authors(summary_csv: str) -> list[str]:
+def load_errored_authors(summary_csv: str | Path) -> list[str]:
     """Return authors whose row in a previous run's summary CSV has an error.
 
     E.g. a transient network/server failure. Returned in order of first
@@ -603,78 +650,199 @@ def load_errored_authors(summary_csv: str) -> list[str]:
     return authors
 
 
+@dataclass(frozen=True)
+class SearchOutcome:
+    """What a search or retry run did, for the caller to report on.
+
+    errored_authors counts authors whose search failed in *this* run; a
+    non-zero value means the output is incomplete until a retry run
+    (``metabolights_search --retry-errors``) recovers them.
+    """
+
+    authors_searched: int
+    errored_authors: int
+    unique_papers: int
+    author_paper_matches: int
+    targets: int
+
+
+def _read_csv_rows(path: Path) -> list[dict]:
+    """Return the rows of an existing CSV file, or [] if it does not exist."""
+    if not path.exists():
+        return []
+    with path.open(newline="", encoding="utf-8-sig") as f:
+        return list(csv.DictReader(f))
+
+
+def _write_csv_rows(path: Path, fieldnames: list[str], rows: list[dict]) -> None:
+    """Write rows to a CSV file with the given header, replacing it."""
+    with path.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def _write_targets(path: Path, targets: list[str]) -> None:
+    """Write one study FTP path per line (an empty file if there are none)."""
+    with path.open("w", encoding="utf-8") as f:
+        f.write("\n".join(targets))
+        if targets:
+            f.write("\n")
+
+
+def fetch_researchers(url: str = RESEARCHERS_JSON_URL) -> list[dict]:
+    """Download the SciLifeLab publications database's researcher list.
+
+    Raises (an httpx.HTTPError, or ValueError for an unexpected payload or
+    invalid JSON) rather than returning an empty list, so an outage can't
+    silently turn into a "successful" run that searched nobody.
+    """
+    payload = _get(url, timeout=RESEARCHERS_TIMEOUT_SECONDS).json()
+    researchers = payload.get("researchers") if isinstance(payload, dict) else None
+    if not isinstance(researchers, list):
+        msg = f"Unexpected response from {url}: no 'researchers' list"
+        raise ValueError(msg)
+    return researchers
+
+
+def _initials_from_given(given: str) -> str:
+    """Derive initials from given names, e.g. "Anna J M" -> "AJM"."""
+    return "".join(part[0].upper() for part in re.split(r"[\s.\-]+", given) if part)
+
+
+def authors_from_researchers(researchers: list[dict]) -> list[str]:
+    """Turn researcher records into unique "Lastname Initials" author names.
+
+    Uses each record's family name and initials (derived from the given
+    names when initials are missing), in order of first appearance.
+    Records with no family name or no initials are skipped -- a bare
+    surname would match far too broadly -- as are researchers with no
+    publications in the database, to match the publications CSV export.
+    """
+    authors: list[str] = []
+    seen: set[str] = set()
+    for researcher in researchers:
+        if not isinstance(researcher, dict):
+            continue
+        if researcher.get("n_publications") == 0:
+            continue
+        family = re.sub(r"\s+", " ", researcher.get("family") or "").strip()
+        initials = re.sub(r"[\s.]+", "", researcher.get("initials") or "")
+        initials = initials or _initials_from_given(researcher.get("given") or "")
+        if not family or not initials:
+            continue
+        author = f"{family} {initials}"
+        if author not in seen:
+            seen.add(author)
+            authors.append(author)
+    return authors
+
+
+def run_search(
+    work_dir: Path,
+    publications_csv: Path | None = None,
+    keywords_csv: Path = DEFAULT_KEYWORDS_CSV,
+    progress: Progress = _no_progress,
+    researchers_url: str = RESEARCHERS_JSON_URL,
+) -> SearchOutcome:
+    """Search Europe PMC for every SciLifeLab author.
+
+    Authors come from publications_csv when given, and otherwise from the
+    researcher list at researchers_url. Overwrites the papers/summary/
+    targets outputs in work_dir. The keywords and authors are loaded and
+    validated before any Europe PMC search, so a missing or malformed
+    input raises without touching earlier output.
+    """
+    keywords = load_keywords(keywords_csv)
+    keyword_pattern = build_keyword_pattern(keywords)
+    progress(f"Loaded {len(keywords)} keywords from {keywords_csv}")
+
+    if publications_csv is not None:
+        authors = read_authors_from_publications_csv(publications_csv, PUBLICATIONS_AUTHORS_COLUMN)
+        source = str(publications_csv)
+    else:
+        authors = authors_from_researchers(fetch_researchers(researchers_url))
+        source = researchers_url
+    if not authors:
+        msg = f"No authors found in {source}"
+        raise ValueError(msg)
+    progress(f"Searching {len(authors)} author(s) from {source}")
+
+    paper_rows, summary_rows = search_authors(authors, keyword_pattern, progress)
+    deduped_paper_rows = dedupe_paper_rows(paper_rows)
+    accession_targets = accession_targets_from_paper_rows(deduped_paper_rows)
+
+    work_dir.mkdir(parents=True, exist_ok=True)
+    _write_csv_rows(work_dir / PAPERS_OUTPUT_CSV, PAPER_FIELDNAMES, deduped_paper_rows)
+    _write_csv_rows(work_dir / SUMMARY_OUTPUT_CSV, SUMMARY_FIELDNAMES, summary_rows)
+    _write_targets(work_dir / TARGETS_OUTPUT_TXT, accession_targets)
+
+    return SearchOutcome(
+        authors_searched=len(authors),
+        errored_authors=sum(1 for r in summary_rows if r.get("error")),
+        unique_papers=len(deduped_paper_rows),
+        author_paper_matches=len(paper_rows),
+        targets=len(accession_targets),
+    )
+
+
 def retry_errored_authors(
-    papers_csv: str = PAPERS_OUTPUT_CSV,
-    summary_csv: str = SUMMARY_OUTPUT_CSV,
-    targets_txt: str = TARGETS_OUTPUT_TXT,
-    keywords_csv: str = KEYWORDS_CSV,
-) -> int:
+    work_dir: Path,
+    keywords_csv: Path = DEFAULT_KEYWORDS_CSV,
+    progress: Progress = _no_progress,
+) -> SearchOutcome:
     """Re-run the search for authors that errored in a previous run.
 
-    Merges the results into the existing output files instead of starting
-    over. Safe to run repeatedly -- authors that still error stay marked
-    as errored for the next retry. Returns how many authors still error
-    after this retry (0 if all recovered, or if there was nothing to
-    retry) -- see main()'s exit-code handling.
+    Merges the results into the existing output files in work_dir instead
+    of starting over. Safe to run repeatedly -- authors that still error
+    stay marked as errored for the next retry. The outcome's
+    errored_authors is how many still error after this retry (0 if all
+    recovered, or if there was nothing to retry, in which case
+    authors_searched is 0 and nothing is rewritten).
     """
+    papers_csv = work_dir / PAPERS_OUTPUT_CSV
+    summary_csv = work_dir / SUMMARY_OUTPUT_CSV
+    targets_txt = work_dir / TARGETS_OUTPUT_TXT
+
     errored_authors = load_errored_authors(summary_csv)
     if not errored_authors:
-        print(f"No errored authors found in {summary_csv}. Nothing to retry.")
-        return 0
+        progress(f"No errored authors found in {summary_csv}. Nothing to retry.")
+        return SearchOutcome(0, 0, 0, 0, 0)
 
-    print(f"Retrying {len(errored_authors)} previously-errored author(s)...")
+    progress(f"Retrying {len(errored_authors)} previously-errored author(s)...")
     keywords = load_keywords(keywords_csv)
     keyword_pattern = build_keyword_pattern(keywords)
 
-    new_paper_rows, new_summary_rows = search_authors(errored_authors, keyword_pattern)
-
-    existing_paper_rows = []
-    if Path(papers_csv).exists():
-        with Path(papers_csv).open(newline="", encoding="utf-8-sig") as f:
-            existing_paper_rows = list(csv.DictReader(f))
+    new_paper_rows, new_summary_rows = search_authors(errored_authors, keyword_pattern, progress)
 
     expanded_existing = [
-        r for row in existing_paper_rows for r in expand_deduped_row_to_author_rows(row)
+        r for row in _read_csv_rows(papers_csv) for r in expand_deduped_row_to_author_rows(row)
     ]
     deduped_paper_rows = dedupe_paper_rows(expanded_existing + new_paper_rows)
 
-    with Path(papers_csv).open("w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=PAPER_FIELDNAMES)
-        writer.writeheader()
-        writer.writerows(deduped_paper_rows)
-
-    existing_summary_rows = []
-    if Path(summary_csv).exists():
-        with Path(summary_csv).open(newline="", encoding="utf-8-sig") as f:
-            existing_summary_rows = list(csv.DictReader(f))
-
     retried_set = set(errored_authors)
     merged_summary_rows = [
-        r for r in existing_summary_rows if r.get("input_author") not in retried_set
+        r for r in _read_csv_rows(summary_csv) if r.get("input_author") not in retried_set
     ]
     merged_summary_rows.extend(new_summary_rows)
 
-    with Path(summary_csv).open("w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=SUMMARY_FIELDNAMES)
-        writer.writeheader()
-        writer.writerows(merged_summary_rows)
-
     accession_targets = accession_targets_from_paper_rows(deduped_paper_rows)
-    with Path(targets_txt).open("w", encoding="utf-8") as f:
-        f.write("\n".join(accession_targets))
-        if accession_targets:
-            f.write("\n")
 
-    still_errored = sum(1 for r in new_summary_rows if r.get("error"))
-    print()
-    print(f"Retried {len(errored_authors)} author(s); {still_errored} still errored.")
-    print(f"Merged papers CSV now has {len(deduped_paper_rows)} unique papers ({papers_csv}).")
-    print(f"Rewrote {summary_csv} and {targets_txt}.")
-    return still_errored
+    _write_csv_rows(papers_csv, PAPER_FIELDNAMES, deduped_paper_rows)
+    _write_csv_rows(summary_csv, SUMMARY_FIELDNAMES, merged_summary_rows)
+    _write_targets(targets_txt, accession_targets)
+
+    return SearchOutcome(
+        authors_searched=len(errored_authors),
+        errored_authors=sum(1 for r in new_summary_rows if r.get("error")),
+        unique_papers=len(deduped_paper_rows),
+        author_paper_matches=len(new_paper_rows),
+        targets=len(accession_targets),
+    )
 
 
 def read_authors_from_publications_csv(
-    input_csv: str, authors_column: str = "Authors"
+    input_csv: str | Path, authors_column: str = PUBLICATIONS_AUTHORS_COLUMN
 ) -> list[str]:
     """Read unique, non-empty author names out of a publications CSV file.
 
@@ -708,7 +876,7 @@ def read_authors_from_publications_csv(
     return authors
 
 
-def load_keywords(path: str) -> list[str]:
+def load_keywords(path: str | Path) -> list[str]:
     """Load unique, non-empty keywords from a one-per-line text file."""
     keywords = []
     seen = set()
@@ -787,7 +955,9 @@ def has_strong_match(matches: list[str]) -> bool:
 
 
 def search_authors(
-    authors: list[str], keyword_pattern: re.Pattern[str]
+    authors: list[str],
+    keyword_pattern: re.Pattern[str],
+    progress: Progress = _no_progress,
 ) -> tuple[list[dict], list[dict]]:
     """Search Europe PMC for each author in turn.
 
@@ -834,7 +1004,7 @@ def search_authors(
             # subsequent --retry-errors run starts from a clean slate for them.
             paper_rows.extend(author_paper_rows)
 
-            print(
+            progress(
                 f"[{idx}/{len(authors)}] {author_name}: "
                 f"{len(results)} matches, {filtered_count} after keyword filter"
             )
@@ -849,7 +1019,7 @@ def search_authors(
             )
 
         except Exception as e:
-            print(f"[{idx}/{len(authors)}] ERROR for {author_name}: {e}")
+            progress(f"[{idx}/{len(authors)}] ERROR for {author_name}: {e}")
             summary_rows.append(
                 {
                     "input_author": author_name,
@@ -864,7 +1034,7 @@ def search_authors(
 
 
 def accession_targets_from_paper_rows(paper_rows: list[dict]) -> list[str]:
-    """Collect unique lftp target lines from a list of paper rows.
+    """Collect unique study FTP paths (targets.txt lines) from a list of paper rows.
 
     Reads each (deduped) row's metabolights_accessions field, in order of
     first appearance.
@@ -876,91 +1046,5 @@ def accession_targets_from_paper_rows(paper_rows: list[dict]) -> list[str]:
             acc = acc.strip()
             if acc and acc not in seen:
                 seen.add(acc)
-                targets.append(format_lftp_target(acc))
+                targets.append(study_ftp_path(acc))
     return targets
-
-
-def main() -> int:
-    """Run the Europe PMC author search and write results to CSV files.
-
-    Returns an exit code meant for cron/Celery-style scheduling:
-      0  Completed with no errors.
-      3  Completed, but one or more authors' searches errored (see the
-         error column in the summary CSV) -- run again with
-         --retry-errors before treating the output as complete or
-         running fetch_metabolights.sh.
-      1  Something unexpected went wrong and the run did not complete
-         (e.g. a required input file was missing).
-    """
-    parser = argparse.ArgumentParser(
-        description="Search Europe PMC for MetaboLights-linked publications."
-    )
-    parser.add_argument(
-        "--retry-errors",
-        action="store_true",
-        help=(
-            "Instead of a full run, re-run the search only for authors that "
-            f"errored in the previous run (per the error column in "
-            f"{SUMMARY_OUTPUT_CSV}), and merge the results into the existing "
-            "output files rather than starting over."
-        ),
-    )
-    args = parser.parse_args()
-
-    try:
-        if args.retry_errors:
-            still_errored = retry_errored_authors()
-            return 3 if still_errored else 0
-
-        input_csv = "publications.csv"
-        authors_column = "Authors"
-
-        authors = read_authors_from_publications_csv(input_csv, authors_column)
-        keywords = load_keywords(KEYWORDS_CSV)
-        keyword_pattern = build_keyword_pattern(keywords)
-        print(f"Loaded {len(keywords)} keywords from {KEYWORDS_CSV}")
-
-        paper_rows, summary_rows = search_authors(authors, keyword_pattern)
-        deduped_paper_rows = dedupe_paper_rows(paper_rows)
-
-        with Path(PAPERS_OUTPUT_CSV).open("w", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=PAPER_FIELDNAMES)
-            writer.writeheader()
-            writer.writerows(deduped_paper_rows)
-
-        with Path(SUMMARY_OUTPUT_CSV).open("w", newline="", encoding="utf-8") as f:
-            writer = csv.DictWriter(f, fieldnames=SUMMARY_FIELDNAMES)
-            writer.writeheader()
-            writer.writerows(summary_rows)
-
-        accession_targets = accession_targets_from_paper_rows(deduped_paper_rows)
-        with Path(TARGETS_OUTPUT_TXT).open("w", encoding="utf-8") as f:
-            f.write("\n".join(accession_targets))
-            if accession_targets:
-                f.write("\n")
-
-        errored_count = sum(1 for r in summary_rows if r.get("error"))
-
-        print()
-        print(
-            f"Wrote {len(deduped_paper_rows)} unique papers "
-            f"(from {len(paper_rows)} author-paper matches) to {PAPERS_OUTPUT_CSV}"
-        )
-        print(f"Wrote {len(summary_rows)} summary rows to {SUMMARY_OUTPUT_CSV}")
-        print(f"Wrote {len(accession_targets)} lftp targets to {TARGETS_OUTPUT_TXT}")
-
-        if errored_count:
-            print(
-                f"{errored_count} author(s) errored -- run with --retry-errors "
-                "before relying on this output."
-            )
-            return 3
-        return 0
-
-    except Exception:
-        traceback.print_exc()
-        return 1
-
-
-if __name__ == "__main__":
-    sys.exit(main())

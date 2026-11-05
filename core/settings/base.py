@@ -144,7 +144,9 @@ DATABASES = {
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# DATASETS ROOT variable used for portal data storage
+# DATASETS ROOT variable used for portal data storage. Also where
+# `manage.py metabolights_fetch` saves studies, and where metabolights_search keeps
+# its outputs (in a metabolights_search/ subfolder). Required in production.
 DATASETS_ROOT = env("DATASETS_ROOT", default="/datasets")
 
 # Seconds to cache the parsed portal data listing (see portal_data.services.load_all_items).

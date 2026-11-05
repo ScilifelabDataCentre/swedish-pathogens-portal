@@ -30,6 +30,14 @@ WAGTAILADMIN_BASE_URL = env("WAGTAILADMIN_BASE_URL").rstrip("/")
 MEDIA_ROOT = env("MEDIA_ROOT")
 MEDIA_URL = env("MEDIA_URL", default="media").rstrip("/") + "/"
 
+# PORTAL DATA (Production)
+# ------------------------------------------------------------------------------
+# Required: the persistent volume holding the MetaboLights studies the Portal
+# Data page lists, and the metabolights_search outputs (see base.py). No default,
+# so a deployment without the volume configured fails at startup rather than
+# silently showing an empty listing or losing search results on pod restart.
+DATASETS_ROOT = env("DATASETS_ROOT")
+
 # Private visitor DE session payloads — must NOT be under MEDIA_ROOT /media.
 # Mount a writable volume at the parent path (e.g. /app/private) on the spp pod;
 # do not mount it into the media-proxy nginx container.
