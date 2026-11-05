@@ -37,7 +37,7 @@ services:
       # env_file:). With mailpit's profile off, sends fail gracefully.
       - EMAIL_HOST=${EMAIL_HOST:-mailpit}
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     working_dir: /app/local
     volumes:
       - type: bind
@@ -51,10 +51,12 @@ services:
         condition: service_started
   # Postgresql DB
   db:
-    image: postgres:18.6-trixie@sha256:1957b2ff3137e4ef7f3bc813e74fff50b1e1ffddc85c8b9d6f14ade972be8687
+    image: postgres:18.6-trixie@sha256:3a4264520e121176619f54ff867d12774bc81e95e7b84db58d63bccdb6144b81
     container_name: spp_db
     env_file:
       - .env
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:${POSTGRES_PORT:-5432}"
     volumes:
       - type: volume
         source: postgres_db
@@ -91,13 +93,13 @@ services:
   # service targets this host by default (EMAIL_HOST above); with the profile
   # off, sends fail gracefully (EMAIL_SEND_ERROR), no crash.
   mailpit:
-    image: axllent/mailpit:v1.31@sha256:94f6b70c1436defae6799d9ac7ff0eeff9540465b842026d5cdb018f1c0234ea
+    image: axllent/mailpit:v1.33@sha256:9b3a463be15354c0f0eba91697d80e3e0d8a5623ef0e627cacc836bc17fd5231
     container_name: spp_mailpit
     profiles:
       - "mailpit"
     ports:
-      - "1025:1025"   # SMTP
-      - "8025:8025"   # Web UI
+      - "127.0.0.1:1025:1025"   # SMTP
+      - "127.0.0.1:8025:8025"   # Web UI
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:8025/"]
       interval: 5s

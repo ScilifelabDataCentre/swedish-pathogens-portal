@@ -1,19 +1,25 @@
-"""Test settings: SQLite in-memory, no external services required."""
+"""Test settings: the PostgreSQL cluster dev and production already run on.
 
-import os
+The database comes from ``base.py``, which reads ``DATABASE_URL``; the test
+runner creates and drops its own ``test_<name>`` database next to the one named
+there. Tests used to run on SQLite in memory, which needs no cluster but does
+not stem indexed words, so search behaved differently under test than in
+production and every search assertion proved the wrong thing.
 
-# Provide a parseable DATABASE_URL so base.py can import without error.
-# The actual DATABASES dict is overridden below.
-os.environ.setdefault("DATABASE_URL", "sqlite://:memory:")
+This module matches unittest's ``test*.py`` discovery pattern, so the suite
+loads it as a test module too and anything raised here fails the whole run
+rather than one test. Only an unconditional misconfiguration may raise, which
+the engine check is: ``django.contrib.postgres`` is in ``INSTALLED_APPS``, so
+no settings module in this project can run on another engine.
+"""
+
+from django.core.exceptions import ImproperlyConfigured
 
 from .base import *  # noqa: F401,F403
 
-DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": ":memory:",
-    },
-}
+if DATABASES["default"]["ENGINE"] != "django.db.backends.postgresql":  # noqa: F405
+    msg = "core.settings.test needs DATABASE_URL to point at PostgreSQL."
+    raise ImproperlyConfigured(msg)
 
 DEBUG = False
 

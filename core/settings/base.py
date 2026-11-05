@@ -144,7 +144,9 @@ DATABASES = {
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
-# DATASETS ROOT variable used for portal data storage
+# DATASETS ROOT variable used for portal data storage. Also where
+# `manage.py metabolights_fetch` saves studies, and where metabolights_search keeps
+# its outputs (in a metabolights_search/ subfolder). Required in production.
 DATASETS_ROOT = env("DATASETS_ROOT", default="/datasets")
 
 # Seconds to cache the parsed portal data listing (see portal_data.services.load_all_items).
@@ -207,6 +209,22 @@ WAGTAILIMAGES_FORMAT_CONVERSIONS = {
 }
 # Ask for AI provenance on add, edit, chooser upload, and the multiple uploader.
 WAGTAILIMAGES_IMAGE_FORM_BASE = "cms.forms.image.AIImageForm"
+
+
+# SEARCH (https://docs.wagtail.org/en/stable/topics/search/backends.html)
+# ------------------------------------------------------------------------------
+# Wagtail's built-in database backend uses native PostgreSQL full-text search,
+# under test as well as in dev and prod -- its stemming is what decides which
+# words a query matches. AUTO_UPDATE reindexes a page when it is saved or deleted,
+# but never backfills: pages that exist before a model is indexed or its
+# search_fields change need `manage.py update_index`, which prod-entrypoint.sh runs
+# on every start.
+WAGTAILSEARCH_BACKENDS = {
+    "default": {
+        "BACKEND": "wagtail.search.backends.database",
+        "AUTO_UPDATE": True,
+    }
+}
 
 
 # Logging

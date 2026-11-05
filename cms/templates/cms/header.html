@@ -5,9 +5,9 @@
 <header class="bg-white border-b border-pp-pale-grey sticky top-0 z-50 shadow-sm
     motion-safe:transition-all motion-safe:duration-700 motion-safe:delay-200 ease-in-out">
     <div class="container">
-        <div class="flex items-center justify-between nav:gap-6 h-16 lg:h-20 w-full">
+        <div class="relative flex items-center md:gap-4 h-16 lg:h-20 w-full">
             <!-- Logos: left-aligned, minimal gutter on mobile; full spacing on desktop -->
-            <div class="flex items-center gap-2 lg:gap-3 logos:gap-5 min-w-0 shrink-0">
+            <div class="flex items-center gap-2 lg:gap-3 logos:gap-5 min-w-0 shrink-0 me-auto">
                 <a href="/" class="focus-visible:rounded focus-visible:outline-none
                     focus-visible:ring-2 focus-visible:ring-pp-teal focus-visible:ring-offset-2">
                     <img src="{% static 'cms/images/swe_pathogens_logo.svg' %}" alt="Swedish Pathogens Portal"
@@ -21,7 +21,7 @@
             </div>
 
             <!-- Desktop Navigation (agreed menu structure) -->
-            <nav class="hidden nav:flex items-center gap-4 nav:gap-6" aria-label="Main navigation">
+            <nav class="hidden nav:flex items-center gap-5 2xl:gap-6" aria-label="Main navigation">
                 {% for item in header_menu %}
                     {% if item.has_submenu %}
                     <div class="relative group">
@@ -67,8 +67,21 @@
                 {% endfor %}
             </nav>
 
+            <!-- Search toggle: opens the panel below. A plain link to the search page without
+                 JavaScript. With the full menu it sits just outside the column, in the margin,
+                 so it takes no width from the menu. Phones search from the mobile menu. -->
+            <a href="{% url 'search' %}" id="header-search-toggle" data-search-toggle
+                aria-controls="header-search-panel" aria-label="Search" title="Search"
+                class="btn btn-ghost btn-circle btn-sm text-pp-dark-blue hover:text-pp-teal hidden md:inline-flex
+                nav:absolute nav:left-full nav:ml-4 nav:top-1/2 nav:-translate-y-1/2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"></path>
+                </svg>
+            </a>
+
             <!-- Mobile Menu Button: right-aligned, minimal gutter on mobile -->
-            <div class="nav:hidden ml-auto shrink-0">
+            <div class="nav:hidden shrink-0">
                 <button
                     id="mobile-menu-button"
                     class="text-pp-dark-blue focus-visible:outline-none focus-visible:ring-2
@@ -83,6 +96,39 @@
                             d="M4 6h16M4 12h16M4 18h16"></path>
                     </svg>
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Search panel: drops under the header, over the page. header_search.js opens and closes it. -->
+    <div id="header-search-panel" data-search-panel hidden
+        class="absolute inset-x-0 top-full z-40 border-t border-pp-pale-grey bg-white shadow-lg">
+        <div class="container py-5">
+            <div class="mx-auto max-w-3xl">
+                <form method="get" action="{% url 'search' %}" role="search" class="flex items-center gap-3">
+                    <label for="header-search" class="sr-only">Search datasets, dashboards, news and more</label>
+                    <div class="input input-accent h-12 w-full text-base">
+                        <svg class="w-5 h-5 shrink-0 text-pp-dark-grey" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"></path>
+                        </svg>
+                        <input id="header-search" type="search" name="q" autocomplete="off" required
+                            class="grow" placeholder="Search datasets, dashboards, news and more" maxlength="100"
+                            aria-controls="header-search-results"
+                            hx-get="{% url 'search_autocomplete' %}"
+                            hx-trigger="input changed delay:300ms"
+                            hx-target="#header-search-results"
+                            hx-swap="innerHTML">
+                    </div>
+                    <button type="submit" class="btn btn-primary h-12 px-6">Search</button>
+                    <button type="button" class="btn btn-ghost btn-circle" aria-label="Close search" data-search-close>
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                        </svg>
+                    </button>
+                </form>
+                <div id="header-search-results" role="region" aria-live="polite"
+                    aria-label="Search suggestions" data-search-suggest-panel hidden class="mt-2"></div>
             </div>
         </div>
     </div>
@@ -108,6 +154,21 @@
             </button>
             <hr class="my-4 border-pp-pale-grey">
             <div class="flex flex-col gap-4" aria-label="Main links">
+                <!-- Phones only: from `md` up the header search toggle is visible, even with
+                     this menu open, so a field here would be the second one on screen. -->
+                <form method="get" action="{% url 'search' %}" role="search" class="mb-2 md:hidden">
+                    <label for="mobile-search" class="sr-only">Search the portal</label>
+                    <div class="input input-accent w-full pe-1">
+                        <input id="mobile-search" type="search" name="q" required
+                            class="grow" placeholder="Search the portal" maxlength="100">
+                        <button type="submit" class="btn btn-ghost btn-sm btn-square" aria-label="Search">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </form>
                 {% for item in header_menu %}
                     {% if item.has_submenu %}
                     <div role="group" aria-label="{{ item.title }}">

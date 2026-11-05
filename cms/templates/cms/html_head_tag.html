@@ -1,4 +1,4 @@
-{% load static django_htmx ai_images %}
+{% load static django_htmx ai_images structured_data %}
 
 {% comment %}
     Set the site name, meta title, and meta description for the page. The site name is retrieved
@@ -62,6 +62,9 @@
 
     {# Twitter card meta tags for social media sharing #}
     <meta name="twitter:card" content="summary_large_image">
+
+    {# Schema.org structured data describing this page for search engines #}
+    {% structured_data %}
 
     <!-- Load the htmx -->
     {% htmx_script %}

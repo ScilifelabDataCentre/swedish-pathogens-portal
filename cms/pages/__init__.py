@@ -7,6 +7,7 @@ from .contact import ContactPage
 from .dashboard import DashboardEbiPathogen, DashboardPage, DashboardTopic
 from .dashboard_index import DashboardIndexPage
 from .drr_dataset import DrrDatasetPage
+from .genomic_data import GenomicDataPage
 from .highlights_and_editorials import (
     HighlightsAndEditorialsPage,
     HighlightsAndEditorialsTopic,
@@ -37,6 +38,7 @@ __all__ = [
     "DashboardPage",
     "DashboardTopic",
     "DrrDatasetPage",
+    "GenomicDataPage",
     "HighlightsAndEditorialsIndexPage",
     "HighlightsAndEditorialsPage",
     "HighlightsAndEditorialsTopic",

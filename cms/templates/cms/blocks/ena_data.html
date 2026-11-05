@@ -1,0 +1,142 @@
+{% comment %}
+    EnaDataBlock's template, styled to match the Portal data (Metabolomics) page:
+    a search form whose listing (data type tabs, facets and results) is lazy-loaded via
+    HTMX, then swapped whenever the search, a facet, a tab, a sort or a page changes.
+    The search box sits outside the swapped listing so typing isn't interrupted; facet
+    checkboxes keep stable ids, so HTMX restores their focus after a swap.
+    The current query string is passed on, so shared or bookmarked URLs load that same view.
+{% endcomment %}
+
+<form id="ena-search-form" method="get" action="{{ request.path }}" role="search"
+    class="mt-6 lg:mt-8"
+    hx-get="{{ request.path }}" hx-target="#ena-listing" hx-swap="innerHTML"
+    hx-push-url="true" hx-sync="this:replace" hx-indicator="#ena-listing-loading"
+    hx-trigger="
+    input changed delay:400ms from:#ena-search-input,
+    change[target.matches('input.facet-checkbox, select.page-size')],
+    submit
+    ">
+    <header class="mb-6 lg:mb-8">
+        {# The page's only <h1> (the banner title is an <h2>). Visually hidden, as the banner already shows the title. #}
+        <h1 class="sr-only">{{ page.title }}</h1>
+
+        <div class="mt-4 flex w-full flex-col gap-3 sm:flex-row sm:items-center">
+            <input type="search" id="ena-search-input" name="q" value="{{ ena_search_text }}"
+                maxlength="200" autocomplete="off"
+                placeholder="Search records, accessions, organisms..."
+                aria-label="Search genomic data"
+                class="input input-bordered input-accent w-full">
+
+            <div class="flex shrink-0 items-center gap-2">
+                <button type="submit" class="btn btn-primary btn-sm">
+                    Search
+                </button>
+                {# A full page load, so the search box is cleared along with the facets and sort. #}
+                <a href="{{ request.path }}" class="btn btn-outline btn-sm">
+                    Reset
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <div class="relative min-h-40"
+        hx-get="{{ ena_listing_url|default:request.get_full_path }}"
+        hx-trigger="load once"
+        hx-target="#ena-listing">
+        <div id="ena-listing-loading"
+            class="htmx-indicator absolute inset-0 bg-base-100/80 flex items-center justify-center z-10 rounded">
+            <span class="loading loading-spinner text-accent loading-lg" aria-label="Loading"></span>
+        </div>
+        <div id="ena-listing" aria-live="polite" aria-busy="false">
+            <!-- Listing loaded lazily by HTMX -->
+            <noscript>
+                <p>This list of records is loaded with JavaScript, please enable it to see the data.</p>
+            </noscript>
+        </div>
+    </div>
+</form>
+
+<script>
+    // Mark the listing as busy while HTMX swaps it, so screen readers announce the new content once.
+    document.body.addEventListener("htmx:beforeRequest", (event) => {
+        if (event.detail.target && event.detail.target.id === "ena-listing") {
+            event.detail.target.setAttribute("aria-busy", "true");
+        }
+    });
+    document.body.addEventListener("htmx:afterSettle", (event) => {
+        if (event.detail.target && event.detail.target.id === "ena-listing") {
+            event.detail.target.setAttribute("aria-busy", "false");
+        }
+    });
+
+    // Column chooser: hides table columns in the browser, remembered per data type in
+    // localStorage, and re-applied after every HTMX swap of the listing.
+    (function () {
+        const storageKey = (dataType) => "genomicData:hiddenColumns:" + dataType;
+
+        function currentDataType() {
+            const table = document.querySelector("#ena-listing table[data-data-type]");
+            return table ? table.dataset.dataType : null;
+        }
+
+        function loadHidden(dataType) {
+            try {
+                return new Set(JSON.parse(localStorage.getItem(storageKey(dataType)) || "[]"));
+            } catch (err) {
+                return new Set();
+            }
+        }
+
+        function saveHidden(dataType, hidden) {
+            try {
+                localStorage.setItem(storageKey(dataType), JSON.stringify([...hidden]));
+            } catch (err) {
+                // localStorage unavailable (private browsing, quota, etc.) - the choice just won't persist
+            }
+        }
+
+        function applyHidden() {
+            const dataType = currentDataType();
+            if (!dataType) return;
+            const hidden = loadHidden(dataType);
+            document.querySelectorAll("#ena-listing [data-col]").forEach((cell) => {
+                cell.classList.toggle("hidden", hidden.has(cell.dataset.col));
+            });
+            document.querySelectorAll("#ena-listing .column-toggle").forEach((toggle) => {
+                toggle.checked = !hidden.has(toggle.dataset.col);
+            });
+        }
+
+        document.addEventListener("change", (event) => {
+            const toggle = event.target.closest("#ena-listing .column-toggle");
+            if (!toggle) return;
+            const dataType = currentDataType();
+            if (!dataType) return;
+            const hidden = loadHidden(dataType);
+            if (toggle.checked) {
+                hidden.delete(toggle.dataset.col);
+            } else {
+                hidden.add(toggle.dataset.col);
+            }
+            saveHidden(dataType, hidden);
+            applyHidden();
+        });
+
+        document.body.addEventListener("htmx:afterSettle", (event) => {
+            if (event.detail.target && event.detail.target.id === "ena-listing") applyHidden();
+        });
+    })();
+
+    // Facet "Show more / Show less", as on the Portal data page. Delegated from the
+    // document, so it keeps working after HTMX swaps the listing.
+    document.addEventListener("click", (event) => {
+        const button = event.target.closest("#ena-listing .facet-toggle");
+        if (!button) return;
+        const target = document.getElementById(button.dataset.target);
+        if (!target) return;
+        const isExpanded = button.getAttribute("aria-expanded") === "true";
+        target.classList.toggle("hidden", isExpanded);
+        button.setAttribute("aria-expanded", String(!isExpanded));
+        button.textContent = isExpanded ? button.dataset.collapsedText : button.dataset.expandedText;
+    });
+</script>

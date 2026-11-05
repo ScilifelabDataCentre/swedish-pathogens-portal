@@ -9,6 +9,7 @@ from wagtail.blocks import RichTextBlock
 from wagtail.fields import StreamField
 from wagtail.images import get_image_model_string
 from wagtail.models import Page
+from wagtail.search import index
 
 from cms.blocks import AlertBlock
 
@@ -46,6 +47,14 @@ class NewsPage(Page):
         ],
         blank=True,
     )
+
+    search_fields = Page.search_fields + [
+        index.SearchField("description"),
+        index.AutocompleteField("description"),
+        index.SearchField("content"),
+        index.AutocompleteField("content"),
+        index.AutocompleteField("title"),
+    ]
 
     content_panels = Page.content_panels + [
         MultiFieldPanel(

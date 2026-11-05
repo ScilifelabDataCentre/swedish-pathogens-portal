@@ -125,8 +125,12 @@ class TestDrrBulkDownloads(DrrDownloadRouteTestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response["Content-Disposition"], 'attachment; filename="features.csv"')
+        # Draining streaming_content is what closes the response: the test client
+        # wraps it so the file handle is released once the iterator is exhausted,
+        # with request_finished shielded. Closing it again here sends that signal
+        # unshielded, and close_old_connections then drops the PostgreSQL
+        # connection for the rest of the class -- in-memory SQLite ignores it.
         body = b"".join(response.streaming_content).decode()
-        response.close()
         self.assertEqual(body, frame.write_csv())
         self.assertIn("cbkid", body.splitlines()[0])
 
@@ -140,7 +144,6 @@ class TestDrrBulkDownloads(DrrDownloadRouteTestCase):
         self.assertEqual(response["Content-Disposition"], 'attachment; filename="features.parquet"')
         self.assertEqual(response["Content-Type"], "application/octet-stream")
         body = b"".join(response.streaming_content)
-        response.close()
         self.assertTrue(body.startswith(b"PAR1"))
 
     def test_missing_csv_artefact_returns_404(self) -> None:

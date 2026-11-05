@@ -14,7 +14,9 @@ LOGGER = structlog.get_logger(__name__)
 CLIENT = httpx.Client(timeout=10)
 
 
-def fetch_json(url: str, params: dict[str, Any] | None = None) -> dict[str, Any] | None:
+def fetch_json(
+    url: str, params: dict[str, Any] | None = None, timeout: float | None = None
+) -> dict[str, Any] | None:
     """GET `url` with `params` and parse the response body as JSON.
 
     `params` is optional: `url` may already include its own query string
@@ -22,10 +24,16 @@ def fetch_json(url: str, params: dict[str, Any] | None = None) -> dict[str, Any]
     all. Passing `params` (even `{}`) overrides any query string in `url`,
     since that's how httpx.Client.get handles the two together.
 
+    `timeout` (seconds) overrides the client's default of 10 seconds, for APIs
+    that are known to be slow.
+
     Returns None if the request times out, fails, or returns invalid JSON.
     """
     try:
-        response = CLIENT.get(url, params=params)
+        if timeout is None:
+            response = CLIENT.get(url, params=params)
+        else:
+            response = CLIENT.get(url, params=params, timeout=timeout)
         response.raise_for_status()
         return response.json()
     except httpx.TimeoutException as e:

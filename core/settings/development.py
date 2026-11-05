@@ -47,13 +47,13 @@ LIVER_SESSION_ROOT = BASE_DIR / "private" / "liver_resource_sessions"  # noqa: F
 
 # PORTAL DATA (Development)
 # ------------------------------------------------------------------------------
-# Default to where portal_data/scripts/fetch_metabolights.sh saves studies
-# (gitignored). BASE_DIR resolves to /app/local under Docker Compose and to the
-# repo root under devbox, so this works in both. Production keeps base.py's
-# /datasets default.
+# Default to a gitignored folder in the repo, which is also where
+# `manage.py metabolights_fetch` saves studies by default. BASE_DIR resolves to
+# /app/local under Docker Compose and to the repo root under devbox, so this
+# works in both. Production keeps base.py's /datasets default.
 DATASETS_ROOT = env(
     "DATASETS_ROOT",
-    default=str(BASE_DIR / "portal_data" / "scripts" / "datasets"),  # noqa: F405
+    default=str(BASE_DIR / "private" / "datasets"),  # noqa: F405
 )
 
 

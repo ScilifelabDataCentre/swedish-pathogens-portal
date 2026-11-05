@@ -73,3 +73,10 @@ class TestFetchJson(SimpleTestCase):
         mock_get.return_value = mock_response
         with self.assertLogs("cms.services.api_client", level="ERROR"):
             self.assertIsNone(fetch_json(url="https://example.test/api", params={}))
+
+    @patch("cms.services.api_client.CLIENT.get")
+    def test_timeout_can_be_overridden(self, mock_get: MagicMock):
+        """Test a per-request timeout is passed on to the client."""
+        mock_get.return_value.json.return_value = {"ok": True}
+        fetch_json(url="https://example.test/api", params={}, timeout=20)
+        mock_get.assert_called_once_with("https://example.test/api", params={}, timeout=20)
