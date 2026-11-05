@@ -3,7 +3,7 @@ name = "swedish-pathogens-portal"
 version = "0.1.0"
 description = "The Swedish Pathogens Portal provides information about available datasets, resources, tools, and services related to pandemic preparedness in Sweden. We offer support to all those involved in pandemic preparedness research that are affiliated with a Swedish research institution or university."
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = "==3.15.*"
 dependencies = [
     "django==6.1.2",
     "django-environ==0.14.0",
@@ -11,7 +11,6 @@ dependencies = [
     "django-structlog==10.1.0",
     "fastexcel==0.21.0",
     "httpx==0.28.1",
-    "markdown==3.11.2",
     "nh3==0.3.7",
     "numpy==2.5.4",
     "pillow==13.0.0",
@@ -22,7 +21,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "debugpy>=1.8.21",
+    "debugpy==1.8.22",
     "django-browser-reload==1.21.0",
     "django-extensions==4.1",
     "pre-commit==4.7.0",
