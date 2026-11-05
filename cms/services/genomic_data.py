@@ -247,6 +247,8 @@ def build_context_dict(request: HttpRequest, page: GenomicDataPage | None = None
         "facets_active": bool(state.facets),
         "clear_facets_url": state.url(path, facets={}),
         "fetch_error": result is None,
+        # when EBI Search is down, the last good results are shown instead, marked as such
+        "stale_since": None,
         "records": [],
         "page_obj": None,
         "sort_headers": [],
@@ -256,6 +258,7 @@ def build_context_dict(request: HttpRequest, page: GenomicDataPage | None = None
     if result is None:
         return context
 
+    context["stale_since"] = result.stale_since
     context["facets"] = []
     for facet in result.facets:
         values = [
@@ -306,6 +309,7 @@ def build_context_dict(request: HttpRequest, page: GenomicDataPage | None = None
     context.update(
         {
             "records": result.records,
+            "stale_since": result.stale_since,
             "page_obj": page_obj,
             "total_display": _format_count(result.total),
             "start_display": _format_count(page_obj.start_index()),

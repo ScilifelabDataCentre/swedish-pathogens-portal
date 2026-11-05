@@ -13,13 +13,14 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
+from datetime import datetime
 from typing import Any
 
 import structlog
 
 from cms.services.api_client import fetch_json
-from cms.services.caching import cache_get_or_set
+from cms.services.caching import cache_get_or_set_with_fallback
 
 LOGGER = structlog.get_logger(__name__)
 
@@ -32,6 +33,9 @@ BASE_QUERY = '(country:"Sweden") AND tag:pathogen'
 
 SEARCH_CACHE_TTL_SECONDS = 30 * 60  # 30 minutes
 COUNT_CACHE_TTL_SECONDS = 6 * 60 * 60  # 6 hours
+# How long the last good copy of each search and count is kept, to show instead
+# (marked as such) if EBI Search is down. See cache_get_or_set_with_fallback.
+FALLBACK_TTL_SECONDS = 7 * 24 * 60 * 60  # 7 days
 # EBI Search can take several seconds, e.g. for a prefix search on a large index,
 # so allow longer than the shared API client's default of 10 seconds.
 REQUEST_TIMEOUT_SECONDS = 20
@@ -226,11 +230,16 @@ class Facet:
 
 @dataclass(frozen=True)
 class SearchResult:
-    """One page of results, with the total and facets for the whole result set."""
+    """One page of results, with the total and facets for the whole result set.
+
+    ``stale_since`` is set when EBI Search failed and this is the last good copy
+    of the same search instead: the time that copy was fetched.
+    """
 
     total: int
     records: tuple[Record, ...]
     facets: tuple[Facet, ...] = field(default=())
+    stale_since: datetime | None = None
 
 
 def taxon_url(taxon_id: str | int) -> str:
@@ -536,11 +545,15 @@ def search(
             facets=_parse_facets(data.get("facets"), selected),
         )
 
-    return cache_get_or_set(
+    cached = cache_get_or_set_with_fallback(
         key=_cache_key(f"search_{data_type.domain}", params),
         timeout=SEARCH_CACHE_TTL_SECONDS,
+        fallback_timeout=FALLBACK_TTL_SECONDS,
         compute=compute,
     )
+    if cached.value is not None and cached.is_fallback:
+        return replace(cached.value, stale_since=cached.saved_at)
+    return cached.value
 
 
 def fetch_count(data_type: DataType, text: str = "") -> int | None:
@@ -562,8 +575,9 @@ def fetch_count(data_type: DataType, text: str = "") -> int | None:
             LOGGER.error("ebi_search.invalid_hit_count", domain=data_type.domain)
             return None
 
-    return cache_get_or_set(
+    return cache_get_or_set_with_fallback(
         key=_cache_key(f"count_{data_type.domain}", params),
         timeout=COUNT_CACHE_TTL_SECONDS,
+        fallback_timeout=FALLBACK_TTL_SECONDS,
         compute=compute,
-    )
+    ).value

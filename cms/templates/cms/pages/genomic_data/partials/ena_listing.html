@@ -86,6 +86,17 @@
     </aside>
 
     <div class="min-w-0 lg:col-span-9">
+        {% if stale_since and not fetch_error %}
+        {# Shown when EBI Search fails but an earlier copy of these results is still cached. #}
+        <div class="mb-3 rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900" role="status">
+            <p class="m-0 font-semibold">These results may be out of date</p>
+            <p class="mt-1 mb-0">
+                The search service of the European Bioinformatics Institute (EMBL-EBI) isn't responding at the moment,
+                so these are the results saved on {{ stale_since|date:"l jS F Y, H:i" }}.
+                Please try again in a little while for the latest data.
+            </p>
+        </div>
+        {% endif %}
         {% if fetch_error %}
         {# Shown when EBI Search errors or doesn't answer in time; failures aren't cached, so a reload retries. #}
         <div class="rounded border border-red-200 bg-red-50 p-3 text-sm text-red-800" role="alert">
