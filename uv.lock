@@ -1052,7 +1052,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "debugpy", specifier = ">=1.8.21" },
+    { name = "debugpy", specifier = "==1.8.22" },
     { name = "django-browser-reload", specifier = "==1.21.0" },
     { name = "django-extensions", specifier = "==4.1" },
     { name = "pre-commit", specifier = "==4.7.0" },
@@ -1062,7 +1062,7 @@ dev = [
     { name = "werkzeug", extras = ["watchdog"], specifier = "==3.1.9" },
 ]
 extensions = [
-    { name = "debugpy", specifier = ">=1.8.21" },
+    { name = "debugpy", specifier = "==1.8.22" },
     { name = "django-browser-reload", specifier = "==1.21.0" },
     { name = "django-extensions", specifier = "==4.1" },
     { name = "pre-commit", specifier = "==4.7.0" },
