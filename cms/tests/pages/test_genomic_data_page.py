@@ -369,7 +369,8 @@ class TestGenomicDataPage(WagtailPageTestCase):
         """Test EBI Search being unreachable shows an error message."""
         mock_fetch.return_value = None
         response = self.get_htmx()
-        self.assertContains(response, "could not be loaded from ENA")
+        self.assertContains(response, "The sequences can't be shown right now")
+        self.assertContains(response, "isn't responding at the moment")
 
     # --- Downloads ----------------------------------------------------------------
 
