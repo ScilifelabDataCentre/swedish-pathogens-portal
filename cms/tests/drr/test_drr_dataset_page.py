@@ -25,7 +25,7 @@ from cms.pages.topics import TopicPage
 from cms.pages.topics_index import TopicsIndexPage
 from cms.snippets.dashboard_data import DashboardData
 from cms.snippets.drr_dataset_data import DrrDatasetData
-from cms.tests.drr.test_drr_precompute import FEATURE_CSV, METADATA_TSV
+from cms.tests.drr.test_drr_precompute import FEATURE_CSV, METADATA_TSV, PLATE_METADATA_TSV
 from cms.tests.utils import create_test_image, use_temp_media_root
 
 # A representative, fully-populated summary payload mirroring spec section 7 plus
@@ -96,7 +96,7 @@ FULL_SUMMARY = {
                     {"column": "AreaShape_FormFactor_nuclei", "n_clipped": 311}
                 ],
             },
-            "used_by": ["pca", "heatmap", "radar_compound", "radar_infected"],
+            "used_by": ["pca", "radar_compound", "radar_infected"],
         },
     },
     "compound_reconciliation": {
@@ -281,9 +281,15 @@ class TestDrrDatasetPageRender(DrrDatasetPageTestCase):
         self.assertContains(response, "1,467")  # n_features
         self.assertContains(response, "7,500")  # n_wells
 
-        # Perturbation types plus compartments / channels.
-        self.assertContains(response, "Perturbation types")
-        self.assertContains(response, "6,800")  # trt count
+        # Well populations, named in plain language, plus compartments / channels.
+        # The tokens stay the summary's keys and never reach a reader (FREYA-3009).
+        self.assertContains(response, "Well populations")
+        self.assertContains(response, "Treated: 6,800")
+        self.assertContains(response, "Infected control (DMSO): 900")
+        self.assertContains(response, "Positive control: 598")
+        self.assertNotContains(response, "negcon")
+        self.assertNotContains(response, "poscon")
+        self.assertNotContains(response, "trt:")
         self.assertContains(response, "nuclei, cells, cytoplasm")
 
         # Channels name their stains and say which one the figures leave out.
@@ -319,6 +325,26 @@ class TestDrrDatasetPageRender(DrrDatasetPageTestCase):
         # Figure rendered server-side through the inherited PlotlyFigureBlock path.
         self.assertContains(response, 'class="plotly-figure"')
         self.assertContains(response, 'aria-label="PCA plot"')
+
+    def test_an_unnamed_population_renders_as_itself_rather_than_failing(self) -> None:
+        """A summary token with no name is shown raw; the page still renders.
+
+        Precompute refuses such a population, so this is a summary written
+        elsewhere — and a missing label must not take the whole page down.
+        """
+        DrrDatasetData.objects.create(
+            dataset_slug="sars-cov2-a549-ace2-validation",
+            data={},
+            summary={**FULL_SUMMARY, "pert_type_counts": {"trt": 6800, "mystery": 12}},
+            source_file_hash="deadbeefcafe0000",
+            data_updated_at=date(2026, 7, 10),
+        )
+
+        response = self.client.get(self.page.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Treated: 6,800")
+        self.assertContains(response, "mystery: 12")
 
     def test_figure_falls_back_when_figure_json_missing(self) -> None:
         """With no precomputed figure JSON the block shows its unavailable-data fallback."""
@@ -970,6 +996,8 @@ class TestDrrDatasetSliceAcceptance(DrrDatasetPageTestCase):
         input_path.write_text(FEATURE_CSV, encoding="utf-8")
         metadata_path = base / "metadata.tsv"
         metadata_path.write_text(METADATA_TSV, encoding="utf-8")
+        plate_metadata_path = base / "plates.tsv"
+        plate_metadata_path.write_text(PLATE_METADATA_TSV, encoding="utf-8")
         media = base / "media"
 
         # The registered screen: the fixture is this screen's data in miniature,
@@ -981,6 +1009,7 @@ class TestDrrDatasetSliceAcceptance(DrrDatasetPageTestCase):
                 slug=slug,
                 input=str(input_path),
                 metadata=str(metadata_path),
+                plate_metadata=str(plate_metadata_path),
                 title="Acceptance DRR",
             )
 
