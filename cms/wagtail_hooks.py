@@ -8,6 +8,7 @@ from wagtail import hooks
 from wagtail.admin import messages
 
 from cms.handlers.external_link import ExternalLinkNewTabHandler
+from cms.panels.settings_panel import EmailPasswordPanel
 from cms.panels.workflow_panel import replace_user_objects_in_workflow_moderation_panel
 from cms.services.user import is_internal_user
 from cms.snippets.dashboard_data import DashboardDataDeleteBulkAction
@@ -24,6 +25,9 @@ if TYPE_CHECKING:
 # Override Wagtail's generic deletion handler for this snippet only, after its
 # default registration (order 0), including direct requests to the bulk URL.
 hooks.register("register_bulk_action", DashboardDataDeleteBulkAction, order=1)
+
+# Register the custom account settings panel for managing email and password.
+hooks.register("register_account_settings_panel", EmailPasswordPanel)
 
 # -----------------------------------------------------------------------------
 # Register rich text features for external links
