@@ -3,7 +3,7 @@
 Endpoints defined here are used across the system.
 """
 
-from django.http import HttpRequest, JsonResponse
+from django.http import HttpRequest, HttpResponseNotAllowed, JsonResponse
 from django.views.decorators.http import require_http_methods
 
 from cms.services.ebi_index import build_index
@@ -39,3 +39,12 @@ def ebi_index(_request: HttpRequest) -> JsonResponse:
     response = JsonResponse(build_index(), json_dumps_params={"ensure_ascii": False})
     response["Cache-Control"] = EBI_INDEX_CACHE_CONTROL
     return response
+
+
+def url_not_allowed(request: HttpRequest) -> HttpResponseNotAllowed:
+    """Return a 405 for all methods.
+
+    This function is used as view for URLs (in core/urls.py) that should not be accessed directly.
+    It returns a 405 Method Not Allowed response for any HTTP method.
+    """
+    return HttpResponseNotAllowed([])
