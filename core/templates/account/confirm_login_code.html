@@ -1,0 +1,97 @@
+{% extends "wagtailadmin/admin_base.html" %}
+{% load wagtailadmin_tags %}
+
+{% comment %}
+    This template is used to override django allauth's login code confirm template. It uses wagtailadmin's
+    admin base template as a base and adds the required form action url and form fields by changing the
+    `block furniture`. Kept the `block js` empty to avoid loading wagtailadmin's js which is not needed
+    for the django allauth request login code page.
+
+    Django allauth login template source code:
+    https://github.com/pennersr/django-allauth/blob/main/allauth/templates/account/login.html
+
+    Wagtailadmin admin_base template source code:
+    https://github.com/wagtail/wagtail/blob/main/wagtail/admin/templates/wagtailadmin/admin_base.html
+{% endcomment %}
+
+{% block titletag %}Magic Sign-In Code{% endblock %}
+{% block bodyclass %}login{% endblock %}
+{% block js %}{% endblock %}
+
+{% block extra_css %}
+    <style>
+        #confirm-login-code-wrapper .messages ul {
+            opacity: 1 !important;
+            position: static !important;
+        }
+        #confirm-login-code-wrapper form label {
+            font-size: 1.125rem; !important;
+        }
+        #confirm-login-code-wrapper .email-message {
+            font-size: 1.125rem; !important;
+            text-align: center; !important;
+            margin-bottom: 2rem; !important;
+        }
+        .w-field > * + *,
+        .w-field__wrapper > * + * {
+            margin-top: 0.75rem !important;
+        }
+    </style>
+{% endblock %}
+
+{% block furniture %}
+    <main class="content-wrapper" id="main">
+        <div id="confirm-login-code-wrapper">
+
+            {% if messages or verify_form.errors %}
+                <div class="messages">
+                    <ul>
+                        {% if verify_form.errors %}
+                            {% for error in verify_form.non_field_errors %}
+                                <li class="error">{{ error }}</li>
+                            {% endfor %}
+                        {% endif %}
+                        {% for message in messages %}
+                            <li class="{{ message.tags }}">{{ message }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% elif email %}
+                <div class="email-message">
+                    <p>A sign-in code has been sent to <strong>{{ email }}</strong>.</p>
+                </div>
+            {% endif %}
+
+            <form action="{% url 'account_confirm_login_code' %}" method="post" novalidate>
+                {% csrf_token %}
+                {{ redirect_field }}
+
+                {% formattedfield verify_form.code label_text="Enter the sign-in code:" %}
+
+                <footer class="form-actions">
+                    <button type="submit" class="button">Sign In</button>
+                </footer>
+            </form>
+
+            {% if can_resend %}
+                <form action="{% url 'account_confirm_login_code' %}" method="post" class="w-mt-5">
+                    {% csrf_token %}
+                    {{ redirect_field }}
+                    <input type="hidden" name="action" value="resend" />
+                    <button type="submit" class="button">Resend Code</button>
+                </form>
+            {% endif %}
+
+            <div class="w-mt-5">
+                {% if cancel_url %}
+                    <a href="{{ cancel_url }}" class="button">Cancel</a>
+                {% else %}
+                    <form action="{% url 'account_logout' %}" method="post">
+                        {% csrf_token %}
+                        <button type="submit" class="button">Cancel</button>
+                    </form>
+                {% endif %}
+            </div>
+        </div>
+    </main>
+{% endblock %}

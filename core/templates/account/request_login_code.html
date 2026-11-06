@@ -1,0 +1,82 @@
+{% extends "wagtailadmin/admin_base.html" %}
+{% load wagtailadmin_tags %}
+
+{% comment %}
+    This template is used to override django allauth's request login code template. It uses wagtailadmin's
+    admin base template as a base and adds the required form action url and form fields by changing the
+    `block furniture`. Kept the `block js` empty to avoid loading wagtailadmin's js which is not needed
+    for the django allauth request login code page.
+
+    Django allauth request login code template source code:
+    https://github.com/pennersr/django-allauth/blob/main/allauth/templates/account/request_login_code.html
+
+    Wagtailadmin admin base template source code:
+    https://github.com/wagtail/wagtail/blob/main/wagtail/admin/templates/wagtailadmin/admin_base.html
+{% endcomment %}
+
+{% block titletag %}Request Sign-In Code{% endblock %}
+{% block bodyclass %}login{% endblock %}
+
+{% block js %}
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const email = sessionStorage.getItem("login_email");
+        if (!email) {return;}
+
+        const emailInput = document.querySelector('input[name="email"]');
+        if (emailInput) {emailInput.value = email;}
+
+        sessionStorage.removeItem("login_email");
+    });
+</script>
+{% endblock %}
+
+{% block extra_css %}
+    <style>
+        #request-login-code-wrapper .messages ul {
+            opacity: 1 !important;
+            position: static !important;
+        }
+        .w-field > * + *,
+        .w-field__wrapper > * + * {
+            margin-top: 0.75rem !important;
+        }
+    </style>
+{% endblock %}
+
+{% block furniture %}
+    <main class="content-wrapper" id="main">
+        <div id="request-login-code-wrapper">
+            <h1>Request Sign-In Code</h1>
+
+            {% if messages or form.errors %}
+                <div class="messages">
+                    <ul>
+                        {% if form.errors %}
+                            {% for error in form.non_field_errors %}
+                                <li class="error">{{ error }}</li>
+                            {% endfor %}
+                        {% endif %}
+                        {% for message in messages %}
+                            <li class="{{ message.tags }}">{{ message }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endif %}
+
+            <form action="{{ request_login_code_url }}" method="post" novalidate>
+                {% csrf_token %}
+                {{ redirect_field }}
+
+                {% formattedfield form.email label_text="Enter your email address to receive a password free sign-in code" %}
+
+                <footer class="form-actions">
+                    <button type="submit" class="button">Request Sign-In Code</button>
+                    <div class="w-mt-5">
+                        <a href="{{ login_url }}" class="button">Other Login Options</a>
+                    </div>
+                </footer>
+            </form>
+        </div>
+    </main>
+{% endblock %}
