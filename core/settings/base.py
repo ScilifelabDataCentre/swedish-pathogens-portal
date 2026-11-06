@@ -37,18 +37,39 @@ USE_I18N = True
 USE_TZ = True
 
 
-# Base Django admin settings, can be overridden in environment-specific settings files.
+# Django allauth settings, can be overridden in environment-specific settings files.
+# Reference: https://docs.allauth.org/en/dev/account/configuration.html
 # ------------------------------------------------------------------------------
-INCLUDE_DJANGO_ADMIN = False
-DJANGO_ADMIN_URL = "admin/"
+ALLAUTH_BASE_URL = "accounts/"  # not official setting, used to prefix in core/urls.py
+ACCOUNT_ADAPTER = "core.allauth.SppAllauthAdapter"
+ACCOUNT_LOGIN_METHODS = {"username", "email"}
+ACCOUNT_LOGOUT_ON_PASSWORD_CHANGE = True
+ACCOUNT_EMAIL_UNKNOWN_ACCOUNTS = False
+ACCOUNT_EMAIL_NOTIFICATIONS = True
+ACCOUNT_EMAIL_CONFIRMATION_AUTHENTICATED_REDIRECT_URL = f"/{ALLAUTH_BASE_URL}email/"
 
 
 # Base WAGTAIL settings, can be overridden in environment-specific settings files.
 # ------------------------------------------------------------------------------
 WAGTAIL_SITE_NAME = "Swedish Pathogens Portal"
 WAGTAILADMIN_URL = "wagtail/"
+WAGTAILADMIN_LOGIN_URL = f"/{ALLAUTH_BASE_URL}login/"
+WAGTAILUSERS_PASSWORD_ENABLED = False
+WAGTAIL_EMAIL_MANAGEMENT_ENABLED = False
+WAGTAIL_PASSWORD_MANAGEMENT_ENABLED = False
+WAGTAIL_PASSWORD_RESET_ENABLED = False
+
+# not official wagtail setting, but used to modify wagtail publishing/review behaviour
 DISABLE_DIRECT_PUBLISH = env.bool("DISABLE_DIRECT_PUBLISH", default=False)
 DISABLE_SELF_APPROVAL = env.bool("DISABLE_SELF_APPROVAL", default=False)
+
+
+# Base Django admin settings, can be overridden in environment-specific settings files.
+# ------------------------------------------------------------------------------
+INCLUDE_DJANGO_ADMIN = False
+DJANGO_ADMIN_URL = "admin/"
+LOGIN_REDIRECT_URL = f"/{WAGTAILADMIN_URL}"
+LOGOUT_REDIRECT_URL = f"/{WAGTAILADMIN_URL}"
 
 
 # APPS (https://docs.djangoproject.com/en/5.2/ref/settings/#installed-apps)
@@ -84,6 +105,8 @@ WAGTAIL_APPS = [
 ]
 
 THIRD_PARTY_APPS = [
+    "allauth",
+    "allauth.account",
     "django_htmx",
     "django_structlog",
 ]
@@ -102,10 +125,19 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
+    "allauth.account.middleware.AccountMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "django_htmx.middleware.HtmxMiddleware",
     "django_structlog.middlewares.RequestMiddleware",
     "wagtail.contrib.redirects.middleware.RedirectMiddleware",
+]
+
+
+# AUTHENTICATION (https://docs.djangoproject.com/en/5.2/topics/auth/)
+# ------------------------------------------------------------------------------
+AUTHENTICATION_BACKENDS = [
+    "allauth.account.auth_backends.AuthenticationBackend",
+    "django.contrib.auth.backends.ModelBackend",
 ]
 
 

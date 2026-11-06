@@ -1,0 +1,80 @@
+{% extends "wagtailadmin/base.html" %}
+{% load static wagtailadmin_tags %}
+
+{% comment %}
+    This template is used to override django allauth's email template. It extends wagtailadmin's base
+    template to keep the UI consistent with the rest of the Wagtail admin. `block content` is overridden
+    with django allauth's form and buttons needed for the email page.
+
+    Django allauth email template source code:
+    https://github.com/pennersr/django-allauth/blob/main/allauth/templates/account/email.html
+
+    Wagtailadmin base template source code:
+    https://github.com/wagtail/wagtail/blob/main/wagtail/admin/templates/wagtailadmin/base.html
+{% endcomment %}
+
+{% block titletag %}Email Addresses{% endblock %}
+
+{% block extra_css %}
+    <style>
+        form#manage-email-form label {
+            font-size: 1.125rem; !important;
+        }
+        form#add-email-form label {
+            display: none !important;
+        }
+        form#add-email-form input {
+            width: 35rem !important;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <section class="nice-padding w-mt-8 w-max-w-6xl">
+        <div class="w-flex w-h1 w-items-center w-gap-2">
+            {% icon classname="w-max-w-[1em] w-max-h-[1em]" name="mail" %}
+            <div>Email addresses</div>
+        </div>
+        <p class="w-mt-6">
+            In this page, you can manage the email addresses associated with your account. You can add
+            new email addresses, remove existing ones, and set a primary email address for your account.
+            Visit <a href="{% url 'wagtailadmin_account' %}">account</a> page to change other account
+            settings, such as your password or profile information.
+        </p>
+
+        <h2 class="w-mt-16 w-h3">Email addresses are associated with your account:</h2>
+        <form id="manage-email-form" action="{% url 'account_email' %}" method="post" class="w-mt-8">
+            {% csrf_token %}
+            <ul class="w-list-none">
+            {% for radio in emailaddress_radios|dictsort:"emailaddress.email" %}
+                {% with email=radio.emailaddress %}
+                <li class="w-flex w-items-center w-mt-4">
+                    <input type="radio" name="email" value="{{ email.email }}" id="{{ radio.id }}">
+                    <label for="{{ radio.id }}" class="w-font-semibold"> {{ email.email }} </label>
+                    <span class="w-pl-2 w-text-14">({% if email.primary %}Primary, {% endif %}{{ email.verified|yesno:"Verified,Unverified" }})</span>
+                </li>
+                {% endwith %}
+            {% endfor %}
+            </ul>
+            <div class="form-actions w-mt-8">
+                <button type="submit" name="action_primary" class="button">Make Primary</button>
+                <button type="submit" name="action_send" class="button">Verify Email</button>
+                <button type="submit" name="action_remove" class="button">Remove Email</button>
+            </div>
+        </form>
+
+        <h2 class="w-mt-16 w-h3">Add new Email address:</h2>
+        <form id="add-email-form" action="{% url 'account_email' %}" method="post" class="w-mt-6" novalidate>
+            {% csrf_token %}
+            {% formattedfield form.email label_text="" %}
+            <button type="submit" name="action_add" class="button">Add Email</button>
+        </form>
+    </section>
+    <script src="{% static 'account/js/account.js' %}"></script>
+    <script src="{% static 'account/js/onload.js' %}"></script>
+    <script data-allauth-onload="allauth.account.forms.manageEmailForm" type="application/json">
+        {
+            "i18n": {"confirmDelete": "Do you really want to remove the selected email address?"}
+        }
+    </script>
+{% endblock %}
