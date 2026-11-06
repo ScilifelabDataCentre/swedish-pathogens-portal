@@ -66,6 +66,12 @@ if settings.INCLUDE_DJANGO_ADMIN:
 # we need to add explicit redirects some wagtail URLs to the allauth URLs.
 third_party_view_urls += [
     path(
+        "_util/login/",
+        RedirectView.as_view(
+            url=f"/{settings.ALLAUTH_BASE_URL}login/", query_string=True, permanent=False
+        ),
+    ),
+    path(
         f"{settings.WAGTAILADMIN_URL}login/",
         RedirectView.as_view(
             url=f"/{settings.ALLAUTH_BASE_URL}login/", query_string=True, permanent=False
