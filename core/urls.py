@@ -29,7 +29,7 @@ from wagtail.documents import urls as wagtaildocs_urls
 
 # Local imports
 from cms.views.search import search, search_autocomplete
-from core.views import ebi_index, healthz, url_not_allowed
+from core.views import ebi_index, healthz
 
 # Own handled URLs (takes precedence over third-party apps)
 # These are URLs that are handled by views we develop and maintain, not by third-party apps.
@@ -58,10 +58,6 @@ third_party_view_urls = []
 # handled by Wagtail, but it can be included if needed for special cases.
 if settings.INCLUDE_DJANGO_ADMIN:
     third_party_view_urls += [path(settings.DJANGO_ADMIN_URL, admin.site.urls)]
-
-
-# Disable signup URL for django-allauth, as we don't want users to sign up directly.
-third_party_view_urls += [path(f"{settings.ALLAUTH_BASE_URL}signup/", url_not_allowed)]
 
 
 # Wagtail authentication URLs (login, logout, etc.) should redirect to Django allauth's

@@ -402,3 +402,34 @@ class TestPasswordResetFromKeyDoneTemplate(SimpleTestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "account/password_reset_from_key_done.html")
+
+
+class TestSignupClosedTemplate(SimpleTestCase):
+    """Test custom django-allauth signup closed template."""
+
+    def test_base_wagtail_admin_template_is_extended(self):
+        """Test that the right Wagtail admin template is extended."""
+        signup_closed_template = get_template("account/signup_closed.html")
+        extends_node = next(find_nodes(signup_closed_template.template.nodelist, ExtendsNode))
+
+        self.assertEqual(extends_node.parent_name.var, "wagtailadmin/admin_base.html")
+
+    def test_signup_closed_template_used_get(self):
+        """Test that the custom allauth signup closed template is rendered."""
+        response = self.client.get(f"/{settings.ALLAUTH_BASE_URL}signup/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "account/signup_closed.html")
+        self.assertContains(response, "Signups are closed")
+        self.assertNotContains(response, 'name="email"')
+        self.assertNotContains(response, 'name="password1"')
+
+    def test_signup_closed_template_used_post(self):
+        """Test that the custom allauth signup closed template is rendered."""
+        response = self.client.post(f"/{settings.ALLAUTH_BASE_URL}signup/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "account/signup_closed.html")
+        self.assertContains(response, "Signups are closed")
+        self.assertNotContains(response, 'name="email"')
+        self.assertNotContains(response, 'name="password1"')

@@ -6,18 +6,6 @@ from django.test import SimpleTestCase
 from wagtail.admin import urls as wagtailadmin_urls
 
 
-class TestAuthUrlsDisabled(SimpleTestCase):
-    """Test that unused allauth URLs return 405 Method Not Allowed."""
-
-    def test_signup_disabled(self):
-        """Test that the allauth signup URL returns 405."""
-        url = f"/{settings.ALLAUTH_BASE_URL}signup/"
-        for method in ("get", "post", "put", "patch", "delete", "head", "options"):
-            with self.subTest(method=method):
-                response = getattr(self.client, method)(url)
-                self.assertEqual(response.status_code, 405)
-
-
 class TestAuthUrlsRedirect(SimpleTestCase):
     """Test that Wagtail authentication URLs redirect to django-allauth."""
 

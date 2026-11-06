@@ -41,6 +41,7 @@ USE_TZ = True
 # Reference: https://docs.allauth.org/en/dev/account/configuration.html
 # ------------------------------------------------------------------------------
 ALLAUTH_BASE_URL = "accounts/"  # not official setting, used to prefix in core/urls.py
+ACCOUNT_ADAPTER = "core.allauth.SppAllauthAdapter"
 ACCOUNT_LOGIN_METHODS = {"username", "email"}
 ACCOUNT_LOGOUT_ON_PASSWORD_CHANGE = True
 ACCOUNT_EMAIL_UNKNOWN_ACCOUNTS = False
