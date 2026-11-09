@@ -372,6 +372,23 @@ class TestGenomicDataPage(WagtailPageTestCase):
         self.assertContains(response, "The sequences can't be shown right now")
         self.assertContains(response, "isn't responding at the moment")
 
+    @patch("portal_data.ebi_search.COUNT_CACHE_TTL_SECONDS", 0)
+    @patch("portal_data.ebi_search.SEARCH_CACHE_TTL_SECONDS", 0)
+    @patch("portal_data.ebi_search.fetch_json")
+    def test_failure_shows_last_good_results_marked_out_of_date(self, mock_fetch: MagicMock):
+        """Test the last good results are shown, with a notice, when EBI Search fails."""
+        mock_fetch.side_effect = fake_ebi_search().side_effect
+        response = self.get_htmx()
+        self.assertNotContains(response, "may be out of date")
+
+        mock_fetch.side_effect = None
+        mock_fetch.return_value = None
+        with self.assertLogs("cms.services.caching", level="WARNING"):
+            response = self.get_htmx()
+        self.assertContains(response, "These results may be out of date")
+        self.assertContains(response, "<table")
+        self.assertNotContains(response, "can't be shown right now")
+
     # --- Downloads ----------------------------------------------------------------
 
     def download(self, data: dict, query: str = "") -> object:
