@@ -83,6 +83,16 @@ Create `cms/templates/cms/pages/event.html`:
 
 Match patterns in `basic_page.html` or `news_index.html` as needed.
 
+> [!CAUTION]
+> Do not write an `<h1>` in your page template. `cms/base.html` will render each page's `<h1>`, and `cms/tests/test_page_headings.py` fails if a template writes its own.
+
+By default, the banner shows `page.title` as the page's `<h1>`. To change this, set these keys in the page's `get_context()`:
+
+| Context key | Effect |
+|-------------|--------|
+| `page_heading` | A section name for the banner, usually the parent index page's title (e.g. "News & Updates" on a news article). The banner shows it as plain text, and the `<h1>` is placed above the page content instead. |
+| `page_title` | Replaces the `<h1>` text. Use it for views without a Wagtail page (e.g. search) or a route within a page (e.g. bulk download). |
+
 ---
 
 ## Migrations

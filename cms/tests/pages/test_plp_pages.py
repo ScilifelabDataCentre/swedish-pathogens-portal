@@ -361,22 +361,22 @@ class TestPlpProjectPageHeading(BasePlpPageTestCase):
         cls.subproject.save_revision().publish()
 
     def test_top_level_project_banner_and_body_titles(self):
-        """Banner ``h2`` shows the program index title; body ``h3`` shows the project."""
+        """The banner shows the program index title. The h1 shows the project."""
         response = self.client.get(self.parent_project.url)
 
         self.assertEqual(response.status_code, 200)
-        banner_heading = f'<h2 class="my-2">{self.index.title}</h2>'
-        self.assertContains(response, banner_heading, html=True)
-        self.assertContains(response, '<h1 class="text-3xl">BSL3</h1>', html=True)
+        self.assertEqual(response.context["page_heading"], self.index.title)
+        self.assertContains(response, "<h1>BSL3</h1>", html=True)
+        self.assertContains(response, "<h1", count=1)
 
     def test_subproject_banner_and_body_titles(self):
         """Subprojects resolve the same PLP index ancestor for the banner."""
         response = self.client.get(self.subproject.url)
 
         self.assertEqual(response.status_code, 200)
-        banner_heading = f'<h2 class="my-2">{self.index.title}</h2>'
-        self.assertContains(response, banner_heading, html=True)
-        self.assertContains(response, '<h1 class="text-3xl">BSL3 Facility</h1>', html=True)
+        self.assertEqual(response.context["page_heading"], self.index.title)
+        self.assertContains(response, "<h1>BSL3 Facility</h1>", html=True)
+        self.assertContains(response, "<h1", count=1)
 
 
 ######################################################################

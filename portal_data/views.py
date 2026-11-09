@@ -40,5 +40,10 @@ def serve_bulk_download(
 
     results = resolve_bulk_download(accessions)
 
-    context = {"results": results, "page": page}
+    context = {
+        "results": results,
+        "page": page,
+        "page_heading": page.title,  # the page's banner
+        "page_title": "Download selected studies",  # the page's <h1>
+    }
     return render(request, template, context)

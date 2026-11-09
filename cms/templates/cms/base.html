@@ -37,17 +37,26 @@
             {% endcomment %}
             {% block full_width_content %}{% endblock %}
 
-            <!-- banner title-->
             {% comment %}
-                Main page heading (H1). Uses page_heading if set, else title. Override this block to hide or customise (e.g. home page).
+                The page's one <h1> is rendered here (home.html and 404.html write their own instead).
+                Its text is "page_title" if set, otherwise "page.title".
+                - if no "page_heading" set: the banner is a <h1>.
+                - if "page_heading" set (e.g. "News & Updates" on a news article): the banner shows page_heading
+                  as plain text, and the <h1> is placed above the content block instead.
             {% endcomment %}
+            {% firstof page_title page.title as h1_title %}
+
+            <!-- banner title-->
             {% block page_heading %}
-                {% if page.title or page_heading %}
+                {% if page_heading or h1_title %}
                 <div class="bg-linear-to-r from-pp-dark-blue via-pp-mid-blue to-pp-teal text-white py-1 shadow-sm">
                     <div class="container">
-                        {# firstof, not default:page.title — a filter argument is not #}
-                        {# silenced when missing, and functional views have no `page`. #}
-                        <h2 class="my-2">{% firstof page_heading page.title %}</h2>
+                        {% if page_heading %}
+                        {# Shows the section name (e.g. "News & Updates") as plain text. The page title is the <h1> instead. #}
+                        <div class="my-2 text-3xl font-medium tracking-tight wrap-break-word hyphens-auto">{{ page_heading }}</div>
+                        {% else %}
+                        <h1 class="my-2 text-3xl">{{ h1_title }}</h1>
+                        {% endif %}
                     </div>
                 </div>
                 {% endif %}
@@ -58,6 +67,9 @@
 
             <!-- main content -->
             <div class="container my-4">
+                {% if page_heading %}
+                <h1>{{ h1_title }}</h1>
+                {% endif %}
                 {% block content %}{% endblock %}
             </div>
         </main>

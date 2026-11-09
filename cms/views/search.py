@@ -210,7 +210,7 @@ def search(request: HttpRequest) -> HttpResponse:
             )
 
     context = {
-        "page_heading": "Search",
+        "page_title": "Search",
         "query": query,
         "selected": selected,
         "facets": facets,
