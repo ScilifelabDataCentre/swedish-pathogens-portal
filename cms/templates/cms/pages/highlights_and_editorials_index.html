@@ -20,7 +20,7 @@
 
             <!-- Filter title -->
             <div class="collapse-title md:cursor-default">
-                <h3 class="my-0">Search & Filters</h3>
+                <h2 class="my-0 text-2xl">Search & Filters</h2>
             </div>
 
             <!-- Filter content -->
@@ -31,7 +31,7 @@
                         class="input input-bordered input-accent"
                         placeholder="Search Articles" aria-label="Search">
                     <!-- Article Type Filters -->
-                    <h4 class="my-0">Article Type</h4>
+                    <h3 class="my-0 text-xl">Article Type</h3>
                     <div class="flex flex-col gap-2">
                         {% for choice in all_article_types %}
                         <span>
@@ -45,7 +45,7 @@
                         {% endfor %}
                     </div>
                     <!-- Topic Filters -->
-                    <h4 class="my-0">Topics</h4>
+                    <h3 class="my-0 text-xl">Topics</h3>
                     <div class="flex flex-col gap-2">
                         {% for topic in all_topics %}
                         <span>
@@ -110,7 +110,7 @@
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
             </svg>
         </div>
-        <h3 class="text-xl font-semibold text-pp-dark-grey mb-2">No Data Highlights and Editorials Available</h3>
+        <h2 class="text-xl font-semibold text-pp-dark-grey mb-2">No Data Highlights and Editorials Available</h2>
         <p class="text-pp-dark-grey">
             There are currently no data highlights and editorials available. Please check back later.
         </p>
