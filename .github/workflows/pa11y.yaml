@@ -38,7 +38,7 @@ jobs:
         run: |
           pa11y-ci \
             --config ${GITHUB_WORKSPACE}/.github/pa11y/pa11y.config \
-            --sitemap https://www.pathogens.se/sitemap.xml
+            --sitemap https://spp-rory.scilifelab-2-dev.sys.kth.se/sitemap.xml
 
       - name: Generate Pa11y summary
         if: always()
