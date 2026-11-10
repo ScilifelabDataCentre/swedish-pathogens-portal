@@ -17,6 +17,9 @@ H1_ALLOWED_TEMPLATES = {
     "cms/pages/home.html",  # No banner on home page, the hero section has a <h1>
     "404.html",  # not a Wagtail page. Writes its own <h1>
 }
+# Template directories to skip. Wagtail admin and account pages extend Wagtail's
+# admin templates, not cms/base.html, so they write their own <h1>.
+NON_PUBLIC_TEMPLATE_DIRS = ("wagtailadmin/", "account/")
 
 
 class NoHandWrittenH1Test(SimpleTestCase):
@@ -27,7 +30,7 @@ class NoHandWrittenH1Test(SimpleTestCase):
         offenders = []
         for path in Path(settings.BASE_DIR).glob("*/templates/**/*.html"):
             rel = path.as_posix().split("/templates/", 1)[1]
-            if rel.startswith("wagtailadmin/") or rel in H1_ALLOWED_TEMPLATES:
+            if rel.startswith(NON_PUBLIC_TEMPLATE_DIRS) or rel in H1_ALLOWED_TEMPLATES:
                 continue
             if "<h1" in path.read_text(encoding="utf-8").lower():
                 offenders.append(rel)
