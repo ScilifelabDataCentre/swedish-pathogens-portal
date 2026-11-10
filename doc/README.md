@@ -8,6 +8,7 @@ Developer documentation and architecture decisions for the Swedish Pathogens Por
 | **Conventions** (rules + sources) | [dev-conventions.md](developer-docs/dev-conventions.md) |
 | **Team decisions** (coding choices; links Confluence archive) | [decisions/](developer-docs/decisions/) |
 | **Portal Data** (listing / downloads) | [portal_data.md](developer-docs/portal_data.md) |
+| **Models and apps** (SciLifeLab Serve) | [serve_apps.md](developer-docs/serve_apps.md) |
 | **Dashboard uploads** (researcher access) | [dashboard_uploads.md](developer-docs/dashboard_uploads.md) |
 | **Testing** | [testing.md](developer-docs/testing.md) |
 | **Operations** (CI, migrations) | [operations.md](developer-docs/operations.md) |

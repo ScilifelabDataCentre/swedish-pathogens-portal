@@ -19,6 +19,7 @@ Setup, conventions, and how-tos for developing the **Swedish Pathogens Portal**.
 | Add a snippet | [add-a-snippet.md](how-to-guides/add-a-snippet.md) |
 | Add a dashboard | [add-a-dashboard.md](how-to-guides/add-a-dashboard.md) |
 | Portal Data (listing / downloads) | [portal_data.md](portal_data.md) |
+| Models and apps (SciLifeLab Serve) | [serve_apps.md](serve_apps.md) |
 | Dashboard uploads (researcher access) | [dashboard_uploads.md](dashboard_uploads.md) |
 | Conventions | [dev-conventions.md](dev-conventions.md) |
 | Team decisions (in-repo + Confluence archive) | [decisions/](decisions/README.md) |
