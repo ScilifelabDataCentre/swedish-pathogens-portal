@@ -93,6 +93,8 @@ By default, the banner shows `page.title` as the page's `<h1>`. To change this, 
 | `page_heading` | A section name for the banner, usually the parent index page's title (e.g. "News & Updates" on a news article). The banner shows it as plain text, and the `<h1>` is placed above the page content instead. |
 | `page_title` | Replaces the `<h1>` text. Use it for views without a Wagtail page (e.g. search) or a route within a page (e.g. bulk download). |
 
+For more control, override `{% block page_heading %}` (the banner) or `{% block page_title %}` (the `<h1>` above the content).
+
 ---
 
 ## Migrations

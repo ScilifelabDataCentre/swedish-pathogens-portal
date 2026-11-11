@@ -6,6 +6,7 @@ Templates in ``H1_ALLOWED_TEMPLATES`` write their own <h1> instead.
 Relates to WCAG 2.2 success criteria 1.3.1 (Info and Relationships) and 2.4.6 (Headings and Labels).
 """
 
+import re
 from pathlib import Path
 
 from django.conf import settings
@@ -20,6 +21,8 @@ H1_ALLOWED_TEMPLATES = {
 # Template directories to skip. Wagtail admin and account pages extend Wagtail's
 # admin templates, not cms/base.html, so they write their own <h1>.
 NON_PUBLIC_TEMPLATE_DIRS = ("wagtailadmin/", "account/")
+# Matches templates overriding a block in base.html that renders the <h1>.
+H1_BLOCK_OVERRIDE = re.compile(r"{%\s*block\s+(page_heading|page_title)\b")
 
 
 class NoHandWrittenH1Test(SimpleTestCase):
@@ -42,4 +45,24 @@ class NoHandWrittenH1Test(SimpleTestCase):
             "Either remove the <h1> from the template, or add it to H1_ALLOWED_TEMPLATES. "
             "You can customise the page's <h1> by setting in the context "
             "(1) 'page_title' (H1 text) and/or (2) 'page_heading' (banner label).",
+        )
+
+    def test_templates_overriding_h1_blocks_write_their_own_h1(self):
+        """Templates overriding the page_heading or page_title block must write their own <h1>."""
+        offenders = []
+        for path in Path(settings.BASE_DIR).glob("*/templates/**/*.html"):
+            rel = path.as_posix().split("/templates/", 1)[1]
+            if rel.startswith(NON_PUBLIC_TEMPLATE_DIRS) or rel == "cms/base.html":
+                continue
+            text = path.read_text(encoding="utf-8").lower()
+            if H1_BLOCK_OVERRIDE.search(text) and "<h1" not in text:
+                offenders.append(rel)
+
+        self.assertEqual(
+            offenders,
+            [],
+            "These templates override the page_heading or page_title block, "
+            "which can remove the page's <h1>. "
+            "Prefer setting 'page_title' or 'page_heading' in the context instead. "
+            "If you must override, make sure the page renders only one <h1>.",
         )

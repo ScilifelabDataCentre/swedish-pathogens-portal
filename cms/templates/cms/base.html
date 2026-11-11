@@ -24,8 +24,8 @@
             {% comment %}
                 Optional full-width content block, for example if an individual page needs to insert a hero section.
                 Typically when this is used the page_heading block would be overridden to hide the banner title, and
-                the hero section would include its own title.
-                
+                the hero section would include its own <h1> (see home.html).
+
                 Example:
 
                 {% block full_width_content %}
@@ -43,6 +43,7 @@
                 - if no "page_heading" set: the banner is a <h1>.
                 - if "page_heading" set (e.g. "News & Updates" on a news article): the banner shows page_heading
                   as plain text, and the <h1> is placed above the content block instead.
+                Override the page_heading or page_title block to change either.
             {% endcomment %}
             {% firstof page_title page.title as h1_title %}
 
@@ -67,9 +68,11 @@
 
             <!-- main content -->
             <div class="container my-4">
-                {% if page_heading %}
-                <h1>{{ h1_title }}</h1>
-                {% endif %}
+                {% block page_title %}
+                    {% if page_heading and h1_title %}
+                    <h1>{{ h1_title }}</h1>
+                    {% endif %}
+                {% endblock %}
                 {% block content %}{% endblock %}
             </div>
         </main>
