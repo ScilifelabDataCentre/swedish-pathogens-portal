@@ -95,10 +95,16 @@
                     Clear selection
                 </button>
 
+                {% comment %}
+                    A real submit button for #bulkDownloadForm (WCAG 3.2.2, H32): it sits
+                    inside #searchForm for layout, so form="bulkDownloadForm" ties it to
+                    the download form instead, and leaves the search form alone.
+                {% endcomment %}
                 <button
-                    type="button"
+                    type="submit"
+                    form="bulkDownloadForm"
+                    id="bulkDownloadSubmit"
                     class="selection-action btn btn-primary btn-sm"
-                    data-target="bulkDownloadForm"
                     disabled
                     title="Opens direct download links for the selected datasets' files"
                 >
@@ -112,9 +118,11 @@
         </div>
     </form>
 
-    <!-- Hidden form used to POST the current selection; JS fills in ids before submit.
-         Kept as a sibling of #searchForm (rather than nested inside it) since HTML
-         does not allow a <form> inside another <form>. -->
+    <!-- Hidden form used to POST the current selection; JS adds the ids on submit.
+         Its submit button (#bulkDownloadSubmit) lives in the toolbar above and is
+         tied to it with form="bulkDownloadForm". Kept as a sibling of #searchForm
+         (rather than nested inside it) since HTML does not allow a <form> inside
+         another <form>. -->
     <form
         id="bulkDownloadForm"
         method="post"
@@ -191,9 +199,14 @@
                 });
             }
 
-            function submitSelection(selected, formId) {
-                const form = document.getElementById(formId);
-                if (!form) return;
+            // Runs on the bulk download form's own submit event, so the browser's
+            // normal submission (from #bulkDownloadSubmit) does the posting.
+            function addSelectionToForm(event) {
+                const form = event.currentTarget;
+                if (!selected.size) {
+                    event.preventDefault();
+                    return;
+                }
                 form.querySelectorAll('input[name="ids"]').forEach((el) => el.remove());
 
                 selected.forEach((accession) => {
@@ -203,8 +216,6 @@
                     idInput.value = accession;
                     form.appendChild(idInput);
                 });
-
-                form.submit();
             }
 
             const selected = loadSelection();
@@ -257,12 +268,10 @@
                     });
                 }
 
-                document.querySelectorAll('.selection-action[data-target]').forEach((btn) => {
-                    btn.addEventListener('click', function () {
-                        if (!selected.size) return;
-                        submitSelection(selected, btn.dataset.target);
-                    });
-                });
+                const bulkForm = document.getElementById('bulkDownloadForm');
+                if (bulkForm) {
+                    bulkForm.addEventListener('submit', addSelectionToForm);
+                }
             });
         })();
     </script>
