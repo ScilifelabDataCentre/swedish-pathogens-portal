@@ -57,8 +57,9 @@ class SortOption:
 FACETS: dict[str, Facet] = {
     facet.field: facet
     for facet in (
-        Facet("type", "App type", lambda app: (app.app_type,)),
+        # in display order: pathogen first, as that's what visitors come to filter on
         Facet("keyword", "Pathogen keyword", lambda app: app.keywords, capfirst),
+        Facet("type", "App type", lambda app: (app.app_type,)),
     )
 }
 SORT_OPTIONS: dict[str, SortOption] = {

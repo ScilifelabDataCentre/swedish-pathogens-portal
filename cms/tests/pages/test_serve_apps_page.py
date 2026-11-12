@@ -166,10 +166,10 @@ class TestServeAppsPage(WagtailPageTestCase):
         self.assertRegex(content, r'name="type" value="Shiny App"\s+class="[^"]*"\s*>')
         # the type facet is counted without its own selection, the keyword facet with it
         types = {
-            v["value"]["value"]: v["count_display"] for v in response.context["facets"][0]["values"]
+            v["value"]["value"]: v["count_display"] for v in response.context["facets"][1]["values"]
         }
         self.assertEqual(types, {"Shiny App": "2", "Custom App": "1"})
-        keywords = response.context["facets"][1]
+        keywords = response.context["facets"][0]
         self.assertEqual(keywords["label"], "Pathogen keyword")
         self.assertIn("Antimicrobial resistance", [v["value"]["label"] for v in keywords["values"]])
         self.assertContains(response, "Clear all filters")
