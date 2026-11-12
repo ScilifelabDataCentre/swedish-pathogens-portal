@@ -2,6 +2,7 @@
 
 from typing import TYPE_CHECKING, Any
 
+from allauth.account.models import EmailAddress
 from django.conf import settings
 from django.shortcuts import redirect
 from wagtail import hooks
@@ -14,6 +15,7 @@ from cms.services.user import is_internal_user
 from cms.snippets.dashboard_data import DashboardDataDeleteBulkAction
 
 if TYPE_CHECKING:
+    from django.contrib.auth.models import User
     from django.http import HttpRequest, HttpResponse
     from wagtail.admin.ui.components import Component
     from wagtail.admin.ui.menus import MenuItem
@@ -28,6 +30,26 @@ hooks.register("register_bulk_action", DashboardDataDeleteBulkAction, order=1)
 
 # Register the custom account settings panel for managing email and password.
 hooks.register("register_account_settings_panel", AllauthLinksPanel)
+
+
+# ------------------------------------------------------------------------------
+# Put user email in allauth's EmailAddress model when a user is created
+# ------------------------------------------------------------------------------
+
+
+@hooks.register("after_create_user")
+def put_email_address_for_user(request: HttpRequest, user: User) -> None:
+    """Create an EmailAddress object for the user after they are created."""
+
+    # Allauth's uses the EmailAddress model to keep track of user's email and the
+    # email should be verified for MFA. Since new users are created by admins, we
+    # can assume that the email is verified and also it is set as primary.
+    EmailAddress.objects.get_or_create(
+        user_id=user.id,
+        email=user.email,
+        defaults={"verified": True, "primary": True},
+    )
+
 
 # -----------------------------------------------------------------------------
 # Register rich text features for external links
