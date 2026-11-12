@@ -1,9 +1,9 @@
-"""Server-side Plotly figures for a DRR dataset (spec section 6, ADR-0004).
+"""Server-side Plotly figures for a DRR dataset (ADR-0004).
 
 All figures are computed offline from the feature matrix and serialised to Plotly
 JSON. The input arrives MAD-normalised per plate against that plate's DMSO wells,
 which is the only normalisation applied to it; values are therefore in the
-authors' MAD units throughout (spec section 5). They are computed on the **figure
+authors' MAD units throughout. They are computed on the **figure
 basis** — the morphology columns, with the screen's infection-readout channel
 excluded (``channels``, FREYA-2923), clipped to ``FIGURE_CLIP_BOUND`` as the
 published pipeline does (FREYA-2968) — while the downloads carry every column
@@ -48,11 +48,10 @@ FEATURE_BASIS_FIGURE_IDS: tuple[str, ...] = (
 )
 
 # The authors' pipeline clips every feature value to this bound immediately after
-# MAD normalisation and before any modelling, and our input predates that step
-# (``plans/DRR/reference/data-sources.md`` DS-3). The figure path therefore clips
-# to it; the downloads publish the table as delivered (spec section 5). It belongs
-# to the upstream pipeline rather than to one screen, so it is stated here and not
-# in the per-screen ``channels`` map.
+# MAD normalisation and before any modelling, and our input predates that step.
+# The figure path therefore clips to it; the downloads publish the table as
+# delivered. It belongs to the upstream pipeline rather than to one screen, so it
+# is stated here and not in the per-screen ``channels`` map.
 FIGURE_CLIP_BOUND = 50.0
 
 # How many of the worst-affected columns ``clip_report`` names.
@@ -107,7 +106,7 @@ def clip_figure_values(matrix: np.ndarray) -> np.ndarray:
         The same values with anything beyond ``±FIGURE_CLIP_BOUND`` brought to
         the bound, which is where the authors' pipeline puts this step. The
         caller's array is left alone, so the frame the downloads are written
-        from never sees the clip (spec section 5, FREYA-2968).
+        from never sees the clip (FREYA-2968).
     """
     return np.clip(matrix, -FIGURE_CLIP_BOUND, FIGURE_CLIP_BOUND)
 
@@ -122,7 +121,7 @@ def clip_report(table: FeatureTable, feature_columns: list[str]) -> dict[str, An
     Returns:
         The bound, how many values it moved out of how many, and the
         worst-affected columns — so the page can state the figure basis rather
-        than implying that it and the download set agree (spec section 7).
+        than implying that it and the download set agree.
         Columns are ordered by descending count, then by name, so a re-run on
         the same input reports them identically.
     """
@@ -153,8 +152,7 @@ def figure_basis_token(feature_columns: list[str]) -> str:
     The ``PlotlyFigureBlock`` render cache is keyed on the *inputs*, so a change
     to the computation — the channel exclusion, the clip bound, the population
     names — would otherwise leave the key identical while the figures move, and
-    the page would serve the previous render for a day (spec section 5 step 6,
-    FREYA-3009).
+    the page would serve the previous render for a day (FREYA-3009).
 
     Args:
         feature_columns: The figure basis's column names.
@@ -173,7 +171,7 @@ def _prepare(table: FeatureTable, feature_columns: list[str]) -> _Prepared:
     """Clip the figure feature matrix and gather the per-row labels.
 
     Neither standardisation nor imputation is applied: the values arrive
-    MAD-normalised per plate and carry no missing entries (spec section 5).
+    MAD-normalised per plate and carry no missing entries.
     ``numeric_matrix`` rejects an incomplete matrix, so no gap reaches a figure.
     The clip is the one transform applied here, and it happens after load and
     before any figure is computed — where the paper's methods put it.
@@ -198,10 +196,9 @@ def build_pca(prep: _Prepared) -> go.Figure:
     PCA is computed via numpy SVD on the clipped figure basis (no sklearn). Only
     the column means are removed, which is what makes the decomposition a PCA
     and what the percent-variance annotation is measured against; the per-column
-    scaling is not reapplied, matching the authors' ``PLSRegression(scale=False)``
-    (spec section 5). Each component's sign is fixed (largest-magnitude loading
-    forced positive) so the scores, and therefore the serialised figure, are
-    reproducible.
+    scaling is not reapplied, matching the authors' ``PLSRegression(scale=False)``.
+    Each component's sign is fixed (largest-magnitude loading forced positive) so
+    the scores, and therefore the serialised figure, are reproducible.
 
     Each trace is named by ``radar.population_label`` rather than by its raw
     ``pert_type`` token, and is ordered by that token so trace colours stay put
@@ -317,8 +314,8 @@ def build_infected_radar(prep: _Prepared, axes: list[RadarAxis]) -> go.Figure:
     The plotted condition is the **uninfected** population. The input is
     MAD-normalised against each plate's infected DMSO wells, whose own absolute
     mean is ~0 by construction, so those wells are the baseline the ring is read
-    against and the uninfected profiles carry the infection contrast (DS-8 item
-    4; measured 0.0871 against 1.2661 on the real table).
+    against and the uninfected profiles carry the infection contrast (measured
+    0.0871 against 1.2661 on the real table).
     """
     return build_radar(
         prep,
@@ -344,7 +341,7 @@ def build_compound_radar(
         cbkid: One compound's id, whose treated wells are plotted with their
             doses pooled into a single profile. ``None`` builds the default view
             the page holds before a reader picks anything: every treated well,
-            so precompute chooses no compound (spec section 6).
+            so precompute chooses no compound.
         label: Display name for the compound, defaulting to its id.
 
     Returns:
@@ -403,10 +400,9 @@ class FigureBundle:
     Attributes:
         figures: The snippet payload, keyed by ``figure_id``. One figure per id,
             and never a set — the per-compound radars are far too many for a
-            single ``JSONField`` that is deserialised whole to render one figure
-            (spec section 4).
+            single ``JSONField`` that is deserialised whole to render one figure.
         radars: One radar per compound with treated wells, keyed by ``cbkid``.
-            These go to disk and are served by the section 8.3 route.
+            These go to disk and are served by the figure-swap route.
         axes: The radar ring this run plotted, for the run's own report.
         unplotted_columns: Figure-basis columns no axis averages.
     """

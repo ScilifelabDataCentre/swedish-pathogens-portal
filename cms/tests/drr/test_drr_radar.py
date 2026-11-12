@@ -1,4 +1,4 @@
-"""Tests for Figure 3C's radar ring and statistic (FREYA-2636, spec section 6).
+"""Tests for Figure 3C's radar ring and statistic (FREYA-2636).
 
 The fixture column set here is the real table's shape rather than a handful of
 columns: every module the export carries, both families the notebook drops, and
@@ -45,7 +45,7 @@ RING_COLUMNS = [
 ]
 
 # The families it does not: the notebook has no branch for them, so they fall to
-# its "Uncategorized" bucket (DS-8 item 1). ``Count_nuclei`` never even reaches
+# its "Uncategorized" bucket. ``Count_nuclei`` never even reaches
 # the feature set — ``loader.METADATA_COLUMNS`` holds it as QC metadata.
 UNPLOTTED_COLUMNS = [
     "Location_CenterMassIntensity_X_illumHOECHST_nuclei",
@@ -118,7 +118,7 @@ class DrrRadarRingTests(SimpleTestCase):
         self.assertEqual(empty, [])
 
     def test_location_parent_and_count_nuclei_are_absent(self) -> None:
-        """The dropped families reach no axis, asserted by name (DS-8 item 1)."""
+        """The dropped families reach no axis, asserted by name."""
         plotted = {column for axis in _ring() for column in axis.columns}
 
         for column in UNPLOTTED_COLUMNS:
@@ -149,7 +149,7 @@ class DrrRadarBasisTests(SimpleTestCase):
         two dropped families. Over the download set the antibody's columns land
         on none either — the ring rings four stain groups, and the fifth channel
         is not one of them — so the difference between the two bases is visible
-        here rather than only in the column count (spec section 10).
+        here rather than only in the column count.
         """
         channels = channel_map(SLUG)
         basis = figure_feature_columns(FEATURE_COLUMNS, channels)

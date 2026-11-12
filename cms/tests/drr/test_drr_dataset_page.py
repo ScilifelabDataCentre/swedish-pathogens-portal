@@ -28,8 +28,8 @@ from cms.snippets.drr_dataset_data import DrrDatasetData
 from cms.tests.drr.test_drr_precompute import FEATURE_CSV, METADATA_TSV, PLATE_METADATA_TSV
 from cms.tests.utils import create_test_image, use_temp_media_root
 
-# A representative, fully-populated summary payload mirroring spec section 7 plus
-# the FREYA-2557 reconciliation block. Counts use comma-grouped values so the
+# A representative, fully-populated summary payload, carrying the FREYA-2557
+# reconciliation block. Counts use comma-grouped values so the
 # ``intcomma`` render path is asserted unambiguously (Plotly div ids never carry
 # commas), and the reconciliation ids are distinctive tokens.
 FULL_SUMMARY = {
@@ -41,7 +41,7 @@ FULL_SUMMARY = {
     "pert_type_counts": {"trt": 6800, "negcon": 900, "poscon": 598},
     "compartments": ["nuclei", "cells", "cytoplasm"],
     # Channels as precompute reports them: the stain, not the column token, with
-    # the antibody marked out of the figure basis (FREYA-2923, spec section 7).
+    # the antibody marked out of the figure basis (FREYA-2923).
     "channels": [
         {
             "column_tag": "illumHOECHST",
@@ -226,7 +226,7 @@ class TestDrrDatasetPageContext(DrrDatasetPageTestCase):
 
 
 class TestDrrDatasetPageRender(DrrDatasetPageTestCase):
-    """Rendered-HTML tests for the DRR dataset template (spec section 9 / 10)."""
+    """Rendered-HTML tests for the DRR dataset template."""
 
     @classmethod
     def setUpTestData(cls) -> None:
@@ -396,7 +396,7 @@ class TestDrrDatasetDownloadsWired(DrrDatasetPageTestCase):
 
     Route behaviour is covered by ``test_drr_downloads.py`` and
     ``test_drr_raw_images.py``; what this asserts is the page-context payload
-    spec section 10 requires of this file. The fixture names no upstream study,
+    this file is responsible for. The fixture names no upstream study,
     so the raw-image link-out (FREYA-2581) is advertised only where a test sets
     one.
     """
@@ -449,7 +449,7 @@ class TestDrrDatasetDownloadsWired(DrrDatasetPageTestCase):
 
 
 class TestDrrCompoundPicker(DrrDatasetPageTestCase):
-    """The on-page compound picker (FREYA-2583, spec section 9).
+    """The on-page compound picker (FREYA-2583).
 
     Options are read from ``compounds.parquet`` and submitted to the
     per-compound slice, so the pair these assert is: every option the page
@@ -980,7 +980,7 @@ class TestDashboardIndexDrrCards(DrrDatasetPageTestCase):
 
 
 class TestDrrDatasetSliceAcceptance(DrrDatasetPageTestCase):
-    """End-to-end: precompute artefacts drive a live DRR page render (spec section 10)."""
+    """End-to-end: precompute artefacts drive a live DRR page render."""
 
     def setUp(self) -> None:
         """Clear the per-figure HTML cache before the end-to-end render."""

@@ -4,7 +4,7 @@ Every fixture here carries a column in **each of the five** imaging channels. Th
 is deliberate: the A549-ACE2 and Vero E6 screens name opposite stains with the same
 two tokens, so a fixture that omits a channel cannot tell an inverted map from a
 correct one — which is how the inverted reading survived three sessions of work on
-these figures (``plans/DRR/reference/data-sources.md`` DS-8).
+these figures.
 """
 
 from __future__ import annotations
@@ -81,7 +81,7 @@ TRT_VALUES = {
 
 
 # Three morphology columns pushed to the clip's three cases: the feature table's
-# own measured maximum and minimum (DS-3), and a value sitting exactly on the
+# own measured maximum and minimum, and a value sitting exactly on the
 # bound, which the closed range must leave alone. The halved control rows stay
 # out of range too, so every row of both columns is clipped.
 OUT_OF_RANGE_VALUES = {
@@ -96,7 +96,7 @@ def _decode_array(payload: dict | list) -> np.ndarray:
 
     Plotly serialises a 2-D array to base64 with a ``shape`` key and a 1-D one
     without, and a small enough array as a plain list, so all three forms are
-    handled rather than assumed (spec section 10).
+    handled rather than assumed.
     """
     if isinstance(payload, list):
         return np.asarray(payload)
@@ -150,7 +150,7 @@ class DrrChannelMapTests(SimpleTestCase):
         )
 
     def test_the_antibody_is_the_only_channel_the_figures_exclude(self) -> None:
-        """Four morphology channels in, the infection readout out (spec section 5)."""
+        """Four morphology channels in, the infection readout out."""
         channels = channel_map(SLUG)
 
         excluded = [channel.column_tag for channel in channels if not channel.in_figures]
@@ -266,7 +266,7 @@ class DrrFigureBuildTests(SimpleTestCase):
 
         The input is MAD-normalised against each plate's infected DMSO, so those
         wells sit at ~0 by construction and are the baseline rather than the
-        plotted condition (DS-8 item 4). Here that is the halved control row.
+        plotted condition. Here that is the halved control row.
         """
         axes = self._radar_axes("radar_infected")
 
@@ -303,7 +303,7 @@ class DrrPopulationLabelTests(SimpleTestCase):
         self.assertEqual(set(POPULATION_LABELS), {"negcon", "non-inf", "poscon", "trt"})
 
     def test_each_population_has_its_plain_language_name(self) -> None:
-        """Infected and uninfected are the DMSO controls, named as DS-2 settles them."""
+        """Infected and uninfected are the DMSO controls, named as the authors name them."""
         self.assertEqual(population_label("negcon"), "Infected control (DMSO)")
         self.assertEqual(population_label("non-inf"), "Uninfected control (DMSO)")
         self.assertEqual(population_label("poscon"), "Positive control")
@@ -377,7 +377,7 @@ class DrrFigureClipTests(SimpleTestCase):
         )
 
     def test_the_bound_is_the_published_one(self) -> None:
-        """50 in MAD units, which is where the paper's pipeline clips (DS-3)."""
+        """50 in MAD units, which is where the paper's pipeline clips."""
         self.assertEqual(FIGURE_CLIP_BOUND, 50.0)
 
     def test_each_of_the_three_cases_lands_where_it_should(self) -> None:

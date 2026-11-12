@@ -52,10 +52,9 @@ _UNSAFE_FILENAME_CHARS = re.compile(r"[^A-Za-z0-9._-]")
 _COMPOUND_OPTION_COLUMNS = ("cbkid", "name", "kind", "radar_key")
 
 # The radars, in page order, rendered by the page's own radar partial rather
-# than placed as editorial PlotlyFigureBlocks (spec section 10, decision 7), so
-# the compound picker always sits beside the figure it swaps. Only
-# ``radar_compound`` is precomputed as a per-compound set, so it is the one
-# figure the section 8.3 route serves.
+# than placed as editorial PlotlyFigureBlocks, so the compound picker always
+# sits beside the figure it swaps. Only ``radar_compound`` is precomputed as a
+# per-compound set, so it is the one figure the figure-swap route serves.
 _RADAR_FIGURES: tuple[dict[str, Any], ...] = (
     {
         "figure_id": "radar_compound",
@@ -110,9 +109,8 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
     render path, while sourcing figures and summary statistics from
     :class:`~cms.snippets.drr_dataset_data.DrrDatasetData` instead of
     ``DashboardData``. ``RoutablePageMixin`` serves the per-dataset feature
-    downloads and the raw-image 302 link-out (mvp-spec.md section 8); the
-    imagery itself stays with the upstream study and is never hosted or proxied
-    here.
+    downloads and the raw-image 302 link-out; the imagery itself stays with the
+    upstream study and is never hosted or proxied here.
 
     Attributes:
         organism: Source organism label (defaults to SARS-CoV-2).
@@ -220,7 +218,7 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
 
         # The radar picker is the other half of the download rule: it offers
         # only the compounds precompute wrote a radar for, so no option can 404
-        # and no reader is shown a control that does nothing (spec section 8.3).
+        # and no reader is shown a control that does nothing.
         # It also needs the figure it swaps to be on the page, or its target
         # would not exist and the swap would fail silently in the browser.
         radar_options = [option for option in options if option["radar_key"]]
@@ -236,7 +234,7 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
         return context
 
     # ------------------------------------------------------------------ #
-    # Compound table (FREYA-3011, spec section 8.1)                      #
+    # Compound table (FREYA-3011)                                        #
     # ------------------------------------------------------------------ #
 
     def _compound_table(self) -> pl.DataFrame | None:
@@ -328,7 +326,7 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
         return response
 
     # ------------------------------------------------------------------ #
-    # Downloads (spec section 8)                                         #
+    # Downloads                                                          #
     # ------------------------------------------------------------------ #
 
     def _artefact_dir(self) -> Path:
@@ -523,7 +521,7 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
         return response
 
     # ------------------------------------------------------------------ #
-    # Figure swap (spec section 8.3)                                     #
+    # Figure swap                                                        #
     # ------------------------------------------------------------------ #
 
     def _radar_figure(

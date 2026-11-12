@@ -1,7 +1,7 @@
 """Management command: precompute DRR dataset artefacts (FREYA-2556).
 
-Manual, repeatable, offline pipeline (spec section 5). Turns a Cell Painting
-feature CSV plus its CBCS metadata TSV and the deposit's image-metadata TSV — and
+Manual, repeatable, offline pipeline. Turns a Cell Painting feature CSV plus its
+CBCS metadata TSV and the deposit's image-metadata TSV — and
 optionally a compound-name lookup (FREYA-2628) and the paper's Table S8
 (FREYA-3011) — into the derived artefacts a ``DrrDatasetPage`` serves, and
 upserts the slug-keyed ``DrrDatasetData`` row. Raw
@@ -168,7 +168,7 @@ class Command(BaseCommand):
 
         # Everything is computed before the first write: a figure that cannot be
         # built must leave the generation already on disk intact, rather than
-        # replacing half of it (spec section 10).
+        # replacing half of it.
         bundle = build_figure_bundle(
             table,
             feature_columns=figure_columns,
@@ -182,7 +182,7 @@ class Command(BaseCommand):
                 "These figures are too large for the snippet, which is read whole to render "
                 f"any one of them: {oversized} bytes against a ceiling of "
                 f"{SNIPPET_FIGURE_BYTE_CEILING}. A figure this size belongs on disk as a set "
-                "(spec section 4), not in DrrDatasetData.data."
+                "under figures/, not in DrrDatasetData.data."
             )
         radar_keys = {cbkid: artefact_key(cbkid) for cbkid in bundle.radars}
         compound_index = self._with_radar_keys(compound_index, radar_keys)
@@ -347,7 +347,7 @@ class Command(BaseCommand):
         """Record each compound's radar artefact key on the index.
 
         The key is derived here, from the compound id, and never from a request
-        value: the section 8.3 route resolves a reader's ``cbkid`` by looking it
+        value: the figure-swap route resolves a reader's ``cbkid`` by looking it
         up in this column. A compound with no treated well has no radar and
         carries a null, which is also what keeps the figure picker from offering
         an option that would 404 (FREYA-2636 criterion 5).
@@ -376,7 +376,7 @@ class Command(BaseCommand):
 
         The set stays on disk and out of ``DrrDatasetData.data``: the snippet is
         a single ``JSONField`` deserialised whole to render one figure, and a
-        ``RevisionMixin`` that would snapshot every re-run (spec section 4).
+        ``RevisionMixin`` that would snapshot every re-run.
         """
         radar_dir.mkdir(parents=True, exist_ok=True)
         for stale in radar_dir.glob("*.json"):

@@ -13,8 +13,7 @@ import polars.selectors as cs
 # S-BIAD2580 A549-ACE2 validation-screen export header. Every other numeric
 # column is a feature. ``Count_nuclei`` is numeric but a QC column, not a
 # morphological feature: the authors' own notebook skips it before building
-# their feature matrix (spec section 5). It stays in the frame, so downloads
-# still carry it.
+# their feature matrix. It stays in the frame, so downloads still carry it.
 METADATA_COLUMNS: list[str] = [
     "Metadata_Barcode",
     "Metadata_Well",
@@ -34,7 +33,7 @@ _SCHEMA_SCAN_ROWS = 100_000
 # 1,153: the compound id, the authors' own compound name, and the perturbation
 # type that says which rows name a compound at all (FREYA-2628). None of its
 # feature values is ever read — that file is a row and column subset of our
-# input, so it is a name lookup and not a feature source (spec section 5).
+# input, so it is a name lookup and not a feature source.
 NAME_LOOKUP_COLUMNS: list[str] = ["cbkid", "pert_iname", "pert_type"]
 
 # Missing values in the metadata TSV are encoded as the literal string "null".
@@ -62,11 +61,11 @@ class FeatureTable:
         Args:
             columns: The feature columns to return, defaulting to all of them.
                 The figures pass the morphology-only subset, which excludes the
-                infection-readout channel (spec section 5, FREYA-2923).
+                infection-readout channel (FREYA-2923).
 
         Returns:
             The feature values exactly as delivered; nothing is imputed or
-            rescaled (spec section 5).
+            rescaled.
 
         Raises:
             ValueError: If any requested column carries a missing or non-finite
@@ -84,7 +83,7 @@ class FeatureTable:
             raise ValueError(
                 f"Feature matrix has missing or non-finite values in {len(incomplete)} column(s), "
                 f"e.g. {incomplete[:3]}. The input is expected to arrive complete "
-                "(spec section 5) and no value is imputed."
+                "and no value is imputed."
             )
         return matrix
 
@@ -145,7 +144,7 @@ def load_compound_names(path: str | Path) -> pl.DataFrame:
         ValueError: If any lookup column is missing, or if ``pert_type`` carries
             a null. Which rows name a compound rather than a condition is
             decided by that column alone, so an unclassifiable row must stop the
-            run instead of being guessed either way (spec section 5).
+            run instead of being guessed either way.
     """
     available = pl.read_ipc_schema(path)
     missing = [column for column in NAME_LOOKUP_COLUMNS if column not in available]

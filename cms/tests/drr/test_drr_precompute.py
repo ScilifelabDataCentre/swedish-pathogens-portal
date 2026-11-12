@@ -44,8 +44,7 @@ SLUG = "sars-cov2-a549-ace2-validation"
 # whole antibody channel, they sit in Intensity and Correlation, and the figure
 # basis leaves them out while the downloads keep them. The leading unnamed
 # column mirrors the upstream export's row index, and ``Count_nuclei`` sits
-# where the export carries it: numeric, but QC metadata rather than a feature
-# (spec section 5).
+# where the export carries it: numeric, but QC metadata rather than a feature.
 FEATURE_CSV = (
     ";Metadata_Barcode;Metadata_Well;comp_conc;pert_type;batch_id;cmpd_conc;cbkid;Count_nuclei;"
     "AreaShape_Area_nuclei;Intensity_MeanIntensity_illumCONC_nuclei;"
@@ -168,7 +167,7 @@ NAME_LOOKUP_ROWS = {
 EXPECTED_FIGURE_IDS = {"pca", "radar_compound", "radar_infected"}
 ARTEFACT_SUFFIXES = {".csv", ".parquet", ".json"}
 
-# Figure 3C's ring for a screen with four morphology channels (DS-8 item 2).
+# Figure 3C's ring for a screen with four morphology channels.
 RING_AXES = 24
 
 
@@ -214,7 +213,7 @@ class DrrPrecomputeTests(TestCase):
         """Push the uninfected row past the clip bound in both directions.
 
         Its AreaShape and Granularity values become the real table's own measured
-        extremes (``plans/DRR/reference/data-sources.md`` DS-3), and both columns
+        extremes, and both columns
         are in the figure basis. Only this row moves, so every other expectation
         in this module still describes the fixture it was written for.
         """
@@ -306,7 +305,7 @@ class DrrPrecomputeTests(TestCase):
         )
         # Assert the pairing, not only the set of names: the two screens use these
         # same two tokens for opposite stains, so a map read the other way round
-        # would publish the same five names against the wrong columns (DS-8).
+        # would publish the same five names against the wrong columns.
         stains = {channel["column_tag"]: channel["stain"] for channel in summary["channels"]}
         self.assertEqual(stains["illumMITO"], "Concanavalin A")
         self.assertEqual(stains["illumCONC"], "SARS-CoV-2 nucleocapsid antibody")
@@ -354,7 +353,7 @@ class DrrPrecomputeTests(TestCase):
         self.assertEqual(features["Granularity_1_illumMITO_cells"].min(), -210.759515)
 
     def test_summary_states_the_clip_within_the_figure_basis(self) -> None:
-        """The bound, what it moved, and the columns it moved most (spec section 7)."""
+        """The bound, what it moved, and the columns it moved most."""
         self._write_out_of_range_input()
         self._run()
         clip = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))[
@@ -379,7 +378,7 @@ class DrrPrecomputeTests(TestCase):
 
         Both bounds are exercised on the one row that radar's condition selects,
         and the second also shows the statistic taking the absolute value before
-        it averages (DS-8 item 4).
+        it averages.
         """
         self._write_out_of_range_input()
         self._run()
@@ -515,7 +514,7 @@ class DrrPrecomputeTests(TestCase):
         self.assertIn("Count_nuclei", features.columns)
 
     def test_radars_are_not_standardised(self) -> None:
-        """Both radar modes plot axis means in the values' own units (spec section 5)."""
+        """Both radar modes plot axis means in the values' own units."""
         self._run()
         figures = DrrDatasetData.get_data(SLUG).data
 
@@ -537,7 +536,7 @@ class DrrPrecomputeTests(TestCase):
 
         The distinction is the whole point of the contrast: the ``negcon`` wells
         are the baseline the input is normalised against, so averaging them in
-        would pull every axis toward the baseline (FREYA-2636, DS-8 item 4).
+        would pull every axis toward the baseline (FREYA-2636).
         """
         self._run()
         figures = DrrDatasetData.get_data(SLUG).data
@@ -587,7 +586,7 @@ class DrrPrecomputeTests(TestCase):
         self.assertEqual(written, ["CBK1", "CBK3"])
 
     def test_the_per_compound_radars_stay_off_the_snippet(self) -> None:
-        """They are on disk and not in ``DrrDatasetData.data`` (spec section 4).
+        """They are on disk and not in ``DrrDatasetData.data``.
 
         Present on disk is not the assertion that matters: the snippet is one
         ``JSONField`` deserialised whole to render a single figure, and a
@@ -655,7 +654,7 @@ class DrrPrecomputeTests(TestCase):
 
         The ceiling is generous against this fixture on purpose — what it pins
         is that a figure whose payload grows by orders of magnitude fails here
-        rather than in production (spec section 10).
+        rather than in production.
         """
         self._run()
         row = DrrDatasetData.get_data(SLUG)
