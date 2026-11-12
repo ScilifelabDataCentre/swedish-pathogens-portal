@@ -1,10 +1,9 @@
-"""Figure 3C's radar axis ring and its populations (spec section 6, FREYA-2636).
+"""Figure 3C's radar axis ring and its populations (FREYA-2636).
 
 The published radar groups the feature table's columns into one ordered ring of
 axes and plots, per axis, how far a condition sits from the plate's DMSO
 baseline. Both halves are settled measurements rather than choices of ours: the
-ring comes from the author's own ``radarplots.ipynb``
-(``plans/DRR/reference/data-sources.md`` DS-8), and the statistic is that
+ring comes from the author's own ``radarplots.ipynb``, and the statistic is that
 notebook's — the mean per feature within the condition, then the absolute value,
 then the mean within each axis group, with **no subtraction of a control mean**,
 because the input arrives MAD-normalised against each plate's DMSO wells and the
@@ -26,6 +25,7 @@ feature (``loader.METADATA_COLUMNS``).
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 from collections.abc import Iterable
 from dataclasses import dataclass
@@ -42,6 +42,20 @@ from .channels import Channel
 BASELINE_POPULATION = "negcon"
 INFECTED_POPULATION = "non-inf"
 TREATMENT_POPULATION = "trt"
+POSITIVE_CONTROL_POPULATION = "poscon"
+
+# What a reader sees for each population, and the only place it is said. The
+# tokens stay the data values everywhere they are keys — masks, ``summary.json``,
+# the feature artefacts — so only the display changes. The meanings are the
+# authors' own: ``negcon`` is infected DMSO and ``non-inf`` uninfected DMSO,
+# the split the article's Figure 1C colours by (FREYA-3009).
+POPULATION_LABELS: dict[str, str] = {
+    BASELINE_POPULATION: "Infected control (DMSO)",
+    INFECTED_POPULATION: "Uninfected control (DMSO)",
+    POSITIVE_CONTROL_POPULATION: "Positive control",
+    TREATMENT_POPULATION: "Treated",
+}
+POPULATION_LEGEND_TITLE = "Well population"
 
 # Compartments carrying their own area/shape and neighbours axes, in ring order,
 # with the notebook's own short labels (``C``, ``CY``, ``N``).
@@ -59,7 +73,7 @@ _STAIN_MODULES: tuple[tuple[str, str], ...] = (
     ("RadialDistribution", "RD"),
 )
 
-# Column-name families that carry no axis at all (DS-8 item 1).
+# Column-name families that carry no axis at all.
 UNPLOTTED_PREFIXES: tuple[str, ...] = ("Location", "Parent")
 
 # Everything outside this set is replaced in an artefact key; a key that had to
@@ -212,9 +226,9 @@ def axis_values(
     """Compute the published radar statistic for one condition.
 
     The mean per feature within the condition's rows, then the absolute value,
-    then the mean within each axis group (DS-8 item 4). No control mean is
-    subtracted: the values arrive MAD-normalised against each plate's DMSO, so
-    the absolute mean is already the deviation from that baseline.
+    then the mean within each axis group. No control mean is subtracted: the
+    values arrive MAD-normalised against each plate's DMSO, so the absolute mean
+    is already the deviation from that baseline.
 
     Args:
         matrix: The clipped figure-basis feature matrix.
@@ -239,6 +253,46 @@ def axis_values(
     ]
 
 
+def population_label(token: str) -> str:
+    """Return the plain-language name of one ``pert_type`` population.
+
+    Args:
+        token: The raw ``pert_type`` value.
+
+    Returns:
+        The name a reader sees, from ``POPULATION_LABELS``.
+
+    Raises:
+        ValueError: If the token has no name. Rendering the token instead would
+            republish exactly the internal vocabulary FREYA-3009 removes.
+    """
+    try:
+        return POPULATION_LABELS[token]
+    except KeyError:
+        raise ValueError(
+            f"pert_type {token!r} has no plain-language name, so the figures cannot say "
+            f"which population it is. Named: {sorted(POPULATION_LABELS)}."
+        ) from None
+
+
+def population_labels_token() -> str:
+    """Return a short digest of every population name a figure displays.
+
+    The names are figure content that no input carries, so rewording one would
+    move no input digest and the render cache would keep the previous legend
+    for a day. ``figures.figure_basis_token`` folds this in for that reason. It
+    is read at call time, so any change to the mapping moves it.
+
+    Returns:
+        The first 12 hex characters of a SHA-256 over the labels and the
+        legend title.
+    """
+    payload = json.dumps(
+        {"labels": POPULATION_LABELS, "legend_title": POPULATION_LEGEND_TITLE}, sort_keys=True
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()[:12]
+
+
 def require_populations(pert_types: Iterable[str]) -> None:
     """Fail the run when a population either radar contrasts is absent.
 
@@ -258,8 +312,8 @@ def require_populations(pert_types: Iterable[str]) -> None:
     ]
     if missing:
         raise ValueError(
-            f"The feature table has no {', '.join(missing)} profile(s), so the radars of "
-            "spec section 6 cannot be computed against the population they contrast. "
+            f"The feature table has no {', '.join(missing)} profile(s), so the radars "
+            "cannot be computed against the population they contrast. "
             f"Found pert_type value(s): {sorted(present)}."
         )
 
@@ -270,7 +324,7 @@ def artefact_key(cbkid: str) -> str:
     Compound ids are not filename-safe — control placeholders read ``[stau]`` —
     so the key is sanitised here, by precompute, and recorded in the compound
     index. The route looks it up there rather than deriving it from a request
-    value (spec section 8.3).
+    value.
 
     Args:
         cbkid: The compound id exactly as the feature table carries it.

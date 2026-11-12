@@ -49,7 +49,7 @@
     </dl>
 {% endif %}
 
-{# Summary-statistics panel (DrrDatasetData.summary; spec section 7). #}
+{# Summary-statistics panel (DrrDatasetData.summary). #}
 {% if summary %}
     <section aria-labelledby="drr-summary-heading" class="mb-8">
         <h3 id="drr-summary-heading">Summary statistics</h3>
@@ -78,11 +78,11 @@
         </div>
 
         <div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
-            {% if summary.pert_type_counts %}
+            {% if population_counts %}
                 <div>
-                    <h5 class="text-sm font-semibold text-pp-almost-black">Perturbation types</h5>
+                    <h5 class="text-sm font-semibold text-pp-almost-black">Well populations</h5>
                     <ul class="mt-2 flex flex-wrap gap-2">
-                        {% for label, count in summary.pert_type_counts.items %}
+                        {% for label, count in population_counts %}
                             <li class="badge badge-outline">{{ label }}: {{ count|intcomma }}</li>
                         {% endfor %}
                     </ul>
@@ -177,6 +177,8 @@ The radars are not placed here: they render from the partial below.
 
 {% include "cms/pages/drr/partials/radar_plots.html" %}
 
+{% include "cms/pages/drr/partials/compound_table.html" %}
+
 {% comment %}
 Downloads: the bulk CSV / Parquet links are live (FREYA-2580), each rendered only
 when its artefact has been precomputed, the raw-image link-out (FREYA-2581 / 2539)
@@ -238,8 +240,8 @@ single-line only, and a multi-line one renders verbatim into the page.
         {% endif %}
 
         {% comment %}
-        Reuse terms + citation (FREYA-2588, spec sections 8-9): covers every
-        surface in this section, so it closes the section rather than sitting in
+        Reuse terms + citation (FREYA-2588): covers every surface in this
+        section, so it closes the section rather than sitting in
         any one surface's block — it must render even for a page offering only
         the raw-image link-out. The Data Centre has no portal-wide licence policy
         yet, so this states only what the portal can stand behind: the underlying

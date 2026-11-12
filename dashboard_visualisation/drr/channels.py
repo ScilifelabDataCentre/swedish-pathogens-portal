@@ -1,4 +1,4 @@
-"""Per-screen channel-to-stain vocabulary for a DRR dataset (spec sections 5 and 7).
+"""Per-screen channel-to-stain vocabulary for a DRR dataset.
 
 The feature columns carry the authors' internal acquisition-slot names rather than
 stain names, and **the same token means a different stain on a different screen**:
@@ -6,7 +6,7 @@ on the A549-ACE2 validation screen this page renders, ``illumCONC`` is the
 SARS-CoV-2 nucleocapsid antibody and ``illumMITO`` is Concanavalin A / ER, while the
 Vero E6 primary screen uses those two the other way round. Measured 2026-09-03
 against the authors' own renamed feature files, whole file and column by column
-(FREYA-2923; ``plans/DRR/reference/data-sources.md`` DS-8).
+(FREYA-2923).
 
 Two facts therefore belong to the dataset and not to the project: which stain the
 page names for each column token, and which channel the figures leave out. Both are
@@ -33,10 +33,10 @@ class Channel:
         stain_group: The short name the published radar labels this channel's
             axes with (``DNA``, ``ER``, ``AGP``, ``RNA``); empty for a channel
             the radar rings no group for. It lives here so the ring follows this
-            screen's own map rather than restating it (FREYA-2636, DS-8).
+            screen's own map rather than restating it (FREYA-2636).
         in_figures: Whether its columns belong in the morphology feature basis.
             ``False`` for an infection readout: a figure computed on it would
-            carry the assay's own answer as morphology (spec section 5).
+            carry the assay's own answer as morphology.
     """
 
     column_tag: str
@@ -131,7 +131,7 @@ def figure_feature_columns(feature_columns: list[str], channels: tuple[Channel, 
 
     Every column naming a channel that is out of the figure basis is dropped,
     including a ``Correlation`` column naming it as one half of a pair — which is
-    how this screen's excluded 323 of 1,467 columns were counted (DS-8).
+    how this screen's excluded 323 of 1,467 columns were counted.
 
     Args:
         feature_columns: The table's numeric feature columns.
@@ -170,7 +170,7 @@ def present_channels(
     Returns:
         One JSON-serialisable entry per present channel, naming the stain rather
         than the column token. ``in_figures`` marks the excluded channel so the
-        page can say which one the figures leave out (spec section 7).
+        page can say which one the figures leave out.
     """
     return [
         {
