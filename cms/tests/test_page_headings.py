@@ -21,8 +21,8 @@ H1_ALLOWED_TEMPLATES = {
 # Template directories to skip. Wagtail admin and account pages extend Wagtail's
 # admin templates, not cms/base.html, so they write their own <h1>.
 NON_PUBLIC_TEMPLATE_DIRS = ("wagtailadmin/", "account/")
-# Matches templates overriding a block in base.html that renders the <h1>.
-H1_BLOCK_OVERRIDE = re.compile(r"{%\s*block\s+(page_heading|page_title)\b")
+# Matches templates overriding the block in base.html that renders the <h1>.
+H1_BLOCK_OVERRIDE = re.compile(r"{%\s*block\s+page_title\b")
 
 
 class NoHandWrittenH1Test(SimpleTestCase):
@@ -48,7 +48,7 @@ class NoHandWrittenH1Test(SimpleTestCase):
         )
 
     def test_templates_overriding_h1_blocks_write_their_own_h1(self):
-        """Templates overriding the page_heading or page_title block must write their own <h1>."""
+        """Templates overriding the page_title block must write their own <h1>."""
         offenders = []
         for path in Path(settings.BASE_DIR).glob("*/templates/**/*.html"):
             rel = path.as_posix().split("/templates/", 1)[1]
@@ -61,8 +61,7 @@ class NoHandWrittenH1Test(SimpleTestCase):
         self.assertEqual(
             offenders,
             [],
-            "These templates override the page_heading or page_title block, "
-            "which can remove the page's <h1>. "
+            "These templates override the page_title block, which removes the page's <h1>. "
             "Prefer setting 'page_title' or 'page_heading' in the context instead. "
             "If you must override, make sure the page renders only one <h1>.",
         )
