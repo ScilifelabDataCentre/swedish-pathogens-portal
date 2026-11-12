@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import csv
 import io
+import warnings
 import zipfile
 from typing import Any
 
@@ -10,6 +12,7 @@ import polars as pl
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import SimpleTestCase, TestCase
+from openpyxl import Workbook
 from plotly.graph_objects import Figure
 from wagtail.admin.panels import ObjectList
 
@@ -79,6 +82,42 @@ def build_recovac_zip(
         if extra:
             for name, content in extra.items():
                 archive.writestr(name, content)
+    return buffer.getvalue()
+
+
+def _xlsx_cell(column_index: int, raw: str, *, header: bool) -> str | int | float:
+    """Keep week labels as text and write other data cells as numbers."""
+    if header or column_index == 0 or raw == "":
+        return raw
+    if raw.isdigit() or (raw[0] == "-" and raw[1:].isdigit()):
+        return int(raw)
+    try:
+        return float(raw)
+    except ValueError:
+        return raw
+
+
+def _xlsx_bytes_from_csv(csv_text: str) -> bytes:
+    """Write one synthetic RECOVAC table as a real .xlsx workbook."""
+    workbook = Workbook()
+    sheet = workbook.active
+    for row_index, row in enumerate(csv.reader(io.StringIO(csv_text))):
+        sheet.append(
+            [_xlsx_cell(index, value, header=row_index == 0) for index, value in enumerate(row)]
+        )
+    for cell in sheet["A"]:
+        cell.number_format = "@"
+    buffer = io.BytesIO()
+    workbook.save(buffer)
+    return buffer.getvalue()
+
+
+def build_recovac_xlsx_zip(stems: tuple[str, ...] | None = None) -> bytes:
+    """Return a zip of synthetic RECOVAC workbooks (not real register data)."""
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        for stem in stems if stems is not None else REQUIRED_ZIP_STEMS:
+            archive.writestr(f"{stem}.xlsx", _xlsx_bytes_from_csv(_csv_for_stem(stem)))
     return buffer.getvalue()
 
 
@@ -582,6 +621,27 @@ class TestsGenerateFigures(SimpleTestCase):
         color = two_dose["line"]["color"]
         self.assertNotIn("235,235,0", color.replace(" ", ""))
         self.assertNotEqual(color, "rgb(235, 235, 0)")
+
+
+class TestsExcelZip(SimpleTestCase):
+    """Tests for the production zip of .xlsx workbooks."""
+
+    def test_xlsx_zip_builds_both_figures_without_deprecation(self) -> None:
+        """Read 14 real workbooks and build both subplot figures."""
+        source = io.BytesIO(build_recovac_xlsx_zip())
+        source.name = "recovac-source.zip"
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
+            error = validate_source_file(source, filename="recovac-source.zip")
+            figures = generate_figures(source)
+        deprecations = [
+            item.message for item in caught if issubclass(item.category, DeprecationWarning)
+        ]
+        self.assertEqual(deprecations, [])
+        self.assertIsNone(error)
+        self.assertEqual(set(figures), {"swedishpop_subplot", "comorbidity_subplot"})
+        self.assertEqual(len(figures["swedishpop_subplot"]["data"]), 42)
+        self.assertEqual(len(figures["comorbidity_subplot"]["data"]), 56)
 
 
 class TestsDashboardDataSaveRecovac(TestCase):
