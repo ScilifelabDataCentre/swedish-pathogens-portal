@@ -112,12 +112,22 @@ def _xlsx_bytes_from_csv(csv_text: str) -> bytes:
     return buffer.getvalue()
 
 
-def build_recovac_xlsx_zip(stems: tuple[str, ...] | None = None) -> bytes:
-    """Return a zip of synthetic RECOVAC workbooks (not real register data)."""
+def build_recovac_xlsx_zip(
+    stems: tuple[str, ...] | None = None,
+    *,
+    replacements: dict[str, bytes] | None = None,
+) -> bytes:
+    """Return a zip of synthetic RECOVAC workbooks (not real register data).
+
+    ``replacements`` swaps named members (``vacc_pop_18plus.xlsx``) for the
+    given bytes, so a test can supply a bad workbook without changing the rest.
+    """
+    replaced = replacements or {}
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w") as archive:
         for stem in stems if stems is not None else REQUIRED_ZIP_STEMS:
-            archive.writestr(f"{stem}.xlsx", _xlsx_bytes_from_csv(_csv_for_stem(stem)))
+            name = f"{stem}.xlsx"
+            archive.writestr(name, replaced.get(name, _xlsx_bytes_from_csv(_csv_for_stem(stem))))
     return buffer.getvalue()
 
 
@@ -642,6 +652,26 @@ class TestsExcelZip(SimpleTestCase):
         self.assertEqual(set(figures), {"swedishpop_subplot", "comorbidity_subplot"})
         self.assertEqual(len(figures["swedishpop_subplot"]["data"]), 42)
         self.assertEqual(len(figures["comorbidity_subplot"]["data"]), 56)
+
+    def test_xlsx_member_missing_column_is_rejected(self) -> None:
+        """Name the workbook and the missing column for an Excel member."""
+        workbook = _xlsx_bytes_from_csv(
+            "wk,vacc2,vacc3,vacc4,vacc5,vacc6\n2021w03,0.5,0.2,0.1,0.05,0.01\n"
+        )
+        payload = build_recovac_xlsx_zip(replacements={"vacc_pop_18plus.xlsx": workbook})
+        error = validate_source_file(io.BytesIO(payload), filename="recovac-source.zip")
+        self.assertIsNotNone(error)
+        self.assertIn("vacc_pop_18plus.xlsx", error)
+        self.assertIn("missing columns", error)
+        self.assertIn("vacc1", error)
+
+    def test_unreadable_xlsx_member_is_rejected(self) -> None:
+        """Reject a required member that is named .xlsx but is not a workbook."""
+        payload = build_recovac_xlsx_zip(replacements={"iva_vacc_60plus.xlsx": b"not-a-workbook"})
+        error = validate_source_file(io.BytesIO(payload), filename="recovac-source.zip")
+        self.assertIsNotNone(error)
+        self.assertIn("iva_vacc_60plus.xlsx", error)
+        self.assertIn("Could not read", error)
 
 
 class TestsDashboardDataSaveRecovac(TestCase):
