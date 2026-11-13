@@ -366,7 +366,7 @@ class TestPlpProjectPageHeading(BasePlpPageTestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["page_heading"], self.index.title)
-        self.assertContains(response, "<h1>BSL3</h1>", html=True)
+        self.assertContains(response, '<h1 class="text-3xl">BSL3</h1>', html=True)
         self.assertContains(response, "<h1", count=1)
 
     def test_subproject_banner_and_body_titles(self):
@@ -375,7 +375,7 @@ class TestPlpProjectPageHeading(BasePlpPageTestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["page_heading"], self.index.title)
-        self.assertContains(response, "<h1>BSL3 Facility</h1>", html=True)
+        self.assertContains(response, '<h1 class="text-3xl">BSL3 Facility</h1>', html=True)
         self.assertContains(response, "<h1", count=1)
 
 

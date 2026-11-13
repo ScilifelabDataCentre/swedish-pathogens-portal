@@ -44,7 +44,8 @@
                 - if no "page_heading" set: the banner shows the <h1> text, and the <h1> is visually hidden.
                 - if "page_heading" set (e.g. "News & Updates" on a news article): the banner shows page_heading,
                   and the <h1> is visible.
-                Override the page_heading or page_title block to change either.
+                Override the page_heading or page_title block to change either. 
+                Override page_title_class to change the <h1>'s classes (e.g. its size, see plp_project.html).
             {% endcomment %}
             {% firstof page_title page.title as h1_title %}
             {% firstof page_heading h1_title as banner_title %}
@@ -67,7 +68,7 @@
             <div class="container my-4">
                 {% block page_title %}
                     {% if h1_title %}
-                    <h1{% if h1_title == banner_title %} class="sr-only"{% endif %}>{{ h1_title }}</h1>
+                    <h1 class="{% if h1_title == banner_title %}sr-only {% endif %}{% block page_title_class %}{% endblock %}">{{ h1_title }}</h1>
                     {% endif %}
                 {% endblock %}
                 {% block content %}{% endblock %}
