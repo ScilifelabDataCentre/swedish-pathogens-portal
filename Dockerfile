@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1@sha256:4edf897a3ffa55b89f906fc8cc78afdb3f1834cc9c7083565e611a8a7d5fe99e
 
-ARG PYTHON_IMAGE=python:3.15-slim-trixie@sha256:94d3426f1def7db4a106a232ac121bfd975393e5dfd40a619b955fae45fe7913
+ARG PYTHON_IMAGE=python:3.15-slim-trixie@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928
 
 ###############################################################################
 #                             Base Stage                                      #
@@ -34,13 +34,13 @@ RUN case "${TARGETARCH}" in \
         *) echo "Unsupported architecture: ${TARGETARCH}"; exit 1 ;; \
     esac; \
     curl --fail --silent --show-error --location --output /usr/local/bin/tailwindcss \
-        "https://github.com/tailwindlabs/tailwindcss/releases/download/v4.3.3/tailwindcss-linux-${TAILWIND_ARCH}" \
+        "https://github.com/tailwindlabs/tailwindcss/releases/download/v4.3.5/tailwindcss-linux-${TAILWIND_ARCH}" \
  && chmod +x /usr/local/bin/tailwindcss \
  && curl --fail --silent --show-error --location --output /usr/local/lib/daisyui.mjs https://github.com/saadeghi/daisyui/releases/download/v5.7.50/daisyui.mjs \
  && curl --fail --silent --show-error --location --output /usr/local/lib/daisyui-theme.mjs https://github.com/saadeghi/daisyui/releases/download/v5.7.50/daisyui-theme.mjs
 
 # Retrieve `uv` from the third-party image (pin version)
-COPY --from=ghcr.io/astral-sh/uv:0.13.6@sha256:af22a52f5eafef3d78e551599d405c02df61919d18028f0cea8eda93bc9986d0 /uv /usr/local/bin/uv
+COPY --from=ghcr.io/astral-sh/uv:0.13.7@sha256:96f40d3904aad8d0bd010539001d36c8e2188b981e1334471a90c4a1d93bb490 /uv /usr/local/bin/uv
 
 # Set working directory
 WORKDIR /app
