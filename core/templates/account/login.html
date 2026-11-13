@@ -56,9 +56,7 @@
             <form class="login-form" action="{% url 'account_login' %}" method="post" novalidate>
                 {% block login_form %}
                     {% csrf_token %}
-
-                    {% url 'wagtailadmin_home' as home_url %}
-                    <input type="hidden" name="next" value="{{ next|default:home_url }}" />
+                    {{ redirect_field }}
 
                     {% block fields %}
                         {% formattedfield form.login label_text="Username or Email" %}

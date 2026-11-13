@@ -34,7 +34,7 @@ class TestLoginTemplate(SimpleTestCase):
 
     def test_urls_in_login_template(self):
         """Test that all URL names used in the login template exist."""
-        expected_url_names = {"account_login", "wagtailadmin_home", "account_reset_password"}
+        expected_url_names = {"account_login", "account_reset_password"}
         url_names = get_url_names_from_template("account/login.html")
 
         self.assertEqual(expected_url_names, url_names)
