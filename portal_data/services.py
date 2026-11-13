@@ -54,9 +54,7 @@ SUPPORTED_TYPES: dict[str, DataTypeConfig] = {
         label="Metabolomics",
         default_facets=(
             "year",
-            "platforms",
             "technology",
-            "factors",
             "design_types",
             "repository",
         ),
