@@ -12,6 +12,7 @@ DEBUG = False
 # ALLAUTH (Production)
 # ------------------------------------------------------------------------------
 ALLAUTH_BASE_URL = env("ALLAUTH_BASE_URL").rstrip("/") + "/"
+ACCOUNT_EMAIL_CONFIRMATION_AUTHENTICATED_REDIRECT_URL = f"/{ALLAUTH_BASE_URL}email/"
 
 
 # WAGTAIL (Production)
