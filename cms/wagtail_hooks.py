@@ -44,11 +44,19 @@ def put_email_address_for_user(request: HttpRequest, user: User) -> None:
     # Allauth's uses the EmailAddress model to keep track of user's email and the
     # email should be verified for MFA. Since new users are created by admins, we
     # can assume that the email is verified and also it is set as primary.
-    EmailAddress.objects.get_or_create(
-        user_id=user.id,
-        email=user.email,
-        defaults={"verified": True, "primary": True},
-    )
+    #
+    # But if email is already present in the EmailAddress model, despite if it is
+    # verified or not, we will not create a new EmailAddress object for the user.
+    if EmailAddress.objects.filter(email=user.email.lower()).exists():
+        messages.warning(
+            request,
+            f"Email address '{user.email}' already exists in the system, "
+            f"so it was not added to the EmailAddress model for the user '{user.username}'.",
+        )
+    else:
+        EmailAddress.objects.create(
+            user_id=user.id, email=user.email.lower(), verified=True, primary=True
+        )
 
 
 # -----------------------------------------------------------------------------

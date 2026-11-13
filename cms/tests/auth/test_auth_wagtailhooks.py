@@ -1,9 +1,12 @@
 """Tests for the auth related wagtail hooks."""
 
+from html import unescape
+
 from allauth.account.models import EmailAddress
+from django.contrib import messages
 from django.contrib.auth.models import User
-from django.http import HttpRequest
-from django.test import TestCase
+from django.contrib.messages.storage.cookie import CookieStorage
+from django.test import RequestFactory, TestCase
 from django.urls import reverse
 
 from cms.wagtail_hooks import put_email_address_for_user
@@ -19,7 +22,8 @@ class TestPutEmailAddressForUserHook(TestCase):
             password="password",  # noqa: S106
             email="test@example.com",
         )
-        self.request = HttpRequest()
+        self.request = RequestFactory().get("/")
+        self.request._messages = CookieStorage(self.request)
 
     def test_creates_email_address(self):
         """An EmailAddress object is created for the user."""
@@ -37,24 +41,40 @@ class TestPutEmailAddressForUserHook(TestCase):
         self.assertTrue(email_address.verified)
         self.assertTrue(email_address.primary)
 
-    def test_does_not_create_duplicate_email_addresses(self):
-        """Calling the hook multiple times does not create duplicates."""
-        put_email_address_for_user(self.request, self.user)
+    def test_creates_lowercase_email_address(self):
+        """The email address is stored in lowercase."""
+        self.user.email = "TEST@EXAMPLE.COM"
         put_email_address_for_user(self.request, self.user)
 
-        self.assertEqual(EmailAddress.objects.filter(user=self.user).count(), 1)
+        self.assertTrue(
+            EmailAddress.objects.filter(user=self.user, email=self.user.email.lower()).exists()
+        )
 
-    def test_does_not_overwrite_existing_email_address(self):
-        """An existing EmailAddress object is not overwritten."""
+    def test_does_not_create_email_address_if_email_already_exists(self):
+        """An existing email address prevents creating another record."""
+        existing_user = User.objects.create_user(username="anotheruser", password="password")  # noqa: S106
         existing_email = EmailAddress.objects.create(
-            user=self.user, email=self.user.email, verified=False, primary=False
+            user_id=existing_user.id, email=self.user.email, verified=False, primary=False
+        )
+
+        put_email_address_for_user(self.request, self.user)
+
+        self.assertEqual(EmailAddress.objects.filter(email=self.user.email).count(), 1)
+        self.assertTrue(EmailAddress.objects.filter(pk=existing_email.pk).exists())
+
+    def test_displays_warning_if_email_already_exists(self):
+        """A warning message is displayed if the email already exists."""
+        existing_user = User.objects.create_user(username="anotheruser", password="password")  # noqa: S106
+        EmailAddress.objects.create(
+            user=existing_user, email=self.user.email, verified=True, primary=True
         )
         put_email_address_for_user(self.request, self.user)
-        existing_email.refresh_from_db()
+        stored_messages = list(messages.get_messages(self.request))
 
-        self.assertFalse(existing_email.verified)
-        self.assertFalse(existing_email.primary)
-        self.assertEqual(EmailAddress.objects.filter(user=self.user).count(), 1)
+        self.assertEqual(len(stored_messages), 1)
+        self.assertEqual(stored_messages[0].level, messages.WARNING)
+        self.assertIn(self.user.email, str(stored_messages[0]))
+        self.assertIn(self.user.username, str(stored_messages[0]))
 
 
 class TestUserCreationPutsEmail(TestCase):
@@ -94,3 +114,29 @@ class TestUserCreationPutsEmail(TestCase):
         self.assertEqual(email_address.email, "newuser@example.com")
         self.assertTrue(email_address.verified)
         self.assertTrue(email_address.primary)
+
+    def test_creating_user_with_existing_email_displays_warning(self):
+        """Creating a user with an existing email displays a warning."""
+        existing_user = User.objects.create_user(username="anotheruser", password="password")  # noqa: S106
+        EmailAddress.objects.create(
+            user=existing_user, email="existing@example.com", verified=True, primary=True
+        )
+
+        response = self.client.post(
+            reverse("wagtailusers_users:add"),
+            data={
+                "username": "newuser",
+                "email": "existing@example.com",
+                "first_name": "New",
+                "last_name": "User",
+            },
+            follow=True,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(User.objects.filter(username="newuser").exists())
+        self.assertFalse(EmailAddress.objects.filter(user__username="newuser").exists())
+        self.assertIn(
+            "Email address 'existing@example.com' already exists in the system",
+            unescape(response.content.decode()),
+        )
