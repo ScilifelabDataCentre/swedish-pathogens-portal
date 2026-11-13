@@ -16,7 +16,7 @@
 
                     <!-- Filter title -->
                     <div class="collapse-title md:cursor-default">
-                        <h3 class="my-0">Search & Filters</h3>
+                        <h2 class="my-0 text-2xl">Search & Filters</h2>
                     </div>
 
                     <!-- Filter content -->
@@ -27,7 +27,7 @@
                                 class="input input-bordered input-accent"
                                 placeholder="Search Catalogue" aria-label="Search">
                             <!-- Catalogue Type Filters -->
-                            <h4 class="my-0">{{ page.filter_label|title }}</h4>
+                            <h3 class="my-0 text-xl">{{ page.filter_label|title }}</h3>
                             <div class="flex flex-col gap-2">
                                 {% for choice in catalogue_types %}
                                 <span>

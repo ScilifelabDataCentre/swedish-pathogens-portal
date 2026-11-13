@@ -10,7 +10,6 @@
     data-recompute-url="{% routablepageurl page 'recompute' %}"
     data-has-session="{% if has_session %}true{% else %}false{% endif %}"
 >
-    <h1>{{ page.title }}</h1>
 
     <p class="text-pp-dark-grey mb-6 flex items-center gap-2 flex-wrap">
         <span class="badge badge-ghost badge-lg">{{ page.get_data_status_display }}</span>
