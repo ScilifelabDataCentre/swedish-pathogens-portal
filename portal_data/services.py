@@ -697,31 +697,46 @@ def resolve_bulk_download(accessions: Iterable[str]) -> list[dict[str, Any]]:
     return [by_accession[accession] for accession in accessions]
 
 
+# Item fields the free-text search looks in: the identifiers, the study's own
+# text, and the metadata parsed from i_Investigation.txt (see
+# parse_investigation_file), so that e.g. a study whose factor is "HbA1c" is found
+# by searching "HbA1c" even when neither its title nor description mentions it.
+# Each may hold a string or a list of strings. Paths, URLs and dates are left out
+# on purpose: matching on them would only produce noise.
+SEARCH_FIELDS = (
+    "id",
+    "accession",
+    "title",
+    "description",
+    "tags",
+    "factors",
+    "design_types",
+    "platforms",
+    "technology",
+    "publication_title",
+    "publication_authors",
+    "publication_doi",
+)
+
+
+def _search_values(value: object) -> list[str]:
+    """Return a field's searchable text: one string per value, lowercased."""
+    if value is None:
+        return []
+    if isinstance(value, (list, tuple, set)):
+        return [str(v).lower() for v in value if v is not None]
+    return [str(value).lower()]
+
+
 def apply_text_search(items: list[dict], query: str) -> list[dict]:
-    """Apply text search to dataset listing items."""
+    """Keep the items where any SEARCH_FIELDS value contains query (case-insensitive)."""
     if not query:
         return items
 
     q = query.lower()
 
     def matches_text(it: dict[str, Any]) -> bool:
-        if q in str(it.get("title", "")).lower():
-            return True
-
-        if q in str(it.get("id", "")).lower():
-            return True
-
-        if q in str(it.get("accession", "")).lower():
-            return True
-
-        if q in str(it.get("description", "")).lower():
-            return True
-
-        tags = it.get("tags", [])
-        if isinstance(tags, str):
-            return q in tags.lower()
-
-        return any(q in str(tag).lower() for tag in tags)
+        return any(q in text for field in SEARCH_FIELDS for text in _search_values(it.get(field)))
 
     return [it for it in items if matches_text(it)]
 
