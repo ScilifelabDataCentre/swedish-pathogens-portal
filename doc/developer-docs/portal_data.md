@@ -64,9 +64,9 @@ python manage.py metabolights_search
 python manage.py metabolights_search --publications publications.csv  # authors from a CSV export instead
 python manage.py metabolights_search --retry-errors   # if it exited with code 3
 
-# 2. Download each study's i_Investigation.txt into $DATASETS_ROOT/<accession>/.
+# 2. Download each study's metadata (i_Investigation.txt and s_*.txt) into $DATASETS_ROOT/<accession>/.
 python manage.py metabolights_fetch
-python manage.py metabolights_fetch --all             # every file, not just the investigation file
+python manage.py metabolights_fetch --all             # every file, not just the metadata files
 python manage.py metabolights_fetch MTBLS1464 MTBLS2  # specific studies instead of targets.txt
 ```
 

@@ -144,24 +144,57 @@ class FetchStudiesTests(FtpTestCase):
         """Fetch the single test study from server into self.dest."""
         return ftp.fetch_studies([f"{STUDY}/"], self.dest, ftp_factory=lambda: server, **kwargs)
 
-    def test_default_mode_fetches_only_the_investigation_file(self) -> None:
-        """Subdirectories and other files are left on the server by default."""
+    def test_default_mode_fetches_only_the_metadata_files(self) -> None:
+        """Investigation and sample files are fetched; data, assays and subdirectories aren't."""
         server = FakeFtp(
             {
                 f"{STUDY}/i_Investigation.txt": (b"investigation", T_OLD),
-                f"{STUDY}/s_study.txt": (b"sample", T_OLD),
+                f"{STUDY}/s_MTBLS1.txt": (b"sample", T_NEW),
+                f"{STUDY}/a_MTBLS1_assay.txt": (b"assay", T_OLD),
+                f"{STUDY}/raw.mzML": (b"raw", T_OLD),
                 f"{STUDY}/METADATA_REVISIONS/i_Investigation.txt": (b"old", T_OLD),
+                f"{STUDY}/METADATA_REVISIONS/s_MTBLS1.txt": (b"old", T_OLD),
             }
         )
 
         summary = self._fetch(server)
 
-        local = self.dest / "MTBLS1" / "i_Investigation.txt"
-        self.assertEqual(summary.downloaded, [local])
-        self.assertEqual(local.read_bytes(), b"investigation")
-        self.assertEqual(int(local.stat().st_mtime), int(T_OLD))
-        self.assertEqual(sorted(p.name for p in (self.dest / "MTBLS1").iterdir()), [local.name])
+        study = self.dest / "MTBLS1"
+        self.assertEqual(
+            sorted(p.name for p in summary.downloaded), ["i_Investigation.txt", "s_MTBLS1.txt"]
+        )
+        self.assertEqual(
+            sorted(p.name for p in study.iterdir()), ["i_Investigation.txt", "s_MTBLS1.txt"]
+        )
+        self.assertEqual((study / "s_MTBLS1.txt").read_bytes(), b"sample")
+        self.assertEqual(int((study / "i_Investigation.txt").stat().st_mtime), int(T_OLD))
+        self.assertEqual(int((study / "s_MTBLS1.txt").stat().st_mtime), int(T_NEW))
         self.assertTrue(server.closed)
+
+    def test_default_mode_without_mlsd_uses_list_and_mdtm(self) -> None:
+        """Servers without MLSD still get the metadata files, with their mtimes."""
+        server = FakeFtp(
+            {
+                f"{STUDY}/i_Investigation.txt": (b"i", T_OLD),
+                f"{STUDY}/s_MTBLS1.txt": (b"s", T_NEW),
+            },
+            mlsd_supported=False,
+        )
+
+        summary = self._fetch(server)
+
+        self.assertEqual(len(summary.downloaded), 2)
+        sample = self.dest / "MTBLS1" / "s_MTBLS1.txt"
+        self.assertEqual(int(sample.stat().st_mtime), int(T_NEW))
+
+    def test_study_without_investigation_file_fails(self) -> None:
+        """A study directory with no i_Investigation.txt is reported as failed."""
+        server = FakeFtp({f"{STUDY}/s_MTBLS1.txt": (b"s", T_OLD)})
+
+        summary = self._fetch(server)
+
+        self.assertIn(f"{STUDY}/", summary.failed)
+        self.assertIn("i_Investigation.txt", summary.failed[f"{STUDY}/"])
 
     def test_rerun_skips_unchanged_and_refetches_updated_file(self) -> None:
         """Same size+mtime is skipped; a changed remote file is downloaded again."""
