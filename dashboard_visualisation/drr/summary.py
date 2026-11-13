@@ -1,4 +1,4 @@
-"""Build the DRR summary-statistics payload (spec section 7)."""
+"""Build the DRR summary-statistics payload."""
 
 from __future__ import annotations
 
@@ -42,8 +42,8 @@ def _feature_sets(
     The download set is every numeric feature column, as delivered; the figure set
     excludes the infection-readout channel and is clipped. Recording both counts,
     the clip, and which figures used the figure set is what keeps a later session
-    from re-deriving the wrong basis (spec section 5, FREYA-2923 criterion 5,
-    FREYA-2968 criterion 3).
+    from re-deriving the wrong basis (FREYA-2923 criterion 5, FREYA-2968
+    criterion 3).
     """
     excluded = [channel.column_tag for channel in channels if not channel.in_figures]
     return {
@@ -85,7 +85,7 @@ def build_summary(
         generated_at: ISO-8601 timestamp of the precompute run.
 
     Returns:
-        A JSON-serialisable dict matching the spec section 7 shape.
+        A JSON-serialisable dict for the page's summary panel.
     """
     frame = table.frame
     n_wells = 0

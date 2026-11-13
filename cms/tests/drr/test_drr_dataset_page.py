@@ -25,11 +25,11 @@ from cms.pages.topics import TopicPage
 from cms.pages.topics_index import TopicsIndexPage
 from cms.snippets.dashboard_data import DashboardData
 from cms.snippets.drr_dataset_data import DrrDatasetData
-from cms.tests.drr.test_drr_precompute import FEATURE_CSV, METADATA_TSV
+from cms.tests.drr.test_drr_precompute import FEATURE_CSV, METADATA_TSV, PLATE_METADATA_TSV
 from cms.tests.utils import create_test_image, use_temp_media_root
 
-# A representative, fully-populated summary payload mirroring spec section 7 plus
-# the FREYA-2557 reconciliation block. Counts use comma-grouped values so the
+# A representative, fully-populated summary payload, carrying the FREYA-2557
+# reconciliation block. Counts use comma-grouped values so the
 # ``intcomma`` render path is asserted unambiguously (Plotly div ids never carry
 # commas), and the reconciliation ids are distinctive tokens.
 FULL_SUMMARY = {
@@ -41,7 +41,7 @@ FULL_SUMMARY = {
     "pert_type_counts": {"trt": 6800, "negcon": 900, "poscon": 598},
     "compartments": ["nuclei", "cells", "cytoplasm"],
     # Channels as precompute reports them: the stain, not the column token, with
-    # the antibody marked out of the figure basis (FREYA-2923, spec section 7).
+    # the antibody marked out of the figure basis (FREYA-2923).
     "channels": [
         {
             "column_tag": "illumHOECHST",
@@ -96,7 +96,7 @@ FULL_SUMMARY = {
                     {"column": "AreaShape_FormFactor_nuclei", "n_clipped": 311}
                 ],
             },
-            "used_by": ["pca", "heatmap", "radar_compound", "radar_infected"],
+            "used_by": ["pca", "radar_compound", "radar_infected"],
         },
     },
     "compound_reconciliation": {
@@ -226,7 +226,7 @@ class TestDrrDatasetPageContext(DrrDatasetPageTestCase):
 
 
 class TestDrrDatasetPageRender(DrrDatasetPageTestCase):
-    """Rendered-HTML tests for the DRR dataset template (spec section 9 / 10)."""
+    """Rendered-HTML tests for the DRR dataset template."""
 
     @classmethod
     def setUpTestData(cls) -> None:
@@ -281,9 +281,15 @@ class TestDrrDatasetPageRender(DrrDatasetPageTestCase):
         self.assertContains(response, "1,467")  # n_features
         self.assertContains(response, "7,500")  # n_wells
 
-        # Perturbation types plus compartments / channels.
-        self.assertContains(response, "Perturbation types")
-        self.assertContains(response, "6,800")  # trt count
+        # Well populations, named in plain language, plus compartments / channels.
+        # The tokens stay the summary's keys and never reach a reader (FREYA-3009).
+        self.assertContains(response, "Well populations")
+        self.assertContains(response, "Treated: 6,800")
+        self.assertContains(response, "Infected control (DMSO): 900")
+        self.assertContains(response, "Positive control: 598")
+        self.assertNotContains(response, "negcon")
+        self.assertNotContains(response, "poscon")
+        self.assertNotContains(response, "trt:")
         self.assertContains(response, "nuclei, cells, cytoplasm")
 
         # Channels name their stains and say which one the figures leave out.
@@ -319,6 +325,26 @@ class TestDrrDatasetPageRender(DrrDatasetPageTestCase):
         # Figure rendered server-side through the inherited PlotlyFigureBlock path.
         self.assertContains(response, 'class="plotly-figure"')
         self.assertContains(response, 'aria-label="PCA plot"')
+
+    def test_an_unnamed_population_renders_as_itself_rather_than_failing(self) -> None:
+        """A summary token with no name is shown raw; the page still renders.
+
+        Precompute refuses such a population, so this is a summary written
+        elsewhere — and a missing label must not take the whole page down.
+        """
+        DrrDatasetData.objects.create(
+            dataset_slug="sars-cov2-a549-ace2-validation",
+            data={},
+            summary={**FULL_SUMMARY, "pert_type_counts": {"trt": 6800, "mystery": 12}},
+            source_file_hash="deadbeefcafe0000",
+            data_updated_at=date(2026, 7, 10),
+        )
+
+        response = self.client.get(self.page.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Treated: 6,800")
+        self.assertContains(response, "mystery: 12")
 
     def test_figure_falls_back_when_figure_json_missing(self) -> None:
         """With no precomputed figure JSON the block shows its unavailable-data fallback."""
@@ -370,7 +396,7 @@ class TestDrrDatasetDownloadsWired(DrrDatasetPageTestCase):
 
     Route behaviour is covered by ``test_drr_downloads.py`` and
     ``test_drr_raw_images.py``; what this asserts is the page-context payload
-    spec section 10 requires of this file. The fixture names no upstream study,
+    this file is responsible for. The fixture names no upstream study,
     so the raw-image link-out (FREYA-2581) is advertised only where a test sets
     one.
     """
@@ -423,7 +449,7 @@ class TestDrrDatasetDownloadsWired(DrrDatasetPageTestCase):
 
 
 class TestDrrCompoundPicker(DrrDatasetPageTestCase):
-    """The on-page compound picker (FREYA-2583, spec section 9).
+    """The on-page compound picker (FREYA-2583).
 
     Options are read from ``compounds.parquet`` and submitted to the
     per-compound slice, so the pair these assert is: every option the page
@@ -954,7 +980,7 @@ class TestDashboardIndexDrrCards(DrrDatasetPageTestCase):
 
 
 class TestDrrDatasetSliceAcceptance(DrrDatasetPageTestCase):
-    """End-to-end: precompute artefacts drive a live DRR page render (spec section 10)."""
+    """End-to-end: precompute artefacts drive a live DRR page render."""
 
     def setUp(self) -> None:
         """Clear the per-figure HTML cache before the end-to-end render."""
@@ -970,6 +996,8 @@ class TestDrrDatasetSliceAcceptance(DrrDatasetPageTestCase):
         input_path.write_text(FEATURE_CSV, encoding="utf-8")
         metadata_path = base / "metadata.tsv"
         metadata_path.write_text(METADATA_TSV, encoding="utf-8")
+        plate_metadata_path = base / "plates.tsv"
+        plate_metadata_path.write_text(PLATE_METADATA_TSV, encoding="utf-8")
         media = base / "media"
 
         # The registered screen: the fixture is this screen's data in miniature,
@@ -981,6 +1009,7 @@ class TestDrrDatasetSliceAcceptance(DrrDatasetPageTestCase):
                 slug=slug,
                 input=str(input_path),
                 metadata=str(metadata_path),
+                plate_metadata=str(plate_metadata_path),
                 title="Acceptance DRR",
             )
 
