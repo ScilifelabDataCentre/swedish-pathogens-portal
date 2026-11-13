@@ -82,6 +82,15 @@ The logic lives in `portal_data/metabolights/` (`europepmc.py` and `ftp.py`). Th
 
 `services.py` locates and parses `i_Investigation.txt` for each study directory it finds. In practice, this file contains the study-level metadata used for the listing page. It prefers the latest revision under `METADATA_REVISIONS/` if that directory exists, falling back to the top-level file.
 
+### Organism and Pathogens facets
+
+Two facets come from outside the investigation file:
+
+- **Organisms** come from the `Characteristics[Organism]` column of each study's `s_*.txt` sample file(s), which `metabolights_fetch` downloads alongside `i_Investigation.txt` (`parse_sample_organisms` in `services.py`). Control-sample placeholders such as `blank` or `Medium` are dropped, co-cultures (`A;B`) are split, and strains are merged into their species (`Escherichia coli E1777` becomes `Escherichia coli`; see `normalize_organism`). Hybrids, genus-only names and non-binomial virus names are kept as written.
+- **Pathogens** come from the latest `metabolights_search` results: the keywords that matched each study's papers, mapped to pathogen names by `portal_data/metabolights/pathogen_keywords.csv` (see `portal_data/metabolights/pathogens.py`). Only keywords that identify a pathogen are mapped, and synonyms share a name (`E. coli`, `ETEC` → *Escherichia coli*; `COVID-19` → SARS-CoV-2). Generic terms, multi-cause diseases and ambiguous abbreviations are deliberately left out. Only studies found by the search get pathogens, and they reflect the paper text rather than what the dataset measured. Edit the mapping CSV to change what the facet shows; a test checks that every mapped keyword exists in the search keyword list.
+
+Both are also included in the free-text search.
+
 ### HTML sanitisation
 
 Study descriptions in the investigation file contain HTML authored by depositors. This is sanitised at parse time using `nh3` (a Python binding to the Rust `ammonia` library) before it reaches a template. This allows depositor-authored descriptions to be rendered without trusting arbitrary HTML. Only a safe presentational subset of tags is allowed: `p`, `br`, `strong`, `em`, `a`, `ul`, `ol`, `li`. Links keep their `href` and `target` attributes, but the `rel` attribute is stripped.

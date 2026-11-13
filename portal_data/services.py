@@ -22,6 +22,8 @@ from django.conf import settings
 from django.core.cache import cache
 
 from cms.services.api_client import fetch_json
+from portal_data.metabolights.europepmc import PAPERS_OUTPUT_CSV
+from portal_data.metabolights.pathogens import load_pathogen_map, pathogens_by_accession
 
 logger = logging.getLogger(__name__)
 
@@ -53,6 +55,8 @@ SUPPORTED_TYPES: dict[str, DataTypeConfig] = {
     "metabolomics": DataTypeConfig(
         label="Metabolomics",
         default_facets=(
+            "organisms",
+            "pathogens",
             "year",
             "technology",
             "design_types",
@@ -250,13 +254,22 @@ def _items_cache_key(datatype: str, data_root: Path) -> str:
 
     The datasets root's mtime is part of the key, so adding or removing a
     study directory (e.g. when manage.py metabolights_fetch adds new studies) invalidates
-    the cache immediately. In-place edits to files inside an existing study
-    directory don't touch the root's mtime; those are picked up when the
-    entry expires (``PORTAL_DATA_CACHE_TIMEOUT``).
+    the cache immediately, and so is the mtime of the search results the
+    pathogens come from, so a new metabolights_search run shows straight away.
+    In-place edits to files inside an existing study directory don't touch the
+    root's mtime; those are picked up when the entry expires
+    (``PORTAL_DATA_CACHE_TIMEOUT``).
     """
     root_hash = hashlib.sha1(str(data_root).encode(), usedforsecurity=False).hexdigest()[:12]
     mtime_ns = data_root.stat().st_mtime_ns
-    return f"portal_data:items:{datatype}:{root_hash}:{mtime_ns}"
+    papers_csv = _search_papers_csv(data_root)
+    papers_mtime_ns = papers_csv.stat().st_mtime_ns if papers_csv.is_file() else 0
+    return f"portal_data:items:{datatype}:{root_hash}:{mtime_ns}:{papers_mtime_ns}"
+
+
+def _search_papers_csv(data_root: Path) -> Path:
+    """Return where metabolights_search writes its papers CSV under this root."""
+    return data_root / METABOLIGHTS_SEARCH_DIRNAME / PAPERS_OUTPUT_CSV
 
 
 def load_all_items(datatype: str) -> list[dict]:
@@ -286,8 +299,10 @@ def _scan_all_items(data_root: Path) -> list[dict]:
 
     Each item dict keeps the old keys (id, repository, repo_url, etc.)
     so facets/export keep working, but now also has richer metadata.
+    Pathogens come from the latest metabolights_search results, if any.
     """
     items = []
+    study_pathogens = pathogens_by_accession(_search_papers_csv(data_root), load_pathogen_map())
 
     for study_dir in sorted(data_root.iterdir(), key=lambda p: p.name):
         if not study_dir.is_dir():
@@ -338,6 +353,10 @@ def _scan_all_items(data_root: Path) -> list[dict]:
             "publication_doi": meta.get("publication_doi"),
             "publication_authors": meta.get("publication_authors"),
             "technology": meta.get("technology"),
+            # From the s_*.txt sample file(s), not the investigation file
+            "organisms": parse_sample_organisms(study_dir),
+            # From the keywords that matched this study's papers in the search
+            "pathogens": study_pathogens.get(accession, []),
             # Local PVC location (useful for debugging or later features)
             "local_path": str(study_dir),
         }
@@ -491,6 +510,136 @@ def find_investigation_file(study_dir: Path) -> Path | None:
         return candidate
 
     return None
+
+
+# Values of Characteristics[Organism] that label control samples (blanks, growth
+# medium, solvent) or missing data rather than an organism. Compared lowercased.
+_NON_ORGANISM_VALUES = frozenset(
+    {
+        "blank",
+        "medium",
+        "growth medium",
+        "solvent",
+        "none",
+        "na",
+        "n/a",
+        "not applicable",
+        "not available",
+        "unknown",
+        "-",
+    }
+)
+_ORGANISM_COLUMN = "characteristics[organism]"
+
+# "Genus species", optionally followed by more: the shape normalize_organism
+# looks for. The species may be "sp."/"spp." (genus-level). Case is ignored so
+# that "escherichia coli" and "Escherichia Coli" are recognised too.
+_BINOMIAL_RE = re.compile(r"^([A-Za-z]{3,})\s+([A-Za-z]{3,}|spp?\.)(?:\s+(.+))?$")
+# A word after the species that starts a below-species rank: everything from
+# it on is dropped ("Mycobacterium avium subsp. paratuberculosis").
+_INFRASPECIFIC_MARKERS = frozenset(
+    {
+        "strain",
+        "str.",
+        "substr.",
+        "subsp.",
+        "ssp.",
+        "serovar",
+        "ser.",
+        "var.",
+        "pv.",
+        "pathovar",
+        "bv.",
+        "biovar",
+        "isolate",
+        "clone",
+        "genotype",
+        "atcc",
+        "nctc",
+        "dsm",
+        "ccug",
+    }
+)
+
+
+def _is_strain_code(token: str) -> bool:
+    """Return True for a token that reads as a strain/isolate code, not a word.
+
+    E.g. "E1777", "K-12", "O157:H7", "C57BL/6", "(ATCC" or "ETEC"/"MRSA" --
+    anything with a digit or code punctuation, or an all-caps abbreviation.
+    """
+    return (
+        any(c.isdigit() for c in token)
+        or any(c in ":/-()[]#" for c in token)
+        or (len(token) >= 2 and token.isalpha() and token.isupper())
+    )
+
+
+def normalize_organism(name: str) -> str:
+    """Reduce an organism name to its species, so strains share one facet entry.
+
+    "Escherichia coli E1777" and "Escherichia coli K-12" both become
+    "Escherichia coli", and so does "Escherichia coli strain O157:H7";
+    "Mycobacterium avium subsp. paratuberculosis" becomes "Mycobacterium
+    avium". The genus is capitalised and the species lowercased.
+
+    Only a name shaped like "Genus species" is touched, and only when what
+    follows the species is a below-species rank or a run of strain codes.
+    Anything else is kept as written, because shortening it would change its
+    meaning: hybrids ("Populus tremula x Populus tremuloides"), genus-only
+    names ("Gomphrena"), and names that aren't binomials at all, such as most
+    viruses ("Severe acute respiratory syndrome coronavirus 2", "Influenza A
+    virus (H1N1)").
+    """
+    name = " ".join(name.split())
+    match = _BINOMIAL_RE.match(name)
+    if not match:
+        return name
+    genus, species, rest = match.groups()
+    if rest:
+        tokens = rest.split()
+        is_rank = tokens[0].casefold() in _INFRASPECIFIC_MARKERS
+        if not is_rank and not all(_is_strain_code(t) for t in tokens):
+            return name
+    return f"{genus.capitalize()} {species.lower()}"
+
+
+def parse_sample_organisms(study_dir: Path) -> list[str]:
+    """Return the distinct organisms in a study's s_*.txt sample file(s).
+
+    Reads the Characteristics[Organism] column of each sample file at the
+    top of the study directory (where metabolights_fetch saves them). A cell
+    can name several organisms separated by ";" (e.g. a co-culture), and
+    placeholders for control samples such as "blank" or "Medium" are
+    dropped. Each name is reduced to its species by normalize_organism, so
+    strains of one species share a facet entry, and names that still differ
+    only in case are merged, keeping the first spelling seen.
+
+    Returns [] if there is no sample file or no organism column -- e.g. for
+    a study fetched before sample files were downloaded.
+    """
+    organisms: dict[str, str] = {}
+    for path in sorted(study_dir.glob("s_*.txt")):
+        try:
+            with path.open(encoding="utf-8-sig", errors="replace", newline="") as f:
+                reader = csv.reader(f, delimiter="\t")
+                header = next(reader, [])
+                columns = [i for i, h in enumerate(header) if h.strip().lower() == _ORGANISM_COLUMN]
+                if not columns:
+                    continue
+                for row in reader:
+                    for i in columns:
+                        if i >= len(row):
+                            continue
+                        for value in row[i].split(";"):
+                            name = " ".join(value.split())
+                            if not name or name.casefold() in _NON_ORGANISM_VALUES:
+                                continue
+                            name = normalize_organism(name)
+                            organisms.setdefault(name.casefold(), name)
+        except (OSError, csv.Error) as error:
+            logger.warning("Could not read sample file %s: %s", path, error)
+    return sorted(organisms.values(), key=str.casefold)
 
 
 def parse_investigation_file(path: Path) -> dict[str, object]:
@@ -713,6 +862,8 @@ SEARCH_FIELDS = (
     "design_types",
     "platforms",
     "technology",
+    "organisms",
+    "pathogens",
     "publication_title",
     "publication_authors",
     "publication_doi",

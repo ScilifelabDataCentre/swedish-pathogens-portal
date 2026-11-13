@@ -499,3 +499,179 @@ class EnsureWritableDirTests(SimpleTestCase):
         blocker.write_text("x")
         with self.assertRaises(OSError):
             services.ensure_writable_dir(blocker / "sub")
+
+
+def _write_sample_file(
+    study_dir: Path, name: str, header: list[str], rows: list[list[str]]
+) -> None:
+    """Write a tab-separated, quoted ISA-Tab sample file like MetaboLights does."""
+    study_dir.mkdir(parents=True, exist_ok=True)
+    lines = ["\t".join(f'"{cell}"' for cell in line) for line in [header, *rows]]
+    (study_dir / name).write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+class ParseSampleOrganismsTests(SimpleTestCase):
+    """Organisms come from Characteristics[Organism] in the s_*.txt sample files."""
+
+    HEADER = ["Source Name", "Characteristics[Organism]", "Characteristics[Organism part]"]
+
+    def setUp(self) -> None:
+        """Create an empty study directory."""
+        self.study = Path(self.enterContext(tempfile.TemporaryDirectory())) / "MTBLS1"
+        self.study.mkdir()
+
+    def test_collects_distinct_organisms_sorted(self) -> None:
+        """Each organism appears once, sorted case-insensitively."""
+        rows = [
+            ["s1", "Homo sapiens", "plasma"],
+            ["s2", "Homo sapiens", "plasma"],
+            ["s3", "escherichia coli", "whole organism"],
+        ]
+        _write_sample_file(self.study, "s_MTBLS1.txt", self.HEADER, rows)
+
+        self.assertEqual(
+            services.parse_sample_organisms(self.study), ["Escherichia coli", "Homo sapiens"]
+        )
+
+    def test_merges_strains_of_one_species(self) -> None:
+        """Two strains of E. coli are one facet entry."""
+        rows = [
+            ["s1", "Escherichia coli E1777", "whole organism"],
+            ["s2", "Escherichia coli E2265", "whole organism"],
+        ]
+        _write_sample_file(self.study, "s_MTBLS1.txt", self.HEADER, rows)
+
+        self.assertEqual(services.parse_sample_organisms(self.study), ["Escherichia coli"])
+
+    def test_splits_co_cultures_and_merges_spelling_variants(self) -> None:
+        """'A;B' and 'A; B' name two organisms; case/spacing variants are one."""
+        rows = [
+            ["s1", "Streptococcus gordonii;Actinomyces naeslundii", "biofilm"],
+            ["s2", "Streptococcus gordonii; Actinomyces  naeslundii", "biofilm"],
+            ["s3", "streptococcus gordonii", "biofilm"],
+        ]
+        _write_sample_file(self.study, "s_MTBLS1.txt", self.HEADER, rows)
+
+        self.assertEqual(
+            services.parse_sample_organisms(self.study),
+            ["Actinomyces naeslundii", "Streptococcus gordonii"],
+        )
+
+    def test_drops_control_and_missing_placeholders(self) -> None:
+        """Blanks, growth medium, solvent and empty cells aren't organisms."""
+        rows = [
+            ["s1", "Trypanosoma brucei", "whole organism"],
+            ["s2", "Blank", "Blank"],
+            ["s3", "Medium", "Growth Medium"],
+            ["s4", "solvent", "solvent"],
+            ["s5", "", ""],
+        ]
+        _write_sample_file(self.study, "s_MTBLS1.txt", self.HEADER, rows)
+
+        self.assertEqual(services.parse_sample_organisms(self.study), ["Trypanosoma brucei"])
+
+    def test_combines_several_sample_files(self) -> None:
+        """A study with more than one sample file gets the organisms of all of them."""
+        _write_sample_file(self.study, "s_a.txt", self.HEADER, [["s1", "Homo sapiens", "x"]])
+        _write_sample_file(self.study, "s_b.txt", self.HEADER, [["s1", "Mus musculus", "x"]])
+
+        self.assertEqual(
+            services.parse_sample_organisms(self.study), ["Homo sapiens", "Mus musculus"]
+        )
+
+    def test_no_sample_file_or_no_organism_column_gives_empty_list(self) -> None:
+        """Studies fetched before sample files were downloaded simply have no organisms."""
+        self.assertEqual(services.parse_sample_organisms(self.study), [])
+
+        _write_sample_file(self.study, "s_MTBLS1.txt", ["Source Name", "Sample Name"], [["a", "b"]])
+        self.assertEqual(services.parse_sample_organisms(self.study), [])
+
+    def test_ignores_sample_files_in_subdirectories(self) -> None:
+        """Older revisions under METADATA_REVISIONS aren't read."""
+        revision = self.study / "METADATA_REVISIONS" / "MTBLS1_01"
+        _write_sample_file(revision, "s_MTBLS1.txt", self.HEADER, [["s1", "Old organism", "x"]])
+        _write_sample_file(self.study, "s_MTBLS1.txt", self.HEADER, [["s1", "Homo sapiens", "x"]])
+
+        self.assertEqual(services.parse_sample_organisms(self.study), ["Homo sapiens"])
+
+
+@override_settings(CACHES={"default": {"BACKEND": "django.core.cache.backends.dummy.DummyCache"}})
+class OrganismFacetTests(SimpleTestCase):
+    """The listing exposes organisms as a facet, a filter and searchable text."""
+
+    def setUp(self) -> None:
+        """Create a datasets root with two studies."""
+        self.root = Path(self.enterContext(tempfile.TemporaryDirectory()))
+        header = ["Source Name", "Characteristics[Organism]"]
+        for accession, organism in (("MTBLS1", "Homo sapiens"), ("MTBLS2", "Escherichia coli")):
+            study = self.root / accession
+            study.mkdir()
+            (study / "i_Investigation.txt").write_text(
+                f"Study Title\t{accession} study\n", encoding="utf-8"
+            )
+            _write_sample_file(study, f"s_{accession}.txt", header, [["s1", organism]])
+        self.enterContext(override_settings(DATASETS_ROOT=str(self.root)))
+
+    def _listing(self, **kwargs: object) -> dict:
+        """Return the metabolomics listing with the organisms facet."""
+        defaults = {"datatype": "metabolomics", "query": "", "filters": {}}
+        return services.get_dataset_listing(facet_names=["organisms"], **{**defaults, **kwargs})
+
+    def test_organisms_is_a_default_facet(self) -> None:
+        """The metabolomics page shows Organisms among its facets."""
+        config = services.get_datatype_config("metabolomics")
+        self.assertIn("organisms", config.default_facets)
+
+    def test_facet_counts_studies_per_organism(self) -> None:
+        """Each organism is a facet bucket counting its studies."""
+        buckets = self._listing()["facets"]["organisms"]
+        self.assertEqual(
+            {b["value"]: b["count"] for b in buckets}, {"Escherichia coli": 1, "Homo sapiens": 1}
+        )
+
+    def test_filter_and_search_by_organism(self) -> None:
+        """Selecting an organism, or searching its name, narrows the listing."""
+        filtered = self._listing(filters={"organisms": ["Escherichia coli"]})["items"]
+        searched = self._listing(query="sapiens")["items"]
+
+        self.assertEqual([item["id"] for item in filtered], ["MTBLS2"])
+        self.assertEqual([item["id"] for item in searched], ["MTBLS1"])
+
+
+class NormalizeOrganismTests(SimpleTestCase):
+    """normalize_organism merges strains to species but leaves other names alone."""
+
+    def test_reduces_strains_and_subspecies_to_the_species(self) -> None:
+        """Strain codes and below-species ranks are dropped."""
+        cases = {
+            "Escherichia coli E1777": "Escherichia coli",
+            "Escherichia coli K-12": "Escherichia coli",
+            "Escherichia coli O157:H7": "Escherichia coli",
+            "Escherichia coli strain Nissle 1917": "Escherichia coli",
+            "Staphylococcus aureus MRSA": "Staphylococcus aureus",
+            "Staphylococcus aureus subsp. aureus NCTC 8325": "Staphylococcus aureus",
+            "Mycobacterium avium subsp. paratuberculosis": "Mycobacterium avium",
+            "Salmonella enterica serovar Typhimurium": "Salmonella enterica",
+            "Mus musculus C57BL/6J": "Mus musculus",
+            "Streptococcus sp. ABC12": "Streptococcus sp.",
+        }
+        for raw, expected in cases.items():
+            with self.subTest(raw=raw):
+                self.assertEqual(services.normalize_organism(raw), expected)
+
+    def test_normalises_case_and_spacing(self) -> None:
+        """Genus capitalised, species lowercased, whitespace collapsed."""
+        self.assertEqual(services.normalize_organism("escherichia  COLI"), "Escherichia coli")
+        self.assertEqual(services.normalize_organism("Homo sapiens"), "Homo sapiens")
+
+    def test_leaves_names_that_are_not_strains_alone(self) -> None:
+        """Hybrids, genus-only names and non-binomial (virus) names are kept as written."""
+        for name in (
+            "Populus tremula x Populus tremuloides",
+            "Gomphrena",
+            "Severe acute respiratory syndrome coronavirus 2",
+            "Influenza A virus (A/Puerto Rico/8/1934(H1N1))",
+            "Hepatitis B virus",
+        ):
+            with self.subTest(name=name):
+                self.assertEqual(services.normalize_organism(name), name)
