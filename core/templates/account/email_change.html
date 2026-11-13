@@ -1,0 +1,103 @@
+{% extends "wagtailadmin/base.html" %}
+{% load wagtailadmin_tags %}
+
+{% comment %}
+    This template is used to override django allauth's email change template. It extends wagtailadmin's
+    base template to keep the UI consistent with the rest of the Wagtail admin. `block content` is
+    overridden with django allauth's form and buttons needed for the email page.
+
+    Django allauth email template source code:
+    https://github.com/pennersr/django-allauth/blob/main/allauth/templates/account/email_change.html
+
+    Wagtailadmin base template source code:
+    https://github.com/wagtail/wagtail/blob/main/wagtail/admin/templates/wagtailadmin/base.html
+{% endcomment %}
+
+{% block titletag %}Change Email{% endblock %}
+
+{% block extra_css %}
+    <style>
+        form label {
+            display: none !important;
+        }
+        form input {
+            width: 35rem !important;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <section class="nice-padding w-mt-8 w-max-w-6xl">
+        <div class="w-flex w-h1 w-items-center w-gap-2">
+            {% icon classname="w-max-w-[1em] w-max-h-[1em]" name="mail" %}
+            <div>Email address</div>
+        </div>
+        <p class="w-mt-6">
+            In this page, you can change the email addresses associated with your account. Visit
+            <a href="{% url 'wagtailadmin_account' %}">account</a> page to change other account
+            settings, such as your password or profile information.
+        </p>
+
+        <div class="w-mt-8">
+            {% if not emailaddresses %}
+                <div class="w-flex w-items-center w-gap-2 w-font-semibold w-bg-warning-100 w-p-4 w-rounded">
+                    {% icon classname="w-max-w-[1em] w-max-h-[1em]" name="warning" %}
+                    <span>You do not have any email addresses associated with your account.</span>
+                </div>
+            {% endif %}
+
+            {% if current_emailaddress %}
+                <h2>Current Email:</h2>
+                <p>
+                    Your current email is <code class="w-font-semibold">{{ current_emailaddress.email }}</code>
+                </p>
+            {% endif %}
+        </div>
+
+        {% if new_emailaddress %}
+            <div class="w-mt-8">
+                <h2>
+                    {% if not current_emailaddress %} Adding Email: {% else %} Changing Email: {% endif %}
+                </h2>
+                <p>
+                    You are currently in the process of
+                    {% if not current_emailaddress %}adding email{% else %} changing email to{% endif %}
+                    <code class="w-font-semibold">{{ new_emailaddress.email }}</code>. Once the email is
+                    verified, it will be associated with your account.
+                </p>
+                <p>
+                    If you did not receive the verification email, you can resend it {% if current_emailaddress %}or cancel the change{% endif %}.
+                </p>
+                <form action="{% url 'account_email' %}" method="post" novalidate>
+                    {% csrf_token %}
+                    <input type="hidden" name="email" value="{{ new_emailaddress.email }}">
+                    <div class="w-mt-5">
+                        <button type="submit" name="action_send" class="button">Resend Verification</button>
+                        {% if current_emailaddress %}
+                        <button type="submit" name="action_remove" class="button">Cancel Change</button>
+                        {% endif %}
+                    </div>
+                </form>
+            </div>
+        {% endif %}
+
+        {% if not new_emailaddress or not emailaddresses %}
+            <div class="w-mt-8">
+                <h2>
+                    {% if not emailaddresses %} Add Email: {% else %} Change Email: {% endif %}
+                </h2>
+                <form action="{% url 'account_email' %}" method="post" novalidate>
+                    {% csrf_token %}
+                    
+                    {% formattedfield form.email %}
+                    
+                    <div class="form-actions">
+                        <button type="submit" class="button" name="action_add">
+                            {% if not emailaddresses %} Add Email {% else %} Change Email {% endif %}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        {% endif %}
+    </section>
+{% endblock %}

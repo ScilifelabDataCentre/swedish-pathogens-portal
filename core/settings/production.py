@@ -8,21 +8,28 @@ from .base import env
 
 DEBUG = False
 
-# ADMIN
-# ------------------------------------------------------------------------------
-INCLUDE_DJANGO_ADMIN = env.bool("INCLUDE_DJANGO_ADMIN", default=False)
 
-if INCLUDE_DJANGO_ADMIN:
-    # Required to set DJANGO_ADMIN_URL if INCLUDE_DJANGO_ADMIN is True.
-    DJANGO_ADMIN_URL = env("DJANGO_ADMIN_URL").rstrip("/") + "/"
-# ADMINS = [(Full name, email address)]
-# MANAGERS = ADMINS
+# ALLAUTH (Production)
+# ------------------------------------------------------------------------------
+ALLAUTH_BASE_URL = env("ALLAUTH_BASE_URL").rstrip("/") + "/"
+ACCOUNT_EMAIL_CONFIRMATION_AUTHENTICATED_REDIRECT_URL = f"/{ALLAUTH_BASE_URL}email/"
 
 
 # WAGTAIL (Production)
 # ------------------------------------------------------------------------------
 WAGTAILADMIN_URL = env("WAGTAILADMIN_URL").rstrip("/") + "/"
 WAGTAILADMIN_BASE_URL = env("WAGTAILADMIN_BASE_URL").rstrip("/")
+WAGTAILADMIN_LOGIN_URL = f"/{ALLAUTH_BASE_URL}login/"
+
+
+# DJANGO ADMIN (Production)
+# ------------------------------------------------------------------------------
+INCLUDE_DJANGO_ADMIN = env.bool("INCLUDE_DJANGO_ADMIN", default=False)
+if INCLUDE_DJANGO_ADMIN:
+    # Required to set DJANGO_ADMIN_URL if INCLUDE_DJANGO_ADMIN is True.
+    DJANGO_ADMIN_URL = env("DJANGO_ADMIN_URL").rstrip("/") + "/"
+LOGIN_REDIRECT_URL = f"/{WAGTAILADMIN_URL}"
+LOGOUT_REDIRECT_URL = f"/{WAGTAILADMIN_URL}"
 
 
 # MEDIA FILES (Production)

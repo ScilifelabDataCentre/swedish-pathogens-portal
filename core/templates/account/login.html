@@ -1,0 +1,93 @@
+{% extends "wagtailadmin/login.html" %}
+{% load static wagtailadmin_tags %}
+
+{% comment %}
+    This template is used to override django allauth's login template. It uses wagtailadmin's login template
+    as a base and overrides form action url and form fields. If its just the fields we could have overridden
+    the `block fields`, but we also need to override the form action url, so we have to override the whole
+    `block furniture`. Kept the `block js` empty to avoid loading wagtailadmin's js which is not needed for
+    the django allauth login page.
+
+    Django allauth login template source code:
+    https://github.com/pennersr/django-allauth/blob/main/allauth/templates/account/login.html
+
+    Wagtailadmin login template source code:
+    https://github.com/wagtail/wagtail/blob/main/wagtail/admin/templates/wagtailadmin/login.html
+{% endcomment %}
+
+{% block js %}{% endblock %}
+
+{% block extra_css %}
+<style>
+    #login-wrapper h1 {
+        font-size: 1.64rem;
+    }
+    #login-wrapper .messages ul {
+        opacity: 1 !important;
+        position: static !important;
+    }
+    .w-field > * + *,
+    .w-field__wrapper > * + * {
+        margin-top: 0.75rem !important;
+    }
+</style>
+{% endblock  %}
+
+{% block furniture %}
+    <main class="content-wrapper" id="main">
+        <div id="login-wrapper">
+            <h1>{% block branding_login %}Swedish Pathogens Portal{% endblock %}</h1>
+
+            {% if messages or form.non_field_errors %}
+            <div class="messages" role="status">
+                <ul>
+                    {% if form.non_field_errors %}
+                        {% for error in form.non_field_errors %}
+                            <li class="error">{{ error }}</li>
+                        {% endfor %}
+                    {% endif %}
+                    {% for message in messages %}
+                        <li class="{{ message.tags }}">{{ message }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <form class="login-form" action="{% url 'account_login' %}" method="post" novalidate>
+                {% block login_form %}
+                    {% csrf_token %}
+                    {{ redirect_field }}
+
+                    {% block fields %}
+                        {% formattedfield form.login label_text="Username or Email" %}
+                        {% formattedfield form.password %}
+
+                        <a class="reset-password" href="{% url 'account_reset_password' %}">Forgotten password?</a>
+
+                        {% include "wagtailadmin/shared/forms/single_checkbox.html" with label_classname="remember-me" name="remember" text=_("Remember me") %}
+                    {% endblock %}
+                {% endblock %}
+                <footer class="form-actions">
+                    {% block submit_buttons %}
+                        <button
+                            type="submit"
+                            class="button button-longrunning"
+                            data-controller="w-progress"
+                            data-action="w-progress#activate"
+                            data-w-progress-active-value="Signing in…"
+                        >
+                            {% icon name="spinner" %}
+                            <em data-w-progress-target="label">Sign in</em>
+                        </button>
+                    {% endblock %}
+                </footer>
+            </form>
+
+            {% block branding_logo %}
+            <div class="login-logo">
+                <img src="{% static 'cms/images/swe_pathogens_logo.svg' %}" alt="Swedish Pathogen Portal" />
+            </div>
+            {% endblock %}
+        </div>
+    </main>
+{% endblock %}

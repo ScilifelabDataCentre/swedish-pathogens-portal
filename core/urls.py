@@ -21,6 +21,7 @@ from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib import admin
 from django.urls import include, path
+from django.views.generic import RedirectView
 from wagtail import urls as wagtail_urls
 from wagtail.admin import urls as wagtailadmin_urls
 from wagtail.contrib.sitemaps.views import sitemap as wagtail_sitemap
@@ -35,8 +36,8 @@ from core.views import ebi_index, healthz
 # These URLs are listed first while creating the urlpatterns, so that they take precedence
 # over any third-party app URLs that may match the same path.
 #
-# NOTE: WAGTAIL_ADMIN_URL and DJANGO_ADMIN_URL come from settings, so be mindful of their
-# values while adding new urls here to avoid unexpected behaviour.
+# NOTE: WAGTAIL_ADMIN_URL, ALLAUTH_BASE_URL and DJANGO_ADMIN_URL come from settings, so be
+# mindful of their values while adding new urls here to avoid unexpected behaviour.
 # ----------------------------------------------------------------------------------------
 own_view_urls = [
     path("cms/", include("cms.urls")),
@@ -59,8 +60,41 @@ if settings.INCLUDE_DJANGO_ADMIN:
     third_party_view_urls += [path(settings.DJANGO_ADMIN_URL, admin.site.urls)]
 
 
-# Wagtail admin, documents, and sitemap URLs
+# Wagtail authentication URLs (login, logout, etc.) should redirect to Django allauth's
+# login, logout, etc. URLs. We have set WAGTAILADMIN_LOGIN_URL so wagtail automatically
+# redirects to the correct login page, but it doesn't handle the direct url access, thus
+# we need to add explicit redirects some wagtail URLs to the allauth URLs.
 third_party_view_urls += [
+    path(
+        "_util/login/",
+        RedirectView.as_view(
+            url=f"/{settings.ALLAUTH_BASE_URL}login/", query_string=True, permanent=False
+        ),
+    ),
+    path(
+        f"{settings.WAGTAILADMIN_URL}login/",
+        RedirectView.as_view(
+            url=f"/{settings.ALLAUTH_BASE_URL}login/", query_string=True, permanent=False
+        ),
+    ),
+    path(
+        f"{settings.WAGTAILADMIN_URL}logout/",
+        RedirectView.as_view(
+            url=f"/{settings.ALLAUTH_BASE_URL}logout/", query_string=True, permanent=False
+        ),
+    ),
+    path(
+        f"{settings.WAGTAILADMIN_URL}password_reset/",
+        RedirectView.as_view(
+            url=f"/{settings.ALLAUTH_BASE_URL}password/reset/", query_string=True, permanent=False
+        ),
+    ),
+]
+
+
+# Django allauth and Wagtail admin, documents, and sitemap URLs
+third_party_view_urls += [
+    path(settings.ALLAUTH_BASE_URL, include("allauth.urls")),
     path(settings.WAGTAILADMIN_URL, include(wagtailadmin_urls)),
     path("documents/", include(wagtaildocs_urls)),
     path("sitemap.xml", wagtail_sitemap, name="sitemap"),

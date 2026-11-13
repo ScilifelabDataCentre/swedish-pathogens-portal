@@ -1,0 +1,97 @@
+{% extends "wagtailadmin/admin_base.html" %}
+{% load wagtailadmin_tags %}
+
+{% comment %}
+    This template is used to override django allauth's reauthenticate template. It just
+    extends wagtailadmin's admin_base template to keep the same layout and styling.
+    Modified the `block furniture` to display the reauthenticate form. Kept the `block js`
+    empty to avoid loading wagtailadmin's js which is not needed for this template.
+
+    Django allauth reauthenticate template source code:
+    https://github.com/pennersr/django-allauth/blob/master/allauth/templates/account/reauthenticate.html
+
+    Wagtailadmin admin_base template source code:
+    https://github.com/wagtail/wagtail/blob/main/wagtail/admin/templates/wagtailadmin/admin_base.html
+{% endcomment %}
+
+{% block titletag %}Reauthenticate{% endblock %}
+{% block bodyclass %}login{% endblock %}
+{% block js %}{% endblock %}
+
+{% block extra_css %}
+<style>
+    #reauthenticate-wrapper .messages ul {
+        opacity: 1 !important;
+        position: static !important;
+    }
+    #reauthenticate-wrapper h1 {
+        margin-bottom: 0.25rem;
+    }
+    #reauthenticate-wrapper .subtext {
+        margin-bottom: 1.5rem;
+        text-align: center;
+    }
+    #reauthenticate-wrapper .reauth-alternative ul {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+    .w-field > * + *,
+    .w-field__wrapper > * + * {
+        margin-top: 0.75rem !important;
+    }
+</style>
+{% endblock  %}
+
+{% block furniture %}
+    <main class="content-wrapper" id="main">
+        <div id="reauthenticate-wrapper">
+
+            {% if messages or form.non_field_errors %}
+                <div class="messages" role="status">
+                    <ul>
+                        {% if form.non_field_errors %}
+                            {% for error in form.non_field_errors %}
+                                <li class="error">{{ error }}</li>
+                            {% endfor %}
+                        {% endif %}
+                        {% for message in messages %}
+                            <li class="{{ message.tags }}">{{ message }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endif %}
+
+            <h1>Confirm Access</h1>
+            <div class="subtext">Please reauthenticate to continue.</div>
+            <form action="{% url 'account_reauthenticate' %}" method="post" novalidate>
+                {% csrf_token %}
+                {{ redirect_field }}
+
+                {% formattedfield form.password label_text="Enter your password" %}
+
+                <div class="form-actions">
+                    <button type="submit" class="button">Confirm</button>
+                </div>
+            </form>
+
+            {% if reauthentication_alternatives %}
+                <hr>
+                <div class="reauth-alternative">
+                {% if reauthentication_alternatives|length == 1 %}
+                    {% with reauthentication_alternatives|first as alt %}
+                    <p>Alternatively, you can: <a href="{{ alt.url }}">{{ alt.description }}</a></p>
+                    {% endwith %}
+                {% else %}
+                    <p>Alternative options to reauthenticate:</p>
+                    <ul>
+                        {% for alt in reauthentication_alternatives %}
+                            <li><a href="{{ alt.url }}">{{ alt.description }}</a></li>
+                        {% endfor %}
+                    </ul>
+                {% endif %}
+                </div>
+            {% endif %}
+        </div>
+    </main>
+{% endblock %}
