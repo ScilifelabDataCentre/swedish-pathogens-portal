@@ -32,7 +32,7 @@
                         </div>
 
                         <div class="collapse-content">
-                            <ul class="mt-1 list-none space-y-1 pl-0">
+                            <ul class="mt-1 mb-0 list-none space-y-1 pl-0">
                                 {% for b in facet.buckets|slice:":4" %}
                                     <li>
                                         <label class="flex cursor-pointer items-center gap-2 py-0.5">
@@ -51,7 +51,7 @@
                             </ul>
 
                             {% if facet.buckets|length > 4 %}
-                                <ul id="facet-more-{{ facet_id }}" class="mt-1 hidden list-none space-y-1 pl-0">
+                                <ul id="facet-more-{{ facet_id }}" class="mt-1 mb-0 hidden list-none space-y-1 pl-0">
                                     {% for b in facet.buckets|slice:"4:" %}
                                         <li>
                                             <label class="flex cursor-pointer items-center gap-2 py-0.5">
