@@ -361,6 +361,50 @@ class ApplyTextSearchTests(TestCase):
 
         self.assertEqual(apply_text_search(items, "nonexistent"), [])
 
+    def test_matches_parsed_metadata_fields(self) -> None:
+        """Match on investigation-file metadata even when title and description don't."""
+        items = [
+            {"title": "A", "description": "", "factors": ["HbA1c", "Age"]},
+            {"title": "B", "description": "", "design_types": ["untargeted metabolites"]},
+            {"title": "C", "description": "", "platforms": ["Orbitrap Exploris"]},
+            {"title": "D", "description": "", "technology": "NMR spectroscopy"},
+            {"title": "E", "description": "", "publication_title": "Caries in children"},
+            {"title": "F", "description": "", "publication_authors": "Svensson A, Lind B"},
+            {"title": "G", "description": "", "publication_doi": "10.1000/xyz123"},
+            {"title": "H", "description": "nothing relevant", "factors": ["Time"]},
+        ]
+
+        def titles(query: str) -> list[str]:
+            return [item["title"] for item in apply_text_search(items, query)]
+
+        self.assertEqual(titles("hba1c"), ["A"])
+        self.assertEqual(titles("untargeted"), ["B"])
+        self.assertEqual(titles("exploris"), ["C"])
+        self.assertEqual(titles("nmr"), ["D"])
+        self.assertEqual(titles("caries"), ["E"])
+        self.assertEqual(titles("lind"), ["F"])
+        self.assertEqual(titles("xyz123"), ["G"])
+
+    def test_string_tags_do_not_stop_the_search(self) -> None:
+        """A string-valued tags field no-match still lets later fields match."""
+        items = [{"title": "A", "tags": "liver", "factors": ["HbA1c"]}]
+
+        self.assertEqual(len(apply_text_search(items, "hba1c")), 1)
+
+    def test_ignores_missing_none_and_non_search_fields(self) -> None:
+        """Missing or None metadata is skipped, and paths/URLs are not searched."""
+        items = [
+            {
+                "title": "A",
+                "factors": None,
+                "publication_title": None,
+                "local_path": "/datasets/MTBLS1/plasma",
+                "repo_url": "https://www.ebi.ac.uk/metabolights/plasma",
+            }
+        ]
+
+        self.assertEqual(apply_text_search(items, "plasma"), [])
+
 
 class ApplyFacetFiltersTests(TestCase):
     """Tests for applying selected facet filters to dataset listing items."""
