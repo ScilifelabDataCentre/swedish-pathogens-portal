@@ -57,6 +57,20 @@ class TestLiverPlotlyTln(SimpleTestCase):
         self.assertEqual(len(leaf_trace["customdata"]), EXPECTED_LEAF_COUNT)
         self.assertEqual(leaf_trace["customdata"][0], "1")
 
+    def test_leaf_hovertext_includes_jackie_titles_when_present(self) -> None:
+        """Test modules 3/4/12 show titles; blank modules stay number-only."""
+        figure_json = build_base_figure_json()
+        leaf_trace = next(trace for trace in figure_json["data"] if trace.get("customdata"))
+        hover_by_module = dict(zip(leaf_trace["customdata"], leaf_trace["hovertext"], strict=True))
+
+        self.assertIn("Myeliod cells", hover_by_module["3"])
+        self.assertIn("Amino acid catabolism and urea cycle", hover_by_module["4"])
+        self.assertIn("Cell cycle (I) - DNA replication", hover_by_module["12"])
+        self.assertIn("&amp;", hover_by_module["3"])  # HTML-escaped ampersand
+
+        blank_hover = hover_by_module["1"]
+        self.assertTrue(blank_hover.startswith("<b>Module 1</b><br>Genes:"))
+
     def test_coloured_figure_json_leaf_colours_are_hex(self) -> None:
         """Test coloured figure serialises hex marker colours for all modules."""
         example_path = get_data_root() / "examples" / "HCC-Control.txt"

@@ -85,6 +85,22 @@ def load_module_labels() -> dict[str, str]:
     return labels
 
 
+@lru_cache(maxsize=1)
+def load_hover_module_titles() -> dict[int, str]:
+    """Load Jackie hover titles keyed by module id (blank cells omitted)."""
+    path = get_data_root() / "hover_module_titles.tsv"
+    titles: dict[int, str] = {}
+    with path.open(encoding="utf-8", newline="") as handle:
+        reader = csv.DictReader(handle, delimiter="\t")
+        for row in reader:
+            raw_id = (row.get("module_id") or "").strip()
+            title = row.get("title") or ""
+            if not raw_id or not title.strip():
+                continue
+            titles[int(raw_id)] = title
+    return titles
+
+
 def list_example_files() -> list[Path]:
     """Return bundled example DE files available for the Load example action."""
     examples_dir = get_data_root() / "examples"
@@ -103,6 +119,7 @@ def clear_reference_data_cache() -> None:
     load_modules.cache_clear()
     load_symbol_map.cache_clear()
     load_module_labels.cache_clear()
+    load_hover_module_titles.cache_clear()
 
 
 def _validate_tln_graph(graph: dict[str, Any]) -> None:
