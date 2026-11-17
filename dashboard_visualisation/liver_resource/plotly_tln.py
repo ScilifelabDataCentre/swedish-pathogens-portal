@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import html
 import math
 from functools import lru_cache
 from typing import Any
@@ -15,6 +16,7 @@ from dashboard_visualisation.liver_resource.plot_metric import (
 )
 from dashboard_visualisation.liver_resource.reference_data import (
     load_cyjs_layout,
+    load_hover_module_titles,
     load_tln_graph,
 )
 from dashboard_visualisation.utils.plotly import figure_to_json
@@ -333,6 +335,15 @@ def _build_internal_trace(
     )
 
 
+def _module_hover_heading(module_name: str, titles: dict[int, str]) -> str:
+    """Build the Module N heading, appending Jackie title when present."""
+    heading = f"<b>Module {module_name}</b>"
+    title = titles.get(int(module_name))
+    if not title:
+        return heading
+    return f"{heading}<br>{html.escape(title)}"
+
+
 def _build_leaf_trace(
     *,
     leaves: set[str],
@@ -349,6 +360,7 @@ def _build_leaf_trace(
     labels: list[str] = []
     hovers: list[str] = []
     customdata: list[str] = []
+    hover_titles = load_hover_module_titles()
 
     for name in sorted(leaves, key=lambda value: int(value)):
         if name not in layout:
@@ -365,14 +377,15 @@ def _build_leaf_trace(
         marker_sizes.append(max(8.0, math.sqrt(gene_count) * 2.5))
         labels.append(str(name))
         customdata.append(name)
+        heading = _module_hover_heading(name, hover_titles)
         if base_view:
             hovers.append(
-                f"<b>Module {name}</b><br>"
+                f"{heading}<br>"
                 f"Genes: {gene_count}<br>"
                 "<i>Upload DE file to see ratios</i>"
             )
         else:
-            hovers.append(f"<b>Module {name}</b><br>Genes: {gene_count}<br>DE ratio: {ratio:+.4f}")
+            hovers.append(f"{heading}<br>Genes: {gene_count}<br>DE ratio: {ratio:+.4f}")
 
     return go.Scatter(
         x=leaf_x,
@@ -461,6 +474,7 @@ def _build_pie_leaf_layers(
     label_y: list[float] = []
     labels: list[str] = []
     shapes: list[dict[str, Any]] = []
+    hover_titles = load_hover_module_titles()
 
     for name in sorted(leaves, key=lambda value: int(value)):
         if name not in layout:
@@ -480,11 +494,11 @@ def _build_pie_leaf_layers(
         label_y.append(y_value)
         labels.append(str(name))
 
-        hover_lines = [f"<b>Module {name}</b>", f"Genes: {gene_count}"]
+        hover_lines = [_module_hover_heading(name, hover_titles), f"Genes: {gene_count}"]
         for filename, ratios, _colours in comparisons:
             ratio = ratios.get(module_id)
             ratio_text = "—" if ratio is None else f"{ratio:+.4f}"
-            hover_lines.append(f"{filename}: {ratio_text}")
+            hover_lines.append(f"{html.escape(filename)}: {ratio_text}")
         hovers.append("<br>".join(hover_lines))
 
         for slice_index, (_, _, colours) in enumerate(comparisons):
