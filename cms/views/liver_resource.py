@@ -16,6 +16,7 @@ MVP endpoint map (all required unless noted):
 | ``recompute`` | GET | Yes | FR-3 — change DE thresholds |
 | ``download_template`` | GET | Yes | FR-10 — DE template |
 | ``download_reference_figure`` | GET | Yes | Reference TLN map JPG |
+| ``download_supplementary`` | GET | Yes | Supplementary module workbook |
 | ``export_module_scores`` | GET | Yes | FR-7 — module scores CSV |
 | ``export_genes`` | GET | Yes | FR-7 — gene classification CSV |
 """
@@ -280,6 +281,37 @@ def download_reference_figure(request: HttpRequest, *, page) -> HttpResponse:
         image.file.open("rb"),
         content_type=mime,
         as_attachment=as_attachment,
+        filename=filename,
+    )
+
+
+@require_GET
+def download_supplementary(request: HttpRequest) -> HttpResponse:
+    """Serve the Wagtail-uploaded HepaGeNIE supplementary workbook."""
+    from pathlib import Path
+
+    from django.http import FileResponse
+
+    from dashboard_visualisation.liver_resource.supplementary import (
+        DOWNLOAD_FILENAME,
+        get_supplementary_document,
+    )
+
+    document = get_supplementary_document()
+    if document is None or not getattr(document, "file", None):
+        return HttpResponse(
+            "Supplementary workbook not found.",
+            status=404,
+            content_type="text/plain",
+        )
+
+    filename = Path(document.file.name).name or DOWNLOAD_FILENAME
+    return FileResponse(
+        document.file.open("rb"),
+        content_type=(
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        ),
+        as_attachment=True,
         filename=filename,
     )
 

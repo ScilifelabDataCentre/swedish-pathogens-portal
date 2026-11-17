@@ -24,6 +24,7 @@ from dashboard_visualisation.liver_resource.session import (
     get_session_plot_metric,
     get_session_thresholds,
 )
+from dashboard_visualisation.liver_resource.supplementary import get_supplementary_document
 from dashboard_visualisation.liver_resource.thresholds import (
     ADJ_P_CHOICES,
     DEFAULT_ADJ_P,
@@ -43,6 +44,9 @@ class LiverResourceDashboardPage(RoutablePageMixin, DashboardPage):
 
     The existing Wagtail ``image`` (card thumbnail) is also shown beside the
     intro text as the zoomable reference TLN map — no extra image field.
+
+    The supplementary module workbook is a Wagtail Document titled
+    ``HepaGeNIE supplementary`` (Documents library) — no page FK / migration.
 
     HTMX / download endpoints live as sub-routes on this page (same pattern as
     :class:`~cms.pages.portal_data.PortalDataPage`), not under ``/cms/liver/``.
@@ -99,6 +103,12 @@ class LiverResourceDashboardPage(RoutablePageMixin, DashboardPage):
             )
         else:
             context["liver_reference_figure_url"] = None
+        if get_supplementary_document() is not None:
+            context["liver_supplementary_url"] = self.url + self.reverse_subpage(
+                "download_supplementary"
+            )
+        else:
+            context["liver_supplementary_url"] = None
         return context
 
     # ------------------------------------------------------------------ #
@@ -129,6 +139,11 @@ class LiverResourceDashboardPage(RoutablePageMixin, DashboardPage):
     def download_reference_figure(self, request: HttpRequest) -> HttpResponse:
         """Serve the page card image as the reference TLN map download."""
         return liver_views.download_reference_figure(request, page=self)
+
+    @path("supplementary/")
+    def download_supplementary(self, request: HttpRequest) -> HttpResponse:
+        """Serve the Wagtail Document supplementary module workbook."""
+        return liver_views.download_supplementary(request)
 
     @path("export/modules/")
     def export_module_scores(self, request: HttpRequest) -> HttpResponse:
