@@ -15,6 +15,12 @@ from dashboard_visualisation.liver_resource.plotly_tln import (
     build_coloured_figure_json,
     build_multi_coloured_figure_json,
 )
+from dashboard_visualisation.liver_resource.thresholds import (
+    DEFAULT_ADJ_P,
+    DEFAULT_LOGFC_FOLD,
+    format_threshold_label,
+    threshold_key,
+)
 
 LEAF_TRACE_INDEX = 2
 PlotMode = Literal["solid", "pie"]
@@ -34,13 +40,24 @@ class ComparisonStats:
 
 @dataclass(frozen=True)
 class LiverAnalysisResult:
-    """Computed liver projection for one or more DE files and a cutoff."""
+    """Computed liver projection for one or more DE files and Option B thresholds."""
 
-    cutoff: str
+    adj_p: float
+    logfc_fold: float
     comparisons: tuple[ComparisonStats, ...]
     plot_mode: PlotMode
     figure_json: dict[str, Any]
     leaf_trace_index: int = LEAF_TRACE_INDEX
+
+    @property
+    def cutoff(self) -> str:
+        """Human-readable threshold label (plot titles / stats)."""
+        return format_threshold_label(self.adj_p, self.logfc_fold)
+
+    @property
+    def threshold_key(self) -> str:
+        """Stable key for DashboardData example lookup."""
+        return threshold_key(self.adj_p, self.logfc_fold)
 
     @property
     def filename(self) -> str:
@@ -79,18 +96,28 @@ def analyse_de_data(
     de_data: dict[str, Any],
     *,
     filename: str,
-    cutoff: str,
+    adj_p: float = DEFAULT_ADJ_P,
+    logfc_fold: float = DEFAULT_LOGFC_FOLD,
+    cutoff: str | None = None,
 ) -> LiverAnalysisResult:
     """Classify genes, compute module ratios, and build a coloured TLN figure."""
-    return analyse_de_uploads([(filename, de_data)], cutoff=cutoff)
+    del cutoff
+    return analyse_de_uploads(
+        [(filename, de_data)],
+        adj_p=adj_p,
+        logfc_fold=logfc_fold,
+    )
 
 
 def analyse_de_uploads(
     uploads: list[tuple[str, dict[str, Any]]],
     *,
-    cutoff: str,
+    adj_p: float = DEFAULT_ADJ_P,
+    logfc_fold: float = DEFAULT_LOGFC_FOLD,
+    cutoff: str | None = None,
 ) -> LiverAnalysisResult:
     """Analyse one or more DE files and build solid or pie TLN output."""
+    del cutoff
     if not uploads:
         msg = "At least one DE file is required."
         raise ValueError(msg)
@@ -100,7 +127,7 @@ def analyse_de_uploads(
     ratio_rows: list[dict[int, float | None]] = []
 
     for filename, de_data in uploads:
-        classified = classify_genes(de_data, cutoff)
+        classified = classify_genes(de_data, adj_p=adj_p, logfc_fold=logfc_fold)
         ratios = compute_module_ratios(de_data["genes"], classified, modules)
         ratio_rows.append(ratios)
         comparisons.append(
@@ -129,6 +156,7 @@ def analyse_de_uploads(
 
     plot_mode: PlotMode = "pie" if len(comparisons) > 1 else "solid"
     title = _build_title(comparisons)
+    label = format_threshold_label(adj_p, logfc_fold)
     if plot_mode == "pie":
         figure_json = build_multi_coloured_figure_json(
             [
@@ -136,19 +164,20 @@ def analyse_de_uploads(
                 for comparison in comparisons
             ],
             title=title,
-            cutoff=cutoff,
+            cutoff=label,
             max_abs=max_abs,
         )
     else:
         figure_json = build_coloured_figure_json(
             comparisons[0].ratios,
             title=title,
-            cutoff=cutoff,
+            cutoff=label,
             max_abs=max_abs,
         )
 
     return LiverAnalysisResult(
-        cutoff=cutoff,
+        adj_p=adj_p,
+        logfc_fold=logfc_fold,
         comparisons=comparisons,
         plot_mode=plot_mode,
         figure_json=figure_json,

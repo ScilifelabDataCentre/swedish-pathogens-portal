@@ -4,8 +4,8 @@ Routed via ``LiverResourceDashboardPage`` ``RoutablePageMixin`` sub-paths
 (for example ``…/upload/``, ``…/recompute/``), not ``cms/urls.py``.
 
 These handlers support the visitor-driven workflow: upload DE file(s), change
-DEcutoff, load bundled examples, and download results. Parsed DE data lives in
-the Django session — not in ``DashboardData``.
+DE thresholds, load bundled examples, and download results. Parsed DE data lives
+in the Django session — not in ``DashboardData``.
 
 MVP endpoint map (all required unless noted):
 
@@ -13,7 +13,7 @@ MVP endpoint map (all required unless noted):
 |------|--------|-----|------------|
 | ``upload_de`` | POST | Yes | FR-1 — upload and plot |
 | ``load_example`` | GET | Yes | FR-9 — bundled examples |
-| ``recompute`` | GET | Yes | FR-3 — change DEcutoff |
+| ``recompute`` | GET | Yes | FR-3 — change DE thresholds |
 | ``download_template`` | GET | Yes | FR-10 — DE template |
 | ``export_module_scores`` | GET | Yes | FR-7 — module scores CSV |
 | ``export_genes`` | GET | Yes | FR-7 — gene classification CSV |
@@ -33,7 +33,7 @@ from dashboard_visualisation.liver_resource.analysis import (
     analyse_de_uploads,
     colours_for_plotly_restyle,
 )
-from dashboard_visualisation.liver_resource.computation import VALID_CUTOFFS, parse_de_file
+from dashboard_visualisation.liver_resource.computation import parse_de_file
 from dashboard_visualisation.liver_resource.dashboard_figures import (
     LIVER_DASHBOARD_SLUG,
     get_figure_data,
@@ -47,13 +47,19 @@ from dashboard_visualisation.liver_resource.exports import (
 )
 from dashboard_visualisation.liver_resource.plotly_tln import DEFAULT_PLOT_HEIGHT_PX
 from dashboard_visualisation.liver_resource.session import (
-    DEFAULT_CUTOFF,
     de_data_from_session,
     de_uploads_from_session,
     get_de_session,
     session_filenames,
     store_de_uploads,
     update_session_cutoff,
+)
+from dashboard_visualisation.liver_resource.thresholds import (
+    DEFAULT_ADJ_P,
+    DEFAULT_LOGFC_FOLD,
+    parse_adj_p,
+    parse_logfc_fold,
+    threshold_key,
 )
 from dashboard_visualisation.liver_resource.validators import (
     validate_de_upload,
@@ -87,7 +93,7 @@ def upload_de(request: HttpRequest) -> HttpResponse:
     if batch_errors:
         return _render_validation_errors(request, batch_errors)
 
-    cutoff = _normalise_cutoff(request.POST.get("cutoff", DEFAULT_CUTOFF))
+    adj_p, logfc_fold = _thresholds_from_request(request.POST)
     validated_uploads: list[tuple[str, dict]] = []
     for uploaded in uploaded_files:
         validation = validate_de_upload(uploaded, size_bytes=uploaded.size)
@@ -103,7 +109,8 @@ def upload_de(request: HttpRequest) -> HttpResponse:
     return _store_and_render_analysis(
         request,
         uploads=validated_uploads,
-        cutoff=cutoff,
+        adj_p=adj_p,
+        logfc_fold=logfc_fold,
         log_event="liver_resource.upload_success",
     )
 
@@ -112,7 +119,7 @@ def upload_de(request: HttpRequest) -> HttpResponse:
 def load_example(request: HttpRequest, example_slug: str) -> HttpResponse:
     """Load the bundled sidebar example into session and return the TLN plot.
 
-    When ``DashboardData`` holds a pre-computed figure for this slug and cutoff,
+    When ``DashboardData`` holds a pre-computed figure for this slug and threshold,
     the plot is rendered from stored JSON (session still receives parsed DE data
     for exports).
     """
@@ -120,32 +127,39 @@ def load_example(request: HttpRequest, example_slug: str) -> HttpResponse:
     if example_uploads is None:
         return _render_validation_errors(request, (f"Unknown example dataset: {example_slug}",))
 
-    cutoff = _normalise_cutoff(request.GET.get("cutoff", DEFAULT_CUTOFF))
+    adj_p, logfc_fold = _thresholds_from_request(request.GET)
+    key = threshold_key(adj_p, logfc_fold)
     parsed_uploads = [(filename, parse_de_file(path)) for filename, path in example_uploads]
-    store_de_uploads(request, uploads=parsed_uploads, cutoff=cutoff)
+    store_de_uploads(request, uploads=parsed_uploads, adj_p=adj_p, logfc_fold=logfc_fold)
 
     dashboard_row = DashboardData.get_data(LIVER_DASHBOARD_SLUG)
     stored = get_stored_example(
         get_figure_data(dashboard_row),
         slug=example_slug,
-        cutoff=cutoff,
+        cutoff=key,
+        adj_p=adj_p,
+        logfc_fold=logfc_fold,
     )
     if stored is not None:
         analysis = stored.to_analysis_result()
         LOGGER.info(
             "liver_resource.example_loaded",
             example_slug=example_slug,
-            cutoff=cutoff,
+            adj_p=adj_p,
+            logfc_fold=logfc_fold,
+            cutoff=key,
             from_dashboard_data=True,
             filenames=[filename for filename, _ in parsed_uploads],
         )
         return _render_plot_response(request, analysis)
 
-    analysis = analyse_de_uploads(parsed_uploads, cutoff=cutoff)
+    analysis = analyse_de_uploads(parsed_uploads, adj_p=adj_p, logfc_fold=logfc_fold)
     LOGGER.info(
         "liver_resource.example_loaded",
         example_slug=example_slug,
-        cutoff=cutoff,
+        adj_p=adj_p,
+        logfc_fold=logfc_fold,
+        cutoff=key,
         from_dashboard_data=False,
         filenames=[filename for filename, _ in parsed_uploads],
         plot_mode=analysis.plot_mode,
@@ -158,21 +172,29 @@ def load_example(request: HttpRequest, example_slug: str) -> HttpResponse:
 
 @require_GET
 def recompute(request: HttpRequest) -> HttpResponse:
-    """Recompute module ratios for the session DE file(s) and active DEcutoff.
+    """Recompute module ratios for the session DE file(s) and Option B thresholds.
 
     Returns JSON for solid-leaf ``Plotly.restyle`` (default) or an HTML plot partial
-    when ``Accept: text/html`` (pie-leaf mode after cutoff change).
+    when ``Accept: text/html`` (pie-leaf mode after threshold change).
     """
     session = get_de_session(request)
     if session is None:
         return JsonResponse(
-            {"error": "Upload DE file(s) or load an example before changing cutoff."},
+            {"error": "Upload DE file(s) or load an example before changing DE threshold."},
             status=400,
         )
 
-    cutoff = _normalise_cutoff(request.GET.get("cutoff", session.get("cutoff", DEFAULT_CUTOFF)))
-    update_session_cutoff(request, cutoff)
-    analysis = analyse_de_uploads(de_uploads_from_session(session), cutoff=cutoff)
+    adj_p, logfc_fold = _thresholds_from_request(
+        request.GET,
+        default_adj_p=session.get("adj_p", DEFAULT_ADJ_P),
+        default_logfc_fold=session.get("logfc_fold", DEFAULT_LOGFC_FOLD),
+    )
+    update_session_cutoff(request, adj_p=adj_p, logfc_fold=logfc_fold)
+    analysis = analyse_de_uploads(
+        de_uploads_from_session(session),
+        adj_p=adj_p,
+        logfc_fold=logfc_fold,
+    )
 
     if _wants_html_plot(request):
         return _render_plot_response(request, analysis)
@@ -207,9 +229,13 @@ def export_module_scores(request: HttpRequest) -> HttpResponse:
     if error_response is not None:
         return error_response
 
-    cutoff = _normalise_cutoff(request.GET.get("cutoff", session.get("cutoff", DEFAULT_CUTOFF)))
+    adj_p, logfc_fold = _thresholds_from_request(
+        request.GET,
+        default_adj_p=session.get("adj_p", DEFAULT_ADJ_P),
+        default_logfc_fold=session.get("logfc_fold", DEFAULT_LOGFC_FOLD),
+    )
     de_data = de_data_from_session(session)
-    content = build_module_scores_csv(de_data, cutoff)
+    content = build_module_scores_csv(de_data, adj_p=adj_p, logfc_fold=logfc_fold)
     filename = f"{export_basename(session_filenames(session)[0])}_module_scores.csv"
     return _csv_attachment_response(filename, content)
 
@@ -224,9 +250,13 @@ def export_genes(request: HttpRequest) -> HttpResponse:
     if error_response is not None:
         return error_response
 
-    cutoff = _normalise_cutoff(request.GET.get("cutoff", session.get("cutoff", DEFAULT_CUTOFF)))
+    adj_p, logfc_fold = _thresholds_from_request(
+        request.GET,
+        default_adj_p=session.get("adj_p", DEFAULT_ADJ_P),
+        default_logfc_fold=session.get("logfc_fold", DEFAULT_LOGFC_FOLD),
+    )
     de_data = de_data_from_session(session)
-    content = build_genes_csv(de_data, cutoff)
+    content = build_genes_csv(de_data, adj_p=adj_p, logfc_fold=logfc_fold)
     filename = f"{export_basename(session_filenames(session)[0])}_genes.csv"
     return _csv_attachment_response(filename, content)
 
@@ -250,28 +280,37 @@ def _csv_attachment_response(filename: str, content: str) -> HttpResponse:
     return response
 
 
-def _normalise_cutoff(cutoff: str) -> str:
-    """Map unknown cutoff values to the default DEcutoff mode."""
-    if cutoff in VALID_CUTOFFS:
-        return cutoff
-    return DEFAULT_CUTOFF
+def _thresholds_from_request(
+    params,
+    *,
+    default_adj_p: float = DEFAULT_ADJ_P,
+    default_logfc_fold: float = DEFAULT_LOGFC_FOLD,
+) -> tuple[float, float]:
+    """Read Option B threshold fields from GET/POST mapping."""
+    return (
+        parse_adj_p(params.get("adj_p", default_adj_p), default=default_adj_p),
+        parse_logfc_fold(params.get("logfc_fold", default_logfc_fold), default=default_logfc_fold),
+    )
 
 
 def _store_and_render_analysis(
     request: HttpRequest,
     *,
     uploads: list[tuple[str, dict]],
-    cutoff: str,
+    adj_p: float,
+    logfc_fold: float,
     log_event: str,
     example_slug: str | None = None,
 ) -> HttpResponse:
     """Persist uploads in session, run analysis, log, and return the plot partial."""
-    store_de_uploads(request, uploads=uploads, cutoff=cutoff)
-    analysis = analyse_de_uploads(uploads, cutoff=cutoff)
+    store_de_uploads(request, uploads=uploads, adj_p=adj_p, logfc_fold=logfc_fold)
+    analysis = analyse_de_uploads(uploads, adj_p=adj_p, logfc_fold=logfc_fold)
     log_kwargs = {
         "filenames": [filename for filename, _ in uploads],
         "file_count": len(uploads),
-        "cutoff": cutoff,
+        "adj_p": adj_p,
+        "logfc_fold": logfc_fold,
+        "cutoff": analysis.threshold_key,
         "plot_mode": analysis.plot_mode,
         "gene_count": analysis.gene_count,
         "up_count": analysis.up_count,
@@ -334,6 +373,9 @@ def _analysis_payload(analysis: LiverAnalysisResult) -> dict[str, object]:
             "n_up": primary.up_count,
             "n_down": primary.down_count,
             "cutoff": analysis.cutoff,
+            "adj_p": analysis.adj_p,
+            "logfc_fold": analysis.logfc_fold,
+            "threshold_key": analysis.threshold_key,
             "filename": analysis.filename,
             "gene_count": primary.gene_count,
             "file_count": len(analysis.comparisons),

@@ -53,7 +53,7 @@ class TestLiverViews(TestCase):
         )
         response = self.client.post(
             self.upload_url,
-            {"de_files": upload, "cutoff": "standard"},
+            {"de_files": upload, "adj_p": "0.05", "logfc_fold": "1.5"},
         )
         self.assertEqual(response.status_code, 200)
 
@@ -68,7 +68,8 @@ class TestLiverViews(TestCase):
                     content=self.example_path.read_bytes(),
                     content_type="text/plain",
                 ),
-                "cutoff": "standard",
+                "adj_p": "0.05",
+                "logfc_fold": "1.5",
             },
         )
 
@@ -80,7 +81,9 @@ class TestLiverViews(TestCase):
         session = self.client.session.get(SESSION_KEY)
         self.assertIsNotNone(session)
         self.assertEqual(session["files"][0]["filename"], "HCC-Control.txt")
-        self.assertEqual(session["cutoff"], "standard")
+        self.assertEqual(session["cutoff"], "0.05_1.5")
+        self.assertEqual(session["adj_p"], 0.05)
+        self.assertEqual(session["logfc_fold"], 1.5)
         self.assertIn("storage_id", session)
 
         hydrated = self._hydrated_session()
@@ -132,7 +135,7 @@ class TestLiverViews(TestCase):
 
     def test_recompute_requires_session(self) -> None:
         """Test recompute without upload returns JSON error."""
-        response = self.client.get(self.recompute_url, {"cutoff": "top500"})
+        response = self.client.get(self.recompute_url, {"adj_p": "0.01", "logfc_fold": "2"})
         self.assertEqual(response.status_code, 400)
         payload = json.loads(response.content)
         self.assertIn("error", payload)
@@ -140,13 +143,17 @@ class TestLiverViews(TestCase):
     def test_recompute_returns_colours_array(self) -> None:
         """Test recompute returns updated colours for all modules."""
         self._upload_example_file()
-        response = self.client.get(self.recompute_url, {"cutoff": "top500"})
+        response = self.client.get(self.recompute_url, {"adj_p": "0.01", "logfc_fold": "2"})
         self.assertEqual(response.status_code, 200)
 
         payload = json.loads(response.content)
         self.assertEqual(len(payload["colours_array"]), EXPECTED_MODULE_COUNT)
-        self.assertEqual(payload["stats"]["cutoff"], "top500")
-        self.assertEqual(self.client.session[SESSION_KEY]["cutoff"], "top500")
+        self.assertIn("adj.P<0.01", payload["stats"]["cutoff"])
+        self.assertEqual(payload["stats"]["adj_p"], 0.01)
+        self.assertEqual(payload["stats"]["logfc_fold"], 2.0)
+        self.assertEqual(self.client.session[SESSION_KEY]["cutoff"], "0.01_2")
+        self.assertEqual(self.client.session[SESSION_KEY]["adj_p"], 0.01)
+        self.assertEqual(self.client.session[SESSION_KEY]["logfc_fold"], 2.0)
 
     def test_download_template_returns_file(self) -> None:
         """Test template download returns the bundled DE template."""
@@ -219,7 +226,8 @@ class TestLiverViews(TestCase):
                         content_type="text/plain",
                     ),
                 ],
-                "cutoff": "standard",
+                "adj_p": "0.05",
+                "logfc_fold": "1.5",
             },
         )
 

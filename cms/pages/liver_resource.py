@@ -8,7 +8,6 @@ from wagtail.contrib.routable_page.models import RoutablePageMixin, path
 from cms.pages.dashboard import DashboardPage
 from cms.views import liver_resource as liver_views
 from dashboard_visualisation.liver_resource.analysis import LEAF_TRACE_INDEX
-from dashboard_visualisation.liver_resource.computation import VALID_CUTOFFS
 from dashboard_visualisation.liver_resource.dashboard_figures import (
     get_figure_data,
     resolve_base_tln_figure,
@@ -16,9 +15,15 @@ from dashboard_visualisation.liver_resource.dashboard_figures import (
 from dashboard_visualisation.liver_resource.examples import list_examples
 from dashboard_visualisation.liver_resource.plotly_tln import DEFAULT_PLOT_HEIGHT_PX
 from dashboard_visualisation.liver_resource.session import (
-    DEFAULT_CUTOFF,
     get_de_session,
-    get_session_cutoff,
+    get_session_thresholds,
+)
+from dashboard_visualisation.liver_resource.thresholds import (
+    ADJ_P_CHOICES,
+    DEFAULT_ADJ_P,
+    DEFAULT_LOGFC_FOLD,
+    DEFAULT_THRESHOLD_KEY,
+    LOGFC_FOLD_CHOICES,
 )
 from dashboard_visualisation.utils.plotly import plot_html_from_json
 
@@ -57,9 +62,17 @@ class LiverResourceDashboardPage(RoutablePageMixin, DashboardPage):
         )
         context["plot_height"] = DEFAULT_PLOT_HEIGHT_PX
         context["leaf_trace_index"] = LEAF_TRACE_INDEX
-        context["cutoff_choices"] = VALID_CUTOFFS
-        context["default_cutoff"] = DEFAULT_CUTOFF
-        context["current_cutoff"] = get_session_cutoff(request) if session else DEFAULT_CUTOFF
+        if session is not None:
+            current_adj_p, current_logfc_fold = get_session_thresholds(request)
+        else:
+            current_adj_p, current_logfc_fold = DEFAULT_ADJ_P, DEFAULT_LOGFC_FOLD
+        context["adj_p_choices"] = ADJ_P_CHOICES
+        context["logfc_fold_choices"] = LOGFC_FOLD_CHOICES
+        context["current_adj_p"] = current_adj_p
+        context["current_logfc_fold"] = current_logfc_fold
+        context["default_adj_p"] = DEFAULT_ADJ_P
+        context["default_logfc_fold"] = DEFAULT_LOGFC_FOLD
+        context["default_threshold_key"] = DEFAULT_THRESHOLD_KEY
         context["has_session"] = session is not None
         context["examples"] = list_examples(self.dashboard_data)
         context["liver_upload_url"] = self.url + self.reverse_subpage("upload_de")
@@ -77,7 +90,7 @@ class LiverResourceDashboardPage(RoutablePageMixin, DashboardPage):
 
     @path("recompute/")
     def recompute(self, request: HttpRequest) -> HttpResponse:
-        """Recompute colours / plot for the active session DEcutoff."""
+        """Recompute colours / plot for the active session DE thresholds."""
         return liver_views.recompute(request)
 
     @path("example/<slug:example_slug>/")

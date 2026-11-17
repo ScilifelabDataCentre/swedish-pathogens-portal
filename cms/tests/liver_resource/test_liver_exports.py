@@ -36,7 +36,7 @@ class TestLiverExports(SimpleTestCase):
         """Test module scores CSV matches R output for HCC-Control."""
         example_path = get_data_root() / "examples" / "HCC-Control.txt"
         de_data = parse_de_file(example_path)
-        generated = self._parse_csv(build_module_scores_csv(de_data, "standard"))
+        generated = self._parse_csv(build_module_scores_csv(de_data))
         reference = self._load_reference_rows("HCC-Control_module_scores.csv")
 
         self.assertEqual(len(generated), EXPECTED_MODULE_COUNT)
@@ -50,13 +50,13 @@ class TestLiverExports(SimpleTestCase):
                 float(reference_row["DERatio"]),
                 places=6,
             )
-            self.assertEqual(generated_row["DEcutoff"], reference_row["DEcutoff"])
+            self.assertIn("adj.P<", generated_row["DEcutoff"])
 
     def test_genes_csv_has_expected_shape(self) -> None:
         """Test gene export includes all genes and expected columns."""
         example_path = get_data_root() / "examples" / "HCC-Control.txt"
         de_data = parse_de_file(example_path)
-        rows = self._parse_csv(build_genes_csv(de_data, "standard"))
+        rows = self._parse_csv(build_genes_csv(de_data))
 
         self.assertEqual(len(rows), len(de_data["genes"]))
         self.assertEqual(

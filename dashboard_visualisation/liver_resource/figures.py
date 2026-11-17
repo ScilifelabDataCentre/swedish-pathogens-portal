@@ -15,7 +15,11 @@ from dashboard_visualisation.liver_resource.examples import (
     storage_display_filename,
 )
 from dashboard_visualisation.liver_resource.plotly_tln import build_base_figure_json
-from dashboard_visualisation.liver_resource.session import DEFAULT_CUTOFF
+from dashboard_visualisation.liver_resource.thresholds import (
+    DEFAULT_ADJ_P,
+    DEFAULT_LOGFC_FOLD,
+    DEFAULT_THRESHOLD_KEY,
+)
 from dashboard_visualisation.liver_resource.validators import (
     REQUIRED_COLUMNS,
     validate_de_upload,
@@ -62,13 +66,17 @@ def generate_figures(source_file: SourceFile) -> dict[str, Any]:
     """Build neutral base TLN and one sidebar example from the uploaded DE file."""
     filename = storage_display_filename(Path(source_file.name).name)
     de_data = parse_de_file(source_file)
-    analysis = analyse_de_uploads([(filename, de_data)], cutoff=DEFAULT_CUTOFF)
+    analysis = analyse_de_uploads(
+        [(filename, de_data)],
+        adj_p=DEFAULT_ADJ_P,
+        logfc_fold=DEFAULT_LOGFC_FOLD,
+    )
 
     return {
         "base_tln": build_base_figure_json(),
         "examples": {
             EXAMPLE_SLUG: {
-                DEFAULT_CUTOFF: stored_example_entry_from_analysis(analysis),
+                DEFAULT_THRESHOLD_KEY: stored_example_entry_from_analysis(analysis),
             },
         },
     }

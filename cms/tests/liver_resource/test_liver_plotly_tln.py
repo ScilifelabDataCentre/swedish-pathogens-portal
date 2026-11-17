@@ -41,9 +41,9 @@ class TestLiverPlotlyTln(SimpleTestCase):
         """Test coloured figure adds a colorbar trace."""
         example_path = get_data_root() / "examples" / "HCC-Control.txt"
         de_data = parse_de_file(example_path)
-        classified = classify_genes(de_data, "standard")
+        classified = classify_genes(de_data, adj_p=0.05, logfc_fold=1.5)
         ratios = compute_module_ratios(de_data["genes"], classified, get_module_gene_sets())
-        figure = build_coloured_figure(ratios, cutoff="standard")
+        figure = build_coloured_figure(ratios, cutoff="adj.P<0.05, fold 1.5")
         self.assertEqual(len(figure.data), 4)
 
     def test_base_figure_json_has_leaf_customdata(self) -> None:
@@ -61,9 +61,9 @@ class TestLiverPlotlyTln(SimpleTestCase):
         """Test coloured figure serialises hex marker colours for all modules."""
         example_path = get_data_root() / "examples" / "HCC-Control.txt"
         de_data = parse_de_file(example_path)
-        classified = classify_genes(de_data, "standard")
+        classified = classify_genes(de_data, adj_p=0.05, logfc_fold=1.5)
         ratios = compute_module_ratios(de_data["genes"], classified, get_module_gene_sets())
-        figure_json = build_coloured_figure_json(ratios, cutoff="standard")
+        figure_json = build_coloured_figure_json(ratios, cutoff="adj.P<0.05, fold 1.5")
 
         leaf_trace = next(trace for trace in figure_json["data"] if trace.get("customdata"))
         colours = leaf_trace["marker"]["color"]
@@ -75,7 +75,7 @@ class TestLiverPlotlyTln(SimpleTestCase):
         """Test multi-comparison figure adds pie wedge shapes and click targets."""
         example_path = get_data_root() / "examples" / "HCC-Control.txt"
         de_data = parse_de_file(example_path)
-        classified = classify_genes(de_data, "standard")
+        classified = classify_genes(de_data, adj_p=0.05, logfc_fold=1.5)
         ratios = compute_module_ratios(de_data["genes"], classified, get_module_gene_sets())
         colours = dict.fromkeys(ratios, "#ffffff")
         figure_json = build_multi_coloured_figure_json(
@@ -83,7 +83,7 @@ class TestLiverPlotlyTln(SimpleTestCase):
                 ("file-a.txt", ratios, colours),
                 ("file-b.txt", ratios, colours),
             ],
-            cutoff="standard",
+            cutoff="adj.P<0.05, fold 1.5",
         )
 
         self.assertGreater(len(figure_json["layout"]["shapes"]), EXPECTED_LEAF_COUNT)
