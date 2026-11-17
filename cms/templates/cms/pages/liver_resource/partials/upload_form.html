@@ -126,6 +126,15 @@
             >
                 Download DE template
             </a>
+            {% if liver_supplementary_url %}
+            <a
+                id="liver-download-supplementary"
+                href="{{ liver_supplementary_url }}"
+                class="btn btn-ghost btn-sm justify-start"
+            >
+                Download supplementary workbook
+            </a>
+            {% endif %}
             <a
                 id="liver-export-modules"
                 href="{% routablepageurl page 'export_module_scores' %}"
