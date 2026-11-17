@@ -142,6 +142,10 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
 
         self.assertEqual(context["liver_upload_url"], liver_route_url(self.page, "upload_de"))
         self.assertEqual(context["liver_recompute_url"], liver_route_url(self.page, "recompute"))
+        self.assertEqual(
+            context["liver_reference_figure_url"],
+            liver_route_url(self.page, "download_reference_figure"),
+        )
         self.assertIn("/upload/", context["liver_upload_url"])
         self.assertIn("/recompute/", context["liver_recompute_url"])
         self.assertNotIn("/cms/liver/", context["liver_upload_url"])
@@ -177,6 +181,17 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
         self.assertContains(response, 'hx-target-error="#liver-validation-errors"')
         self.assertContains(response, 'id="liver-dashboard"')
         self.assertContains(response, "liver_resource.js")
+
+    def test_page_includes_float_right_reference_figure_from_card_image(self) -> None:
+        """Test the existing card image floats beside intro content with zoom."""
+        response = self.client.get(self.page.url)
+        self.assertContains(response, 'id="liver-reference-figure"')
+        self.assertContains(response, "md:float-right")
+        self.assertContains(response, "md:w-56")
+        self.assertContains(response, 'id="liver-reference-figure-dialog"')
+        self.assertContains(response, 'id="liver-reference-figure-open"')
+        self.assertNotContains(response, 'id="liver-reference-figure-download"')
+        self.assertNotContains(response, "Download reference figure")
 
     def test_page_renders_successfully(self) -> None:
         """Test that the liver dashboard page returns HTTP 200."""

@@ -23,9 +23,18 @@
         {% endif %}
     </p>
 
-    {% if page.content %}
-    <div class="prose max-w-none text-pp-dark-grey mb-6">
-        {% include_block page.content %}
+    {# Intro + existing card image floated right (Data Highlights style). #}
+    {% if page.image or page.content %}
+    <div class="mb-6 flow-root">
+        {% if page.image %}
+            {% include "cms/pages/liver_resource/partials/reference_figure.html" %}
+        {% endif %}
+
+        {% if page.content %}
+        <div class="prose max-w-none text-pp-dark-grey">
+            {% include_block page.content %}
+        </div>
+        {% endif %}
     </div>
     {% endif %}
 
