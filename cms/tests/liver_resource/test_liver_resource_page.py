@@ -15,7 +15,7 @@ from cms.tests.liver_resource.liver_helpers import (
     liver_route_url,
 )
 from cms.tests.utils import create_test_image
-from dashboard_visualisation.liver_resource.computation import VALID_CUTOFFS
+from dashboard_visualisation.liver_resource.thresholds import ADJ_P_CHOICES, LOGFC_FOLD_CHOICES
 from dashboard_visualisation.liver_resource.examples import list_example_slugs, list_examples
 from dashboard_visualisation.liver_resource.reference_data import (
     clear_reference_data_cache,
@@ -85,12 +85,13 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
         self.assertIn("layout", figure)
         self.assertGreater(len(figure["data"]), 0)
 
-    def test_get_context_includes_cutoff_choices(self) -> None:
-        """Test that get_context exposes all valid DEcutoff modes."""
+    def test_get_context_includes_threshold_choices(self) -> None:
+        """Test that get_context exposes Option B Adj P.val and LogFC choices."""
         request = self.client.get(self.page.url).wsgi_request
         context = self.page.get_context(request)
 
-        self.assertEqual(context["cutoff_choices"], VALID_CUTOFFS)
+        self.assertEqual(context["adj_p_choices"], ADJ_P_CHOICES)
+        self.assertEqual(context["logfc_fold_choices"], LOGFC_FOLD_CHOICES)
 
     def test_get_context_includes_base_plot_html(self) -> None:
         """Test that get_context exposes server-rendered base Plotly HTML."""
@@ -116,8 +117,10 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
         context = self.page.get_context(request)
 
         self.assertFalse(context["has_session"])
-        self.assertEqual(context["current_cutoff"], "standard")
-        self.assertEqual(context["default_cutoff"], "standard")
+        self.assertEqual(context["current_adj_p"], 0.05)
+        self.assertEqual(context["current_logfc_fold"], 1.5)
+        self.assertEqual(context["default_adj_p"], 0.05)
+        self.assertEqual(context["default_logfc_fold"], 1.5)
 
     def test_get_context_includes_parent_heading(self) -> None:
         """Test that liver pages inherit the dashboard index heading."""

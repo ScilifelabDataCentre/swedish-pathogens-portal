@@ -40,15 +40,30 @@
             </label>
 
             <label class="form-control w-full">
-                <span class="label-text font-medium">DE threshold</span>
+                <span class="label-text font-medium">Adj P.val</span>
                 <select
-                    name="cutoff"
-                    id="liver-cutoff-select"
-                    class="select select-bordered select-sm w-full"
+                    name="adj_p"
+                    id="liver-adj-p-select"
+                    class="select select-bordered select-sm w-full liver-threshold-select"
                 >
-                    {% for cutoff in cutoff_choices %}
-                    <option value="{{ cutoff }}" {% if cutoff == current_cutoff %}selected{% endif %}>
-                        {{ cutoff }}
+                    {% for value in adj_p_choices %}
+                    <option value="{{ value }}" {% if value == current_adj_p %}selected{% endif %}>
+                        {{ value }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </label>
+
+            <label class="form-control w-full">
+                <span class="label-text font-medium">LogFC fold</span>
+                <select
+                    name="logfc_fold"
+                    id="liver-logfc-fold-select"
+                    class="select select-bordered select-sm w-full liver-threshold-select"
+                >
+                    {% for value in logfc_fold_choices %}
+                    <option value="{{ value }}" {% if value == current_logfc_fold %}selected{% endif %}>
+                        {{ value }}
                     </option>
                     {% endfor %}
                 </select>
@@ -73,7 +88,7 @@
                     hx-get="{% routablepageurl page 'load_example' example.slug %}"
                     hx-target="#liver-tln-panel"
                     hx-target-error="#liver-validation-errors"
-                    hx-include="#liver-cutoff-select"
+                    hx-include=".liver-threshold-select"
                     hx-swap="innerHTML"
                     hx-indicator="#liver-tln-loading"
                 >

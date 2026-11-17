@@ -9,7 +9,7 @@ from cms.snippets.dashboard_data import DashboardData
 from dashboard_visualisation import generate_figures
 from dashboard_visualisation.liver_resource.examples import EXAMPLE_SLUG
 from dashboard_visualisation.liver_resource.reference_data import get_data_root
-from dashboard_visualisation.liver_resource.session import DEFAULT_CUTOFF
+from dashboard_visualisation.liver_resource.thresholds import DEFAULT_THRESHOLD_KEY
 
 
 class TestLiverDashboardDataSnippet(TestCase):
@@ -35,7 +35,7 @@ class TestLiverDashboardDataSnippet(TestCase):
         self.assertIn("data", row.data["base_tln"])
         self.assertIn("examples", row.data)
         self.assertIn(EXAMPLE_SLUG, row.data["examples"])
-        self.assertIn(DEFAULT_CUTOFF, row.data["examples"][EXAMPLE_SLUG])
+        self.assertIn(DEFAULT_THRESHOLD_KEY, row.data["examples"][EXAMPLE_SLUG])
 
     def test_generate_figures_registry_entry(self) -> None:
         """Test registry dispatch builds expected figure keys from a DE upload."""
@@ -44,7 +44,7 @@ class TestLiverDashboardDataSnippet(TestCase):
 
         self.assertIn("base_tln", figures)
         self.assertIn("examples", figures)
-        stats = figures["examples"][EXAMPLE_SLUG][DEFAULT_CUTOFF]["stats"]
+        stats = figures["examples"][EXAMPLE_SLUG][DEFAULT_THRESHOLD_KEY]["stats"]
         self.assertEqual(stats["filename"], "HCC-Control.txt")
         self.assertGreater(stats["gene_count"], 10_000)
 

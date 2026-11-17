@@ -18,7 +18,8 @@
     }
 
     const recomputeUrl = dashboard.dataset.recomputeUrl;
-    const cutoffSelect = document.getElementById("liver-cutoff-select");
+    const adjPSelect = document.getElementById("liver-adj-p-select");
+    const logfcFoldSelect = document.getElementById("liver-logfc-fold-select");
     const validationErrors = document.getElementById("liver-validation-errors");
 
     function getPlotWrapper() {
@@ -30,12 +31,27 @@
         return wrapper ? wrapper.querySelector(".plotly-graph-div") : null;
     }
 
-    function getCurrentCutoff() {
-        if (cutoffSelect) {
-            return cutoffSelect.value;
+    function getCurrentAdjP() {
+        if (adjPSelect) {
+            return adjPSelect.value;
         }
         const wrapper = getPlotWrapper();
-        return wrapper?.dataset.cutoff || "standard";
+        return wrapper?.dataset.adjP || "0.05";
+    }
+
+    function getCurrentLogfcFold() {
+        if (logfcFoldSelect) {
+            return logfcFoldSelect.value;
+        }
+        const wrapper = getPlotWrapper();
+        return wrapper?.dataset.logfcFold || "1.5";
+    }
+
+    function thresholdQuery() {
+        return (
+            `adj_p=${encodeURIComponent(getCurrentAdjP())}` +
+            `&logfc_fold=${encodeURIComponent(getCurrentLogfcFold())}`
+        );
     }
 
     function hasActiveSession() {
@@ -75,13 +91,15 @@
             return;
         }
 
+        const thresholdLabel = stats.cutoff || "DE threshold";
+
         if (stats.plot_mode === "pie" && Array.isArray(stats.filenames)) {
             const comparisonSummary = stats.filenames
                 .map((filename) => `<span class="inline-block mr-3">${filename}</span>`)
                 .join("");
             statsEl.innerHTML =
                 `<span class="font-medium">${stats.file_count} comparisons</span>` +
-                ` · pie mode · cutoff: ${stats.cutoff}` +
+                ` · pie mode · DE threshold: ${thresholdLabel}` +
                 `<span class="block mt-1 text-xs">${comparisonSummary}</span>`;
             return;
         }
@@ -90,10 +108,10 @@
             `<span class="font-medium">${stats.filename}</span>` +
             ` · ${stats.gene_count.toLocaleString()} genes` +
             ` · ${stats.n_up} up / ${stats.n_down} down` +
-            ` · cutoff: ${stats.cutoff}`;
+            ` · DE threshold: ${thresholdLabel}`;
     }
 
-    async function recomputeCutoff() {
+    async function recomputeThresholds() {
         if (!hasActiveSession() || !recomputeUrl) {
             return;
         }
@@ -101,17 +119,13 @@
         if (getPlotMode() === "pie") {
             if (typeof htmx !== "undefined") {
                 dashboard.classList.add("liver-recomputing");
-                htmx.ajax(
-                    "GET",
-                    `${recomputeUrl}?cutoff=${encodeURIComponent(getCurrentCutoff())}`,
-                    {
-                        target: "#liver-tln-panel",
-                        swap: "innerHTML",
-                        headers: {
-                            Accept: "text/html",
-                        },
+                htmx.ajax("GET", `${recomputeUrl}?${thresholdQuery()}`, {
+                    target: "#liver-tln-panel",
+                    swap: "innerHTML",
+                    headers: {
+                        Accept: "text/html",
                     },
-                ).finally(() => {
+                }).finally(() => {
                     dashboard.classList.remove("liver-recomputing");
                 });
             }
@@ -125,16 +139,13 @@
 
         dashboard.classList.add("liver-recomputing");
         try {
-            const response = await fetch(
-                `${recomputeUrl}?cutoff=${encodeURIComponent(getCurrentCutoff())}`,
-                {
-                    headers: {
-                        Accept: "application/json",
-                        "X-Requested-With": "XMLHttpRequest",
-                    },
-                    credentials: "same-origin",
+            const response = await fetch(`${recomputeUrl}?${thresholdQuery()}`, {
+                headers: {
+                    Accept: "application/json",
+                    "X-Requested-With": "XMLHttpRequest",
                 },
-            );
+                credentials: "same-origin",
+            });
 
             if (!response.ok) {
                 return;
@@ -147,9 +158,23 @@
                 [payload.leaf_trace_index],
             );
 
+            if (payload.stats?.filename && payload.stats?.cutoff) {
+                await Plotly.relayout(plotDiv, {
+                    "title.text": `HepaGeNIE TLN — ${payload.stats.filename} (${payload.stats.cutoff})`,
+                });
+            }
+
             const wrapper = getPlotWrapper();
-            if (wrapper && payload.stats?.cutoff) {
-                wrapper.dataset.cutoff = payload.stats.cutoff;
+            if (wrapper && payload.stats) {
+                if (payload.stats.threshold_key) {
+                    wrapper.dataset.cutoff = payload.stats.threshold_key;
+                }
+                if (payload.stats.adj_p != null) {
+                    wrapper.dataset.adjP = String(payload.stats.adj_p);
+                }
+                if (payload.stats.logfc_fold != null) {
+                    wrapper.dataset.logfcFold = String(payload.stats.logfc_fold);
+                }
             }
             updateAnalysisStats(payload.stats);
         } finally {
@@ -163,7 +188,8 @@
         enableExportLinks();
     }
 
-    cutoffSelect?.addEventListener("change", recomputeCutoff);
+    adjPSelect?.addEventListener("change", recomputeThresholds);
+    logfcFoldSelect?.addEventListener("change", recomputeThresholds);
 
     document.body.addEventListener("htmx:afterSettle", (event) => {
         if (event.detail.target?.id === "liver-tln-panel") {

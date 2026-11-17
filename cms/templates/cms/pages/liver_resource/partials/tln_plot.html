@@ -1,5 +1,5 @@
 <div id="liver-tln-result">
-    {% include "cms/pages/liver_resource/partials/tln_plot_embed.html" with plot_html=plot_html height=height leaf_trace_index=leaf_trace_index cutoff=analysis.cutoff plot_mode=analysis.plot_mode %}
+    {% include "cms/pages/liver_resource/partials/tln_plot_embed.html" with plot_html=plot_html height=height leaf_trace_index=leaf_trace_index cutoff=analysis.threshold_key adj_p=analysis.adj_p logfc_fold=analysis.logfc_fold plot_mode=analysis.plot_mode %}
 
     <p id="liver-analysis-stats" class="text-sm text-pp-dark-grey mt-3 px-2 pb-2">
         {% if analysis.plot_mode == "pie" %}

@@ -80,7 +80,7 @@ class TestLiverComputation(SimpleTestCase):
         """Test HCC-Control ratios with standard cutoff match R output."""
         example_path = get_data_root() / "examples" / "HCC-Control.txt"
         de_data = parse_de_file(example_path)
-        classified = classify_genes(de_data, "standard")
+        classified = classify_genes(de_data, adj_p=0.05, logfc_fold=1.5)
         modules = get_module_gene_sets()
         ratios = compute_module_ratios(de_data["genes"], classified, modules)
         r_ratios = self._load_r_reference("HCC-Control_module_scores.csv")
@@ -88,23 +88,21 @@ class TestLiverComputation(SimpleTestCase):
         self.assertEqual(len(r_ratios), EXPECTED_MODULE_COUNT)
         self._compare_ratios(ratios, r_ratios)
 
-    def test_sleep_deprived_top500_matches_r(self) -> None:
-        """Test sleep.deprived ratios with top500 cutoff match R output."""
-        example_path = get_data_root() / "examples" / "sleep.deprived.AK-control.AK.txt"
+    def test_option_b_stricter_fold_reduces_de_calls(self) -> None:
+        """Test a higher LogFC fold threshold classifies fewer DE genes."""
+        example_path = get_data_root() / "examples" / "HCC-Control.txt"
         de_data = parse_de_file(example_path)
-        classified = classify_genes(de_data, "top500")
-        modules = get_module_gene_sets()
-        ratios = compute_module_ratios(de_data["genes"], classified, modules)
-        r_ratios = self._load_r_reference("sleep.deprived.AK-control.AK_module_scores.csv")
-
-        self.assertEqual(len(r_ratios), EXPECTED_MODULE_COUNT)
-        self._compare_ratios(ratios, r_ratios)
+        default = classify_genes(de_data, adj_p=0.05, logfc_fold=1.5)
+        strict = classify_genes(de_data, adj_p=0.05, logfc_fold=5.0)
+        self.assertGreaterEqual(len(default["up"]), len(strict["up"]))
+        self.assertGreaterEqual(len(default["down"]), len(strict["down"]))
+        self.assertGreater(len(default["up"]) + len(default["down"]), 0)
 
     def test_map_ratios_to_colours_returns_hex_for_all_modules(self) -> None:
         """Test colour mapping returns a hex colour for every module."""
         example_path = get_data_root() / "examples" / "HCC-Control.txt"
         de_data = parse_de_file(example_path)
-        classified = classify_genes(de_data, "standard")
+        classified = classify_genes(de_data, adj_p=0.05, logfc_fold=1.5)
         modules = get_module_gene_sets()
         ratios = compute_module_ratios(de_data["genes"], classified, modules)
         colours = map_ratios_to_colours(ratios)
