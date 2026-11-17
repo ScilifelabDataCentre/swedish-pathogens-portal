@@ -2,12 +2,31 @@
 
 from __future__ import annotations
 
+from django.core.files.uploadedfile import SimpleUploadedFile
+from wagtail.documents import get_document_model
 from wagtail.models import Page, Site
 
 from cms.pages.dashboard_index import DashboardIndexPage
 from cms.pages.home import HomePage
 from cms.pages.liver_resource import LiverResourceDashboardPage
 from cms.tests.utils import create_test_image
+from dashboard_visualisation.liver_resource.supplementary import (
+    SUPPLEMENTARY_DOCUMENT_TITLE,
+)
+
+
+def create_supplementary_document(
+    *,
+    title: str = SUPPLEMENTARY_DOCUMENT_TITLE,
+    file_name: str = "HepaGeNIE_supplementary.xlsx",
+    content: bytes = b"PK\x03\x04fake-xlsx",
+):
+    """Create a Wagtail Document used as the HepaGeNIE supplementary workbook."""
+    Document = get_document_model()
+    return Document.objects.create(
+        title=title,
+        file=SimpleUploadedFile(file_name, content, content_type="application/vnd.ms-excel"),
+    )
 
 
 def create_published_liver_resource_page(

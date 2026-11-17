@@ -12,6 +12,7 @@ from cms.pages.liver_resource import LiverResourceDashboardPage
 from cms.snippets.dashboard_data import DashboardData
 from cms.tests.liver_resource.liver_helpers import (
     create_published_liver_resource_page,
+    create_supplementary_document,
     liver_route_url,
 )
 from cms.tests.utils import create_test_image
@@ -146,9 +147,21 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
             context["liver_reference_figure_url"],
             liver_route_url(self.page, "download_reference_figure"),
         )
+        self.assertIsNone(context["liver_supplementary_url"])
         self.assertIn("/upload/", context["liver_upload_url"])
         self.assertIn("/recompute/", context["liver_recompute_url"])
         self.assertNotIn("/cms/liver/", context["liver_upload_url"])
+
+    def test_get_context_includes_supplementary_url_when_document_uploaded(self) -> None:
+        """Test supplementary download URL appears only after Document upload."""
+        create_supplementary_document()
+        request = self.client.get(self.page.url).wsgi_request
+        context = self.page.get_context(request)
+
+        self.assertEqual(
+            context["liver_supplementary_url"],
+            liver_route_url(self.page, "download_supplementary"),
+        )
 
     def test_get_context_example_label_uses_dashboard_data_filename(self) -> None:
         """Test example button label comes from the DashboardData source file name."""
@@ -192,6 +205,20 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
         self.assertContains(response, 'id="liver-reference-figure-open"')
         self.assertNotContains(response, 'id="liver-reference-figure-download"')
         self.assertNotContains(response, "Download reference figure")
+
+    def test_page_hides_supplementary_link_without_document(self) -> None:
+        """Test sidebar omits supplementary download until Document exists."""
+        response = self.client.get(self.page.url)
+        self.assertNotContains(response, 'id="liver-download-supplementary"')
+        self.assertNotContains(response, "Download supplementary workbook")
+
+    def test_page_shows_supplementary_link_when_document_uploaded(self) -> None:
+        """Test sidebar ghost link appears after Wagtail Document upload."""
+        create_supplementary_document()
+        response = self.client.get(self.page.url)
+        self.assertContains(response, 'id="liver-download-supplementary"')
+        self.assertContains(response, "Download supplementary workbook")
+        self.assertContains(response, liver_route_url(self.page, "download_supplementary"))
 
     def test_page_renders_successfully(self) -> None:
         """Test that the liver dashboard page returns HTTP 200."""
