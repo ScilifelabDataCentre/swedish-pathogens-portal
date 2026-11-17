@@ -13,6 +13,7 @@ from dashboard_visualisation.liver_resource.reference_data import (
     get_template_path,
     list_example_files,
     load_cyjs_layout,
+    load_hover_module_titles,
     load_module_labels,
     load_modules,
     load_symbol_map,
@@ -70,6 +71,19 @@ class TestLiverReferenceData(SimpleTestCase):
         """Test module label mapping loads."""
         labels = load_module_labels()
         self.assertGreater(len(labels), 0)
+
+    def test_load_hover_module_titles(self) -> None:
+        """Test Jackie hover titles load for titled modules and skip blanks."""
+        titles = load_hover_module_titles()
+        self.assertEqual(len(titles), 66)
+        self.assertEqual(
+            titles[3],
+            "Immune response (I) -  Myeliod cells (Phagocytosis & MHC class II antigen presentation)",
+        )
+        self.assertEqual(titles[4], "Amino acid catabolism and urea cycle")
+        self.assertEqual(titles[12], "Cell cycle (I) - DNA replication")
+        self.assertNotIn(1, titles)
+        self.assertNotIn(2, titles)
 
     def test_list_example_files(self) -> None:
         """Test bundled example DE files are discoverable."""

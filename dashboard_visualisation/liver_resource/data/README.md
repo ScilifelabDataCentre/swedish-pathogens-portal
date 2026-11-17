@@ -10,6 +10,7 @@ Static reference model for the Liver Resource dashboard. Loaded server-side only
 | `TLN.EdgeList.csv.cyjs` | `DINA-Liver-Clean/data/TLN.EdgeList_102.csv.cyjs` (filename kept) |
 | `hsapiens.SYMBOL.txt` | `DINA-Liver-Clean/data/` |
 | `ITA.Liver.ModNames.2025.txt` | Contents from `ITA.Liver.ModNames_102.txt` (filename kept for code compatibility) |
+| `hover_module_titles.tsv` | Converted from Jackie `Hover module names.xlsx` (module id → hover title; blanks omitted at load) |
 | `modules/Module.*.txt` | `DINA-Liver-Clean/data/Modules_102/` (**directory name stays `modules/`**) |
 | `examples/*.txt` | `DINA-Liver-Clean/example-DE-files/` |
 | `DE_upload_template.txt` | Header + sample rows from HCC-Control example |
