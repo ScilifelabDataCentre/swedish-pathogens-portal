@@ -194,6 +194,22 @@ class TestLiverViews(TestCase):
         self.assertIn(b"logFC", response.content)
         self.assertIn(b"adj.P.Val", response.content)
 
+    def test_download_reference_figure_serves_card_image(self) -> None:
+        """Test reference figure route serves the existing dashboard card image."""
+        url = liver_route_url(self.page, "download_reference_figure")
+        preview = self.client.get(url)
+        self.assertEqual(preview.status_code, 200)
+        self.assertEqual(preview["Content-Type"], "image/jpeg")
+        preview_body = b"".join(preview.streaming_content)
+        self.assertTrue(preview_body.startswith(b"\xff\xd8"))
+        self.assertNotIn("attachment", preview.get("Content-Disposition", ""))
+
+        download = self.client.get(url, {"download": "1"})
+        self.assertEqual(download.status_code, 200)
+        self.assertIn("attachment", download["Content-Disposition"])
+        download_body = b"".join(download.streaming_content)
+        self.assertTrue(download_body.startswith(b"\xff\xd8"))
+
     def test_export_module_scores_requires_session(self) -> None:
         """Test module scores export without session returns 400."""
         url = liver_route_url(self.page, "export_module_scores")

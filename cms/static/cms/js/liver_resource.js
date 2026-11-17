@@ -5,6 +5,7 @@
  * - DE threshold / Plot change → recompute colours (Plotly.restyle for solid
  *   Difference leaves; full htmx plot swap for pie leaves or Total scoring)
  * - Enable CSV export links after a successful upload or example load
+ * - Open / close the reference TLN map zoom dialog
  *
  * Expects #liver-dashboard with data-recompute-url, and a Plotly figure with
  * leaf trace index in #liver-tln-plot data attributes.
@@ -236,4 +237,15 @@
             handlePlotPanelSettled();
         }
     });
+
+    const referenceFigureDialog = document.getElementById("liver-reference-figure-dialog");
+    const referenceFigureOpen = document.getElementById("liver-reference-figure-open");
+    if (
+        referenceFigureDialog instanceof HTMLDialogElement &&
+        referenceFigureOpen instanceof HTMLElement
+    ) {
+        referenceFigureOpen.addEventListener("click", () => {
+            referenceFigureDialog.showModal();
+        });
+    }
 })();

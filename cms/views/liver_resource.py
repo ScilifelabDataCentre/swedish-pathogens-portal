@@ -15,6 +15,7 @@ MVP endpoint map (all required unless noted):
 | ``load_example`` | GET | Yes | FR-9 — bundled examples |
 | ``recompute`` | GET | Yes | FR-3 — change DE thresholds |
 | ``download_template`` | GET | Yes | FR-10 — DE template |
+| ``download_reference_figure`` | GET | Yes | Reference TLN map JPG |
 | ``export_module_scores`` | GET | Yes | FR-7 — module scores CSV |
 | ``export_genes`` | GET | Yes | FR-7 — gene classification CSV |
 """
@@ -250,6 +251,37 @@ def download_template(request: HttpRequest) -> HttpResponse:
     )
     response["Content-Disposition"] = 'attachment; filename="DE_upload_template.txt"'
     return response
+
+
+@require_GET
+def download_reference_figure(request: HttpRequest, *, page) -> HttpResponse:
+    """Serve the Wagtail-uploaded reference TLN map (preview or download)."""
+    from pathlib import Path
+
+    from django.http import FileResponse
+
+    image = getattr(page, "image", None)
+    if image is None or not getattr(image, "file", None):
+        return HttpResponse("Reference figure not found.", status=404, content_type="text/plain")
+
+    as_attachment = request.GET.get("download") == "1"
+    filename = Path(image.file.name).name or "HepaGeNIE_TLN_Figure.jpg"
+    lower_name = filename.lower()
+    if lower_name.endswith(".png"):
+        mime = "image/png"
+    elif lower_name.endswith(".webp"):
+        mime = "image/webp"
+    elif lower_name.endswith(".gif"):
+        mime = "image/gif"
+    else:
+        mime = "image/jpeg"
+
+    return FileResponse(
+        image.file.open("rb"),
+        content_type=mime,
+        as_attachment=as_attachment,
+        filename=filename,
+    )
 
 
 @require_GET
