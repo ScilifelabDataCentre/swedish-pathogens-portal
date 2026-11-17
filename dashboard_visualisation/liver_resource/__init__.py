@@ -1,1 +1,1 @@
-"""DINA Liver Resource dashboard services."""
+"""HepaGeNIE dashboard services."""

@@ -24,7 +24,7 @@ class TestLiverDashboardDataSnippet(TestCase):
             content_type="text/plain",
         )
         row = DashboardData.objects.create(
-            dashboard_title="DINA Liver Resource",
+            dashboard_title="HepaGeNIE",
             dashboard_slug="liver-resource",
             source_file=upload,
             data_updated_at=date(2026, 4, 20),

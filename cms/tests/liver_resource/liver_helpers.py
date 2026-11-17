@@ -14,7 +14,7 @@ def create_published_liver_resource_page(
     *,
     title: str = "Liver Resource",
     slug: str = "liver-resource",
-    description: str = "DINA Liver Resource dashboard",
+    description: str = "HepaGeNIE dashboard",
 ) -> LiverResourceDashboardPage:
     """Create home → dashboards → liver-resource page tree and publish it.
 

@@ -1,4 +1,4 @@
-"""Validation for DINA Liver Resource DE file uploads."""
+"""Validation for HepaGeNIE DE file uploads."""
 
 from __future__ import annotations
 

@@ -169,5 +169,5 @@ def _shared_max_abs(ratio_rows: list[dict[int, float | None]]) -> float:
 
 def _build_title(comparisons: tuple[ComparisonStats, ...]) -> str:
     if len(comparisons) == 1:
-        return f"DINA Liver TLN — {comparisons[0].filename}"
-    return f"DINA Liver TLN — {len(comparisons)} comparisons"
+        return f"HepaGeNIE TLN — {comparisons[0].filename}"
+    return f"HepaGeNIE TLN — {len(comparisons)} comparisons"
