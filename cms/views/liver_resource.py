@@ -1,4 +1,4 @@
-"""HTMX and JSON handlers for the DINA Liver Resource dashboard.
+"""HTMX and JSON handlers for the HepaGeNIE dashboard.
 
 Routed via ``LiverResourceDashboardPage`` ``RoutablePageMixin`` sub-paths
 (for example ``…/upload/``, ``…/recompute/``), not ``cms/urls.py``.

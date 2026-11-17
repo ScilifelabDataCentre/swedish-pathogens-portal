@@ -1,4 +1,4 @@
-"""Load bundled DINA Liver Resource reference data."""
+"""Load bundled HepaGeNIE reference data."""
 
 from __future__ import annotations
 

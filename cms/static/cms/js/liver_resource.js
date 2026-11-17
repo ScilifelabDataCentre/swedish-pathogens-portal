@@ -1,5 +1,5 @@
 /**
- * DINA Liver Resource dashboard — client-side behaviour for the TLN plot.
+ * HepaGeNIE dashboard — client-side behaviour for the TLN plot.
  *
  * Responsibilities:
  * - DEcutoff change → recompute colours (Plotly.restyle for solid leaves,
