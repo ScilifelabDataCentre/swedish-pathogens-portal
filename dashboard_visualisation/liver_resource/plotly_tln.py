@@ -1,4 +1,4 @@
-"""Build Plotly figures for the DINA Liver Tree-Leaf Network."""
+"""Build Plotly figures for the HepaGeNIE Tree-Leaf Network."""
 
 from __future__ import annotations
 
@@ -38,7 +38,7 @@ def build_base_figure() -> go.Figure:
         layout=layout,
         leaf_colours={},
         leaf_ratios={},
-        title="DINA Liver TLN — Upload a DE file to colour modules",
+        title="HepaGeNIE TLN — Upload a DE file to colour modules",
         show_colorbar=False,
     )
 
@@ -46,7 +46,7 @@ def build_base_figure() -> go.Figure:
 def build_coloured_figure(
     ratios: dict[int, float | None],
     *,
-    title: str = "DINA Liver TLN",
+    title: str = "HepaGeNIE TLN",
     cutoff: str = "standard",
     max_abs: float | None = None,
 ) -> go.Figure:
@@ -76,7 +76,7 @@ def build_coloured_figure(
 def build_multi_coloured_figure(
     comparisons: list[ComparisonRow],
     *,
-    title: str = "DINA Liver TLN",
+    title: str = "HepaGeNIE TLN",
     cutoff: str = "standard",
     max_abs: float | None = None,
 ) -> go.Figure:
@@ -103,7 +103,7 @@ def build_base_figure_json() -> dict[str, Any]:
 def build_coloured_figure_json(
     ratios: dict[int, float | None],
     *,
-    title: str = "DINA Liver TLN",
+    title: str = "HepaGeNIE TLN",
     cutoff: str = "standard",
     max_abs: float | None = None,
 ) -> dict[str, Any]:
@@ -116,7 +116,7 @@ def build_coloured_figure_json(
 def build_multi_coloured_figure_json(
     comparisons: list[ComparisonRow],
     *,
-    title: str = "DINA Liver TLN",
+    title: str = "HepaGeNIE TLN",
     cutoff: str = "standard",
     max_abs: float | None = None,
 ) -> dict[str, Any]:

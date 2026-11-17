@@ -1,4 +1,4 @@
-"""CMS page for the DINA Liver Resource interactive dashboard."""
+"""CMS page for the HepaGeNIE interactive dashboard."""
 
 from typing import Any
 
@@ -40,7 +40,7 @@ class LiverResourceDashboardPage(RoutablePageMixin, DashboardPage):
     class Meta:
         """Meta options for the LiverResourceDashboardPage model."""
 
-        verbose_name = "Liver Resource Dashboard"
+        verbose_name = "HepaGeNIE Dashboard"
 
     def get_context(self, request: HttpRequest) -> dict[str, Any]:
         """Add liver-specific TLN and control metadata to template context."""

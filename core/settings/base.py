@@ -190,7 +190,7 @@ DATASETS_ROOT = env("DATASETS_ROOT", default="/datasets")
 # bounds how long in-place updates to existing studies can stay stale.
 PORTAL_DATA_CACHE_TIMEOUT = env.int("PORTAL_DATA_CACHE_TIMEOUT", default=60 * 60)
 
-# Bundled reference data for the DINA Liver Resource dashboard
+# Bundled reference data for the HepaGeNIE dashboard
 LIVER_RESOURCE_DATA_ROOT = Path(
     env(
         "LIVER_RESOURCE_DATA_ROOT",

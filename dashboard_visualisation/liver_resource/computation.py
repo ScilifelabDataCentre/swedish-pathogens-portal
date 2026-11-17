@@ -1,4 +1,4 @@
-"""DINA Liver TLN computation pipeline — port of run_tln_analysis.R."""
+"""HepaGeNIE TLN computation pipeline — port of run_tln_analysis.R."""
 
 from __future__ import annotations
 
