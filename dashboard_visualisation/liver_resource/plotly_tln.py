@@ -58,7 +58,7 @@ def build_coloured_figure(
     leaf_ratios = {
         str(module_id): (ratio if ratio is not None else 0.0) for module_id, ratio in ratios.items()
     }
-    display_title = f"{title} ({cutoff} cutoff)" if cutoff else title
+    display_title = f"{title} ({cutoff} DE threshold)" if cutoff else title
     if max_abs is None:
         valid_ratios = [value for value in ratios.values() if value is not None]
         max_abs = max((abs(value) for value in valid_ratios), default=1.0)
@@ -83,7 +83,7 @@ def build_multi_coloured_figure(
     """Build a TLN figure with pie-chart leaves for multiple DE comparisons."""
     graph = load_tln_graph()
     layout = get_normalised_layout()
-    display_title = f"{title} ({cutoff} cutoff)" if cutoff else title
+    display_title = f"{title} ({cutoff} DE threshold)" if cutoff else title
     if max_abs is None:
         max_abs = _max_abs_from_comparisons(comparisons)
     return _build_multi_figure(

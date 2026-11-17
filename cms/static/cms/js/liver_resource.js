@@ -2,7 +2,7 @@
  * HepaGeNIE dashboard — client-side behaviour for the TLN plot.
  *
  * Responsibilities:
- * - DEcutoff change → recompute colours (Plotly.restyle for solid leaves,
+ * - DE threshold change → recompute colours (Plotly.restyle for solid leaves,
  *   full htmx plot swap for pie leaves when data-plot-mode="pie")
  * - Enable CSV export links after a successful upload or example load
  *
