@@ -41,6 +41,9 @@ class LiverResourceDashboardPage(RoutablePageMixin, DashboardPage):
     The page body is rendered from a custom template with upload controls,
     Plotly TLN, and htmx partial updates rather than StreamField figures.
 
+    The existing Wagtail ``image`` (card thumbnail) is also shown beside the
+    intro text as the zoomable reference TLN map — no extra image field.
+
     HTMX / download endpoints live as sub-routes on this page (same pattern as
     :class:`~cms.pages.portal_data.PortalDataPage`), not under ``/cms/liver/``.
     """
@@ -90,6 +93,12 @@ class LiverResourceDashboardPage(RoutablePageMixin, DashboardPage):
         context["examples"] = list_examples(self.dashboard_data)
         context["liver_upload_url"] = self.url + self.reverse_subpage("upload_de")
         context["liver_recompute_url"] = self.url + self.reverse_subpage("recompute")
+        if self.image_id:
+            context["liver_reference_figure_url"] = self.url + self.reverse_subpage(
+                "download_reference_figure"
+            )
+        else:
+            context["liver_reference_figure_url"] = None
         return context
 
     # ------------------------------------------------------------------ #
@@ -115,6 +124,11 @@ class LiverResourceDashboardPage(RoutablePageMixin, DashboardPage):
     def download_template(self, request: HttpRequest) -> HttpResponse:
         """Serve the bundled DE upload template."""
         return liver_views.download_template(request)
+
+    @path("reference-figure/")
+    def download_reference_figure(self, request: HttpRequest) -> HttpResponse:
+        """Serve the page card image as the reference TLN map download."""
+        return liver_views.download_reference_figure(request, page=self)
 
     @path("export/modules/")
     def export_module_scores(self, request: HttpRequest) -> HttpResponse:
