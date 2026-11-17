@@ -75,7 +75,7 @@ class TestLiverComputationEdgeCases(SimpleTestCase):
     def test_no_significant_genes_returns_neutral_colours(self) -> None:
         """Test a valid file with no DE signal still produces a coloured figure."""
         de_data = parse_de_file(BytesIO(build_de_file_bytes(log_fc=0.0, adj_pval=1.0)))
-        analysis = analyse_de_data(de_data, filename="neutral.txt", cutoff="standard")
+        analysis = analyse_de_data(de_data, filename="neutral.txt", adj_p=0.05, logfc_fold=1.5)
 
         self.assertEqual(analysis.up_count, 0)
         self.assertEqual(analysis.down_count, 0)
@@ -104,7 +104,8 @@ class TestLiverViewEdgeCases(TestCase):
         content: bytes,
         *,
         filename: str = "test.txt",
-        cutoff: str = "standard",
+        adj_p: str = "0.05",
+        logfc_fold: str = "1.5",
     ) -> HttpResponse:
         """POST a DE upload and return the response."""
         upload = SimpleUploadedFile(
@@ -114,7 +115,7 @@ class TestLiverViewEdgeCases(TestCase):
         )
         return self.client.post(
             self.upload_url,
-            {"de_files": upload, "cutoff": cutoff},
+            {"de_files": upload, "adj_p": adj_p, "logfc_fold": logfc_fold},
             **self.htmx_headers,
         )
 
@@ -155,15 +156,19 @@ class TestLiverViewEdgeCases(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn(b"Upload DE file(s)", response.content)
 
-    def test_recompute_invalid_cutoff_falls_back_to_standard(self) -> None:
-        """Test invalid cutoff query values fall back to the default cutoff."""
+    def test_recompute_invalid_thresholds_fall_back_to_defaults(self) -> None:
+        """Test invalid threshold query values fall back to Option B defaults."""
         self._post_de_file(build_de_file_bytes())
-        response = self.client.get(self.recompute_url, {"cutoff": "not-a-real-cutoff"})
+        response = self.client.get(
+            self.recompute_url,
+            {"adj_p": "not-a-real", "logfc_fold": "nope"},
+        )
         self.assertEqual(response.status_code, 200)
 
         payload = json.loads(response.content)
-        self.assertEqual(payload["stats"]["cutoff"], "standard")
-        self.assertEqual(self.client.session[SESSION_KEY]["cutoff"], "standard")
+        self.assertEqual(payload["stats"]["adj_p"], 0.05)
+        self.assertEqual(payload["stats"]["logfc_fold"], 1.5)
+        self.assertEqual(self.client.session[SESSION_KEY]["cutoff"], "0.05_1.5")
 
     def test_recompute_after_session_cleared_returns_error(self) -> None:
         """Test recompute without session returns JSON error."""
@@ -172,7 +177,7 @@ class TestLiverViewEdgeCases(TestCase):
         del session[SESSION_KEY]
         session.save()
 
-        response = self.client.get(self.recompute_url, {"cutoff": "top500"})
+        response = self.client.get(self.recompute_url, {"adj_p": "0.01", "logfc_fold": "2"})
         self.assertEqual(response.status_code, 400)
         payload = json.loads(response.content)
         self.assertIn("error", payload)

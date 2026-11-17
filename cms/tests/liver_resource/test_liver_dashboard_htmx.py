@@ -35,7 +35,7 @@ class TestLiverDashboardHtmxFlow(TestCase):
         )
         response = self.client.post(
             self.upload_url,
-            {"de_files": upload, "cutoff": "standard"},
+            {"de_files": upload, "adj_p": "0.05", "logfc_fold": "1.5"},
             **self.htmx_headers,
         )
 
@@ -64,9 +64,12 @@ class TestLiverDashboardHtmxFlow(TestCase):
     def test_htmx_example_load_returns_plot_partial(self) -> None:
         """Test example load via htmx returns plot markup."""
         url = liver_route_url(self.page, "load_example", example_slug="hcc-control")
-        response = self.client.get(f"{url}?cutoff=top500", **self.htmx_headers)
+        response = self.client.get(
+            f"{url}?adj_p=0.01&logfc_fold=2",
+            **self.htmx_headers,
+        )
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "liver-tln-result")
-        self.assertContains(response, "top500")
-        self.assertEqual(self.client.session[SESSION_KEY]["cutoff"], "top500")
+        self.assertContains(response, "adj.P&lt;0.01")
+        self.assertEqual(self.client.session[SESSION_KEY]["cutoff"], "0.01_2")

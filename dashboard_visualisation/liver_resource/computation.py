@@ -3,35 +3,26 @@
 from __future__ import annotations
 
 import csv
-import math
 from io import StringIO
 from pathlib import Path
 from typing import BinaryIO
 
 from dashboard_visualisation.liver_resource.reference_data import load_modules as _load_module_lists
+from dashboard_visualisation.liver_resource.thresholds import (
+    ADJ_P_CHOICES,
+    DEFAULT_ADJ_P,
+    DEFAULT_LOGFC_FOLD,
+    LOGFC_FOLD_CHOICES,
+    logfc_threshold,
+    parse_adj_p,
+    parse_logfc_fold,
+)
 
 type DeFileSource = str | Path | BinaryIO
 
-VALID_CUTOFFS = (
-    "standard",
-    "sensitive",
-    "stringent",
-    "stringent_2",
-    "max",
-    "Ponly",
-    "unadj",
-    "top3",
-    "top50",
-    "top100",
-    "top200",
-    "top500",
-    "top1000",
-)
-
-LOG2_1_5 = math.log2(1.5)
-LOG2_0_5 = math.log2(0.5)
-LOG2_2 = math.log2(2)
-LOG2_5 = math.log2(5)
+# Re-exported for callers that previously imported VALID_CUTOFFS / defaults.
+VALID_ADJ_P = ADJ_P_CHOICES
+VALID_LOGFC_FOLD = LOGFC_FOLD_CHOICES
 
 # Researcher default (TLN_Analyses_DataCenter.R f.TLNplot)
 R_PALETTE = (
@@ -108,89 +99,32 @@ def _parse_de_lines(lines: list[str]) -> dict:
     return {"header": header, "genes": genes, "data": data}
 
 
-def classify_genes(de_data: dict, cutoff: str) -> dict[str, set[str]]:
-    """Classify genes as up-regulated or down-regulated for a DEcutoff mode."""
-    if cutoff not in VALID_CUTOFFS:
-        msg = f"Invalid cutoff '{cutoff}'. Must be one of: {list(VALID_CUTOFFS)}"
-        raise ValueError(msg)
+def classify_genes(
+    de_data: dict,
+    *,
+    adj_p: float = DEFAULT_ADJ_P,
+    logfc_fold: float = DEFAULT_LOGFC_FOLD,
+) -> dict[str, set[str]]:
+    """Classify genes as up/down using Adj P.val and LogFC fold thresholds."""
+    adj_p = parse_adj_p(adj_p)
+    logfc_fold = parse_logfc_fold(logfc_fold)
+    abs_logfc = logfc_threshold(logfc_fold)
 
     genes = de_data["genes"]
     data = de_data["data"]
     up: set[str] = set()
     down: set[str] = set()
 
-    if cutoff == "standard":
-        for gene_id in genes:
-            row = data[gene_id]
-            if row["adj.P.Val"] is not None and row["logFC"] is not None:
-                if row["adj.P.Val"] < 0.05 and row["logFC"] > LOG2_1_5:
-                    up.add(gene_id)
-                elif row["adj.P.Val"] < 0.05 and row["logFC"] < -LOG2_1_5:
-                    down.add(gene_id)
-
-    elif cutoff == "sensitive":
-        for gene_id in genes:
-            row = data[gene_id]
-            if row["adj.P.Val"] is not None and row["logFC"] is not None:
-                if row["adj.P.Val"] < 0.05 and row["logFC"] > LOG2_0_5:
-                    up.add(gene_id)
-                elif row["adj.P.Val"] < 0.05 and row["logFC"] < -LOG2_0_5:
-                    down.add(gene_id)
-
-    elif cutoff == "stringent":
-        for gene_id in genes:
-            row = data[gene_id]
-            if row["adj.P.Val"] is not None and row["logFC"] is not None:
-                if row["adj.P.Val"] < 0.0001 and row["logFC"] > LOG2_1_5:
-                    up.add(gene_id)
-                elif row["adj.P.Val"] < 0.0001 and row["logFC"] < -LOG2_1_5:
-                    down.add(gene_id)
-
-    elif cutoff == "stringent_2":
-        for gene_id in genes:
-            row = data[gene_id]
-            if row["adj.P.Val"] is not None and row["logFC"] is not None:
-                if row["adj.P.Val"] < 0.0001 and row["logFC"] > LOG2_2:
-                    up.add(gene_id)
-                elif row["adj.P.Val"] < 0.0001 and row["logFC"] < -LOG2_2:
-                    down.add(gene_id)
-
-    elif cutoff == "max":
-        for gene_id in genes:
-            row = data[gene_id]
-            if row["adj.P.Val"] is not None and row["logFC"] is not None:
-                if row["adj.P.Val"] < 0.0001 and row["logFC"] > LOG2_5:
-                    up.add(gene_id)
-                elif row["adj.P.Val"] < 0.0001 and row["logFC"] < -LOG2_5:
-                    down.add(gene_id)
-
-    elif cutoff == "Ponly":
-        for gene_id in genes:
-            row = data[gene_id]
-            if row["adj.P.Val"] is not None and row["logFC"] is not None:
-                if row["adj.P.Val"] < 0.05 and row["logFC"] > 0:
-                    up.add(gene_id)
-                elif row["adj.P.Val"] < 0.05 and row["logFC"] < 0:
-                    down.add(gene_id)
-
-    elif cutoff == "unadj":
-        for gene_id in genes:
-            row = data[gene_id]
-            if row["P.Value"] is not None and row["logFC"] is not None:
-                if row["P.Value"] < 0.05 and row["logFC"] > LOG2_1_5:
-                    up.add(gene_id)
-                elif row["P.Value"] < 0.05 and row["logFC"] < -LOG2_1_5:
-                    down.add(gene_id)
-
-    elif cutoff.startswith("top"):
-        top_n = int(cutoff[3:])
-        valid = [
-            (gene_id, data[gene_id]["t"]) for gene_id in genes if data[gene_id].get("t") is not None
-        ]
-        sorted_desc = sorted(valid, key=lambda item: item[1], reverse=True)
-        up = {gene_id for gene_id, _ in sorted_desc[:top_n]}
-        sorted_asc = sorted(valid, key=lambda item: item[1])
-        down = {gene_id for gene_id, _ in sorted_asc[:top_n]}
+    for gene_id in genes:
+        row = data[gene_id]
+        adj = row.get("adj.P.Val")
+        log_fc = row.get("logFC")
+        if adj is None or log_fc is None:
+            continue
+        if adj < adj_p and log_fc > abs_logfc:
+            up.add(gene_id)
+        elif adj < adj_p and log_fc < -abs_logfc:
+            down.add(gene_id)
 
     return {"up": up, "down": down}
 
