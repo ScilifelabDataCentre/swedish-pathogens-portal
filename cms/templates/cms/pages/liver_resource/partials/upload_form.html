@@ -69,6 +69,24 @@
                 </select>
             </label>
 
+            <label class="form-control w-full">
+                <span class="label-text font-medium">Plot</span>
+                <select
+                    name="plot_metric"
+                    id="liver-plot-metric-select"
+                    class="select select-bordered select-sm w-full liver-threshold-select"
+                >
+                    {% for choice in plot_metric_choices %}
+                    <option
+                        value="{{ choice.value }}"
+                        {% if choice.value == current_plot_metric %}selected{% endif %}
+                    >
+                        {{ choice.label }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </label>
+
             <button type="submit" class="btn btn-primary btn-sm w-full" id="liver-upload-submit">
                 Upload and plot
             </button>

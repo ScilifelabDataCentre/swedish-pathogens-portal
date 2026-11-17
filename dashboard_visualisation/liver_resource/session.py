@@ -12,6 +12,11 @@ from dashboard_visualisation.liver_resource.session_storage import (
     read_uploads,
     write_uploads,
 )
+from dashboard_visualisation.liver_resource.plot_metric import (
+    DEFAULT_PLOT_METRIC,
+    PlotMetric,
+    parse_plot_metric,
+)
 from dashboard_visualisation.liver_resource.thresholds import (
     DEFAULT_ADJ_P,
     DEFAULT_LOGFC_FOLD,
@@ -40,6 +45,7 @@ class LiverDeSession(TypedDict):
 
     adj_p: float
     logfc_fold: float
+    plot_metric: PlotMetric
     cutoff: str
     files: list[DeFileEntry]
 
@@ -51,6 +57,7 @@ def store_de_session(
     filename: str,
     adj_p: float = DEFAULT_ADJ_P,
     logfc_fold: float = DEFAULT_LOGFC_FOLD,
+    plot_metric: PlotMetric = DEFAULT_PLOT_METRIC,
     cutoff: str | None = None,
 ) -> None:
     """Persist one parsed DE file for the visitor session."""
@@ -60,6 +67,7 @@ def store_de_session(
         uploads=[(filename, de_data)],
         adj_p=adj_p,
         logfc_fold=logfc_fold,
+        plot_metric=plot_metric,
     )
 
 
@@ -69,6 +77,7 @@ def store_de_uploads(
     uploads: list[tuple[str, dict[str, Any]]],
     adj_p: float = DEFAULT_ADJ_P,
     logfc_fold: float = DEFAULT_LOGFC_FOLD,
+    plot_metric: PlotMetric = DEFAULT_PLOT_METRIC,
     cutoff: str | None = None,
 ) -> None:
     """Persist parsed DE file(s): metadata in Django session, payloads on disk."""
@@ -77,12 +86,14 @@ def store_de_uploads(
 
     adj_p = parse_adj_p(adj_p)
     logfc_fold = parse_logfc_fold(logfc_fold)
+    plot_metric = parse_plot_metric(plot_metric)
     storage_id = new_storage_id()
     write_uploads(storage_id, uploads)
     request.session[SESSION_KEY] = {
         "storage_id": storage_id,
         "adj_p": adj_p,
         "logfc_fold": logfc_fold,
+        "plot_metric": plot_metric,
         "cutoff": threshold_key(adj_p, logfc_fold),
         "files": [{"filename": filename} for filename, _ in uploads],
     }
@@ -96,6 +107,7 @@ def get_de_session(request: HttpRequest) -> LiverDeSession | None:
         return None
 
     adj_p, logfc_fold = _thresholds_from_payload(payload)
+    plot_metric = _plot_metric_from_payload(payload)
     storage_id = payload.get("storage_id")
 
     if storage_id:
@@ -106,6 +118,7 @@ def get_de_session(request: HttpRequest) -> LiverDeSession | None:
         return {
             "adj_p": adj_p,
             "logfc_fold": logfc_fold,
+            "plot_metric": plot_metric,
             "cutoff": threshold_key(adj_p, logfc_fold),
             "files": [
                 {
@@ -122,6 +135,7 @@ def get_de_session(request: HttpRequest) -> LiverDeSession | None:
         payload = {
             "adj_p": adj_p,
             "logfc_fold": logfc_fold,
+            "plot_metric": plot_metric,
             "cutoff": threshold_key(adj_p, logfc_fold),
             "files": [
                 {
@@ -139,6 +153,7 @@ def get_de_session(request: HttpRequest) -> LiverDeSession | None:
     return {
         "adj_p": adj_p,
         "logfc_fold": logfc_fold,
+        "plot_metric": plot_metric,
         "cutoff": threshold_key(adj_p, logfc_fold),
         "files": payload["files"],
     }  # type: ignore[return-value]
@@ -158,19 +173,29 @@ def get_session_thresholds(request: HttpRequest) -> tuple[float, float]:
     return _thresholds_from_payload(payload)
 
 
+def get_session_plot_metric(request: HttpRequest) -> PlotMetric:
+    """Return active Plot scoring mode for the visitor session."""
+    payload = request.session.get(SESSION_KEY)
+    if not isinstance(payload, dict):
+        return DEFAULT_PLOT_METRIC
+    return _plot_metric_from_payload(payload)
+
+
 def update_session_cutoff(
     request: HttpRequest,
     cutoff: str | None = None,
     *,
     adj_p: float | None = None,
     logfc_fold: float | None = None,
+    plot_metric: PlotMetric | None = None,
 ) -> None:
-    """Update stored thresholds without re-uploading the DE file."""
+    """Update stored thresholds / plot metric without re-uploading the DE file."""
     payload = request.session.get(SESSION_KEY)
     if not isinstance(payload, dict):
         return
 
     current_adj, current_fold = _thresholds_from_payload(payload)
+    current_metric = _plot_metric_from_payload(payload)
     if adj_p is None and logfc_fold is None and cutoff:
         # Legacy callers may still pass a threshold key; ignore unknown keys.
         if "_" in cutoff:
@@ -182,8 +207,13 @@ def update_session_cutoff(
 
     next_adj = parse_adj_p(adj_p if adj_p is not None else current_adj)
     next_fold = parse_logfc_fold(logfc_fold if logfc_fold is not None else current_fold)
+    next_metric = parse_plot_metric(
+        plot_metric if plot_metric is not None else current_metric,
+        default=current_metric,
+    )
     payload["adj_p"] = next_adj
     payload["logfc_fold"] = next_fold
+    payload["plot_metric"] = next_metric
     payload["cutoff"] = threshold_key(next_adj, next_fold)
     request.session[SESSION_KEY] = payload
     request.session.modified = True
@@ -236,6 +266,11 @@ def _thresholds_from_payload(payload: dict[str, Any]) -> tuple[float, float]:
         left, _, right = legacy.partition("_")
         return parse_adj_p(left), parse_logfc_fold(right)
     return DEFAULT_ADJ_P, DEFAULT_LOGFC_FOLD
+
+
+def _plot_metric_from_payload(payload: dict[str, Any]) -> PlotMetric:
+    """Read Plot scoring mode from session payload."""
+    return parse_plot_metric(payload.get("plot_metric", DEFAULT_PLOT_METRIC))
 
 
 def _clear_stored_payload(request: HttpRequest) -> None:
