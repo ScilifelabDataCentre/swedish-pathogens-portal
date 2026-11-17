@@ -7,6 +7,10 @@ from io import StringIO
 from pathlib import Path
 from typing import BinaryIO
 
+from dashboard_visualisation.liver_resource.plot_metric import (
+    DEFAULT_PLOT_METRIC,
+    PlotMetric,
+)
 from dashboard_visualisation.liver_resource.reference_data import load_modules as _load_module_lists
 from dashboard_visualisation.liver_resource.thresholds import (
     ADJ_P_CHOICES,
@@ -138,8 +142,10 @@ def compute_module_ratios(
     de_genes: list[str],
     classified: dict[str, set[str]],
     modules: dict[int, set[str]],
+    *,
+    plot_metric: PlotMetric = DEFAULT_PLOT_METRIC,
 ) -> dict[int, float | None]:
-    """Compute per-module DE ratio aligned with f.CalculateModRatios2."""
+    """Compute per-module DE ratio for Difference or Total scoring."""
     all_genes = set(de_genes)
     up = classified["up"]
     down = classified["down"]
@@ -153,7 +159,10 @@ def compute_module_ratios(
             continue
         up_count = len(up & module_genes)
         down_count = len(down & module_genes)
-        ratios[module_id] = (up_count - down_count) / genes_in_module
+        if plot_metric == "total":
+            ratios[module_id] = (up_count + down_count) / genes_in_module
+        else:
+            ratios[module_id] = (up_count - down_count) / genes_in_module
 
     return ratios
 
@@ -161,11 +170,24 @@ def compute_module_ratios(
 def map_ratios_to_colours(
     ratios: dict[int, float | None],
     max_abs: float | None = None,
+    *,
+    plot_metric: PlotMetric = DEFAULT_PLOT_METRIC,
 ) -> dict[int, str]:
-    """Map module ratios to hex colour strings."""
+    """Map module ratios to hex colour strings.
+
+    Difference uses a divergent −max→+max scale; Total uses 0→max on the
+    positive half of the palette (white → darkred).
+    """
     valid_ratios = [value for value in ratios.values() if value is not None]
     if not valid_ratios:
         return dict.fromkeys(ratios, "#ffffff")
+
+    if plot_metric == "total":
+        if max_abs is None:
+            max_abs = max(valid_ratios)
+        if max_abs == 0:
+            return dict.fromkeys(ratios, "#ffffff")
+        return _map_total_ratios(ratios, max_abs=max_abs)
 
     if max_abs is None:
         max_abs = max(abs(value) for value in valid_ratios)
@@ -184,6 +206,23 @@ def map_ratios_to_colours(
         red, green, blue = colour_scale[index]
         colours[module_id] = f"#{red:02x}{green:02x}{blue:02x}"
 
+    return colours
+
+
+def _map_total_ratios(ratios: dict[int, float | None], *, max_abs: float) -> dict[int, str]:
+    """Map non-negative Total ratios onto the white→darkred half of the ramp."""
+    colour_scale = _get_color_scale()
+    half_bins = (len(colour_scale) - 1) // 2
+    positive_span = len(colour_scale) - 1 - half_bins
+    colours: dict[int, str] = {}
+    for module_id, ratio in ratios.items():
+        if ratio is None:
+            colours[module_id] = "#ffffff"
+            continue
+        fraction = max(0.0, min(1.0, ratio / max_abs))
+        index = half_bins + int(round(fraction * positive_span))
+        red, green, blue = colour_scale[index]
+        colours[module_id] = f"#{red:02x}{green:02x}{blue:02x}"
     return colours
 
 

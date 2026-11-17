@@ -9,6 +9,10 @@ from typing import Any
 import plotly.graph_objects as go
 
 from dashboard_visualisation.liver_resource.computation import R_PALETTE, map_ratios_to_colours
+from dashboard_visualisation.liver_resource.plot_metric import (
+    DEFAULT_PLOT_METRIC,
+    PlotMetric,
+)
 from dashboard_visualisation.liver_resource.reference_data import (
     load_cyjs_layout,
     load_tln_graph,
@@ -49,11 +53,12 @@ def build_coloured_figure(
     title: str = "HepaGeNIE TLN",
     cutoff: str = "standard",
     max_abs: float | None = None,
+    plot_metric: PlotMetric = DEFAULT_PLOT_METRIC,
 ) -> go.Figure:
     """Build a TLN figure with module leaves coloured by DE ratios."""
     graph = load_tln_graph()
     layout = get_normalised_layout()
-    colours = map_ratios_to_colours(ratios, max_abs=max_abs)
+    colours = map_ratios_to_colours(ratios, max_abs=max_abs, plot_metric=plot_metric)
     leaf_colours = {str(module_id): colour for module_id, colour in colours.items()}
     leaf_ratios = {
         str(module_id): (ratio if ratio is not None else 0.0) for module_id, ratio in ratios.items()
@@ -61,7 +66,10 @@ def build_coloured_figure(
     display_title = f"{title} ({cutoff})" if cutoff else title
     if max_abs is None:
         valid_ratios = [value for value in ratios.values() if value is not None]
-        max_abs = max((abs(value) for value in valid_ratios), default=1.0)
+        if plot_metric == "total":
+            max_abs = max(valid_ratios, default=1.0)
+        else:
+            max_abs = max((abs(value) for value in valid_ratios), default=1.0)
     return _build_figure(
         graph=graph,
         layout=layout,
@@ -70,6 +78,7 @@ def build_coloured_figure(
         title=display_title,
         show_colorbar=True,
         max_abs=max_abs,
+        plot_metric=plot_metric,
     )
 
 
@@ -79,19 +88,21 @@ def build_multi_coloured_figure(
     title: str = "HepaGeNIE TLN",
     cutoff: str = "standard",
     max_abs: float | None = None,
+    plot_metric: PlotMetric = DEFAULT_PLOT_METRIC,
 ) -> go.Figure:
     """Build a TLN figure with pie-chart leaves for multiple DE comparisons."""
     graph = load_tln_graph()
     layout = get_normalised_layout()
     display_title = f"{title} ({cutoff})" if cutoff else title
     if max_abs is None:
-        max_abs = _max_abs_from_comparisons(comparisons)
+        max_abs = _max_abs_from_comparisons(comparisons, plot_metric=plot_metric)
     return _build_multi_figure(
         graph=graph,
         layout=layout,
         comparisons=comparisons,
         title=display_title,
         max_abs=max_abs,
+        plot_metric=plot_metric,
     )
 
 
@@ -106,10 +117,17 @@ def build_coloured_figure_json(
     title: str = "HepaGeNIE TLN",
     cutoff: str = "standard",
     max_abs: float | None = None,
+    plot_metric: PlotMetric = DEFAULT_PLOT_METRIC,
 ) -> dict[str, Any]:
     """Return JSON-safe Plotly figure for a coloured TLN view."""
     return figure_to_json(
-        build_coloured_figure(ratios, title=title, cutoff=cutoff, max_abs=max_abs)
+        build_coloured_figure(
+            ratios,
+            title=title,
+            cutoff=cutoff,
+            max_abs=max_abs,
+            plot_metric=plot_metric,
+        )
     )
 
 
@@ -119,6 +137,7 @@ def build_multi_coloured_figure_json(
     title: str = "HepaGeNIE TLN",
     cutoff: str = "standard",
     max_abs: float | None = None,
+    plot_metric: PlotMetric = DEFAULT_PLOT_METRIC,
 ) -> dict[str, Any]:
     """Return JSON-safe Plotly figure for a multi-comparison pie TLN view."""
     return figure_to_json(
@@ -127,6 +146,7 @@ def build_multi_coloured_figure_json(
             title=title,
             cutoff=cutoff,
             max_abs=max_abs,
+            plot_metric=plot_metric,
         )
     )
 
@@ -166,6 +186,7 @@ def _build_figure(
     title: str,
     show_colorbar: bool,
     max_abs: float = 1.0,
+    plot_metric: PlotMetric = DEFAULT_PLOT_METRIC,
 ) -> go.Figure:
     vertices = graph["vertices"]
     edges = graph["edges"]
@@ -192,7 +213,7 @@ def _build_figure(
 
     traces: list[go.Scatter] = [edge_trace, internal_trace, leaf_trace]
     if show_colorbar:
-        traces.append(_build_colorbar_trace(max_abs))
+        traces.append(_build_colorbar_trace(max_abs, plot_metric=plot_metric))
 
     figure = go.Figure(
         data=traces,
@@ -224,6 +245,7 @@ def _build_multi_figure(
     comparisons: list[ComparisonRow],
     title: str,
     max_abs: float,
+    plot_metric: PlotMetric = DEFAULT_PLOT_METRIC,
 ) -> go.Figure:
     vertices = graph["vertices"]
     edges = graph["edges"]
@@ -247,7 +269,7 @@ def _build_multi_figure(
     )
 
     traces: list[go.Scatter] = [edge_trace, internal_trace, leaf_trace, label_trace]
-    traces.append(_build_colorbar_trace(max_abs))
+    traces.append(_build_colorbar_trace(max_abs, plot_metric=plot_metric))
 
     figure = go.Figure(
         data=traces,
@@ -372,25 +394,45 @@ def _build_leaf_trace(
     )
 
 
-def _build_colorbar_trace(max_abs: float) -> go.Scatter:
+def _build_colorbar_trace(
+    max_abs: float,
+    *,
+    plot_metric: PlotMetric = DEFAULT_PLOT_METRIC,
+) -> go.Scatter:
+    if plot_metric == "total":
+        colorscale = [
+            [0.0, R_PALETTE[3]],
+            [0.33, R_PALETTE[4]],
+            [0.66, R_PALETTE[5]],
+            [1.0, R_PALETTE[6]],
+        ]
+        cmin = 0.0
+        cmax = max_abs
+        title = "Total DE Ratio"
+    else:
+        colorscale = [
+            [0, R_PALETTE[0]],
+            [0.167, R_PALETTE[1]],
+            [0.333, R_PALETTE[2]],
+            [0.5, R_PALETTE[3]],
+            [0.667, R_PALETTE[4]],
+            [0.833, R_PALETTE[5]],
+            [1.0, R_PALETTE[6]],
+        ]
+        cmin = -max_abs
+        cmax = max_abs
+        title = "DE Ratio"
+
     return go.Scatter(
         x=[None],
         y=[None],
         mode="markers",
         marker={
-            "colorscale": [
-                [0, R_PALETTE[0]],
-                [0.167, R_PALETTE[1]],
-                [0.333, R_PALETTE[2]],
-                [0.5, R_PALETTE[3]],
-                [0.667, R_PALETTE[4]],
-                [0.833, R_PALETTE[5]],
-                [1.0, R_PALETTE[6]],
-            ],
-            "cmin": -max_abs,
-            "cmax": max_abs,
+            "colorscale": colorscale,
+            "cmin": cmin,
+            "cmax": cmax,
             "colorbar": {
-                "title": {"text": "DE Ratio", "side": "right"},
+                "title": {"text": title, "side": "right"},
                 "thickness": 15,
                 "len": 0.6,
             },
@@ -520,12 +562,18 @@ def _marker_radius_data(gene_count: int, *, x_span: float = 2.0) -> float:
     return (diameter_px / 2) / (DEFAULT_FIGURE_WIDTH / x_span)
 
 
-def _max_abs_from_comparisons(comparisons: list[ComparisonRow]) -> float:
+def _max_abs_from_comparisons(
+    comparisons: list[ComparisonRow],
+    *,
+    plot_metric: PlotMetric = DEFAULT_PLOT_METRIC,
+) -> float:
     valid = [
         value for _, ratios, _ in comparisons for value in ratios.values() if value is not None
     ]
     if not valid:
         return 1.0
+    if plot_metric == "total":
+        return max(valid) or 1.0
     return max(abs(value) for value in valid) or 1.0
 
 

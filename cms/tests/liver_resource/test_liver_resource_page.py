@@ -119,8 +119,14 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
         self.assertFalse(context["has_session"])
         self.assertEqual(context["current_adj_p"], 0.05)
         self.assertEqual(context["current_logfc_fold"], 1.5)
+        self.assertEqual(context["current_plot_metric"], "difference")
         self.assertEqual(context["default_adj_p"], 0.05)
         self.assertEqual(context["default_logfc_fold"], 1.5)
+        self.assertEqual(context["default_plot_metric"], "difference")
+        self.assertEqual(
+            [choice["value"] for choice in context["plot_metric_choices"]],
+            ["difference", "total"],
+        )
 
     def test_get_context_includes_parent_heading(self) -> None:
         """Test that liver pages inherit the dashboard index heading."""

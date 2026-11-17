@@ -1,10 +1,11 @@
 <div id="liver-tln-result">
-    {% include "cms/pages/liver_resource/partials/tln_plot_embed.html" with plot_html=plot_html height=height leaf_trace_index=leaf_trace_index cutoff=analysis.threshold_key adj_p=analysis.adj_p logfc_fold=analysis.logfc_fold plot_mode=analysis.plot_mode %}
+    {% include "cms/pages/liver_resource/partials/tln_plot_embed.html" with plot_html=plot_html height=height leaf_trace_index=leaf_trace_index cutoff=analysis.threshold_key adj_p=analysis.adj_p logfc_fold=analysis.logfc_fold plot_metric=analysis.plot_metric plot_mode=analysis.plot_mode %}
 
     <p id="liver-analysis-stats" class="text-sm text-pp-dark-grey mt-3 px-2 pb-2">
         {% if analysis.plot_mode == "pie" %}
         <span class="font-medium">{{ analysis.comparisons|length }} comparisons</span>
         · pie mode
+        · Plot: {{ analysis.plot_metric_label }}
         · DE threshold: {{ analysis.cutoff }}
         <span class="block mt-1 text-xs">
             {% for comparison in analysis.comparisons %}
@@ -18,6 +19,7 @@
         <span class="font-medium">{{ analysis.filename }}</span>
         · {{ analysis.gene_count|floatformat:0 }} genes
         · {{ analysis.up_count }} up / {{ analysis.down_count }} down
+        · Plot: {{ analysis.plot_metric_label }}
         · DE threshold: {{ analysis.cutoff }}
         {% endif %}
     </p>

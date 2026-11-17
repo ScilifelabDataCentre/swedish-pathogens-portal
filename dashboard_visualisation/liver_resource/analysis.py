@@ -11,6 +11,11 @@ from dashboard_visualisation.liver_resource.computation import (
     get_module_gene_sets,
     map_ratios_to_colours,
 )
+from dashboard_visualisation.liver_resource.plot_metric import (
+    DEFAULT_PLOT_METRIC,
+    PlotMetric,
+    plot_metric_label,
+)
 from dashboard_visualisation.liver_resource.plotly_tln import (
     build_coloured_figure_json,
     build_multi_coloured_figure_json,
@@ -47,12 +52,18 @@ class LiverAnalysisResult:
     comparisons: tuple[ComparisonStats, ...]
     plot_mode: PlotMode
     figure_json: dict[str, Any]
+    plot_metric: PlotMetric = DEFAULT_PLOT_METRIC
     leaf_trace_index: int = LEAF_TRACE_INDEX
 
     @property
     def cutoff(self) -> str:
         """Human-readable threshold label (plot titles / stats)."""
         return format_threshold_label(self.adj_p, self.logfc_fold)
+
+    @property
+    def plot_metric_label(self) -> str:
+        """Human-readable Plot dropdown label for stats chrome."""
+        return plot_metric_label(self.plot_metric)
 
     @property
     def threshold_key(self) -> str:
@@ -98,6 +109,7 @@ def analyse_de_data(
     filename: str,
     adj_p: float = DEFAULT_ADJ_P,
     logfc_fold: float = DEFAULT_LOGFC_FOLD,
+    plot_metric: PlotMetric = DEFAULT_PLOT_METRIC,
     cutoff: str | None = None,
 ) -> LiverAnalysisResult:
     """Classify genes, compute module ratios, and build a coloured TLN figure."""
@@ -106,6 +118,7 @@ def analyse_de_data(
         [(filename, de_data)],
         adj_p=adj_p,
         logfc_fold=logfc_fold,
+        plot_metric=plot_metric,
     )
 
 
@@ -114,6 +127,7 @@ def analyse_de_uploads(
     *,
     adj_p: float = DEFAULT_ADJ_P,
     logfc_fold: float = DEFAULT_LOGFC_FOLD,
+    plot_metric: PlotMetric = DEFAULT_PLOT_METRIC,
     cutoff: str | None = None,
 ) -> LiverAnalysisResult:
     """Analyse one or more DE files and build solid or pie TLN output."""
@@ -128,7 +142,12 @@ def analyse_de_uploads(
 
     for filename, de_data in uploads:
         classified = classify_genes(de_data, adj_p=adj_p, logfc_fold=logfc_fold)
-        ratios = compute_module_ratios(de_data["genes"], classified, modules)
+        ratios = compute_module_ratios(
+            de_data["genes"],
+            classified,
+            modules,
+            plot_metric=plot_metric,
+        )
         ratio_rows.append(ratios)
         comparisons.append(
             ComparisonStats(
@@ -141,7 +160,7 @@ def analyse_de_uploads(
             )
         )
 
-    max_abs = _shared_max_abs(ratio_rows)
+    max_abs = _shared_scale(ratio_rows, plot_metric=plot_metric)
     comparisons = tuple(
         ComparisonStats(
             filename=comparison.filename,
@@ -149,7 +168,11 @@ def analyse_de_uploads(
             up_count=comparison.up_count,
             down_count=comparison.down_count,
             ratios=comparison.ratios,
-            colours=map_ratios_to_colours(comparison.ratios, max_abs=max_abs),
+            colours=map_ratios_to_colours(
+                comparison.ratios,
+                max_abs=max_abs,
+                plot_metric=plot_metric,
+            ),
         )
         for comparison in comparisons
     )
@@ -166,6 +189,7 @@ def analyse_de_uploads(
             title=title,
             cutoff=label,
             max_abs=max_abs,
+            plot_metric=plot_metric,
         )
     else:
         figure_json = build_coloured_figure_json(
@@ -173,6 +197,7 @@ def analyse_de_uploads(
             title=title,
             cutoff=label,
             max_abs=max_abs,
+            plot_metric=plot_metric,
         )
 
     return LiverAnalysisResult(
@@ -181,6 +206,7 @@ def analyse_de_uploads(
         comparisons=comparisons,
         plot_mode=plot_mode,
         figure_json=figure_json,
+        plot_metric=plot_metric,
     )
 
 
@@ -189,10 +215,16 @@ def colours_for_plotly_restyle(colours: dict[int, str]) -> list[str]:
     return [colours[module_id] for module_id in sorted(colours)]
 
 
-def _shared_max_abs(ratio_rows: list[dict[int, float | None]]) -> float:
+def _shared_scale(
+    ratio_rows: list[dict[int, float | None]],
+    *,
+    plot_metric: PlotMetric,
+) -> float:
     valid = [value for ratios in ratio_rows for value in ratios.values() if value is not None]
     if not valid:
         return 1.0
+    if plot_metric == "total":
+        return max(valid) or 1.0
     return max(abs(value) for value in valid) or 1.0
 
 

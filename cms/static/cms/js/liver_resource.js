@@ -2,8 +2,8 @@
  * HepaGeNIE dashboard — client-side behaviour for the TLN plot.
  *
  * Responsibilities:
- * - DE threshold change → recompute colours (Plotly.restyle for solid leaves,
- *   full htmx plot swap for pie leaves when data-plot-mode="pie")
+ * - DE threshold / Plot change → recompute colours (Plotly.restyle for solid
+ *   Difference leaves; full htmx plot swap for pie leaves or Total scoring)
  * - Enable CSV export links after a successful upload or example load
  *
  * Expects #liver-dashboard with data-recompute-url, and a Plotly figure with
@@ -20,7 +20,13 @@
     const recomputeUrl = dashboard.dataset.recomputeUrl;
     const adjPSelect = document.getElementById("liver-adj-p-select");
     const logfcFoldSelect = document.getElementById("liver-logfc-fold-select");
+    const plotMetricSelect = document.getElementById("liver-plot-metric-select");
     const validationErrors = document.getElementById("liver-validation-errors");
+
+    const PLOT_METRIC_LABELS = {
+        difference: "Difference DE genes",
+        total: "Total DE genes",
+    };
 
     function getPlotWrapper() {
         return document.getElementById("liver-tln-plot");
@@ -47,10 +53,19 @@
         return wrapper?.dataset.logfcFold || "1.5";
     }
 
-    function thresholdQuery() {
+    function getCurrentPlotMetric() {
+        if (plotMetricSelect) {
+            return plotMetricSelect.value;
+        }
+        const wrapper = getPlotWrapper();
+        return wrapper?.dataset.plotMetric || "difference";
+    }
+
+    function controlQuery() {
         return (
             `adj_p=${encodeURIComponent(getCurrentAdjP())}` +
-            `&logfc_fold=${encodeURIComponent(getCurrentLogfcFold())}`
+            `&logfc_fold=${encodeURIComponent(getCurrentLogfcFold())}` +
+            `&plot_metric=${encodeURIComponent(getCurrentPlotMetric())}`
         );
     }
 
@@ -85,6 +100,12 @@
         return wrapper?.dataset.plotMode || "solid";
     }
 
+    function needsFullPlotSwap() {
+        // Pie leaves and Total scoring both need a full figure rebuild
+        // (pie shapes / colourbar scale 0→1).
+        return getPlotMode() === "pie" || getCurrentPlotMetric() !== "difference";
+    }
+
     function updateAnalysisStats(stats) {
         const statsEl = document.getElementById("liver-analysis-stats");
         if (!statsEl || !stats) {
@@ -92,6 +113,11 @@
         }
 
         const thresholdLabel = stats.cutoff || "DE threshold";
+        const plotLabel =
+            stats.plot_metric_label ||
+            PLOT_METRIC_LABELS[stats.plot_metric] ||
+            stats.plot_metric ||
+            "Difference DE genes";
 
         if (stats.plot_mode === "pie" && Array.isArray(stats.filenames)) {
             const comparisonSummary = stats.filenames
@@ -99,7 +125,8 @@
                 .join("");
             statsEl.innerHTML =
                 `<span class="font-medium">${stats.file_count} comparisons</span>` +
-                ` · pie mode · DE threshold: ${thresholdLabel}` +
+                ` · pie mode · Plot: ${plotLabel}` +
+                ` · DE threshold: ${thresholdLabel}` +
                 `<span class="block mt-1 text-xs">${comparisonSummary}</span>`;
             return;
         }
@@ -108,27 +135,35 @@
             `<span class="font-medium">${stats.filename}</span>` +
             ` · ${stats.gene_count.toLocaleString()} genes` +
             ` · ${stats.n_up} up / ${stats.n_down} down` +
+            ` · Plot: ${plotLabel}` +
             ` · DE threshold: ${thresholdLabel}`;
     }
 
-    async function recomputeThresholds() {
+    function recomputeWithHtmlSwap() {
+        if (typeof htmx === "undefined") {
+            return;
+        }
+        dashboard.classList.add("liver-recomputing");
+        htmx
+            .ajax("GET", `${recomputeUrl}?${controlQuery()}`, {
+                target: "#liver-tln-panel",
+                swap: "innerHTML",
+                headers: {
+                    Accept: "text/html",
+                },
+            })
+            .finally(() => {
+                dashboard.classList.remove("liver-recomputing");
+            });
+    }
+
+    async function recomputeControls({ forceHtml = false } = {}) {
         if (!hasActiveSession() || !recomputeUrl) {
             return;
         }
 
-        if (getPlotMode() === "pie") {
-            if (typeof htmx !== "undefined") {
-                dashboard.classList.add("liver-recomputing");
-                htmx.ajax("GET", `${recomputeUrl}?${thresholdQuery()}`, {
-                    target: "#liver-tln-panel",
-                    swap: "innerHTML",
-                    headers: {
-                        Accept: "text/html",
-                    },
-                }).finally(() => {
-                    dashboard.classList.remove("liver-recomputing");
-                });
-            }
+        if (forceHtml || needsFullPlotSwap()) {
+            recomputeWithHtmlSwap();
             return;
         }
 
@@ -139,7 +174,7 @@
 
         dashboard.classList.add("liver-recomputing");
         try {
-            const response = await fetch(`${recomputeUrl}?${thresholdQuery()}`, {
+            const response = await fetch(`${recomputeUrl}?${controlQuery()}`, {
                 headers: {
                     Accept: "application/json",
                     "X-Requested-With": "XMLHttpRequest",
@@ -175,6 +210,9 @@
                 if (payload.stats.logfc_fold != null) {
                     wrapper.dataset.logfcFold = String(payload.stats.logfc_fold);
                 }
+                if (payload.stats.plot_metric) {
+                    wrapper.dataset.plotMetric = String(payload.stats.plot_metric);
+                }
             }
             updateAnalysisStats(payload.stats);
         } finally {
@@ -188,8 +226,10 @@
         enableExportLinks();
     }
 
-    adjPSelect?.addEventListener("change", recomputeThresholds);
-    logfcFoldSelect?.addEventListener("change", recomputeThresholds);
+    adjPSelect?.addEventListener("change", () => recomputeControls());
+    logfcFoldSelect?.addEventListener("change", () => recomputeControls());
+    // Plot metric changes always rebuild the figure (colourbar scale).
+    plotMetricSelect?.addEventListener("change", () => recomputeControls({ forceHtml: true }));
 
     document.body.addEventListener("htmx:afterSettle", (event) => {
         if (event.detail.target?.id === "liver-tln-panel") {

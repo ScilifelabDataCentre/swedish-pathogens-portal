@@ -7,6 +7,10 @@ import io
 from typing import Any
 
 from dashboard_visualisation.liver_resource.computation import classify_genes, compute_module_ratios
+from dashboard_visualisation.liver_resource.plot_metric import (
+    DEFAULT_PLOT_METRIC,
+    PlotMetric,
+)
 from dashboard_visualisation.liver_resource.reference_data import (
     EXPECTED_MODULE_COUNT,
     load_modules,
@@ -24,13 +28,19 @@ def build_module_scores_csv(
     *,
     adj_p: float = DEFAULT_ADJ_P,
     logfc_fold: float = DEFAULT_LOGFC_FOLD,
+    plot_metric: PlotMetric = DEFAULT_PLOT_METRIC,
     cutoff: str | None = None,
 ) -> str:
     """Build module scores CSV matching R ``*_module_scores.csv`` format."""
     del cutoff
     classified = classify_genes(de_data, adj_p=adj_p, logfc_fold=logfc_fold)
     modules = {module_id: set(genes) for module_id, genes in load_modules().items()}
-    ratios = compute_module_ratios(de_data["genes"], classified, modules)
+    ratios = compute_module_ratios(
+        de_data["genes"],
+        classified,
+        modules,
+        plot_metric=plot_metric,
+    )
     module_gene_counts = load_modules()
     label = format_threshold_label(adj_p, logfc_fold)
 

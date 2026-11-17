@@ -14,8 +14,14 @@ from dashboard_visualisation.liver_resource.dashboard_figures import (
 )
 from dashboard_visualisation.liver_resource.examples import list_examples
 from dashboard_visualisation.liver_resource.plotly_tln import DEFAULT_PLOT_HEIGHT_PX
+from dashboard_visualisation.liver_resource.plot_metric import (
+    DEFAULT_PLOT_METRIC,
+    PLOT_METRIC_CHOICES,
+    PLOT_METRIC_LABELS,
+)
 from dashboard_visualisation.liver_resource.session import (
     get_de_session,
+    get_session_plot_metric,
     get_session_thresholds,
 )
 from dashboard_visualisation.liver_resource.thresholds import (
@@ -64,14 +70,21 @@ class LiverResourceDashboardPage(RoutablePageMixin, DashboardPage):
         context["leaf_trace_index"] = LEAF_TRACE_INDEX
         if session is not None:
             current_adj_p, current_logfc_fold = get_session_thresholds(request)
+            current_plot_metric = get_session_plot_metric(request)
         else:
             current_adj_p, current_logfc_fold = DEFAULT_ADJ_P, DEFAULT_LOGFC_FOLD
+            current_plot_metric = DEFAULT_PLOT_METRIC
         context["adj_p_choices"] = ADJ_P_CHOICES
         context["logfc_fold_choices"] = LOGFC_FOLD_CHOICES
+        context["plot_metric_choices"] = [
+            {"value": value, "label": PLOT_METRIC_LABELS[value]} for value in PLOT_METRIC_CHOICES
+        ]
         context["current_adj_p"] = current_adj_p
         context["current_logfc_fold"] = current_logfc_fold
+        context["current_plot_metric"] = current_plot_metric
         context["default_adj_p"] = DEFAULT_ADJ_P
         context["default_logfc_fold"] = DEFAULT_LOGFC_FOLD
+        context["default_plot_metric"] = DEFAULT_PLOT_METRIC
         context["default_threshold_key"] = DEFAULT_THRESHOLD_KEY
         context["has_session"] = session is not None
         context["examples"] = list_examples(self.dashboard_data)
