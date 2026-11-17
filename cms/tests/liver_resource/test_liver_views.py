@@ -151,9 +151,38 @@ class TestLiverViews(TestCase):
         self.assertIn("adj.P<0.01", payload["stats"]["cutoff"])
         self.assertEqual(payload["stats"]["adj_p"], 0.01)
         self.assertEqual(payload["stats"]["logfc_fold"], 2.0)
+        self.assertEqual(payload["stats"]["plot_metric"], "difference")
         self.assertEqual(self.client.session[SESSION_KEY]["cutoff"], "0.01_2")
         self.assertEqual(self.client.session[SESSION_KEY]["adj_p"], 0.01)
         self.assertEqual(self.client.session[SESSION_KEY]["logfc_fold"], 2.0)
+
+    def test_recompute_total_plot_metric_returns_non_negative_ratios(self) -> None:
+        """Test Plot=Total recomputes module scores as (up+down)/overlap."""
+        self._upload_example_file()
+        response = self.client.get(
+            self.recompute_url,
+            {"adj_p": "0.05", "logfc_fold": "1.5", "plot_metric": "total"},
+        )
+        self.assertEqual(response.status_code, 200)
+
+        payload = json.loads(response.content)
+        self.assertEqual(payload["stats"]["plot_metric"], "total")
+        self.assertEqual(self.client.session[SESSION_KEY]["plot_metric"], "total")
+        for value in payload["ratios"].values():
+            if value is not None:
+                self.assertGreaterEqual(value, 0.0)
+
+    def test_recompute_total_accepts_html_plot_swap(self) -> None:
+        """Test Total mode can return a full plot partial for colourbar rebuild."""
+        self._upload_example_file()
+        response = self.client.get(
+            self.recompute_url,
+            {"adj_p": "0.05", "logfc_fold": "1.5", "plot_metric": "total"},
+            HTTP_ACCEPT="text/html",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "liver-tln-plot")
+        self.assertContains(response, "Total DE genes")
 
     def test_download_template_returns_file(self) -> None:
         """Test template download returns the bundled DE template."""

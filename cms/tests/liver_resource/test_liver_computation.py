@@ -110,3 +110,34 @@ class TestLiverComputation(SimpleTestCase):
         self.assertEqual(len(colours), EXPECTED_MODULE_COUNT)
         for colour in colours.values():
             self.assertRegex(colour, r"^#[0-9a-f]{6}$")
+
+    def test_total_plot_metric_uses_absolute_de_counts(self) -> None:
+        """Test Total scoring is (up+down)/overlap and never negative."""
+        example_path = get_data_root() / "examples" / "HCC-Control.txt"
+        de_data = parse_de_file(example_path)
+        classified = classify_genes(de_data, adj_p=0.05, logfc_fold=1.5)
+        modules = get_module_gene_sets()
+        difference = compute_module_ratios(de_data["genes"], classified, modules)
+        total = compute_module_ratios(
+            de_data["genes"],
+            classified,
+            modules,
+            plot_metric="total",
+        )
+
+        compared = 0
+        for module_id, total_ratio in total.items():
+            if total_ratio is None:
+                self.assertIsNone(difference[module_id])
+                continue
+            self.assertGreaterEqual(total_ratio, 0.0)
+            diff_ratio = difference[module_id]
+            assert diff_ratio is not None
+            self.assertGreaterEqual(total_ratio, abs(diff_ratio) - 1e-12)
+            compared += 1
+        self.assertGreater(compared, 0)
+
+        colours = map_ratios_to_colours(total, plot_metric="total")
+        self.assertEqual(len(colours), EXPECTED_MODULE_COUNT)
+        for colour in colours.values():
+            self.assertRegex(colour, r"^#[0-9a-f]{6}$")

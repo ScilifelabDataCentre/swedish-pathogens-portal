@@ -45,6 +45,10 @@ from dashboard_visualisation.liver_resource.exports import (
     build_module_scores_csv,
     export_basename,
 )
+from dashboard_visualisation.liver_resource.plot_metric import (
+    DEFAULT_PLOT_METRIC,
+    parse_plot_metric,
+)
 from dashboard_visualisation.liver_resource.plotly_tln import DEFAULT_PLOT_HEIGHT_PX
 from dashboard_visualisation.liver_resource.session import (
     de_data_from_session,
@@ -94,6 +98,7 @@ def upload_de(request: HttpRequest) -> HttpResponse:
         return _render_validation_errors(request, batch_errors)
 
     adj_p, logfc_fold = _thresholds_from_request(request.POST)
+    plot_metric = _plot_metric_from_request(request.POST)
     validated_uploads: list[tuple[str, dict]] = []
     for uploaded in uploaded_files:
         validation = validate_de_upload(uploaded, size_bytes=uploaded.size)
@@ -111,6 +116,7 @@ def upload_de(request: HttpRequest) -> HttpResponse:
         uploads=validated_uploads,
         adj_p=adj_p,
         logfc_fold=logfc_fold,
+        plot_metric=plot_metric,
         log_event="liver_resource.upload_success",
     )
 
@@ -128,18 +134,28 @@ def load_example(request: HttpRequest, example_slug: str) -> HttpResponse:
         return _render_validation_errors(request, (f"Unknown example dataset: {example_slug}",))
 
     adj_p, logfc_fold = _thresholds_from_request(request.GET)
+    plot_metric = _plot_metric_from_request(request.GET)
     key = threshold_key(adj_p, logfc_fold)
     parsed_uploads = [(filename, parse_de_file(path)) for filename, path in example_uploads]
-    store_de_uploads(request, uploads=parsed_uploads, adj_p=adj_p, logfc_fold=logfc_fold)
-
-    dashboard_row = DashboardData.get_data(LIVER_DASHBOARD_SLUG)
-    stored = get_stored_example(
-        get_figure_data(dashboard_row),
-        slug=example_slug,
-        cutoff=key,
+    store_de_uploads(
+        request,
+        uploads=parsed_uploads,
         adj_p=adj_p,
         logfc_fold=logfc_fold,
+        plot_metric=plot_metric,
     )
+
+    # Stored DashboardData figures are Difference-only (default Plot mode).
+    dashboard_row = DashboardData.get_data(LIVER_DASHBOARD_SLUG)
+    stored = None
+    if plot_metric == DEFAULT_PLOT_METRIC:
+        stored = get_stored_example(
+            get_figure_data(dashboard_row),
+            slug=example_slug,
+            cutoff=key,
+            adj_p=adj_p,
+            logfc_fold=logfc_fold,
+        )
     if stored is not None:
         analysis = stored.to_analysis_result()
         LOGGER.info(
@@ -147,18 +163,25 @@ def load_example(request: HttpRequest, example_slug: str) -> HttpResponse:
             example_slug=example_slug,
             adj_p=adj_p,
             logfc_fold=logfc_fold,
+            plot_metric=plot_metric,
             cutoff=key,
             from_dashboard_data=True,
             filenames=[filename for filename, _ in parsed_uploads],
         )
         return _render_plot_response(request, analysis)
 
-    analysis = analyse_de_uploads(parsed_uploads, adj_p=adj_p, logfc_fold=logfc_fold)
+    analysis = analyse_de_uploads(
+        parsed_uploads,
+        adj_p=adj_p,
+        logfc_fold=logfc_fold,
+        plot_metric=plot_metric,
+    )
     LOGGER.info(
         "liver_resource.example_loaded",
         example_slug=example_slug,
         adj_p=adj_p,
         logfc_fold=logfc_fold,
+        plot_metric=plot_metric,
         cutoff=key,
         from_dashboard_data=False,
         filenames=[filename for filename, _ in parsed_uploads],
@@ -189,11 +212,21 @@ def recompute(request: HttpRequest) -> HttpResponse:
         default_adj_p=session.get("adj_p", DEFAULT_ADJ_P),
         default_logfc_fold=session.get("logfc_fold", DEFAULT_LOGFC_FOLD),
     )
-    update_session_cutoff(request, adj_p=adj_p, logfc_fold=logfc_fold)
+    plot_metric = _plot_metric_from_request(
+        request.GET,
+        default=session.get("plot_metric", DEFAULT_PLOT_METRIC),
+    )
+    update_session_cutoff(
+        request,
+        adj_p=adj_p,
+        logfc_fold=logfc_fold,
+        plot_metric=plot_metric,
+    )
     analysis = analyse_de_uploads(
         de_uploads_from_session(session),
         adj_p=adj_p,
         logfc_fold=logfc_fold,
+        plot_metric=plot_metric,
     )
 
     if _wants_html_plot(request):
@@ -234,8 +267,17 @@ def export_module_scores(request: HttpRequest) -> HttpResponse:
         default_adj_p=session.get("adj_p", DEFAULT_ADJ_P),
         default_logfc_fold=session.get("logfc_fold", DEFAULT_LOGFC_FOLD),
     )
+    plot_metric = _plot_metric_from_request(
+        request.GET,
+        default=session.get("plot_metric", DEFAULT_PLOT_METRIC),
+    )
     de_data = de_data_from_session(session)
-    content = build_module_scores_csv(de_data, adj_p=adj_p, logfc_fold=logfc_fold)
+    content = build_module_scores_csv(
+        de_data,
+        adj_p=adj_p,
+        logfc_fold=logfc_fold,
+        plot_metric=plot_metric,
+    )
     filename = f"{export_basename(session_filenames(session)[0])}_module_scores.csv"
     return _csv_attachment_response(filename, content)
 
@@ -293,23 +335,41 @@ def _thresholds_from_request(
     )
 
 
+def _plot_metric_from_request(params, *, default=DEFAULT_PLOT_METRIC):
+    """Read Plot Difference/Total from GET/POST mapping."""
+    return parse_plot_metric(params.get("plot_metric", default), default=default)
+
+
 def _store_and_render_analysis(
     request: HttpRequest,
     *,
     uploads: list[tuple[str, dict]],
     adj_p: float,
     logfc_fold: float,
+    plot_metric=DEFAULT_PLOT_METRIC,
     log_event: str,
     example_slug: str | None = None,
 ) -> HttpResponse:
     """Persist uploads in session, run analysis, log, and return the plot partial."""
-    store_de_uploads(request, uploads=uploads, adj_p=adj_p, logfc_fold=logfc_fold)
-    analysis = analyse_de_uploads(uploads, adj_p=adj_p, logfc_fold=logfc_fold)
+    store_de_uploads(
+        request,
+        uploads=uploads,
+        adj_p=adj_p,
+        logfc_fold=logfc_fold,
+        plot_metric=plot_metric,
+    )
+    analysis = analyse_de_uploads(
+        uploads,
+        adj_p=adj_p,
+        logfc_fold=logfc_fold,
+        plot_metric=plot_metric,
+    )
     log_kwargs = {
         "filenames": [filename for filename, _ in uploads],
         "file_count": len(uploads),
         "adj_p": adj_p,
         "logfc_fold": logfc_fold,
+        "plot_metric": plot_metric,
         "cutoff": analysis.threshold_key,
         "plot_mode": analysis.plot_mode,
         "gene_count": analysis.gene_count,
@@ -375,6 +435,8 @@ def _analysis_payload(analysis: LiverAnalysisResult) -> dict[str, object]:
             "cutoff": analysis.cutoff,
             "adj_p": analysis.adj_p,
             "logfc_fold": analysis.logfc_fold,
+            "plot_metric": analysis.plot_metric,
+            "plot_metric_label": analysis.plot_metric_label,
             "threshold_key": analysis.threshold_key,
             "filename": analysis.filename,
             "gene_count": primary.gene_count,
