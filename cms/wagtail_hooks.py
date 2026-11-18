@@ -33,7 +33,7 @@ hooks.register("register_account_settings_panel", AllauthLinksPanel)
 
 
 # ------------------------------------------------------------------------------
-# Put user email in allauth's EmailAddress model when a user is created
+# Register hooks for user creation/editing to create/update EmailAddress objects
 # ------------------------------------------------------------------------------
 
 
@@ -57,6 +57,37 @@ def put_email_address_for_user(request: HttpRequest, user: User) -> None:
         EmailAddress.objects.create(
             user_id=user.id, email=user.email.lower(), verified=True, primary=True
         )
+
+
+@hooks.register("after_edit_user")
+def update_email_address_for_user(request: HttpRequest, user: User) -> None:
+    """Update the EmailAddress object for the user after they are edited."""
+
+    if EmailAddress.objects.filter(user_id=user.id, email=user.email.lower()).exists():
+        # If the email address is not changed for the user, we don't need to do anything.
+        return
+
+    email = user.email.lower()
+    if EmailAddress.objects.filter(email=email).exists():
+        # If this condition is true, it means that the email address is already present in the
+        # EmailAddress model for another user. In this case, we will not update the EmailAddress
+        # object for the user and will show a warning message.
+        messages.warning(
+            request,
+            f"Email address '{user.email}' already exists in the system, "
+            f"so it was not added to the EmailAddress model for the user '{user.username}'.",
+        )
+    else:
+        user_current_primary = EmailAddress.objects.filter(user_id=user.id, primary=True).first()
+        if user_current_primary:
+            # If the user has a primary email address, we will update it to the new email address.
+            user_current_primary.email = email
+            user_current_primary.verified = True
+            user_current_primary.save()
+        else:
+            # If the user does not have a primary email address, we will create a new EmailAddress
+            # object for the user with the new email address.
+            EmailAddress.objects.create(user_id=user.id, email=email, verified=True, primary=True)
 
 
 # -----------------------------------------------------------------------------
