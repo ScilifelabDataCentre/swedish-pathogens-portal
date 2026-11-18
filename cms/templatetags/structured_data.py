@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import json
-import mimetypes
 from typing import TYPE_CHECKING, Any, Protocol
 
 import structlog
@@ -18,6 +17,7 @@ from cms.pages.highlights_and_editorials import HighlightsAndEditorialsPage
 from cms.pages.home import HomePage
 from cms.pages.news import NewsPage
 from cms.pages.slu_dashboard import SLUDashboardPage
+from cms.services.file_downloads import guess_content_type
 from cms.snippets.dashboard_data import DashboardData
 
 if TYPE_CHECKING:
@@ -275,7 +275,7 @@ def _distribution(page: Page, data_row: DashboardData) -> list[dict[str, Any]]:
         return []
 
     download: dict[str, Any] = {"@type": "DataDownload", "contentUrl": url}
-    _set_if(download, "encodingFormat", mimetypes.guess_type(source_file.name)[0])
+    _set_if(download, "encodingFormat", guess_content_type(source_file.name))
     return [download]
 
 

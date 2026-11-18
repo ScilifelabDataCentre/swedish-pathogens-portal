@@ -18,6 +18,22 @@ from django.http import FileResponse, Http404
 
 LOGGER = structlog.get_logger(__name__)
 
+# A fresh instance reads only Python's own table, never the machine's
+# /etc/mime.types, so a file has the same type on every host.
+_MIME_TYPES = mimetypes.MimeTypes()
+
+
+def guess_content_type(name: str) -> str | None:
+    """Return the MIME type for a file name, the same on every machine.
+
+    Args:
+        name: File name or path; only its extension is used.
+
+    Returns:
+        str | None: The type from Python's built-in table, or None if unknown.
+    """
+    return _MIME_TYPES.guess_type(name)[0]
+
 
 def resolve_file_in_directory(base_dir: Path, relpath: str) -> Path:
     """Resolve ``relpath`` to a readable file inside ``base_dir``.
@@ -82,7 +98,7 @@ def serve_file_from_directory(base_dir: Path, relpath: str) -> FileResponse:
         Http404: If the path escapes ``base_dir``, or no readable file is there.
     """
     candidate = resolve_file_in_directory(base_dir, relpath)
-    content_type, _ = mimetypes.guess_type(str(candidate))
+    content_type = guess_content_type(candidate.name)
 
     stack = ExitStack()
     try:
