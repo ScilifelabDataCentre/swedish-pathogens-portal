@@ -3,7 +3,7 @@
 from django.test import RequestFactory, SimpleTestCase
 from django.urls import reverse
 
-from core.allauth import SppAllauthAdapter
+from core.allauth.adapters import SppAllauthAdapter
 
 
 class TestSppAllauthAdapter(SimpleTestCase):
