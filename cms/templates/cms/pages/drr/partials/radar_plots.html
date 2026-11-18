@@ -1,6 +1,6 @@
 {% comment %}
 The DRR radars and their compound picker, rendered together so the control
-sits beside the figure it changes (FREYA-2636, spec sections 8.3 and 9).
+sits beside the figure it changes (FREYA-2636).
 
 The picker offers only the compounds precompute wrote a radar for, so no option
 can 404. It is progressive enhancement: the compound radar below already shows
@@ -11,7 +11,7 @@ Plotly callback is involved.
 {% endcomment %}
 {% if radar_figures %}
     <section aria-labelledby="drr-radars-heading" class="mt-10">
-        <h3 id="drr-radars-heading">Radar plots</h3>
+        <h2 id="drr-radars-heading" class="text-2xl">Radar plots</h2>
 
         {% if radar_compounds %}
             <form

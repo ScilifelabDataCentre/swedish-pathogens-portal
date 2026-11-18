@@ -2,8 +2,9 @@
 
 {% load static wagtailcore_tags %}
 
-{# Disable the default page heading banner #}
+{# Disable the default page heading and banner #}
 {% block page_heading %}{% endblock %}
+{% block page_title %}{% endblock %}
 
 {% block full_width_content %}
 {% if page.hero_title or page.hero_text %}

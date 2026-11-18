@@ -1,4 +1,4 @@
-"""Tests for the DRR raw-image 302 link-out (FREYA-2581, spec section 8).
+"""Tests for the DRR raw-image 302 link-out (FREYA-2581).
 
 Raw imagery stays upstream — one plate is a ~228 GiB archive — so ``raw-images/``
 redirects to the study the page names and the portal serves no image bytes at
@@ -88,7 +88,7 @@ class TestDrrRawImageLinkOut(DrrDatasetPageTestCase):
         self.assertEqual(response.status_code, 404)
 
     def test_route_carries_no_dot_and_ends_in_a_slash(self) -> None:
-        """The sub-path stays inside Wagtail's page-serving pattern (spec section 2)."""
+        """The sub-path stays inside Wagtail's page-serving pattern."""
         self.assertEqual(self.page.reverse_subpage("raw_images"), "raw-images/")
 
     def test_link_out_is_advertised_before_any_precompute(self) -> None:

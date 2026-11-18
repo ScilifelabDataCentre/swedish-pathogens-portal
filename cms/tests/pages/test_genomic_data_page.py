@@ -117,8 +117,8 @@ class TestGenomicDataPage(WagtailPageTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Some descriptive text.")
         self.assertContains(response, 'id="ena-search-input" name="q" value="coli"')
-        # the page's only <h1>, hidden visually as the banner already shows the title
-        self.assertContains(response, '<h1 class="sr-only">Genomic data</h1>', count=1)
+        # the page's only <h1> is the banner, rendered by base.html
+        self.assertContains(response, "Genomic data</h1>")
         self.assertContains(response, "<h1", count=1)
         self.assertContains(response, 'href="/genomic-data/" class="btn btn-outline btn-sm"')
         self.assertContains(response, 'hx-get="/genomic-data/?q=coli&amp;type=samples"')

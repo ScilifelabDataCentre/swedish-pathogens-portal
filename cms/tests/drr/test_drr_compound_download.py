@@ -1,4 +1,4 @@
-"""Tests for the per-compound feature slice (FREYA-2580, spec section 8).
+"""Tests for the per-compound feature slice (FREYA-2580).
 
 ``download/compound/?cbkid=<id>`` filters ``features.parquet`` on the fly
 (contract decision 3) rather than serving a precomputed per-compound file. The

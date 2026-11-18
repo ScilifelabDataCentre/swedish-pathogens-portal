@@ -1,4 +1,4 @@
-"""Tests for the radar partial, its picker and the swap route (FREYA-2636, spec section 8.3).
+"""Tests for the radar partial, its picker and the swap route (FREYA-2636).
 
 The radars and their compound picker render together from the page's own
 partial, not from editor-placed figure blocks, and the route returns one
@@ -31,7 +31,8 @@ SLUG = "drr-figure-route"
 STAU_KEY = artefact_key("[stau]")
 
 # Three figures on the snippet and a radar set on disk, which is the split spec
-# section 4 draws: one figure per figure_id in the snippet, a keyed set on disk.
+# artefact layout draws: one figure per figure_id in the snippet, a keyed set
+# on disk.
 SNIPPET_FIGURES = {
     "pca": {"data": [{"type": "scatter", "x": [1.0], "y": [2.0]}], "layout": {}},
     "radar_compound": {

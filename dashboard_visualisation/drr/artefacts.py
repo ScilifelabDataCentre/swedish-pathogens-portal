@@ -1,4 +1,4 @@
-"""Locations of the derived DRR artefacts on disk (spec section 4).
+"""Locations of the derived DRR artefacts on disk.
 
 One definition of the per-dataset directory, shared by the ``drr_precompute``
 command that writes the artefacts and the ``DrrDatasetPage`` routes that serve

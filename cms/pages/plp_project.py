@@ -143,8 +143,8 @@ class PlpProjectPage(Page):
     def get_context(self, request: HttpRequest) -> dict[str, Any]:
         """Expose ``subprojects``, ``parent_title``, ``parent_is_index``, and ``page_heading``.
 
-        ``page_heading`` is the PLP program index title so the site base banner shows the
-        program name while the project template keeps ``<h3>{{ page.title }}</h3>``.
+        ``page_heading`` is the PLP program index title, so the banner shows the program
+        name and ``base.html`` renders the project's title as the page's ``<h1>``.
         """
         from cms.pages.plp_index import PlpIndexPage
 

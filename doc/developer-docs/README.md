@@ -20,6 +20,7 @@ Setup, conventions, and how-tos for developing the **Swedish Pathogens Portal**.
 | Add a dashboard | [add-a-dashboard.md](how-to-guides/add-a-dashboard.md) |
 | Portal Data (listing / downloads) | [portal_data.md](portal_data.md) |
 | Dashboard uploads (researcher access) | [dashboard_uploads.md](dashboard_uploads.md) |
+| Contact form (behaviour and troubleshooting) | [contact-form.md](contact-form.md) |
 | Conventions | [dev-conventions.md](dev-conventions.md) |
 | Team decisions (in-repo + Confluence archive) | [decisions/](decisions/README.md) |
 | Testing | [testing.md](testing.md) |

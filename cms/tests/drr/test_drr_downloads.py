@@ -1,4 +1,4 @@
-"""Tests for the DRR bulk feature-download routes (FREYA-2580, spec section 8).
+"""Tests for the DRR bulk feature-download routes (FREYA-2580).
 
 Covers the two bulk artefact routes on ``DrrDatasetPage`` and the traversal
 guards in the shared ``serve_file_from_directory`` helper. The per-compound
@@ -110,7 +110,7 @@ class DrrDownloadRouteTestCase(DrrDatasetPageTestCase):
 
 
 class TestDrrBulkDownloads(DrrDownloadRouteTestCase):
-    r"""The bulk feature-table routes (spec section 8).
+    r"""The bulk feature-table routes.
 
     Wagtail serves page URLs through ``^((?:[\w\-]+/)*)$``, so the format is a
     path segment rather than a file extension. The saved filename still comes

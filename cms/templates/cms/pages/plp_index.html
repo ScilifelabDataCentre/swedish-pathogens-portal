@@ -12,7 +12,7 @@
         {% for group in category_groups %}
             <section class="mt-8 first:mt-0" id="category-{{ group.value }}">
                 <div class="flex items-baseline justify-between mb-4">
-                    <h3 class="m-0">{{ group.label }}</h3>
+                    <h2 class="m-0 text-2xl">{{ group.label }}</h2>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6">
                     {% for project in group.projects %}
