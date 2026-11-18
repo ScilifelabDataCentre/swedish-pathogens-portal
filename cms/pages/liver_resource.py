@@ -3,6 +3,7 @@
 from typing import Any
 
 from django.http import HttpRequest, HttpResponse
+from wagtail.blocks import StreamValue
 from wagtail.contrib.routable_page.models import RoutablePageMixin, path
 
 from cms.pages.dashboard import DashboardPage
@@ -33,6 +34,28 @@ from dashboard_visualisation.liver_resource.thresholds import (
     LOGFC_FOLD_CHOICES,
 )
 from dashboard_visualisation.utils.plotly import plot_html_from_json
+
+# Match other portal dashboards: "How to cite …" blocks render after the plot.
+_CITATION_MARKER = "How to cite"
+
+
+def split_liver_content_for_plot(
+    content: StreamValue,
+) -> tuple[list[Any], list[Any]]:
+    """Split StreamField blocks into intro (above plot) and citation (below).
+
+    Citation blocks are text blocks whose HTML contains ``How to cite``
+    (project APA style used on wastewater and other dashboards). All other
+    blocks stay above the interactive TLN.
+    """
+    above: list[Any] = []
+    below: list[Any] = []
+    for block in content:
+        if block.block_type == "text" and _CITATION_MARKER in str(block.value):
+            below.append(block)
+        else:
+            above.append(block)
+    return above, below
 
 
 class LiverResourceDashboardPage(RoutablePageMixin, DashboardPage):
@@ -112,6 +135,9 @@ class LiverResourceDashboardPage(RoutablePageMixin, DashboardPage):
             )
         else:
             context["liver_supplementary_url"] = None
+        content_above, content_below = split_liver_content_for_plot(self.content)
+        context["liver_content_above"] = content_above
+        context["liver_content_below"] = content_below
         return context
 
     # ------------------------------------------------------------------ #

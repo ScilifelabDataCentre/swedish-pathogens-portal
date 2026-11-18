@@ -8,7 +8,10 @@ from wagtail.test.utils import WagtailPageTestCase
 
 from cms.pages.dashboard import DashboardPage
 from cms.pages.dashboard_index import DashboardIndexPage
-from cms.pages.liver_resource import LiverResourceDashboardPage
+from cms.pages.liver_resource import (
+    LiverResourceDashboardPage,
+    split_liver_content_for_plot,
+)
 from cms.snippets.dashboard_data import DashboardData
 from cms.tests.liver_resource.liver_helpers import (
     create_published_liver_resource_page,
@@ -208,6 +211,36 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
         self.assertContains(response, 'id="liver-reference-figure-open"')
         self.assertNotContains(response, 'id="liver-reference-figure-download"')
         self.assertNotContains(response, "Download reference figure")
+
+    def test_split_liver_content_moves_how_to_cite_below_plot(self) -> None:
+        """Test APA 'How to cite' text blocks are split out for below-plot rendering."""
+        self.page.content = [
+            ("text", "<p>Intro copy for HepaGeNIE.</p>"),
+            ("alert", {"alert_type": "info", "message": "<p>Upload help.</p>"}),
+            (
+                "text",
+                "<h3>How to cite the example dataset</h3><p>Suppli et al. (2019).</p>",
+            ),
+        ]
+        self.page.save_revision().publish()
+        self.page.refresh_from_db()
+
+        above, below = split_liver_content_for_plot(self.page.content)
+        self.assertEqual([block.block_type for block in above], ["text", "alert"])
+        self.assertEqual(len(below), 1)
+        self.assertIn("How to cite the example dataset", str(below[0].value))
+
+        request = self.client.get(self.page.url).wsgi_request
+        context = self.page.get_context(request)
+        self.assertEqual(len(context["liver_content_above"]), 2)
+        self.assertEqual(len(context["liver_content_below"]), 1)
+
+        response = self.client.get(self.page.url)
+        html = response.content.decode()
+        cite_pos = html.index("How to cite the example dataset")
+        plot_pos = html.index('id="tln-container"')
+        self.assertGreater(cite_pos, plot_pos)
+        self.assertContains(response, "How to cite the example dataset")
 
     def test_page_hides_supplementary_link_without_document(self) -> None:
         """Test sidebar omits supplementary download until Document exists."""
