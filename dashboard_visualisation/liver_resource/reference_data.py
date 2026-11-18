@@ -102,7 +102,11 @@ def load_hover_module_titles() -> dict[int, str]:
 
 
 def list_example_files() -> list[Path]:
-    """Return bundled example DE files available for the Load example action."""
+    """Return bundled DE fixture files under ``data/examples`` (tests / local).
+
+    The live sidebar example uses Wagtail ``DashboardData.source_file``, not these
+    fixtures.
+    """
     examples_dir = get_data_root() / "examples"
     return sorted(examples_dir.glob("*.txt"))
 

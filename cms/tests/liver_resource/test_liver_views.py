@@ -116,22 +116,35 @@ class TestLiverViews(TestCase):
         self.assertEqual(response.status_code, 405)
 
     def test_load_example_returns_plot(self) -> None:
-        """Test bundled example endpoint stores session and returns plot."""
-        url = liver_route_url(self.page, "load_example", example_slug="hcc-control")
+        """Test DashboardData example endpoint stores session and returns plot."""
+        from cms.tests.liver_resource.liver_helpers import create_liver_dashboard_data
+        from dashboard_visualisation.liver_resource.examples import EXAMPLE_SLUG
+
+        create_liver_dashboard_data(upload_name="obese-Control.txt")
+        url = liver_route_url(self.page, "load_example", example_slug=EXAMPLE_SLUG)
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "liver-tln-result")
-        self.assertContains(response, "HCC-Control.txt")
+        self.assertContains(response, "obese-Control.txt")
         session_filename = self.client.session[SESSION_KEY]["files"][0]["filename"]
-        self.assertEqual(session_filename, "HCC-Control.txt")
+        self.assertEqual(session_filename, "obese-Control.txt")
+
+    def test_load_example_without_dashboard_data_returns_error(self) -> None:
+        """Test example load fails clearly when DashboardData source is missing."""
+        from dashboard_visualisation.liver_resource.examples import EXAMPLE_SLUG
+
+        url = liver_route_url(self.page, "load_example", example_slug=EXAMPLE_SLUG)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 400)
+        self.assertContains(response, "unconfigured example dataset", status_code=400)
 
     def test_load_unknown_example_returns_error(self) -> None:
         """Test unknown example slug returns validation error."""
         url = liver_route_url(self.page, "load_example", example_slug="missing-example")
         response = self.client.get(url)
         self.assertEqual(response.status_code, 400)
-        self.assertContains(response, "Unknown example dataset", status_code=400)
+        self.assertContains(response, "unconfigured example dataset", status_code=400)
 
     def test_recompute_requires_session(self) -> None:
         """Test recompute without upload returns JSON error."""
@@ -318,28 +331,18 @@ class TestLiverViewsWithDashboardData(TestCase):
         cls.page = create_published_liver_resource_page()
 
     def setUp(self) -> None:
-        """Create liver DashboardData row from bundled DE file."""
-        from datetime import date
-
-        from cms.snippets.dashboard_data import DashboardData
+        """Create liver DashboardData row from a DE fixture."""
+        from cms.tests.liver_resource.liver_helpers import create_liver_dashboard_data
+        from dashboard_visualisation.liver_resource.examples import EXAMPLE_SLUG
 
         self.client = Client()
-        self.example_path = get_data_root() / "examples" / "HCC-Control.txt"
-        upload = SimpleUploadedFile(
-            name="HCC-Control.txt",
-            content=self.example_path.read_bytes(),
-            content_type="text/plain",
-        )
-        DashboardData.objects.create(
-            dashboard_title="HepaGeNIE",
-            dashboard_slug="liver-resource",
-            source_file=upload,
-            data_updated_at=date(2026, 4, 20),
-        )
+        self.example_slug = EXAMPLE_SLUG
+        self.example_filename = "obese-Control.txt"
+        create_liver_dashboard_data(upload_name=self.example_filename)
 
     def test_load_example_uses_dashboard_data_without_analyse(self) -> None:
         """Test example button renders stored figure and keeps session for exports."""
-        url = liver_route_url(self.page, "load_example", example_slug="hcc-control")
+        url = liver_route_url(self.page, "load_example", example_slug=self.example_slug)
         with patch(
             "cms.views.liver_resource.analyse_de_uploads",
             side_effect=AssertionError("analyse_de_uploads should not run"),
@@ -347,5 +350,5 @@ class TestLiverViewsWithDashboardData(TestCase):
             response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "HCC-Control.txt")
+        self.assertContains(response, self.example_filename)
         self.assertIsNotNone(self.client.session.get(SESSION_KEY))
