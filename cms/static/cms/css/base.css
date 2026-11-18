@@ -192,3 +192,21 @@ https://daisyui.com/docs/utilities/#theme-css-variables
         clip: auto;
     }
 }
+
+/*
+ * Unlayered + !important so this beats DaisyUI's `@supports (appearance: base-select)`
+ * rule in Chrome. Without this, Chrome keeps a tiny 4px CSS caret that looks broken.
+ */
+select.select.liver-threshold-select {
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%231a1c1a' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 6l4 4 4-4'/%3E%3C/svg%3E") !important;
+    background-position: right 0.75rem center !important;
+    background-size: 0.9rem 0.9rem !important;
+    background-repeat: no-repeat !important;
+    padding-inline-end: 2.25rem !important;
+}
+
+select.select.liver-threshold-select:open {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%231a1c1a' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 10L8 6 4 10'/%3E%3C/svg%3E") !important;
+}
