@@ -78,13 +78,15 @@ def get_table_context(
         per_page_default: Number of rows shown when the user hasn't chosen.
         per_page_options: Choices offered in the "entries per page" select.
         show_controls:    When False the template hides the search bar,
-                          entries-per-page selector, and status line.
+                          entries-per-page selector, and status line, and
+                          any ``search`` or ``per_page`` params are ignored.
 
     Returns:
         A dict ready to pass (or nest) into a template context.
     """
     params = request.GET if request else {}
-    search = params.get("search", "").strip()
+    # Without controls there is no search input to clear a filter with.
+    search = params.get("search", "").strip() if show_controls else ""
 
     try:
         page_number = int(params.get("page", 1))
@@ -97,8 +99,7 @@ def get_table_context(
         rows = [row for row in rows if any(term in strip_tags(str(cell)).lower() for cell in row)]
 
     if not show_controls:
-        # Search input is part of the controls, so when they are hidden
-        # `rows` is effectively unfiltered. max(..., 1) keeps Paginator happy.
+        # Show every row on one page. max(..., 1) keeps Paginator happy.
         per_page = max(len(rows), 1)
     else:
         raw_per_page = params.get("per_page", per_page_default)
