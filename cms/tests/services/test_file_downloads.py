@@ -1,12 +1,13 @@
 """Test cases for file download services."""
 
+import mimetypes
 import tempfile
 from pathlib import Path
 
 from django.http import Http404
 from django.test import SimpleTestCase
 
-from cms.services.file_downloads import serve_file_from_directory
+from cms.services.file_downloads import guess_content_type, serve_file_from_directory
 
 
 class TestServeFileFromDirectory(SimpleTestCase):
@@ -70,3 +71,30 @@ class TestServeFileFromDirectory(SimpleTestCase):
         """A slug directory that was never precomputed raises 404."""
         with self.assertRaises(Http404):
             serve_file_from_directory(self.root / "never-precomputed", "features.csv")
+
+
+class TestMachineMimeTable(SimpleTestCase):
+    """The download type does not depend on the machine's /etc/mime.types."""
+
+    def setUp(self) -> None:
+        """Make the machine's table name .parquet, as Ubuntu 26.04 does."""
+        original = mimetypes.guess_type
+        self.addCleanup(setattr, mimetypes, "guess_type", original)
+        mimetypes.add_type("application/vnd.apache.parquet", ".parquet")
+        self.addCleanup(mimetypes.types_map.pop, ".parquet", None)
+        self.addCleanup(mimetypes.common_types.pop, ".parquet", None)
+
+    def test_guess_content_type_ignores_machine_table(self) -> None:
+        """.parquet stays unknown, so the download falls back to octet-stream."""
+        self.assertIsNone(guess_content_type("features.parquet"))
+        self.assertEqual(guess_content_type("table.csv"), "text/csv")
+
+    def test_served_parquet_is_octet_stream(self) -> None:
+        """A .parquet download is octet-stream whatever the machine lists."""
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            (base / "features.parquet").write_bytes(b"PAR1")
+            response = serve_file_from_directory(base, "features.parquet")
+            self.addCleanup(response.close)
+
+            self.assertEqual(response["Content-Type"], "application/octet-stream")
