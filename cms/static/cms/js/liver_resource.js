@@ -90,10 +90,6 @@
             link.removeAttribute("aria-disabled");
             link.removeAttribute("tabindex");
         });
-        const exportHint = document.getElementById("liver-export-hint");
-        if (exportHint) {
-            exportHint.hidden = true;
-        }
     }
 
     function getPlotMode() {

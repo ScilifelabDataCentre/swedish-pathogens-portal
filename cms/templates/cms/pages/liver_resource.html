@@ -40,15 +40,15 @@
 
     <div id="liver-validation-errors" aria-live="polite"></div>
 
-    {# Both cards are direct grid children so their top edges stay aligned. #}
-    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        <div class="lg:col-span-4 xl:col-span-3">
+    {# Stretch both columns so the sidebar card matches the plot card height. #}
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+        <div class="lg:col-span-4 xl:col-span-3 flex">
             {% include "cms/pages/liver_resource/partials/upload_form.html" %}
         </div>
 
         <section
             id="tln-container"
-            class="lg:col-span-8 xl:col-span-9 card bg-base-100 border border-base-300 shadow-sm"
+            class="lg:col-span-8 xl:col-span-9 card bg-base-100 border border-base-300 shadow-sm h-full"
             aria-label="Tree-leaf network plot"
         >
             <div class="card-body p-3 sm:p-4 relative min-h-180">
