@@ -11,13 +11,15 @@ from dashboard_visualisation.liver_resource.dashboard_figures import (
     resolve_base_tln_figure,
     stored_example_entry_from_analysis,
 )
-from dashboard_visualisation.liver_resource.examples import EXAMPLE_FILENAME, EXAMPLE_SLUG
+from dashboard_visualisation.liver_resource.examples import EXAMPLE_SLUG
 from dashboard_visualisation.liver_resource.reference_data import get_data_root
 from dashboard_visualisation.liver_resource.thresholds import (
     DEFAULT_ADJ_P,
     DEFAULT_LOGFC_FOLD,
     DEFAULT_THRESHOLD_KEY,
 )
+
+_FIXTURE_FILENAME = "HCC-Control.txt"
 
 
 class TestLiverDashboardFigures(SimpleTestCase):
@@ -45,9 +47,13 @@ class TestLiverDashboardFigures(SimpleTestCase):
 
     def test_get_stored_example_reads_analysis_entry(self) -> None:
         """Test round-trip from analysis to stored JSON and back."""
-        example_path = get_data_root() / "examples" / EXAMPLE_FILENAME
+        example_path = get_data_root() / "examples" / _FIXTURE_FILENAME
         de_data = parse_de_file(example_path)
-        analysis = analyse_de_uploads([(EXAMPLE_FILENAME, de_data)], adj_p=DEFAULT_ADJ_P, logfc_fold=DEFAULT_LOGFC_FOLD)
+        analysis = analyse_de_uploads(
+            [(_FIXTURE_FILENAME, de_data)],
+            adj_p=DEFAULT_ADJ_P,
+            logfc_fold=DEFAULT_LOGFC_FOLD,
+        )
         payload = {
             "examples": {
                 EXAMPLE_SLUG: {
@@ -67,5 +73,5 @@ class TestLiverDashboardFigures(SimpleTestCase):
         if stored is None:
             self.fail("Expected stored example figure")
         self.assertEqual(stored.plot_mode, "solid")
-        self.assertEqual(stored.comparisons[0].filename, EXAMPLE_FILENAME)
+        self.assertEqual(stored.comparisons[0].filename, _FIXTURE_FILENAME)
         self.assertIn("data", stored.figure_json)

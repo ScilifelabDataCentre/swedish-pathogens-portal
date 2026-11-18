@@ -48,6 +48,9 @@ class LiverResourceDashboardPage(RoutablePageMixin, DashboardPage):
     The supplementary module workbook is a Wagtail Document titled
     ``HepaGeNIE supplementary`` (Documents library) — no page FK / migration.
 
+    The sidebar example DE file is ``DashboardData.source_file`` for this
+    dashboard slug — not a bundled repo file.
+
     HTMX / download endpoints live as sub-routes on this page (same pattern as
     :class:`~cms.pages.portal_data.PortalDataPage`), not under ``/cms/liver/``.
     """

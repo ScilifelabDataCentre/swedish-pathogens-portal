@@ -63,7 +63,11 @@ class TestLiverDashboardHtmxFlow(TestCase):
 
     def test_htmx_example_load_returns_plot_partial(self) -> None:
         """Test example load via htmx returns plot markup."""
-        url = liver_route_url(self.page, "load_example", example_slug="hcc-control")
+        from cms.tests.liver_resource.liver_helpers import create_liver_dashboard_data
+        from dashboard_visualisation.liver_resource.examples import EXAMPLE_SLUG
+
+        create_liver_dashboard_data(upload_name="obese-Control.txt")
+        url = liver_route_url(self.page, "load_example", example_slug=EXAMPLE_SLUG)
         response = self.client.get(
             f"{url}?adj_p=0.01&logfc_fold=2",
             **self.htmx_headers,

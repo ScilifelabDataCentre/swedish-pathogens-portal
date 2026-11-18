@@ -104,13 +104,24 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
         self.assertEqual(context["leaf_trace_index"], 2)
 
     def test_get_context_includes_examples(self) -> None:
-        """Test that get_context exposes example dataset metadata."""
+        """Test examples come from DashboardData; empty without a source file."""
         request = self.client.get(self.page.url).wsgi_request
         context = self.page.get_context(request)
 
+        self.assertEqual(context["examples"], [])
         self.assertEqual(context["examples"], list_examples(self.page.dashboard_data))
-        slugs = [example["slug"] for example in context["examples"]]
-        self.assertEqual(slugs, list_example_slugs())
+        self.assertEqual(list_example_slugs(), ["obese-control"])
+
+        from cms.tests.liver_resource.liver_helpers import create_liver_dashboard_data
+
+        create_liver_dashboard_data(upload_name="obese-Control.txt")
+        self.page.__dict__.pop("dashboard_data", None)
+        request = self.client.get(self.page.url).wsgi_request
+        context = self.page.get_context(request)
+        self.assertEqual(
+            [example["slug"] for example in context["examples"]],
+            list_example_slugs(),
+        )
 
     def test_get_context_includes_session_flags(self) -> None:
         """Test that get_context exposes session state for export controls."""
@@ -164,27 +175,19 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
         )
 
     def test_get_context_example_label_uses_dashboard_data_filename(self) -> None:
-        """Test example button label comes from the DashboardData source file name."""
-        example_path = get_data_root() / "examples" / "HCC-Control.txt"
-        from django.core.files.uploadedfile import SimpleUploadedFile
+        """Test example button uses GSE126848 label for an obese-named DashboardData file."""
+        from cms.tests.liver_resource.liver_helpers import create_liver_dashboard_data
+        from dashboard_visualisation.liver_resource.examples import EXAMPLE_LABEL
 
-        upload = SimpleUploadedFile(
-            name="HCC-Control.txt",
-            content=example_path.read_bytes(),
-            content_type="text/plain",
-        )
-        DashboardData.objects.create(
-            dashboard_title="HepaGeNIE",
-            dashboard_slug="liver-resource",
-            source_file=upload,
-            data_updated_at=date(2026, 4, 20),
-        )
+        create_liver_dashboard_data(upload_name="obese-Control.txt")
         self.page.__dict__.pop("dashboard_data", None)
 
         request = self.client.get(self.page.url).wsgi_request
         context = self.page.get_context(request)
 
-        self.assertEqual(context["examples"][0]["label"], "HCC Control")
+        self.assertEqual(context["examples"][0]["label"], EXAMPLE_LABEL)
+        self.assertEqual(context["examples"][0]["slug"], "obese-control")
+        self.assertEqual(context["examples"][0]["filename"], "obese-Control.txt")
 
     def test_page_includes_htmx_and_plotly_wiring(self) -> None:
         """Test that the page template includes htmx upload wiring and liver JS."""

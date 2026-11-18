@@ -125,15 +125,22 @@ def upload_de(request: HttpRequest) -> HttpResponse:
 
 @require_GET
 def load_example(request: HttpRequest, example_slug: str) -> HttpResponse:
-    """Load the bundled sidebar example into session and return the TLN plot.
+    """Load the Wagtail DashboardData example into session and return the TLN plot.
 
-    When ``DashboardData`` holds a pre-computed figure for this slug and threshold,
-    the plot is rendered from stored JSON (session still receives parsed DE data
-    for exports).
+    DE bytes come from ``DashboardData.source_file``. When stored figures exist for
+    this slug and threshold, the plot is rendered from that JSON (session still
+    receives parsed DE data for exports).
     """
-    example_uploads = get_example_uploads(example_slug)
+    dashboard_row = DashboardData.get_data(LIVER_DASHBOARD_SLUG)
+    example_uploads = get_example_uploads(example_slug, dashboard_data=dashboard_row)
     if example_uploads is None:
-        return _render_validation_errors(request, (f"Unknown example dataset: {example_slug}",))
+        return _render_validation_errors(
+            request,
+            (
+                f"Unknown or unconfigured example dataset: {example_slug}. "
+                "Upload a DE file on the liver DashboardData snippet.",
+            ),
+        )
 
     adj_p, logfc_fold = _thresholds_from_request(request.GET)
     plot_metric = _plot_metric_from_request(request.GET)
@@ -148,7 +155,6 @@ def load_example(request: HttpRequest, example_slug: str) -> HttpResponse:
     )
 
     # Stored DashboardData figures are Difference-only (default Plot mode).
-    dashboard_row = DashboardData.get_data(LIVER_DASHBOARD_SLUG)
     stored = None
     if plot_metric == DEFAULT_PLOT_METRIC:
         stored = get_stored_example(

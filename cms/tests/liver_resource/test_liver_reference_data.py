@@ -86,11 +86,12 @@ class TestLiverReferenceData(SimpleTestCase):
         self.assertNotIn(2, titles)
 
     def test_list_example_files(self) -> None:
-        """Test bundled example DE files are discoverable."""
+        """Test bundled DE fixture files are discoverable for tests."""
         examples = list_example_files()
         self.assertEqual(len(examples), 3)
         names = {path.name for path in examples}
         self.assertIn("HCC-Control.txt", names)
+        self.assertNotIn("obese-Control.txt", names)
 
     def test_template_path(self) -> None:
         """Test upload template file exists."""
