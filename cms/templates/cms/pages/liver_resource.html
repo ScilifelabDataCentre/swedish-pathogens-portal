@@ -24,16 +24,16 @@
     </p>
 
     {# Intro + existing card image floated right (Data Highlights style). #}
-    {% if page.image or page.content %}
+    {% if page.image or liver_content_above %}
     <div class="mb-6 flow-root">
         {% if page.image %}
             {% include "cms/pages/liver_resource/partials/reference_figure.html" %}
         {% endif %}
 
-        {% if page.content %}
-        <div class="prose max-w-none text-pp-dark-grey">
-            {% include_block page.content %}
-        </div>
+        {% if liver_content_above %}
+            {% for block in liver_content_above %}
+                {% include_block block %}
+            {% endfor %}
         {% endif %}
     </div>
     {% endif %}
@@ -72,6 +72,15 @@
             </div>
         </section>
     </div>
+
+    {# APA "How to cite …" blocks — same pattern as other portal dashboards. #}
+    {% if liver_content_below %}
+    <div class="mt-8">
+        {% for block in liver_content_below %}
+            {% include_block block %}
+        {% endfor %}
+    </div>
+    {% endif %}
 </div>
 
 <script src="{% static 'cms/js/liver_resource.js' %}" defer></script>
