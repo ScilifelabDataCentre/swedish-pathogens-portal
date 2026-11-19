@@ -78,16 +78,16 @@ def update_email_address_for_user(request: HttpRequest, user: User) -> None:
             f"so it was not added to the EmailAddress model for the user '{user.username}'.",
         )
     else:
-        user_current_primary = EmailAddress.objects.filter(user_id=user.id, primary=True).first()
-        if user_current_primary:
-            # If the user has a primary email address, we will update it to the new email address.
-            user_current_primary.email = email
-            user_current_primary.verified = True
-            user_current_primary.save()
-        else:
-            # If the user does not have a primary email address, we will create a new EmailAddress
-            # object for the user with the new email address.
-            EmailAddress.objects.create(user_id=user.id, email=email, verified=True, primary=True)
+        # If a primary email address already exists for the user, we will update it with the
+        # new email address. Otherwise, we will create a new EmailAddress object for the user
+        # with the new email address and set it as primary and verified.
+        EmailAddress.objects.update_or_create(
+            user_id=user.id, primary=True, defaults={"email": email, "verified": True}
+        )
+
+        # Since an admin editing the user email is a rare operation, after updating the primary
+        # email address, we will delete all other non-primary email addresses for the user.
+        EmailAddress.objects.filter(user_id=user.id, primary=False).delete()
 
 
 # -----------------------------------------------------------------------------

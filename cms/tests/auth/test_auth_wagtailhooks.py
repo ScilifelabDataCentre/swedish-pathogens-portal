@@ -36,7 +36,7 @@ class TestPutEmailAddressForUserHook(TestCase):
         put_email_address_for_user(self.request, self.user)
         email_address = EmailAddress.objects.get(user=self.user)
 
-        self.assertEqual(email_address.user_id, self.user.id)
+        self.assertEqual(email_address.user, self.user)
         self.assertEqual(email_address.email, self.user.email)
         self.assertTrue(email_address.verified)
         self.assertTrue(email_address.primary)
@@ -54,7 +54,7 @@ class TestPutEmailAddressForUserHook(TestCase):
         """An existing email address prevents creating another record."""
         existing_user = User.objects.create_user(username="anotheruser", password="password")  # noqa: S106
         existing_email = EmailAddress.objects.create(
-            user_id=existing_user.id, email=self.user.email, verified=False, primary=False
+            user=existing_user, email=self.user.email, verified=False, primary=False
         )
 
         put_email_address_for_user(self.request, self.user)
@@ -107,9 +107,9 @@ class TestUserCreationPutsEmail(TestCase):
 
         user = User.objects.get(username="newuser")
 
-        self.assertTrue(EmailAddress.objects.filter(user_id=user.id).exists())
+        self.assertTrue(EmailAddress.objects.filter(user=user).exists())
 
-        email_address = EmailAddress.objects.get(user_id=user.id)
+        email_address = EmailAddress.objects.get(user=user)
 
         self.assertEqual(email_address.email, "newuser@example.com")
         self.assertTrue(email_address.verified)
@@ -181,7 +181,7 @@ class TestUpdateEmailAddressForUserHook(TestCase):
         update_email_address_for_user(self.request, self.user)
         self.email_address.refresh_from_db()
 
-        self.assertEqual(self.email_address.user_id, self.user.id)
+        self.assertEqual(self.email_address.user, self.user)
         self.assertEqual(self.email_address.email, "new@example.com")
         self.assertTrue(self.email_address.verified)
         self.assertTrue(self.email_address.primary)
@@ -251,6 +251,35 @@ class TestUpdateEmailAddressForUserHook(TestCase):
         self.assertEqual(email_address.email, "new@example.com")
         self.assertTrue(email_address.verified)
         self.assertTrue(email_address.primary)
+
+    def test_deletes_non_primary_email_addresses(self):
+        """Non-primary email addresses are deleted when the primary email is updated."""
+        pending_email = EmailAddress.objects.create(
+            user=self.user, email="pending@example.com", verified=False, primary=False
+        )
+        self.user.email = "new@example.com"
+        self.user.save()
+
+        update_email_address_for_user(self.request, self.user)
+
+        self.assertFalse(EmailAddress.objects.filter(pk=pending_email.pk).exists())
+        self.assertTrue(EmailAddress.objects.filter(pk=self.email_address.pk).exists())
+
+    def test_does_not_delete_pending_emails_if_email_already_exists(self):
+        """Pending emails remain untouched if the new email already exists."""
+        existing_user = User.objects.create_user(username="anotheruser", password="password")  # noqa: S106
+        EmailAddress.objects.create(
+            user=existing_user, email="existing@example.com", verified=True, primary=True
+        )
+        pending_email = EmailAddress.objects.create(
+            user=self.user, email="pending@example.com", verified=False, primary=False
+        )
+        self.user.email = "existing@example.com"
+        self.user.save()
+
+        update_email_address_for_user(self.request, self.user)
+
+        self.assertTrue(EmailAddress.objects.filter(pk=pending_email.pk).exists())
 
 
 class TestUserEditUpdatesEmail(TestCase):
