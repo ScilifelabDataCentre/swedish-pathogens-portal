@@ -71,6 +71,7 @@ DISABLE_SELF_APPROVAL = env.bool("DISABLE_SELF_APPROVAL", default=False)
 # ------------------------------------------------------------------------------
 INCLUDE_DJANGO_ADMIN = False
 DJANGO_ADMIN_URL = "admin/"
+LOGIN_URL = f"/{ALLAUTH_BASE_URL}login/"
 LOGIN_REDIRECT_URL = f"/{WAGTAILADMIN_URL}"
 LOGOUT_REDIRECT_URL = f"/{WAGTAILADMIN_URL}"
 

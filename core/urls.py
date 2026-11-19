@@ -54,12 +54,6 @@ own_view_urls = [
 third_party_view_urls = []
 
 
-# Django admin URL (optional) - No need for this as most of the admin functionality is
-# handled by Wagtail, but it can be included if needed for special cases.
-if settings.INCLUDE_DJANGO_ADMIN:
-    third_party_view_urls += [path(settings.DJANGO_ADMIN_URL, admin.site.urls)]
-
-
 # Wagtail authentication URLs (login, logout, etc.) should redirect to Django allauth's
 # login, logout, etc. URLs. We have set WAGTAILADMIN_LOGIN_URL so wagtail automatically
 # redirects to the correct login page, but it doesn't handle the direct url access, thus
@@ -90,6 +84,27 @@ third_party_view_urls += [
         ),
     ),
 ]
+
+
+# Django admin URL (optional) - No need for this as most of the admin functionality is
+# handled by Wagtail, but it can be included if needed for special cases. Even if included,
+# it is not used for authentication, as we are using allauth for that.
+if settings.INCLUDE_DJANGO_ADMIN:
+    third_party_view_urls += [
+        path(
+            f"{settings.DJANGO_ADMIN_URL}login/",
+            RedirectView.as_view(
+                url=f"/{settings.ALLAUTH_BASE_URL}login/", query_string=True, permanent=False
+            ),
+        ),
+        path(
+            f"{settings.DJANGO_ADMIN_URL}logout/",
+            RedirectView.as_view(
+                url=f"/{settings.ALLAUTH_BASE_URL}logout/", query_string=True, permanent=False
+            ),
+        ),
+        path(settings.DJANGO_ADMIN_URL, admin.site.urls),
+    ]
 
 
 # Django allauth and Wagtail admin, documents, and sitemap URLs
