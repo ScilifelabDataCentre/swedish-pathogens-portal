@@ -32,12 +32,15 @@ The implementation will follow these decisions:
 - Direct access to Wagtail's built-in login page will also redirect users to the `django-allauth` login page. We should not have two separate login entry points.
 - Users can authenticate using either their username or email address, together with their password.
 - Login and authentication-related flows will be handled through `django-allauth`'s URLs and views.
+- Django's admin urls are not normally included in the deployed instance. However, if they are included, its built-in login and logout URLs will also redirect users to the corresponding `django-allauth` URLs.
 
 ### Email management
 
 - Email address management will primarily be handled by `django-allauth`.
 - As an exception, administrators and superusers will provide an initial email address when creating a user through Wagtail.
+- Whenever an administrator or superuser creates or edits a user through Wagtail, the user's email address will be synchronised with `django-allauth`'s `EmailAddress` model and marked as verified. This will be handled through Wagtail hooks.
 - Once an account has been created, users should manage their own email addresses through `django-allauth`'s account management functionality.
+- When users change their email address through django-allauth, they must verify the new address using the confirmation link sent to them.
 - Administrators and superusers may still modify a user's email address through Wagtail when necessary, but this should generally be avoided. Changes should preferably be made by the user through `django-allauth` to ensure that the associated email verification flow is respected.
 
 ### Password management
@@ -88,6 +91,8 @@ This phase is intentionally limited to regular credential-based authentication. 
 - Authentication-related user information, such as email addresses and passwords, is managed through `django-allauth`, while other user information, groups, and permissions remain managed through Wagtail. This separation may be slightly confusing for administrators.
 - The integration requires customisation of Wagtail's built-in authentication and user management interfaces to avoid exposing functionality that is now handled by `django-allauth`.
 - Redirecting Wagtail's built-in login and logout flows to `django-allauth` introduces additional integration complexity.
+- If Django's admin interface is enabled, its built-in login and logout URLs must also be redirected to `django-allauth`.
+- Since `django-allauth` is being introduced after the initial project launch, existing user's email addresses will not initially be present in `django-allauth`'s `EmailAddress` model or marked as verified. This requires an additional migration step.
 - Newly created users cannot log in immediately after account creation. They must first complete the password setup process through the password reset flow.
 - The initial account setup experience depends on the password reset flow and its associated email delivery being properly configured.
 
@@ -101,9 +106,15 @@ This phase is intentionally limited to regular credential-based authentication. 
 
   Make it clear to administrators that the initial email address must be provided when creating a user through Wagtail, but subsequent email address changes should preferably be made by the user through `django-allauth`. Avoid exposing email editing functionality in Wagtail beyond what is needed for user creation, where possible.
 
-- **Wagtail authentication integration**
+  Existing users' email addresses will be synchronised with `django-allauth`'s `EmailAddress` model using a Python script executed after deployment. Since account creation has always been handled by administrators and self-registration is not available, existing email addresses are considered trusted and will be marked as verified during this initial migration.
+
+  For new user accounts and subsequent email address changes made by admin through Wagtail, Wagtail hooks will ensure that email addresses are synchronised with `django-allauth` and marked as verified. Email address changes made by users through `django-allauth` will follow its email confirmation process.
+
+- **Authentication integration**
 
   Ensure that all entry points to the Wagtail admin use the `django-allauth` authentication flow. Add appropriate redirects so that users cannot bypass the intended login flow by accessing Wagtail's built-in login URL directly.
+
+  If Django's admin interface is enabled, ensure that its built-in login and logout URLs also redirect to the corresponding django-allauth pages.
 
 - **Password management**
 
