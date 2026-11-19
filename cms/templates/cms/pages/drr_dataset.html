@@ -125,31 +125,9 @@
             {% endif %}
         </div>
 
-        {# Compound-metadata reconciliation (FREYA-2557; keys from reconciliation_report). #}
-        {% with recon=summary.compound_reconciliation %}
-            {% if recon %}
-                <div class="mt-6 rounded border border-pp-pale-grey bg-white p-4 shadow-sm">
-                    <h3 class="text-sm font-semibold text-pp-almost-black">Compound metadata reconciliation</h3>
-                    <ul class="mt-2 flex flex-wrap gap-x-6 gap-y-1 text-sm text-pp-dark-grey">
-                        <li>Compounds: <span class="font-medium text-pp-almost-black">{{ recon.n_compound_ids|default:0|intcomma }}</span></li>
-                        <li>Controls: <span class="font-medium text-pp-almost-black">{{ recon.n_control_ids|default:0|intcomma }}</span></li>
-                        <li>Annotated: <span class="font-medium text-pp-almost-black">{{ recon.n_annotated|default:0|intcomma }}</span></li>
-                        <li>Recovered: <span class="font-medium text-pp-almost-black">{{ recon.n_recovered|default:0|intcomma }}</span></li>
-                        <li>Unannotated: <span class="font-medium text-pp-almost-black">{{ recon.n_unannotated|default:0|intcomma }}</span></li>
-                    </ul>
-                    {% if recon.unmatched_cbkids %}
-                        <details class="mt-3">
-                            <summary class="cursor-pointer text-sm text-pp-dark-grey">
-                                Unannotated compound IDs ({{ recon.unmatched_cbkids|length|intcomma }})
-                            </summary>
-                            <p class="mt-2 break-all text-xs text-pp-dark-grey">
-                                {{ recon.unmatched_cbkids|join:", " }}
-                            </p>
-                        </details>
-                    {% endif %}
-                </div>
-            {% endif %}
-        {% endwith %}
+        {# No compound-metadata reconciliation box (FREYA-3077): its only #}
+        {# unannotated id is DMSO, which the annotation file has no row for, so #}
+        {# it read as a data gap. The report stays in summary.json and the log. #}
 
         {# Source provenance. #}
         {% if summary.source %}
