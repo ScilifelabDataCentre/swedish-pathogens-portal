@@ -40,7 +40,7 @@ The implementation will follow these decisions:
 - As an exception, administrators and superusers will provide an initial email address when creating a user through Wagtail.
 - Whenever an administrator or superuser creates or edits a user through Wagtail, the user's email address will be synchronised with `django-allauth`'s `EmailAddress` model and marked as verified. This will be handled through Wagtail hooks.
 - Once an account has been created, users should manage their own email addresses through `django-allauth`'s account management functionality.
-- When users change their email address through django-allauth, they must verify the new address using the confirmation link sent to them.
+- Email verification is not required to log in during Phase 1. However, users changing their email address through `django-allauth` must confirm the new address using the confirmation link sent to them.
 - Administrators and superusers may still modify a user's email address through Wagtail when necessary, but this should generally be avoided. Changes should preferably be made by the user through `django-allauth` to ensure that the associated email verification flow is respected.
 
 ### Password management
@@ -106,7 +106,7 @@ This phase is intentionally limited to regular credential-based authentication. 
 
   Make it clear to administrators that the initial email address must be provided when creating a user through Wagtail, but subsequent email address changes should preferably be made by the user through `django-allauth`. Avoid exposing email editing functionality in Wagtail beyond what is needed for user creation, where possible.
 
-  Existing users' email addresses will be synchronised with `django-allauth`'s `EmailAddress` model using a Python script executed after deployment. Since account creation has always been handled by administrators and self-registration is not available, existing email addresses are considered trusted and will be marked as verified during this initial migration.
+  After deployment and database migrations, a one-time Python script will synchronise existing users' email addresses with `django-allauth`'s `EmailAddress` model and mark them as verified. Administrators must resolve missing or duplicate addresses before running the script, and complete this step before users resume access. Existing addresses are trusted because accounts were created by administrators and public signup has never been enabled.
 
   For new user accounts and subsequent email address changes made by admin through Wagtail, Wagtail hooks will ensure that email addresses are synchronised with `django-allauth` and marked as verified. Email address changes made by users through `django-allauth` will follow its email confirmation process.
 
