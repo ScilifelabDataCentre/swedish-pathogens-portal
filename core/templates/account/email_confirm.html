@@ -1,0 +1,73 @@
+{% extends "wagtailadmin/admin_base.html" %}
+{% load account %}
+
+{% comment %}
+    This template is used to override django allauth's email confirmation template. It just extends
+    wagtailadmin's admin_base template. Modified the `block furniture` to use allauth email confirm
+    content instead of wagtailadmin's. Kept the `block js` empty to avoid loading wagtailadmin's js
+    which is not needed for this template.
+
+    Django allauth email confirmation template source code:
+    https://github.com/pennersr/django-allauth/blob/main/allauth/templates/account/email_confirm.html
+
+    Wagtailadmin admin_base template source code:
+    https://github.com/wagtail/wagtail/blob/main/wagtail/admin/templates/wagtailadmin/admin_base.html
+{% endcomment %}
+
+{% block titletag %}Email Confirmation{% endblock %}
+{% block bodyclass %}login{% endblock %}
+{% block js %}{% endblock %}
+
+{% block extra_css %}
+    <style>
+        #confirmation-wrapper h1 {
+            font-size: 1.48rem;
+            margin-bottom: 1rem;
+        }
+        #confirmation-wrapper .messages ul {
+            opacity: 1 !important;
+            position: static !important;
+        }
+    </style>
+{% endblock %}
+
+{% block furniture %}
+    <main class="content-wrapper" id="main">
+        <div id="confirmation-wrapper">
+        {% if confirmation %}
+            <h1>Confirm Email Address</h1>
+
+            {% if messages %}
+                <div class="messages" role="status">
+                    <ul>
+                        {% for message in messages %}
+                            <li class="{{ message.tags }}">{{ message }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endif %}
+
+            {% user_display confirmation.email_address.user as user_display %}
+            {% if can_confirm %}
+                <p class="w-my-5">
+                    Please confirm that <a href="mailto:{{ email }}">{{ email }}</a> is an email address for user <code>{{ user_display }}</code>.
+                </p>
+                <form action="{% url 'account_confirm_email' confirmation.key %}" method="post">
+                    {% csrf_token %}
+                    {{ redirect_field }}
+                    <button type="submit" class="button">Confirm</button>
+                </form>
+            {% else %}
+                <h1>Email Address Already Verified</h1>
+                <p>The email address <code>{{ email }}</code> has already been verified.</p>
+            {% endif %}
+        {% else %}
+            <h1>Invalid Email Verification Link</h1>
+            <p>The email verification link was invalid, possibly because it has already been used or expired.</p>
+            <div class="form-actions">
+                <a href="{% url 'account_email' %}" class="button">Request a new email verification</a>.
+            </div>
+        {% endif %}
+        </div>
+    </main>
+{% endblock %}

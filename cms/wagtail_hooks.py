@@ -2,17 +2,20 @@
 
 from typing import TYPE_CHECKING, Any
 
+from allauth.account.models import EmailAddress
 from django.conf import settings
 from django.shortcuts import redirect
 from wagtail import hooks
 from wagtail.admin import messages
 
 from cms.handlers.external_link import ExternalLinkNewTabHandler
+from cms.panels.settings_panel import AllauthLinksPanel
 from cms.panels.workflow_panel import replace_user_objects_in_workflow_moderation_panel
 from cms.services.user import is_internal_user
 from cms.snippets.dashboard_data import DashboardDataDeleteBulkAction
 
 if TYPE_CHECKING:
+    from django.contrib.auth.models import User
     from django.http import HttpRequest, HttpResponse
     from wagtail.admin.ui.components import Component
     from wagtail.admin.ui.menus import MenuItem
@@ -24,6 +27,68 @@ if TYPE_CHECKING:
 # Override Wagtail's generic deletion handler for this snippet only, after its
 # default registration (order 0), including direct requests to the bulk URL.
 hooks.register("register_bulk_action", DashboardDataDeleteBulkAction, order=1)
+
+# Register the custom account settings panel for managing email and password.
+hooks.register("register_account_settings_panel", AllauthLinksPanel)
+
+
+# ------------------------------------------------------------------------------
+# Register hooks for user creation/editing to create/update EmailAddress objects
+# ------------------------------------------------------------------------------
+
+
+@hooks.register("after_create_user")
+def put_email_address_for_user(request: HttpRequest, user: User) -> None:
+    """Create an EmailAddress object for the user after they are created."""
+
+    # Allauth's uses the EmailAddress model to keep track of user's email and the
+    # email should be verified for MFA. Since new users are created by admins, we
+    # can assume that the email is verified and also it is set as primary.
+    #
+    # But if email is already present in the EmailAddress model, despite if it is
+    # verified or not, we will not create a new EmailAddress object for the user.
+    if EmailAddress.objects.filter(email=user.email.lower()).exists():
+        messages.warning(
+            request,
+            f"Email address '{user.email}' already exists in the system, "
+            f"so it was not added to the EmailAddress model for the user '{user.username}'.",
+        )
+    else:
+        EmailAddress.objects.create(
+            user_id=user.id, email=user.email.lower(), verified=True, primary=True
+        )
+
+
+@hooks.register("after_edit_user")
+def update_email_address_for_user(request: HttpRequest, user: User) -> None:
+    """Update the EmailAddress object for the user after they are edited."""
+
+    if EmailAddress.objects.filter(user_id=user.id, email=user.email.lower()).exists():
+        # If the email address is not changed for the user, we don't need to do anything.
+        return
+
+    email = user.email.lower()
+    if EmailAddress.objects.filter(email=email).exists():
+        # If this condition is true, it means that the email address is already present in the
+        # EmailAddress model for another user. In this case, we will not update the EmailAddress
+        # object for the user and will show a warning message.
+        messages.warning(
+            request,
+            f"Email address '{user.email}' already exists in the system, "
+            f"so it was not added to the EmailAddress model for the user '{user.username}'.",
+        )
+    else:
+        # If a primary email address already exists for the user, we will update it with the
+        # new email address. Otherwise, we will create a new EmailAddress object for the user
+        # with the new email address and set it as primary and verified.
+        EmailAddress.objects.update_or_create(
+            user_id=user.id, primary=True, defaults={"email": email, "verified": True}
+        )
+
+        # Since an admin editing the user email is a rare operation, after updating the primary
+        # email address, we will delete all other non-primary email addresses for the user.
+        EmailAddress.objects.filter(user_id=user.id, primary=False).delete()
+
 
 # -----------------------------------------------------------------------------
 # Register rich text features for external links

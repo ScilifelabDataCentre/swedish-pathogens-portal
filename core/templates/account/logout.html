@@ -1,0 +1,15 @@
+{% comment %}
+    This template is used to override django allauth's logout template. It is a simple template that
+    automatically submits a form to log the user out. The original template asks for confirmation
+    before logging out.
+
+    Django allauth logout template source code:
+    https://github.com/pennersr/django-allauth/blob/main/allauth/templates/account/logout.html
+{% endcomment %}
+
+<form id="logout-form" method="post" action="{% url 'account_logout' %}">
+    {% csrf_token %}
+    {{ redirect_field }}
+</form>
+
+<script>document.getElementById('logout-form').submit();</script>

@@ -1,0 +1,29 @@
+{% extends "wagtailadmin/admin_base.html" %}
+
+{% comment %}
+    This template is used to override django allauth's signup closed template. It just extends
+    wagtailadmin's admin_base template to keep the same layout and styling. Modified the
+    `block furniture` to display the allauth signup closed content. Kept the `block js` empty
+    to avoid loading wagtailadmin's js which is not needed for this template.
+
+    Django allauth signup closed template source code:
+    https://github.com/pennersr/django-allauth/blob/master/allauth/templates/account/signup_closed.html
+
+    Wagtailadmin admin_base template source code:
+    https://github.com/wagtail/wagtail/blob/main/wagtail/admin/templates/wagtailadmin/admin_base.html
+{% endcomment %}
+
+{% block titletag %}Signup{% endblock %}
+{% block bodyclass %}login{% endblock %}
+{% block js %}{% endblock %}
+
+{% block furniture %}
+    <main class="content-wrapper" id="main">
+        <div id="confirmation-wrapper">
+            <h1>Signups are closed</h1>
+            <p class="w-my-5">
+                Please contact the system administrator if you need an account.
+            </p>
+        </div>
+    </main>
+{% endblock %}

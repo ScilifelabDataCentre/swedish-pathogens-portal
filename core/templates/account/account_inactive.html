@@ -1,0 +1,29 @@
+{% extends "wagtailadmin/admin_base.html" %}
+
+{% comment %}
+    This template is used to override django allauth's account inactive template. It just
+    extends wagtailadmin's admin_base template to keep the same layout and styling. Modified
+    the `block furniture` to display the inactive account message. Kept the `block js` empty
+    to avoid loading wagtailadmin's js which is not needed for this template.
+
+    Django allauth inactive template source code:
+    https://github.com/pennersr/django-allauth/blob/master/allauth/templates/account/account_inactive.html
+
+    Wagtailadmin admin_base template source code:
+    https://github.com/wagtail/wagtail/blob/main/wagtail/admin/templates/wagtailadmin/admin_base.html
+{% endcomment %}
+
+{% block titletag %}Inactive account{% endblock %}
+{% block bodyclass %}login{% endblock %}
+{% block js %}{% endblock %}
+
+{% block furniture %}
+    <main class="content-wrapper" id="main">
+        <div id="inactive-wrapper">
+            <h1>Inactive Account</h1>
+            <p>
+                This account is inactive. Please contact the system administrator if you need assistance.
+            </p>
+        </div>
+    </main>
+{% endblock %}
