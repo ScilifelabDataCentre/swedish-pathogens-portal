@@ -28,10 +28,11 @@ from cms.snippets.drr_dataset_data import DrrDatasetData
 from cms.tests.drr.test_drr_precompute import FEATURE_CSV, METADATA_TSV, PLATE_METADATA_TSV
 from cms.tests.utils import create_test_image, use_temp_media_root
 
-# A representative, fully-populated summary payload, carrying the FREYA-2557
-# reconciliation block. Counts use comma-grouped values so the
-# ``intcomma`` render path is asserted unambiguously (Plotly div ids never carry
-# commas), and the reconciliation ids are distinctive tokens.
+# A representative, fully-populated summary payload. Counts use comma-grouped
+# values so the ``intcomma`` render path is asserted unambiguously (Plotly div
+# ids never carry commas). It keeps the FREYA-2557 reconciliation block, which
+# precompute still writes: the page must withhold a report the payload carries
+# (FREYA-3077), and a fixture without the block could not tell the two apart.
 FULL_SUMMARY = {
     "n_compounds": 821,
     "n_plates": 22,
@@ -311,12 +312,12 @@ class TestDrrDatasetPageRender(DrrDatasetPageTestCase):
         self.assertNotContains(response, "illumCONC")
         self.assertNotContains(response, "illumMITO")
 
-        # Compound-metadata reconciliation block (FREYA-2557).
-        self.assertContains(response, "Compound metadata reconciliation")
-        self.assertContains(response, "651")  # n_annotated
-        self.assertContains(response, "165")  # n_unannotated
-        self.assertContains(response, "Unannotated compound IDs (2)")
-        self.assertContains(response, "CBK000900, CBK000901")
+        # The reconciliation block is gone, though the summary still carries it
+        # (FREYA-3077): its one unannotated id is DMSO, which the annotation
+        # file has no row for, so the box reported a naming rule as a data gap.
+        self.assertNotContains(response, "Compound metadata reconciliation")
+        self.assertNotContains(response, "Unannotated compound IDs")
+        self.assertNotContains(response, "CBK000900")
 
         # Source provenance.
         self.assertContains(response, "datasetForPLS-DA.csv")
@@ -988,7 +989,7 @@ class TestDrrDatasetSliceAcceptance(DrrDatasetPageTestCase):
         cache.clear()
 
     def test_precompute_output_renders_on_the_page(self) -> None:
-        """drr_precompute output reaches the page: summary, reconciliation, and figure."""
+        """drr_precompute output reaches the page: summary and figure."""
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
         base = Path(tmp.name)
@@ -1039,9 +1040,14 @@ class TestDrrDatasetSliceAcceptance(DrrDatasetPageTestCase):
         self.assertEqual(row.summary["n_plates"], 2)
         self.assertIn("pca", row.data)
 
-        # The precomputed summary, reconciliation, and figure all reach the page.
+        # The precomputed summary and figure reach the page.
         self.assertContains(response, "Summary statistics")
-        self.assertContains(response, "Compound metadata reconciliation")
-        self.assertContains(response, "CBK3")  # the fixture's unmatched compound id
-        self.assertContains(response, "Unannotated compound IDs (1)")
         self.assertContains(response, 'class="plotly-figure"')
+
+        # The reconciliation report is still computed and stored, and is not
+        # rendered (FREYA-3077). The fixture's unmatched id is not asserted
+        # absent: the compound picker offers every precomputed id, this one
+        # included.
+        self.assertIn("compound_reconciliation", row.summary)
+        self.assertNotContains(response, "Compound metadata reconciliation")
+        self.assertNotContains(response, "Unannotated compound IDs")
