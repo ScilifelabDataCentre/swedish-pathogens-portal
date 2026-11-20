@@ -3,8 +3,8 @@
 {% plotlyjs_once %}
 <div
     id="liver-tln-plot"
-    class="plotly-figure w-full"
-    style="height: {{ height }}px;"
+    class="plotly-figure w-full flex-1 min-h-0"
+    style="min-height: {{ height }}px; height: {{ height }}px;"
     data-leaf-trace-index="{{ leaf_trace_index }}"
     data-cutoff="{{ cutoff|default:'0.05_1.5' }}"
     data-adj-p="{{ adj_p|default:'0.05' }}"
