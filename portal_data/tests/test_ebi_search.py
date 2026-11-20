@@ -398,6 +398,21 @@ class TestSearch(SimpleTestCase):
         with self.assertLogs("portal_data.ebi_search", level="ERROR"):
             self.assertIsNone(search(RAW_READS, start=1))
 
+    @patch("portal_data.ebi_search.SEARCH_CACHE_TTL_SECONDS", 0)
+    @patch("portal_data.ebi_search.fetch_json")
+    def test_last_good_results_are_served_marked_stale_when_ebi_fails(self, mock_fetch: MagicMock):
+        """Test a failed search falls back to the last good results, marked as stale."""
+        mock_fetch.return_value = ebi_response(total=5)
+        fresh = search(RAW_READS)
+        self.assertIsNone(fresh.stale_since)
+
+        mock_fetch.return_value = None
+        with self.assertLogs("cms.services.caching", level="WARNING"):
+            stale = search(RAW_READS)
+        self.assertEqual(mock_fetch.call_count, 2)
+        self.assertEqual(stale.total, 5)
+        self.assertIsNotNone(stale.stale_since)
+
 
 class TestFetchCount(SimpleTestCase):
     """Tests for fetch_count."""
@@ -421,3 +436,13 @@ class TestFetchCount(SimpleTestCase):
         """Test a failed request returns None."""
         mock_fetch.return_value = None
         self.assertIsNone(fetch_count(RAW_READS))
+
+    @patch("portal_data.ebi_search.COUNT_CACHE_TTL_SECONDS", 0)
+    @patch("portal_data.ebi_search.fetch_json")
+    def test_failure_falls_back_to_last_good_count(self, mock_fetch: MagicMock):
+        """Test a failed count falls back to the last good count."""
+        mock_fetch.return_value = {"hitCount": 42}
+        self.assertEqual(fetch_count(RAW_READS), 42)
+        mock_fetch.return_value = None
+        with self.assertLogs("cms.services.caching", level="WARNING"):
+            self.assertEqual(fetch_count(RAW_READS), 42)
