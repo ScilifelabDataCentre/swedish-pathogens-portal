@@ -223,31 +223,6 @@ class TestLiverViews(TestCase):
         download_body = b"".join(download.streaming_content)
         self.assertTrue(download_body.startswith(b"\xff\xd8"))
 
-    def test_download_supplementary_serves_wagtail_document(self) -> None:
-        """Test supplementary route serves the Wagtail Documents library file."""
-        from cms.tests.liver_resource.liver_helpers import create_supplementary_document
-
-        payload = b"PK\x03\x04supplementary-workbook"
-        create_supplementary_document(content=payload)
-        url = liver_route_url(self.page, "download_supplementary")
-        response = self.client.get(url)
-
-        self.assertEqual(response.status_code, 200)
-        self.assertIn(
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            response["Content-Type"],
-        )
-        self.assertIn("attachment", response["Content-Disposition"])
-        self.assertIn(".xlsx", response["Content-Disposition"])
-        body = b"".join(response.streaming_content)
-        self.assertEqual(body, payload)
-
-    def test_download_supplementary_missing_document_returns_404(self) -> None:
-        """Test supplementary route 404s when no Wagtail Document is uploaded."""
-        url = liver_route_url(self.page, "download_supplementary")
-        response = self.client.get(url)
-        self.assertEqual(response.status_code, 404)
-
     def test_export_module_scores_requires_session(self) -> None:
         """Test module scores export without session returns 400."""
         url = liver_route_url(self.page, "export_module_scores")

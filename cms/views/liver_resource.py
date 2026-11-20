@@ -16,7 +16,6 @@ MVP endpoint map (all required unless noted):
 | ``recompute`` | GET | Yes | FR-3 — change DE thresholds |
 | ``download_template`` | GET | Yes | FR-10 — DE template |
 | ``download_reference_figure`` | GET | Yes | Reference TLN map JPG |
-| ``download_supplementary`` | GET | Yes | Supplementary module workbook |
 | ``export_module_scores`` | GET | Yes | FR-7 — module scores CSV |
 | ``export_genes`` | GET | Yes | FR-7 — gene classification CSV |
 """
@@ -51,7 +50,10 @@ from dashboard_visualisation.liver_resource.plot_metric import (
     DEFAULT_PLOT_METRIC,
     parse_plot_metric,
 )
-from dashboard_visualisation.liver_resource.plotly_tln import DEFAULT_PLOT_HEIGHT_PX
+from dashboard_visualisation.liver_resource.plotly_tln import (
+    DEFAULT_PLOT_HEIGHT_PX,
+    normalize_tln_figure_layout,
+)
 from dashboard_visualisation.liver_resource.session import (
     de_data_from_session,
     de_uploads_from_session,
@@ -292,37 +294,6 @@ def download_reference_figure(request: HttpRequest, *, page) -> HttpResponse:
 
 
 @require_GET
-def download_supplementary(request: HttpRequest) -> HttpResponse:
-    """Serve the Wagtail-uploaded HepaGeNIE supplementary workbook."""
-    from pathlib import Path
-
-    from django.http import FileResponse
-
-    from dashboard_visualisation.liver_resource.supplementary import (
-        DOWNLOAD_FILENAME,
-        get_supplementary_document,
-    )
-
-    document = get_supplementary_document()
-    if document is None or not getattr(document, "file", None):
-        return HttpResponse(
-            "Supplementary workbook not found.",
-            status=404,
-            content_type="text/plain",
-        )
-
-    filename = Path(document.file.name).name or DOWNLOAD_FILENAME
-    return FileResponse(
-        document.file.open("rb"),
-        content_type=(
-            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-        ),
-        as_attachment=True,
-        filename=filename,
-    )
-
-
-@require_GET
 def export_module_scores(request: HttpRequest) -> HttpResponse:
     """Download module scores CSV (R ``*_module_scores.csv`` format) for the session.
 
@@ -468,7 +439,7 @@ def _render_validation_errors(
 def _render_plot_response(request: HttpRequest, analysis: LiverAnalysisResult) -> HttpResponse:
     """Convert analysis figure JSON to HTML and render the ``#liver-tln-panel`` partial."""
     plot_html = plot_html_from_json(
-        analysis.figure_json,
+        normalize_tln_figure_layout(analysis.figure_json),
         height=f"{DEFAULT_PLOT_HEIGHT_PX}px",
         include_plotlyjs=False,
     )

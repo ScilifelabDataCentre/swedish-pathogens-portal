@@ -1,7 +1,7 @@
-<div id="liver-tln-result">
+<div id="liver-tln-result" class="flex flex-col flex-1 min-h-0 h-full">
     {% include "cms/pages/liver_resource/partials/tln_plot_embed.html" with plot_html=plot_html height=height leaf_trace_index=leaf_trace_index cutoff=analysis.threshold_key adj_p=analysis.adj_p logfc_fold=analysis.logfc_fold plot_metric=analysis.plot_metric plot_mode=analysis.plot_mode %}
 
-    <p id="liver-analysis-stats" class="text-sm text-pp-dark-grey mt-3 px-2 pb-2">
+    <p id="liver-analysis-stats" class="text-sm text-pp-dark-grey mt-2 px-2 shrink-0">
         {% if analysis.plot_mode == "pie" %}
         <span class="font-medium">{{ analysis.comparisons|length }} comparisons</span>
         · pie mode

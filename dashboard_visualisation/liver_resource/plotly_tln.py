@@ -24,9 +24,60 @@ from dashboard_visualisation.utils.plotly import figure_to_json
 ComparisonRow = tuple[str, dict[int, float | None], dict[int, str]]
 
 BASE_LEAF_COLOUR = "lightskyblue"
-DEFAULT_FIGURE_HEIGHT = 800
 DEFAULT_FIGURE_WIDTH = 900
-DEFAULT_PLOT_HEIGHT_PX = 700
+# Keep Plotly layout height in sync with the template wrapper height.
+DEFAULT_PLOT_HEIGHT_PX = 560
+DEFAULT_FIGURE_HEIGHT = DEFAULT_PLOT_HEIGHT_PX
+
+
+def _tln_axis(**extra: Any) -> dict[str, Any]:
+    """Axis settings for the TLN: no ticks/grid, no subplot edge drag handles."""
+    axis: dict[str, Any] = {
+        "showgrid": False,
+        "zeroline": False,
+        "showticklabels": False,
+        # Hides Plotly's bottom/corner axis drag rects (ewdrag / sedrag).
+        "fixedrange": True,
+    }
+    axis.update(extra)
+    return axis
+
+
+def normalize_tln_figure_layout(figure_json: dict[str, Any]) -> dict[str, Any]:
+    """Force display height / axis flags on stored or freshly built figure JSON.
+
+    Older ``DashboardData`` rows may still embed ``layout.height`` 800, which
+    overflows the 560px wrapper and leaves an empty strip inside the plot card.
+    """
+    layout = figure_json.get("layout")
+    if not isinstance(layout, dict):
+        layout = {}
+        figure_json["layout"] = layout
+
+    layout["height"] = DEFAULT_FIGURE_HEIGHT
+    layout["width"] = layout.get("width") or DEFAULT_FIGURE_WIDTH
+    margin = layout.get("margin")
+    if not isinstance(margin, dict):
+        margin = {}
+    margin.setdefault("l", 20)
+    margin.setdefault("r", 20)
+    margin.setdefault("t", 50)
+    margin["b"] = max(int(margin.get("b") or 0), 40)
+    layout["margin"] = margin
+
+    for axis_name in ("xaxis", "yaxis"):
+        axis = layout.get(axis_name)
+        if not isinstance(axis, dict):
+            axis = {}
+        axis["fixedrange"] = True
+        axis.setdefault("showgrid", False)
+        axis.setdefault("zeroline", False)
+        axis.setdefault("showticklabels", False)
+        layout[axis_name] = axis
+    if "scaleanchor" not in layout["xaxis"]:
+        layout["xaxis"]["scaleanchor"] = "y"
+
+    return figure_json
 
 
 @lru_cache(maxsize=1)
@@ -221,20 +272,15 @@ def _build_figure(
         data=traces,
         layout=go.Layout(
             title={"text": title, "x": 0.5},
-            xaxis={
-                "showgrid": False,
-                "zeroline": False,
-                "showticklabels": False,
-                "scaleanchor": "y",
-            },
-            yaxis={"showgrid": False, "zeroline": False, "showticklabels": False},
+            xaxis=_tln_axis(scaleanchor="y"),
+            yaxis=_tln_axis(),
             plot_bgcolor="white",
             hovermode="closest",
             dragmode="pan",
             clickmode="event",
             width=DEFAULT_FIGURE_WIDTH,
             height=DEFAULT_FIGURE_HEIGHT,
-            margin={"l": 20, "r": 20, "t": 50, "b": 20},
+            margin={"l": 20, "r": 20, "t": 50, "b": 40},
         ),
     )
     return figure
@@ -277,20 +323,15 @@ def _build_multi_figure(
         data=traces,
         layout=go.Layout(
             title={"text": title, "x": 0.5},
-            xaxis={
-                "showgrid": False,
-                "zeroline": False,
-                "showticklabels": False,
-                "scaleanchor": "y",
-            },
-            yaxis={"showgrid": False, "zeroline": False, "showticklabels": False},
+            xaxis=_tln_axis(scaleanchor="y"),
+            yaxis=_tln_axis(),
             plot_bgcolor="white",
             hovermode="closest",
             dragmode="pan",
             clickmode="event",
             width=DEFAULT_FIGURE_WIDTH,
             height=DEFAULT_FIGURE_HEIGHT,
-            margin={"l": 20, "r": 20, "t": 50, "b": 20},
+            margin={"l": 20, "r": 20, "t": 50, "b": 40},
             shapes=pie_shapes,
         ),
     )
