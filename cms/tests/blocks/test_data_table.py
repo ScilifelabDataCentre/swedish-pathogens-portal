@@ -306,6 +306,21 @@ class GetTableContextTest(SimpleTestCase):
         self.assertEqual(len(list(ctx["page_obj"])), 30)
         self.assertEqual(ctx["page_obj"].paginator.num_pages, 1)
 
+    def test_show_controls_false_ignores_search(self) -> None:
+        """A search param can't hide rows of a table without a search box."""
+        request = self.factory.get("/", {"search": "item-5"})
+        ctx = get_table_context(
+            request=request,
+            rows=self.rows,
+            headers=self.headers,
+            caption="",
+            table_url="/test/",
+            show_controls=False,
+        )
+        self.assertEqual(ctx["search"], "")
+        self.assertEqual(ctx["total_count"], 30)
+        self.assertEqual(len(list(ctx["page_obj"])), 30)
+
     def test_empty_rows_returns_zero_counts(self) -> None:
         """Empty dataset yields zero for total, start, and end index."""
         ctx = get_table_context(
@@ -610,6 +625,7 @@ def _table_content_json(
     *,
     rows: list[list[Any]] | None = None,
     caption: str = "Test Table",
+    show_controls: bool = True,
 ) -> str:
     """Return StreamField JSON containing one DataTableBlock."""
     if rows is None:
@@ -620,7 +636,7 @@ def _table_content_json(
                 "type": "data_table",
                 "value": {
                     "table_id": table_id,
-                    "show_controls": True,
+                    "show_controls": show_controls,
                     "per_page": "10",
                     "table": {
                         "columns": [
@@ -707,6 +723,25 @@ class TablePartialViewTest(WagtailPageTestCase):
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, "student-3")
         self.assertNotContains(resp, "student-0")
+
+    def test_search_ignored_without_controls(self) -> None:
+        """A table without controls shows every row, whatever the search param."""
+        page = BasicPage(title="No Controls", slug="no-controls")
+        page.content = _table_content_json(
+            "plain",
+            rows=[[f"student-{i}", float(i), 18 + i] for i in range(15)],
+            show_controls=False,
+        )
+        self.home.add_child(instance=page)
+        page.save_revision().publish()
+
+        for url in (page.url, self._url(page_pk=page.pk, table_id="plain")):
+            with self.subTest(url=url):
+                resp = self.client.get(url, {"search": "student-3"})
+                self.assertEqual(resp.status_code, 200)
+                self.assertContains(resp, "student-0")
+                self.assertContains(resp, "student-14")
+                self.assertNotContains(resp, "No entries matching")
 
     def test_pagination(self) -> None:
         """Page 2 shows rows 11-15 and omits rows 0-9."""
