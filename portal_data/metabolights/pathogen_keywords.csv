@@ -1,0 +1,354 @@
+keyword,pathogen
+tuberculosis,Mycobacterium tuberculosis
+Lassa,Lassa virus
+mammarenavirus lassense,Lassa virus
+MERS,MERS-CoV
+MERS-CoV,MERS-CoV
+merbecovirus,MERS-CoV
+SARS,SARS-CoV
+SARS-CoV,SARS-CoV
+SARS-CoV-2,SARS-CoV-2
+COVID-19,SARS-CoV-2
+COVID,SARS-CoV-2
+Ebola,Ebola virus
+ebolavirus,Ebola virus
+orthoebolavirus zairense,Ebola virus
+Sudan virus,Sudan virus
+orthoebolavirus sudanense,Sudan virus
+Marburg,Marburg virus
+marburgvirus,Marburg virus
+orthomarburgvirus marburgense,Marburg virus
+yellow fever,Yellow fever virus
+orthoflavivirus flavi,Yellow fever virus
+dengue,Dengue virus
+dengue virus,Dengue virus
+orthoflavivirus denguei,Dengue virus
+Zika,Zika virus
+Zika virus,Zika virus
+orthoflavivirus zikaense,Zika virus
+West Nile,West Nile virus
+West Nile virus,West Nile virus
+WNV,West Nile virus
+Japanese encephalitis,Japanese encephalitis virus
+JEV,Japanese encephalitis virus
+tick-borne encephalitis,Tick-borne encephalitis virus
+TBE,Tick-borne encephalitis virus
+TBEV,Tick-borne encephalitis virus
+Hantaan virus,Hantaan virus
+orthohantavirus hantanense,Hantaan virus
+Sin Nombre virus,Sin Nombre virus
+orthohantavirus sinnombreense,Sin Nombre virus
+hantavirus,Hantavirus
+Crimean-Congo hemorrhagic fever,Crimean-Congo haemorrhagic fever virus
+Crimean-Congo haemorrhagic fever,Crimean-Congo haemorrhagic fever virus
+CCHF,Crimean-Congo haemorrhagic fever virus
+orthonairovirus haemorrhagiae,Crimean-Congo haemorrhagic fever virus
+influenza,Influenza virus
+influenza A,Influenza A virus
+influenza B,Influenza B virus
+influenza virus,Influenza virus
+H1N1,Influenza A virus
+H2N2,Influenza A virus
+H3N2,Influenza A virus
+H5N1,Influenza A virus
+H5N2,Influenza A virus
+H5N6,Influenza A virus
+H5N8,Influenza A virus
+H6N1,Influenza A virus
+H7N3,Influenza A virus
+H7N7,Influenza A virus
+H7N9,Influenza A virus
+H9N2,Influenza A virus
+H10N3,Influenza A virus
+H10N8,Influenza A virus
+avian influenza,Influenza A virus
+highly pathogenic avian influenza,Influenza A virus
+HPAI,Influenza A virus
+Nipah,Nipah virus
+henipavirus nipahense,Nipah virus
+Hendra,Hendra virus
+Dabie bandavirus,SFTS virus
+SFTS,SFTS virus
+SFTSV,SFTS virus
+chikungunya,Chikungunya virus
+chikungunya virus,Chikungunya virus
+alphavirus chikungunya,Chikungunya virus
+Venezuelan equine encephalitis,Venezuelan equine encephalitis virus
+alphavirus venezuelan,Venezuelan equine encephalitis virus
+Eastern equine encephalitis,Eastern equine encephalitis virus
+Western equine encephalitis,Western equine encephalitis virus
+mpox,Monkeypox virus
+monkeypox,Monkeypox virus
+variola,Variola virus
+smallpox,Variola virus
+enterovirus,Enterovirus
+enterovirus coxsackie,Enterovirus
+coxsackievirus,Enterovirus
+EV71,Enterovirus
+EV-D68,Enterovirus
+echovirus,Enterovirus
+poliovirus,Poliovirus
+polio,Poliovirus
+poliomyelitis,Poliovirus
+rotavirus,Rotavirus
+norovirus,Norovirus
+Norwalk,Norovirus
+HIV,HIV
+HIV-1,HIV
+HIV-2,HIV
+AIDS,HIV
+hepatitis A,Hepatitis A virus
+hepatitis B,Hepatitis B virus
+hepatitis C,Hepatitis C virus
+hepatitis D,Hepatitis D virus
+hepatitis E,Hepatitis E virus
+HAV,Hepatitis A virus
+HBV,Hepatitis B virus
+HCV,Hepatitis C virus
+HDV,Hepatitis D virus
+HEV,Hepatitis E virus
+HSV,Herpes simplex virus
+herpes simplex,Herpes simplex virus
+HPV,Human papillomavirus
+human papillomavirus,Human papillomavirus
+EBV,Epstein-Barr virus
+Epstein-Barr,Epstein-Barr virus
+CMV,Cytomegalovirus
+cytomegalovirus,Cytomegalovirus
+RSV,Respiratory syncytial virus
+respiratory syncytial virus,Respiratory syncytial virus
+adenovirus,Adenovirus
+measles,Measles virus
+rubeola,Measles virus
+mumps,Mumps virus
+rubella,Rubella virus
+varicella,Varicella-zoster virus
+varicella-zoster,Varicella-zoster virus
+VZV,Varicella-zoster virus
+chickenpox,Varicella-zoster virus
+shingles,Varicella-zoster virus
+rabies,Rabies virus
+lyssavirus,Rabies virus
+Vibrio cholerae,Vibrio cholerae
+Vibrio,Vibrio
+cholera,Vibrio cholerae
+Yersinia pestis,Yersinia pestis
+Yersinia,Yersinia
+Yersinia enterocolitica,Yersinia enterocolitica
+yersiniosis,Yersinia enterocolitica
+plague,Yersinia pestis
+Shigella,Shigella
+Shigella dysenteriae serotype 1,Shigella
+shigellosis,Shigella
+Salmonella,Salmonella enterica
+Salmonella enterica,Salmonella enterica
+Salmonella typhimurium,Salmonella enterica
+Salmonella enterica invasive non-typhoidal serovars,Salmonella enterica
+iNTS,Salmonella enterica
+typhoid,Salmonella enterica
+typhoid fever,Salmonella enterica
+salmonellosis,Salmonella enterica
+Escherichia,Escherichia coli
+Escherichia coli,Escherichia coli
+E. coli,Escherichia coli
+ETEC,Escherichia coli
+EHEC,Escherichia coli
+EPEC,Escherichia coli
+STEC,Escherichia coli
+UPEC,Escherichia coli
+Staphylococcus,Staphylococcus
+Staphylococcus aureus,Staphylococcus aureus
+S. aureus,Staphylococcus aureus
+MRSA,Staphylococcus aureus
+methicillin-resistant,Staphylococcus aureus
+VISA,Staphylococcus aureus
+VRSA,Staphylococcus aureus
+Streptococcus,Streptococcus
+Streptococcus pneumoniae,Streptococcus pneumoniae
+S. pneumoniae,Streptococcus pneumoniae
+pneumococcus,Streptococcus pneumoniae
+pneumococcal,Streptococcus pneumoniae
+Streptococcus pyogenes,Streptococcus pyogenes
+S. pyogenes,Streptococcus pyogenes
+group A streptococcus,Streptococcus pyogenes
+group B streptococcus,Streptococcus agalactiae
+Streptococcus agalactiae,Streptococcus agalactiae
+Pseudomonas,Pseudomonas
+Pseudomonas aeruginosa,Pseudomonas aeruginosa
+P. aeruginosa,Pseudomonas aeruginosa
+Mycobacterium,Mycobacterium
+Mycobacterium tuberculosis,Mycobacterium tuberculosis
+M. tuberculosis,Mycobacterium tuberculosis
+MTB,Mycobacterium tuberculosis
+mycobacterial,Mycobacterium
+Mycobacterium leprae,Mycobacterium leprae
+leprosy,Mycobacterium leprae
+Mycobacterium avium,Mycobacterium avium
+Listeria,Listeria monocytogenes
+Listeria monocytogenes,Listeria monocytogenes
+L. monocytogenes,Listeria monocytogenes
+listeriosis,Listeria monocytogenes
+Campylobacter,Campylobacter
+Campylobacter jejuni,Campylobacter jejuni
+C. jejuni,Campylobacter jejuni
+campylobacteriosis,Campylobacter
+Helicobacter,Helicobacter pylori
+Helicobacter pylori,Helicobacter pylori
+H. pylori,Helicobacter pylori
+Neisseria,Neisseria
+Neisseria gonorrhoeae,Neisseria gonorrhoeae
+gonorrhea,Neisseria gonorrhoeae
+gonorrhoea,Neisseria gonorrhoeae
+Neisseria meningitidis,Neisseria meningitidis
+meningococcus,Neisseria meningitidis
+meningococcal,Neisseria meningitidis
+Bordetella,Bordetella pertussis
+Bordetella pertussis,Bordetella pertussis
+pertussis,Bordetella pertussis
+whooping cough,Bordetella pertussis
+Chlamydia,Chlamydia
+Chlamydia trachomatis,Chlamydia trachomatis
+chlamydial,Chlamydia
+Treponema,Treponema pallidum
+Treponema pallidum,Treponema pallidum
+syphilis,Treponema pallidum
+Borrelia,Borrelia
+Borrelia burgdorferi,Borrelia burgdorferi
+Lyme disease,Borrelia burgdorferi
+Lyme borreliosis,Borrelia burgdorferi
+Lyme,Borrelia burgdorferi
+Bacillus,Bacillus
+Bacillus anthracis,Bacillus anthracis
+anthrax,Bacillus anthracis
+Bacillus cereus,Bacillus cereus
+Clostridium,Clostridium
+Clostridioides,Clostridioides difficile
+Clostridioides difficile,Clostridioides difficile
+Clostridium difficile,Clostridioides difficile
+C. difficile,Clostridioides difficile
+C. diff,Clostridioides difficile
+Clostridium botulinum,Clostridium botulinum
+botulism,Clostridium botulinum
+Clostridium tetani,Clostridium tetani
+tetanus,Clostridium tetani
+Clostridium perfringens,Clostridium perfringens
+Legionella,Legionella
+Legionella pneumophila,Legionella pneumophila
+Legionnaires,Legionella pneumophila
+legionellosis,Legionella pneumophila
+Enterococcus,Enterococcus
+Enterococcus faecalis,Enterococcus faecalis
+Enterococcus faecium,Enterococcus faecium
+Klebsiella pneumoniae,Klebsiella pneumoniae
+Klebsiella,Klebsiella
+multidrug-resistant Klebsiella,Klebsiella pneumoniae
+Acinetobacter,Acinetobacter
+Acinetobacter baumannii,Acinetobacter baumannii
+Burkholderia,Burkholderia
+Burkholderia cepacia,Burkholderia cepacia
+Burkholderia pseudomallei,Burkholderia pseudomallei
+melioidosis,Burkholderia pseudomallei
+Francisella,Francisella tularensis
+Francisella tularensis,Francisella tularensis
+tularemia,Francisella tularensis
+Brucella,Brucella
+brucellosis,Brucella
+Coxiella,Coxiella burnetii
+Coxiella burnetii,Coxiella burnetii
+Q fever,Coxiella burnetii
+Rickettsia,Rickettsia
+rickettsial,Rickettsia
+typhus,Rickettsia
+Rocky Mountain spotted fever,Rickettsia rickettsii
+Mycoplasma,Mycoplasma
+Mycoplasma pneumoniae,Mycoplasma pneumoniae
+Haemophilus,Haemophilus
+Haemophilus influenzae,Haemophilus influenzae
+Hib,Haemophilus influenzae
+Plasmodium,Plasmodium
+Plasmodium falciparum,Plasmodium falciparum
+Plasmodium vivax,Plasmodium vivax
+Plasmodium ovale,Plasmodium ovale
+Plasmodium malariae,Plasmodium malariae
+malaria,Plasmodium
+malarial,Plasmodium
+Toxoplasma,Toxoplasma gondii
+Toxoplasma gondii,Toxoplasma gondii
+toxoplasmosis,Toxoplasma gondii
+Leishmania,Leishmania
+leishmaniasis,Leishmania
+visceral leishmaniasis,Leishmania
+kala-azar,Leishmania
+Trypanosoma,Trypanosoma
+Trypanosoma cruzi,Trypanosoma cruzi
+Trypanosoma brucei,Trypanosoma brucei
+trypanosomiasis,Trypanosoma
+sleeping sickness,Trypanosoma brucei
+African trypanosomiasis,Trypanosoma brucei
+Chagas,Trypanosoma cruzi
+Chagas disease,Trypanosoma cruzi
+Schistosoma,Schistosoma
+Schistosoma mansoni,Schistosoma mansoni
+Schistosoma haematobium,Schistosoma haematobium
+schistosomiasis,Schistosoma
+bilharzia,Schistosoma
+Giardia,Giardia lamblia
+Giardia lamblia,Giardia lamblia
+giardiasis,Giardia lamblia
+Entamoeba,Entamoeba histolytica
+Entamoeba histolytica,Entamoeba histolytica
+amoebiasis,Entamoeba histolytica
+amebiasis,Entamoeba histolytica
+Cryptosporidium,Cryptosporidium
+Cryptosporidium parvum,Cryptosporidium parvum
+cryptosporidiosis,Cryptosporidium
+Onchocerca,Onchocerca volvulus
+Onchocerca volvulus,Onchocerca volvulus
+onchocerciasis,Onchocerca volvulus
+river blindness,Onchocerca volvulus
+Wuchereria,Wuchereria bancrofti
+Strongyloides,Strongyloides stercoralis
+strongyloidiasis,Strongyloides stercoralis
+Ascaris,Ascaris lumbricoides
+Ascaris lumbricoides,Ascaris lumbricoides
+ascariasis,Ascaris lumbricoides
+Trichuris,Trichuris trichiura
+trichuriasis,Trichuris trichiura
+whipworm,Trichuris trichiura
+Necator,Necator americanus
+Ancylostoma,Ancylostoma
+Taenia,Taenia
+taeniasis,Taenia
+cysticercosis,Taenia
+Echinococcus,Echinococcus
+echinococcosis,Echinococcus
+hydatid,Echinococcus
+Candida,Candida
+Candida albicans,Candida albicans
+candidiasis,Candida
+candidemia,Candida
+Aspergillus,Aspergillus
+Aspergillus fumigatus,Aspergillus fumigatus
+aspergillosis,Aspergillus
+Cryptococcus,Cryptococcus
+Cryptococcus neoformans,Cryptococcus neoformans
+cryptococcosis,Cryptococcus
+Pneumocystis,Pneumocystis jirovecii
+Pneumocystis jirovecii,Pneumocystis jirovecii
+PJP,Pneumocystis jirovecii
+Pneumocystis pneumonia,Pneumocystis jirovecii
+Histoplasma,Histoplasma capsulatum
+Histoplasma capsulatum,Histoplasma capsulatum
+histoplasmosis,Histoplasma capsulatum
+Coccidioides,Coccidioides
+coccidioidomycosis,Coccidioides
+valley fever,Coccidioides
+Blastomyces,Blastomyces
+blastomycosis,Blastomyces
+Mucor,Mucorales
+Mucorales,Mucorales
+mucormycosis,Mucorales
+Trichophyton,Trichophyton
+Microsporum,Microsporum
+CRAB,Acinetobacter baumannii
+CRPA,Pseudomonas aeruginosa

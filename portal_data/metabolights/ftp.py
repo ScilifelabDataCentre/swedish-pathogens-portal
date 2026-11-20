@@ -8,10 +8,12 @@ can be unit-tested with a fake server.
 
 It keeps the semantics the script relied on:
 
-* By default only each study's investigation file (i_Investigation.txt) is
-  fetched -- not its subdirectories, such as METADATA_REVISIONS, which can
-  hold older copies of the file. ``all_files=True`` mirrors the whole study
-  directory recursively instead.
+* By default only each study's metadata is fetched: its investigation file
+  (i_Investigation.txt) and its sample files (s_*.txt, which hold e.g. the
+  organism of each sample). Only files at the top of the study directory
+  count -- not its subdirectories, such as METADATA_REVISIONS, which can
+  hold older copies. ``all_files=True`` mirrors the whole study directory
+  recursively instead.
 * Like ``lftp mirror`` (and unlike a plain ``get``), a local file is
   re-downloaded whenever its size or modification time differs from the
   remote one, so an updated investigation file is actually caught, and an
@@ -39,6 +41,8 @@ from pathlib import Path, PurePosixPath
 FTP_HOST = "ftp.ebi.ac.uk"
 FTP_TIMEOUT_SECONDS = 60
 INVESTIGATION_FILE = "i_Investigation.txt"
+SAMPLE_FILE_PREFIX = "s_"
+SAMPLE_FILE_SUFFIX = ".txt"
 PARTIAL_SUFFIX = ".part"
 
 Progress = Callable[[str], None]
@@ -169,6 +173,31 @@ def _list_directory_fallback(
         yield name, kind, (int(size) if size.isdigit() else None), None
 
 
+def is_metadata_file(name: str) -> bool:
+    """Return True for the files a default (metadata-only) fetch downloads."""
+    return name == INVESTIGATION_FILE or (
+        name.startswith(SAMPLE_FILE_PREFIX) and name.endswith(SAMPLE_FILE_SUFFIX)
+    )
+
+
+def list_metadata_files(ftp: ftplib.FTP, remote_dir: str) -> list[RemoteFile]:
+    """Return the investigation and sample files at the top of a study directory.
+
+    Raises FileNotFoundError if the study has no investigation file, so
+    fetch_studies records it as failed: a study without one can't be listed
+    on the Portal Data page.
+    """
+    files: list[RemoteFile] = []
+    for name, kind, size, mtime in _list_directory(ftp, remote_dir):
+        if kind == "file" and is_metadata_file(name):
+            _check_safe_name(name, remote_dir)
+            files.append(RemoteFile(PurePosixPath(name), size, mtime))
+    if not any(f.relative_path.name == INVESTIGATION_FILE for f in files):
+        msg = f"{remote_dir}/{INVESTIGATION_FILE}: No such file on the server"
+        raise FileNotFoundError(msg)
+    return files
+
+
 def walk_remote(ftp: ftplib.FTP, remote_dir: str) -> Iterator[RemoteFile]:
     """Yield every file under remote_dir, recursively, relative to remote_dir."""
 
@@ -239,14 +268,13 @@ def fetch_study(
     if all_files:
         remote_files: Iterable[RemoteFile] = walk_remote(ftp, remote_dir)
     else:
-        size, mtime = stat_remote_file(ftp, f"{remote_dir}/{INVESTIGATION_FILE}")
-        remote_files = [RemoteFile(PurePosixPath(INVESTIGATION_FILE), size, mtime)]
+        remote_files = list_metadata_files(ftp, remote_dir)
 
     downloaded: list[Path] = []
     unchanged: list[Path] = []
     for remote in remote_files:
         remote_path = f"{remote_dir}/{remote.relative_path}"
-        if remote.mtime is None and all_files:
+        if remote.mtime is None:  # listed via the LIST fallback, which has no mtimes
             _, mtime = stat_remote_file(ftp, remote_path)
             remote = RemoteFile(remote.relative_path, remote.size, mtime)
         local = local_dir.joinpath(*remote.relative_path.parts)

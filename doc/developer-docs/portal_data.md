@@ -64,9 +64,9 @@ python manage.py metabolights_search
 python manage.py metabolights_search --publications publications.csv  # authors from a CSV export instead
 python manage.py metabolights_search --retry-errors   # if it exited with code 3
 
-# 2. Download each study's i_Investigation.txt into $DATASETS_ROOT/<accession>/.
+# 2. Download each study's metadata (i_Investigation.txt and s_*.txt) into $DATASETS_ROOT/<accession>/.
 python manage.py metabolights_fetch
-python manage.py metabolights_fetch --all             # every file, not just the investigation file
+python manage.py metabolights_fetch --all             # every file, not just the metadata files
 python manage.py metabolights_fetch MTBLS1464 MTBLS2  # specific studies instead of targets.txt
 ```
 
@@ -81,6 +81,15 @@ Both commands check before starting that their output folder is writable, so a r
 The logic lives in `portal_data/metabolights/` (`europepmc.py` and `ftp.py`). The commands are in `cms/management/commands/` because `portal_data` is not an installed Django app.
 
 `services.py` locates and parses `i_Investigation.txt` for each study directory it finds. In practice, this file contains the study-level metadata used for the listing page. It prefers the latest revision under `METADATA_REVISIONS/` if that directory exists, falling back to the top-level file.
+
+### Organism and Pathogens facets
+
+Two facets come from outside the investigation file:
+
+- **Organisms** come from the `Characteristics[Organism]` column of each study's `s_*.txt` sample file(s), which `metabolights_fetch` downloads alongside `i_Investigation.txt` (`parse_sample_organisms` in `services.py`). Control-sample placeholders such as `blank` or `Medium` are dropped, co-cultures (`A;B`) are split, and strains are merged into their species (`Escherichia coli E1777` becomes `Escherichia coli`; see `normalize_organism`). Hybrids, genus-only names and non-binomial virus names are kept as written.
+- **Pathogens** come from the latest `metabolights_search` results: the keywords that matched each study's papers, mapped to pathogen names by `portal_data/metabolights/pathogen_keywords.csv` (see `portal_data/metabolights/pathogens.py`). Only keywords that identify a pathogen are mapped, and synonyms share a name (`E. coli`, `ETEC` → *Escherichia coli*; `COVID-19` → SARS-CoV-2). Generic terms, multi-cause diseases and ambiguous abbreviations are deliberately left out. Only studies found by the search get pathogens, and they reflect the paper text rather than what the dataset measured. Edit the mapping CSV to change what the facet shows; a test checks that every mapped keyword exists in the search keyword list.
+
+Both are also included in the free-text search.
 
 ### HTML sanitisation
 
