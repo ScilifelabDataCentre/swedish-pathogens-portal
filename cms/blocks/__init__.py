@@ -15,6 +15,7 @@ from .page_section import PageSectionBlock
 from .plotly_figure import PlotlyFigureBlock
 from .portal_data_summary import PortalDataSummaryBlock
 from .publications import PathogenBlock, PublicationsBlock
+from .serve_apps import ServeAppsBlock
 from .static_figure import StaticFigureBlock
 
 __all__ = [
@@ -32,5 +33,6 @@ __all__ = [
     "PlotlyFigureBlock",
     "PortalDataSummaryBlock",
     "PublicationsBlock",
+    "ServeAppsBlock",
     "StaticFigureBlock",
 ]

@@ -23,6 +23,7 @@ from .plp_index import PlpIndexPage
 from .plp_project import PlpProjectPage
 from .portal_data import PortalDataPage
 from .publications import PublicationsPage
+from .serve_apps import ServeAppsPage
 from .slu_dashboard import SLUDashboardPage
 from .slu_dashboard_subpage import SLUDashboardSubPage
 from .topics import TopicPage
@@ -52,6 +53,7 @@ __all__ = [
     "PlpProjectPage",
     "PortalDataPage",
     "PublicationsPage",
+    "ServeAppsPage",
     "SLUDashboardPage",
     "SLUDashboardSubPage",
     "TopicPage",

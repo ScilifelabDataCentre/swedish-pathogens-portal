@@ -43,7 +43,7 @@
             <div class="collapse-content">
                 <fieldset class="m-0 border-0 p-0">
                     <legend class="sr-only">{{ facet.label }}</legend>
-                    <ul class="mt-1 list-none space-y-1 pl-0">
+                    <ul class="mt-1 mb-0 list-none space-y-1 pl-0">
                         {% for item in facet.values %}
                             {% include "cms/pages/genomic_data/partials/facet_option.html" %}
                         {% endfor %}
@@ -51,7 +51,7 @@
 
                     {% if facet.more_values %}
                     <ul id="ena-facet-more-{{ facet_id }}"
-                        class="mt-1 list-none space-y-1 pl-0{% if not facet.more_selected %} hidden{% endif %}">
+                        class="mt-1 mb-0 list-none space-y-1 pl-0{% if not facet.more_selected %} hidden{% endif %}">
                         {% for item in facet.more_values %}
                             {% include "cms/pages/genomic_data/partials/facet_option.html" %}
                         {% endfor %}
