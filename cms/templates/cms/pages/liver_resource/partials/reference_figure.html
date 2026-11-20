@@ -26,6 +26,11 @@
         />
         <span class="sr-only">Click to zoom reference TLN map</span>
     </button>
+    {% if page.image_caption %}
+        <figcaption class="text-sm text-pp-dark-grey mt-1 italic text-center block w-full wrap-break-word">
+            {{ page.image_caption }}
+        </figcaption>
+    {% endif %}
 </figure>
 
 <dialog

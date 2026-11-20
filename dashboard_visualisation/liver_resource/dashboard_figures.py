@@ -11,7 +11,10 @@ from dashboard_visualisation.liver_resource.analysis import (
     LiverAnalysisResult,
     PlotMode,
 )
-from dashboard_visualisation.liver_resource.plotly_tln import build_base_figure_json
+from dashboard_visualisation.liver_resource.plotly_tln import (
+    build_base_figure_json,
+    normalize_tln_figure_layout,
+)
 
 LIVER_DASHBOARD_SLUG = "liver-resource"
 
@@ -54,8 +57,8 @@ def resolve_base_tln_figure(data: dict[str, Any]) -> dict[str, Any]:
     """Return stored base TLN JSON or build from bundled reference data."""
     stored = data.get("base_tln")
     if _is_plotly_figure(stored):
-        return stored
-    return build_base_figure_json()
+        return normalize_tln_figure_layout(stored)
+    return normalize_tln_figure_layout(build_base_figure_json())
 
 
 def get_stored_example(

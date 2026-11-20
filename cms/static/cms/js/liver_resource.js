@@ -38,6 +38,43 @@
         return wrapper ? wrapper.querySelector(".plotly-graph-div") : null;
     }
 
+    /**
+     * Grow/shrink the Plotly figure so the plot card matches the sidebar
+     * height without leaving an empty strip under the chart.
+     */
+    function fitPlotToEqualCardHeight() {
+        const plotCard = document.getElementById("tln-container");
+        const wrapper = getPlotWrapper();
+        const graph = getPlotGraphDiv();
+        if (!plotCard || !wrapper || !graph || typeof Plotly === "undefined") {
+            return;
+        }
+
+        const body = plotCard.querySelector(".card-body");
+        const legend = document.getElementById("liver-colour-legend");
+        const stats =
+            document.getElementById("liver-analysis-stats") ||
+            document.querySelector("#liver-tln-result > p");
+        if (!body) {
+            return;
+        }
+
+        let available = body.clientHeight;
+        if (legend) {
+            available -= legend.offsetHeight;
+        }
+        if (stats) {
+            available -= stats.offsetHeight;
+        }
+        // Small gap allowance between plot and legend/stats.
+        available -= 16;
+        available = Math.max(Math.round(available), 480);
+
+        wrapper.style.height = `${available}px`;
+        wrapper.style.minHeight = `${available}px`;
+        Plotly.relayout(graph, { height: available, autosize: true });
+    }
+
     function getCurrentAdjP() {
         if (adjPSelect) {
             return adjPSelect.value;
@@ -221,6 +258,7 @@
         setHasSession(true);
         clearValidationErrors();
         enableExportLinks();
+        requestAnimationFrame(() => fitPlotToEqualCardHeight());
     }
 
     adjPSelect?.addEventListener("change", () => recomputeControls());
@@ -244,4 +282,13 @@
             referenceFigureDialog.showModal();
         });
     }
+
+    window.addEventListener("resize", () => {
+        requestAnimationFrame(() => fitPlotToEqualCardHeight());
+    });
+
+    // Initial layout after Plotly paints the base figure.
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => fitPlotToEqualCardHeight());
+    });
 })();

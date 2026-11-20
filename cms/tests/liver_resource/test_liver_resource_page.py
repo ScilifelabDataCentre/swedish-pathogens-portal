@@ -15,7 +15,6 @@ from cms.pages.liver_resource import (
 from cms.snippets.dashboard_data import DashboardData
 from cms.tests.liver_resource.liver_helpers import (
     create_published_liver_resource_page,
-    create_supplementary_document,
     liver_route_url,
 )
 from cms.tests.utils import create_test_image
@@ -103,7 +102,7 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
         context = self.page.get_context(request)
 
         self.assertIn("plotly-graph-div", context["base_plot_html"])
-        self.assertEqual(context["plot_height"], 700)
+        self.assertEqual(context["plot_height"], 560)
         self.assertEqual(context["leaf_trace_index"], 2)
 
     def test_get_context_includes_examples(self) -> None:
@@ -161,21 +160,10 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
             context["liver_reference_figure_url"],
             liver_route_url(self.page, "download_reference_figure"),
         )
-        self.assertIsNone(context["liver_supplementary_url"])
+        self.assertNotIn("liver_supplementary_url", context)
         self.assertIn("/upload/", context["liver_upload_url"])
         self.assertIn("/recompute/", context["liver_recompute_url"])
         self.assertNotIn("/cms/liver/", context["liver_upload_url"])
-
-    def test_get_context_includes_supplementary_url_when_document_uploaded(self) -> None:
-        """Test supplementary download URL appears only after Document upload."""
-        create_supplementary_document()
-        request = self.client.get(self.page.url).wsgi_request
-        context = self.page.get_context(request)
-
-        self.assertEqual(
-            context["liver_supplementary_url"],
-            liver_route_url(self.page, "download_supplementary"),
-        )
 
     def test_get_context_example_label_uses_dashboard_data_filename(self) -> None:
         """Test example button uses GSE126848 label for an obese-named DashboardData file."""
@@ -211,12 +199,28 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
         self.assertContains(response, 'id="liver-reference-figure-open"')
         self.assertNotContains(response, 'id="liver-reference-figure-download"')
         self.assertNotContains(response, "Download reference figure")
+        self.assertNotContains(response, "<figcaption")
 
-    def test_split_liver_content_moves_how_to_cite_below_plot(self) -> None:
-        """Test APA 'How to cite' text blocks are split out for below-plot rendering."""
+    def test_page_shows_optional_image_caption_under_reference_figure(self) -> None:
+        """Test Highlights-style image_caption renders under the reference TLN map."""
+        caption = "Reference TLN map (function themes)."
+        self.page.image_caption = caption
+        self.page.save_revision().publish()
+
+        response = self.client.get(self.page.url)
+        self.assertContains(response, "<figcaption")
+        self.assertContains(response, caption)
+        self.assertContains(response, "text-sm text-pp-dark-grey mt-1 italic")
+
+    def test_split_liver_content_moves_footer_text_below_plot(self) -> None:
+        """Test supplementary + citation text blocks render below the plot in order."""
         self.page.content = [
             ("text", "<p>Intro copy for HepaGeNIE.</p>"),
             ("alert", {"alert_type": "info", "message": "<p>Upload help.</p>"}),
+            (
+                "text",
+                "<p>Download the <a href=\"/documents/1/supp.xlsx\">supplementary workbook</a>.</p>",
+            ),
             (
                 "text",
                 "<h3>How to cite the example dataset</h3><p>Suppli et al. (2019).</p>",
@@ -227,34 +231,18 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
 
         above, below = split_liver_content_for_plot(self.page.content)
         self.assertEqual([block.block_type for block in above], ["text", "alert"])
-        self.assertEqual(len(below), 1)
-        self.assertIn("How to cite the example dataset", str(below[0].value))
-
-        request = self.client.get(self.page.url).wsgi_request
-        context = self.page.get_context(request)
-        self.assertEqual(len(context["liver_content_above"]), 2)
-        self.assertEqual(len(context["liver_content_below"]), 1)
+        self.assertEqual(len(below), 2)
+        self.assertIn("supplementary workbook", str(below[0].value).casefold())
+        self.assertIn("How to cite the example dataset", str(below[1].value))
 
         response = self.client.get(self.page.url)
         html = response.content.decode()
-        cite_pos = html.index("How to cite the example dataset")
         plot_pos = html.index('id="tln-container"')
-        self.assertGreater(cite_pos, plot_pos)
-        self.assertContains(response, "How to cite the example dataset")
-
-    def test_page_hides_supplementary_link_without_document(self) -> None:
-        """Test sidebar omits supplementary download until Document exists."""
-        response = self.client.get(self.page.url)
+        supp_pos = html.index("supplementary workbook")
+        cite_pos = html.index("How to cite the example dataset")
+        self.assertGreater(supp_pos, plot_pos)
+        self.assertGreater(cite_pos, supp_pos)
         self.assertNotContains(response, 'id="liver-download-supplementary"')
-        self.assertNotContains(response, "Download supplementary workbook")
-
-    def test_page_shows_supplementary_link_when_document_uploaded(self) -> None:
-        """Test sidebar ghost link appears after Wagtail Document upload."""
-        create_supplementary_document()
-        response = self.client.get(self.page.url)
-        self.assertContains(response, 'id="liver-download-supplementary"')
-        self.assertContains(response, "Download supplementary workbook")
-        self.assertContains(response, liver_route_url(self.page, "download_supplementary"))
 
     def test_page_renders_successfully(self) -> None:
         """Test that the liver dashboard page returns HTTP 200."""

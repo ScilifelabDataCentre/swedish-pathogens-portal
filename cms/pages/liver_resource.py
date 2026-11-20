@@ -2,7 +2,9 @@
 
 from typing import Any
 
+from django.db import models
 from django.http import HttpRequest, HttpResponse
+from wagtail.admin.panels import FieldPanel, MultiFieldPanel
 from wagtail.blocks import StreamValue
 from wagtail.contrib.routable_page.models import RoutablePageMixin, path
 
@@ -25,7 +27,6 @@ from dashboard_visualisation.liver_resource.session import (
     get_session_plot_metric,
     get_session_thresholds,
 )
-from dashboard_visualisation.liver_resource.supplementary import get_supplementary_document
 from dashboard_visualisation.liver_resource.thresholds import (
     ADJ_P_CHOICES,
     DEFAULT_ADJ_P,
@@ -35,23 +36,32 @@ from dashboard_visualisation.liver_resource.thresholds import (
 )
 from dashboard_visualisation.utils.plotly import plot_html_from_json
 
-# Match other portal dashboards: "How to cite …" blocks render after the plot.
+# Text blocks with these markers render below the plot (order preserved).
 _CITATION_MARKER = "How to cite"
+_SUPPLEMENTARY_MARKER = "supplementary workbook"
+
+
+def _is_below_plot_text(block: Any) -> bool:
+    """Return True for footer text: citation and supplementary workbook link."""
+    if block.block_type != "text":
+        return False
+    html = str(block.value)
+    return _CITATION_MARKER in html or _SUPPLEMENTARY_MARKER in html.casefold()
 
 
 def split_liver_content_for_plot(
     content: StreamValue,
 ) -> tuple[list[Any], list[Any]]:
-    """Split StreamField blocks into intro (above plot) and citation (below).
+    """Split StreamField blocks into intro (above plot) and footer (below).
 
-    Citation blocks are text blocks whose HTML contains ``How to cite``
-    (project APA style used on wastewater and other dashboards). All other
-    blocks stay above the interactive TLN.
+    Footer text blocks are those whose HTML contains ``How to cite`` (APA
+    citation) or ``supplementary workbook`` (Document link). Keep StreamField
+    order so supplementary can sit immediately before the citation.
     """
     above: list[Any] = []
     below: list[Any] = []
     for block in content:
-        if block.block_type == "text" and _CITATION_MARKER in str(block.value):
+        if _is_below_plot_text(block):
             below.append(block)
         else:
             above.append(block)
@@ -67,9 +77,10 @@ class LiverResourceDashboardPage(RoutablePageMixin, DashboardPage):
 
     The existing Wagtail ``image`` (card thumbnail) is also shown beside the
     intro text as the zoomable reference TLN map — no extra image field.
+    Optional ``image_caption`` follows the Highlights / News figcaption pattern.
 
-    The supplementary module workbook is a Wagtail Document titled
-    ``HepaGeNIE supplementary`` (Documents library) — no page FK / migration.
+    The supplementary module workbook is a normal Wagtail Document linked from
+    page rich text (below the plot, before the citation) — not a sidebar button.
 
     The sidebar example DE file is ``DashboardData.source_file`` for this
     dashboard slug — not a bundled repo file.
@@ -80,6 +91,37 @@ class LiverResourceDashboardPage(RoutablePageMixin, DashboardPage):
 
     template = "cms/pages/liver_resource.html"
     max_count = 1
+
+    image_caption = models.CharField(max_length=255, blank=True)
+
+    # Inject optional caption into the inherited Card details panel (Highlights pattern).
+    content_panels = [
+        *DashboardPage.content_panels[:1],
+        MultiFieldPanel(
+            [
+                FieldPanel(
+                    "description",
+                    help_text="Brief text displayed on the dashboard index card.",
+                ),
+                FieldPanel(
+                    "image",
+                    help_text=(
+                        "Thumbnail on the dashboard index card; also shown as the "
+                        "zoomable reference TLN map beside the intro text."
+                    ),
+                ),
+                FieldPanel(
+                    "image_caption",
+                    help_text=(
+                        "Optional caption for the reference TLN map. Displayed under "
+                        "the image on this page but not on the dashboard index card."
+                    ),
+                ),
+            ],
+            heading="Card details",
+        ),
+        *DashboardPage.content_panels[2:],
+    ]
 
     class Meta:
         """Meta options for the LiverResourceDashboardPage model."""
@@ -129,12 +171,6 @@ class LiverResourceDashboardPage(RoutablePageMixin, DashboardPage):
             )
         else:
             context["liver_reference_figure_url"] = None
-        if get_supplementary_document() is not None:
-            context["liver_supplementary_url"] = self.url + self.reverse_subpage(
-                "download_supplementary"
-            )
-        else:
-            context["liver_supplementary_url"] = None
         content_above, content_below = split_liver_content_for_plot(self.content)
         context["liver_content_above"] = content_above
         context["liver_content_below"] = content_below
@@ -168,11 +204,6 @@ class LiverResourceDashboardPage(RoutablePageMixin, DashboardPage):
     def download_reference_figure(self, request: HttpRequest) -> HttpResponse:
         """Serve the page card image as the reference TLN map download."""
         return liver_views.download_reference_figure(request, page=self)
-
-    @path("supplementary/")
-    def download_supplementary(self, request: HttpRequest) -> HttpResponse:
-        """Serve the Wagtail Document supplementary module workbook."""
-        return liver_views.download_supplementary(request)
 
     @path("export/modules/")
     def export_module_scores(self, request: HttpRequest) -> HttpResponse:

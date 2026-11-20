@@ -1,8 +1,8 @@
 """Go-live regression coverage for HepaGeNIE Dash1 (Commit 9).
 
 Consolidates Option B thresholds, Plot Difference/Total, hover titles,
-DashboardData example load, reference figure zoom chrome, and supplementary
-workbook download into one regression suite.
+DashboardData example load, and reference figure zoom chrome into one
+regression suite.
 """
 
 from __future__ import annotations
@@ -13,7 +13,6 @@ from cms.pages.liver_resource import LiverResourceDashboardPage
 from cms.tests.liver_resource.liver_helpers import (
     create_liver_dashboard_data,
     create_published_liver_resource_page,
-    create_supplementary_document,
     liver_route_url,
 )
 from dashboard_visualisation.liver_resource.examples import EXAMPLE_LABEL, EXAMPLE_SLUG
@@ -27,7 +26,7 @@ class TestLiverGoLiveRegression(TestCase):
 
     @classmethod
     def setUpTestData(cls) -> None:
-        """Publish liver page, obese-named DashboardData, and supplementary Document."""
+        """Publish liver page and obese-named DashboardData example."""
         cls.page = create_published_liver_resource_page(
             title="HepaGeNIE (Gene Network Inference and Exploration)",
             description=(
@@ -36,7 +35,6 @@ class TestLiverGoLiveRegression(TestCase):
             ),
         )
         create_liver_dashboard_data(upload_name="obese-Control.txt")
-        create_supplementary_document(content=b"PK\x03\x04go-live-supplementary")
 
     def setUp(self) -> None:
         """Fresh client per test."""
@@ -73,8 +71,7 @@ class TestLiverGoLiveRegression(TestCase):
         self.assertContains(response, 'id="liver-reference-figure"')
         self.assertContains(response, 'id="liver-reference-figure-dialog"')
         self.assertContains(response, "text-center")  # zoom title centered
-        self.assertContains(response, 'id="liver-download-supplementary"')
-        self.assertContains(response, "Download supplementary workbook")
+        self.assertNotContains(response, 'id="liver-download-supplementary"')
         self.assertContains(response, "Download DE template")
 
     def test_hover_titles_present_on_base_tln(self) -> None:
@@ -90,7 +87,7 @@ class TestLiverGoLiveRegression(TestCase):
         self.assertTrue(hover_by_module["1"].startswith("<b>Module 1</b><br>Genes:"))
 
     def test_dashboard_data_example_load_export_and_asset_downloads(self) -> None:
-        """Example from DashboardData → session exports + figure/workbook routes."""
+        """Example from DashboardData → session exports + reference figure route."""
         example_url = liver_route_url(self.page, "load_example", EXAMPLE_SLUG)
         load = self.client.get(example_url)
         self.assertEqual(load.status_code, 200)
@@ -111,11 +108,6 @@ class TestLiverGoLiveRegression(TestCase):
         figure = self.client.get(liver_route_url(self.page, "download_reference_figure"))
         self.assertEqual(figure.status_code, 200)
         self.assertTrue(b"".join(figure.streaming_content).startswith(b"\xff\xd8"))
-
-        workbook = self.client.get(liver_route_url(self.page, "download_supplementary"))
-        self.assertEqual(workbook.status_code, 200)
-        self.assertIn("attachment", workbook["Content-Disposition"])
-        self.assertEqual(b"".join(workbook.streaming_content), b"PK\x03\x04go-live-supplementary")
 
     def test_recompute_option_b_and_total_plot_metric(self) -> None:
         """Recompute honours stricter thresholds and Total plot mode."""

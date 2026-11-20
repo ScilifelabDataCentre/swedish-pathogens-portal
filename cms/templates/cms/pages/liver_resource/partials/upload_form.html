@@ -1,11 +1,11 @@
 {% load wagtailroutablepage_tags %}
 
 <aside class="card bg-base-100 border border-base-300 shadow-sm w-full h-full">
-    <div class="card-body gap-4 p-4 h-full flex flex-col">
+    <div class="card-body gap-3 p-4 flex flex-col h-full">
         <div>
             <h2 class="card-title text-base mb-1">Upload DE file(s)</h2>
             <p class="text-sm text-pp-dark-grey">
-                Limma-style table(s) with Ensembl IDs,
+                Limma-style table with Ensembl IDs,
                 <code class="text-xs">logFC</code>, and
                 <code class="text-xs">adj.P.Val</code>.
             </p>
@@ -13,7 +13,7 @@
 
         <form
             id="liver-upload-form"
-            class="flex flex-col gap-4"
+            class="flex flex-col gap-3"
             method="post"
             enctype="multipart/form-data"
             action="{% routablepageurl page 'upload_de' %}"
@@ -115,26 +115,15 @@
                 {% endfor %}
             </div>
         </div>
-
-        <div class="divider my-0"></div>
         {% endif %}
 
-        <div class="flex flex-col gap-2 mt-auto">
+        <div class="flex flex-col gap-2 mt-auto pt-2 border-t border-base-300">
             <a
                 href="{% routablepageurl page 'download_template' %}"
                 class="btn btn-ghost btn-sm justify-start"
             >
                 Download DE template
             </a>
-            {% if liver_supplementary_url %}
-            <a
-                id="liver-download-supplementary"
-                href="{{ liver_supplementary_url }}"
-                class="btn btn-ghost btn-sm justify-start"
-            >
-                Download supplementary workbook
-            </a>
-            {% endif %}
             <a
                 id="liver-export-modules"
                 href="{% routablepageurl page 'export_module_scores' %}"
