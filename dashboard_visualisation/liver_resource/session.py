@@ -27,8 +27,6 @@ from dashboard_visualisation.liver_resource.thresholds import (
 )
 
 SESSION_KEY = "liver_resource_de"
-# Backward-compatible alias used by older DashboardData / import sites.
-DEFAULT_CUTOFF = DEFAULT_THRESHOLD_KEY
 
 
 class DeFileEntry(TypedDict):
@@ -46,6 +44,7 @@ class LiverDeSession(TypedDict):
     adj_p: float
     logfc_fold: float
     plot_metric: PlotMetric
+    # Session JSON key remains "cutoff" for existing payloads; value is threshold_key.
     cutoff: str
     files: list[DeFileEntry]
 
@@ -58,10 +57,8 @@ def store_de_session(
     adj_p: float = DEFAULT_ADJ_P,
     logfc_fold: float = DEFAULT_LOGFC_FOLD,
     plot_metric: PlotMetric = DEFAULT_PLOT_METRIC,
-    cutoff: str | None = None,
 ) -> None:
     """Persist one parsed DE file for the visitor session."""
-    del cutoff  # Accepted for call-site compatibility; thresholds win.
     store_de_uploads(
         request,
         uploads=[(filename, de_data)],
@@ -78,10 +75,8 @@ def store_de_uploads(
     adj_p: float = DEFAULT_ADJ_P,
     logfc_fold: float = DEFAULT_LOGFC_FOLD,
     plot_metric: PlotMetric = DEFAULT_PLOT_METRIC,
-    cutoff: str | None = None,
 ) -> None:
     """Persist parsed DE file(s): metadata in Django session, payloads on disk."""
-    del cutoff
     _clear_stored_payload(request)
 
     adj_p = parse_adj_p(adj_p)
@@ -181,9 +176,8 @@ def get_session_plot_metric(request: HttpRequest) -> PlotMetric:
     return _plot_metric_from_payload(payload)
 
 
-def update_session_cutoff(
+def update_session_controls(
     request: HttpRequest,
-    cutoff: str | None = None,
     *,
     adj_p: float | None = None,
     logfc_fold: float | None = None,
@@ -196,14 +190,6 @@ def update_session_cutoff(
 
     current_adj, current_fold = _thresholds_from_payload(payload)
     current_metric = _plot_metric_from_payload(payload)
-    if adj_p is None and logfc_fold is None and cutoff:
-        # Legacy callers may still pass a threshold key; ignore unknown keys.
-        if "_" in cutoff:
-            left, _, right = cutoff.partition("_")
-            adj_p = parse_adj_p(left, default=current_adj)
-            logfc_fold = parse_logfc_fold(right, default=current_fold)
-        else:
-            adj_p, logfc_fold = current_adj, current_fold
 
     next_adj = parse_adj_p(adj_p if adj_p is not None else current_adj)
     next_fold = parse_logfc_fold(logfc_fold if logfc_fold is not None else current_fold)

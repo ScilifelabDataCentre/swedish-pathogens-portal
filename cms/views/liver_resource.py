@@ -59,7 +59,7 @@ from dashboard_visualisation.liver_resource.session import (
     get_de_session,
     session_filenames,
     store_de_uploads,
-    update_session_cutoff,
+    update_session_controls,
 )
 from dashboard_visualisation.liver_resource.thresholds import (
     DEFAULT_ADJ_P,
@@ -85,11 +85,6 @@ def upload_de(request: HttpRequest) -> HttpResponse:
     per module (researcher ``f.TLNplot`` multi-row ``ValueM`` behaviour).
     """
     uploaded_files = list(request.FILES.getlist("de_files"))
-    if not uploaded_files:
-        legacy = request.FILES.get("de_file")
-        if legacy is not None:
-            uploaded_files = [legacy]
-
     if not uploaded_files:
         return _render_validation_errors(request, ("Choose one or more DE files to upload.",))
 
@@ -173,7 +168,7 @@ def load_example(request: HttpRequest, example_slug: str) -> HttpResponse:
             adj_p=adj_p,
             logfc_fold=logfc_fold,
             plot_metric=plot_metric,
-            cutoff=key,
+            threshold_key=key,
             from_dashboard_data=True,
             filenames=[filename for filename, _ in parsed_uploads],
         )
@@ -191,7 +186,7 @@ def load_example(request: HttpRequest, example_slug: str) -> HttpResponse:
         adj_p=adj_p,
         logfc_fold=logfc_fold,
         plot_metric=plot_metric,
-        cutoff=key,
+        threshold_key=key,
         from_dashboard_data=False,
         filenames=[filename for filename, _ in parsed_uploads],
         plot_mode=analysis.plot_mode,
@@ -225,7 +220,7 @@ def recompute(request: HttpRequest) -> HttpResponse:
         request.GET,
         default=session.get("plot_metric", DEFAULT_PLOT_METRIC),
     )
-    update_session_cutoff(
+    update_session_controls(
         request,
         adj_p=adj_p,
         logfc_fold=logfc_fold,
@@ -357,7 +352,6 @@ def _store_and_render_analysis(
     logfc_fold: float,
     plot_metric=DEFAULT_PLOT_METRIC,
     log_event: str,
-    example_slug: str | None = None,
 ) -> HttpResponse:
     """Persist uploads in session, run analysis, log, and return the plot partial."""
     store_de_uploads(
@@ -373,21 +367,19 @@ def _store_and_render_analysis(
         logfc_fold=logfc_fold,
         plot_metric=plot_metric,
     )
-    log_kwargs = {
-        "filenames": [filename for filename, _ in uploads],
-        "file_count": len(uploads),
-        "adj_p": adj_p,
-        "logfc_fold": logfc_fold,
-        "plot_metric": plot_metric,
-        "cutoff": analysis.threshold_key,
-        "plot_mode": analysis.plot_mode,
-        "gene_count": analysis.gene_count,
-        "up_count": analysis.up_count,
-        "down_count": analysis.down_count,
-    }
-    if example_slug is not None:
-        log_kwargs["example_slug"] = example_slug
-    LOGGER.info(log_event, **log_kwargs)
+    LOGGER.info(
+        log_event,
+        filenames=[filename for filename, _ in uploads],
+        file_count=len(uploads),
+        adj_p=adj_p,
+        logfc_fold=logfc_fold,
+        plot_metric=plot_metric,
+        threshold_key=analysis.threshold_key,
+        plot_mode=analysis.plot_mode,
+        gene_count=analysis.gene_count,
+        up_count=analysis.up_count,
+        down_count=analysis.down_count,
+    )
     return _render_plot_response(request, analysis)
 
 

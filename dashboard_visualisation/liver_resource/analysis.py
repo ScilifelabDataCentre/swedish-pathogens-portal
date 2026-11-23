@@ -110,10 +110,8 @@ def analyse_de_data(
     adj_p: float = DEFAULT_ADJ_P,
     logfc_fold: float = DEFAULT_LOGFC_FOLD,
     plot_metric: PlotMetric = DEFAULT_PLOT_METRIC,
-    cutoff: str | None = None,
 ) -> LiverAnalysisResult:
     """Classify genes, compute module ratios, and build a coloured TLN figure."""
-    del cutoff
     return analyse_de_uploads(
         [(filename, de_data)],
         adj_p=adj_p,
@@ -128,10 +126,8 @@ def analyse_de_uploads(
     adj_p: float = DEFAULT_ADJ_P,
     logfc_fold: float = DEFAULT_LOGFC_FOLD,
     plot_metric: PlotMetric = DEFAULT_PLOT_METRIC,
-    cutoff: str | None = None,
 ) -> LiverAnalysisResult:
     """Analyse one or more DE files and build solid or pie TLN output."""
-    del cutoff
     if not uploads:
         msg = "At least one DE file is required."
         raise ValueError(msg)
@@ -187,7 +183,7 @@ def analyse_de_uploads(
                 for comparison in comparisons
             ],
             title=title,
-            cutoff=label,
+            threshold_label=label,
             max_abs=max_abs,
             plot_metric=plot_metric,
         )
@@ -195,7 +191,7 @@ def analyse_de_uploads(
         figure_json = build_coloured_figure_json(
             comparisons[0].ratios,
             title=title,
-            cutoff=label,
+            threshold_label=label,
             max_abs=max_abs,
             plot_metric=plot_metric,
         )

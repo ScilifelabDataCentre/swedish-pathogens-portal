@@ -29,10 +29,8 @@ def build_module_scores_csv(
     adj_p: float = DEFAULT_ADJ_P,
     logfc_fold: float = DEFAULT_LOGFC_FOLD,
     plot_metric: PlotMetric = DEFAULT_PLOT_METRIC,
-    cutoff: str | None = None,
 ) -> str:
     """Build module scores CSV matching R ``*_module_scores.csv`` format."""
-    del cutoff
     classified = classify_genes(de_data, adj_p=adj_p, logfc_fold=logfc_fold)
     modules = {module_id: set(genes) for module_id, genes in load_modules().items()}
     ratios = compute_module_ratios(
@@ -46,6 +44,7 @@ def build_module_scores_csv(
 
     buffer = io.StringIO()
     writer = csv.writer(buffer, quoting=csv.QUOTE_MINIMAL)
+    # Column name ``DEcutoff`` kept for R parity; UI copy says "DE threshold".
     writer.writerow(["Module", "GeneCount", "DERatio", "DEcutoff"])
 
     for module_id in range(1, EXPECTED_MODULE_COUNT + 1):
@@ -68,10 +67,8 @@ def build_genes_csv(
     *,
     adj_p: float = DEFAULT_ADJ_P,
     logfc_fold: float = DEFAULT_LOGFC_FOLD,
-    cutoff: str | None = None,
 ) -> str:
     """Build gene classification CSV (R ``*_genes.csv`` format)."""
-    del cutoff
     classified = classify_genes(de_data, adj_p=adj_p, logfc_fold=logfc_fold)
     symbol_map = load_symbol_map()
     gene_module_map = _build_gene_module_map(de_data["genes"])
