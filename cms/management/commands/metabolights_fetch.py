@@ -9,6 +9,10 @@ files) is fetched unless --all is given. Re-running is
 cheap: unchanged files are skipped and updated ones re-downloaded. See
 ``portal_data.metabolights.ftp`` for details.
 
+Studies with no public metadata yet (not in EBI's public area, or no
+i_Investigation.txt published) are skipped with a warning and don't affect
+the exit status; a later run picks them up once they appear.
+
 Exits 1 if any study failed to download (after trying all of them).
 """
 
@@ -99,8 +103,17 @@ class Command(BaseCommand):
         self.stdout.write(
             f"{_count(summary.studies, 'study', 'studies')}: "
             f"{_count(len(summary.downloaded), 'file')} downloaded, "
-            f"{len(summary.unchanged)} unchanged, {len(summary.failed)} failed."
+            f"{len(summary.unchanged)} unchanged, "
+            f"{len(summary.unavailable)} skipped (no public metadata), "
+            f"{len(summary.failed)} failed."
         )
+        if summary.unavailable:
+            skipped = "\n".join(
+                f"  {path}: {reason}" for path, reason in summary.unavailable.items()
+            )
+            self.stdout.write(
+                self.style.WARNING(f"Skipped studies with no public metadata yet:\n{skipped}")
+            )
         if summary.failed:
             failures = "\n".join(f"  {path}: {reason}" for path, reason in summary.failed.items())
             raise CommandError(f"Some studies could not be fetched:\n{failures}")

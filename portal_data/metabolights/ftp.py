@@ -25,8 +25,15 @@ It keeps the semantics the script relied on:
 * Local files with no remote counterpart are left alone (no ``--delete``).
 
 Each study gets its own FTP connection, and a failure is recorded and the
-run moves on to the next study, so one missing or flaky study cannot sink
-the rest; the caller decides what a non-empty ``failed`` means.
+run moves on to the next study, so one flaky study cannot sink the rest; the
+caller decides what a non-empty ``failed`` means.
+
+A study with no public metadata -- its directory is missing from the public
+area, or it has no i_Investigation.txt -- is recorded as ``unavailable``
+instead of ``failed``. Europe PMC can link papers to studies that are still
+private, embargoed or withdrawn, or whose metadata EBI hasn't published yet;
+those aren't errors on our side, and a later run picks them up once they
+appear.
 """
 
 from __future__ import annotations
@@ -64,6 +71,10 @@ def connect(host: str = FTP_HOST, timeout: float = FTP_TIMEOUT_SECONDS) -> ftpli
     return ftp
 
 
+class StudyUnavailableError(Exception):
+    """The study has no public metadata on the server (missing directory or investigation file)."""
+
+
 @dataclass(frozen=True)
 class RemoteFile:
     """A file on the FTP server, relative to the study directory being fetched."""
@@ -81,6 +92,7 @@ class FetchSummary:
     downloaded: list[Path] = field(default_factory=list)
     unchanged: list[Path] = field(default_factory=list)
     failed: dict[str, str] = field(default_factory=dict)
+    unavailable: dict[str, str] = field(default_factory=dict)
 
 
 def read_targets(path: Path) -> list[str]:
@@ -139,11 +151,14 @@ def _list_directory(
 
     kind is "dir" or "file". Uses MLSD, which gives machine-readable facts;
     falls back to parsing a Unix-style LIST for servers without it (sizes
-    only -- the modification time is then fetched per file with MDTM).
+    only -- the modification time is then fetched per file with MDTM). A 550
+    (no such directory) is re-raised rather than retried with LIST.
     """
     try:
         entries = list(ftp.mlsd(remote_dir, facts=["type", "size", "modify"]))
-    except ftplib.error_perm:
+    except ftplib.error_perm as error:
+        if str(error).startswith("550"):
+            raise
         yield from _list_directory_fallback(ftp, remote_dir)
         return
 
@@ -154,6 +169,23 @@ def _list_directory(
         size = int(facts["size"]) if facts.get("size", "").isdigit() else None
         mtime = _parse_ftp_timestamp(facts["modify"]) if facts.get("modify") else None
         yield name, ("dir" if kind == "dir" else "file"), size, mtime
+
+
+def _list_study_directory(
+    ftp: ftplib.FTP, remote_dir: str
+) -> list[tuple[str, str, int | None, float | None]]:
+    """List a study's top-level directory, raising StudyUnavailableError if it isn't there.
+
+    The server answers 550 for a directory that doesn't exist or can't be
+    entered -- for MetaboLights, a study that isn't in the public area.
+    """
+    try:
+        return list(_list_directory(ftp, remote_dir))
+    except ftplib.error_perm as error:
+        if str(error).startswith("550"):
+            msg = f"{remote_dir}: no such public study on the server ({error})"
+            raise StudyUnavailableError(msg) from error
+        raise
 
 
 def _list_directory_fallback(
@@ -183,27 +215,40 @@ def is_metadata_file(name: str) -> bool:
 def list_metadata_files(ftp: ftplib.FTP, remote_dir: str) -> list[RemoteFile]:
     """Return the investigation and sample files at the top of a study directory.
 
-    Raises FileNotFoundError if the study has no investigation file, so
-    fetch_studies records it as failed: a study without one can't be listed
-    on the Portal Data page.
+    Raises StudyUnavailableError if the study directory is missing or has no
+    investigation file, so fetch_studies records it as unavailable rather
+    than failed: there is nothing to list on the Portal Data page yet.
     """
     files: list[RemoteFile] = []
-    for name, kind, size, mtime in _list_directory(ftp, remote_dir):
+    for name, kind, size, mtime in _list_study_directory(ftp, remote_dir):
         if kind == "file" and is_metadata_file(name):
             _check_safe_name(name, remote_dir)
             files.append(RemoteFile(PurePosixPath(name), size, mtime))
     if not any(f.relative_path.name == INVESTIGATION_FILE for f in files):
-        msg = f"{remote_dir}/{INVESTIGATION_FILE}: No such file on the server"
-        raise FileNotFoundError(msg)
+        msg = f"{remote_dir}: no {INVESTIGATION_FILE} published on the server"
+        raise StudyUnavailableError(msg)
     return files
 
 
 def walk_remote(ftp: ftplib.FTP, remote_dir: str) -> Iterator[RemoteFile]:
-    """Yield every file under remote_dir, recursively, relative to remote_dir."""
+    """Yield every file under remote_dir, recursively, relative to remote_dir.
+
+    Raises StudyUnavailableError if remote_dir itself isn't on the server.
+    """
 
     def _walk(relative: PurePosixPath) -> Iterator[RemoteFile]:
-        current = f"{remote_dir.rstrip('/')}/{relative}" if relative.parts else remote_dir
-        for name, kind, size, mtime in _list_directory(ftp, current):
+        if relative.parts:
+            current = f"{remote_dir.rstrip('/')}/{relative}"
+            entries: Iterable[tuple[str, str, int | None, float | None]] = _list_directory(
+                ftp, current
+            )
+        else:
+            current = remote_dir
+            entries = _list_study_directory(ftp, current)
+            if not entries:  # LIST answers an empty listing for a missing directory
+                msg = f"{remote_dir}: no files published on the server"
+                raise StudyUnavailableError(msg)
+        for name, kind, size, mtime in entries:
             _check_safe_name(name, current)
             if kind == "dir":
                 yield from _walk(relative / name)
@@ -295,9 +340,10 @@ def fetch_studies(
 ) -> FetchSummary:
     """Fetch each study into ``dest_root/<study folder>/``.
 
-    A study that fails (missing on the server, connection dropped, ...) is
-    recorded in the summary's ``failed`` and the run carries on. ftp_factory
-    opens one connection per study (default: connect to the EBI server).
+    A study with no public metadata is recorded in the summary's
+    ``unavailable``; one that fails (connection dropped, short transfer, ...)
+    in ``failed``. Either way the run carries on. ftp_factory opens one
+    connection per study (default: connect to the EBI server).
     """
     ftp_factory = ftp_factory or connect
     summary = FetchSummary()
@@ -313,6 +359,10 @@ def fetch_studies(
                 downloaded, unchanged = fetch_study(ftp, remote_dir, local_dir, all_files=all_files)
             finally:
                 _close_quietly(ftp)
+        except StudyUnavailableError as error:
+            summary.unavailable[remote_dir] = str(error)
+            progress(f"  SKIPPED: {error}")
+            continue
         except (*ftplib.all_errors, ValueError) as error:  # all_errors includes OSError
             summary.failed[remote_dir] = str(error) or type(error).__name__
             progress(f"  FAILED: {summary.failed[remote_dir]}")
