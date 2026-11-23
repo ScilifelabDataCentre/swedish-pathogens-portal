@@ -18,6 +18,7 @@ Exits 1 if any study failed to download (after trying all of them).
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 
@@ -114,6 +115,8 @@ class Command(BaseCommand):
             self.stdout.write(
                 self.style.WARNING(f"Skipped studies with no public metadata yet:\n{skipped}")
             )
+        if summary.downloaded:
+            os.utime(dest, None)
         if summary.failed:
             failures = "\n".join(f"  {path}: {reason}" for path, reason in summary.failed.items())
             raise CommandError(f"Some studies could not be fetched:\n{failures}")

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import ftplib
 import io
+import os
 import tempfile
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -459,6 +460,50 @@ class MetabolightsFetchCommandTests(FtpTestCase):
             "1 study: 1 file downloaded, 0 unchanged, 0 skipped (no public metadata), 0 failed.",
             output,
         )
+
+    def _age_dest(self) -> int:
+        """Set self.dest's mtime to a fixed past time and return it in ns."""
+        os.utime(self.dest, (T_OLD, T_OLD))
+        return self.dest.stat().st_mtime_ns
+
+    def test_download_bumps_dest_mtime_to_invalidate_listing_cache(self) -> None:
+        """A download inside an existing study folder still moves the root's mtime."""
+        (self.dest / "MTBLS1").mkdir()
+        before = self._age_dest()
+
+        self._call("MTBLS1")
+
+        self.assertGreater(self.dest.stat().st_mtime_ns, before)
+
+    def test_nothing_downloaded_leaves_dest_mtime_alone(self) -> None:
+        """A run where every file is unchanged doesn't invalidate the cache."""
+        self._call("MTBLS1")
+        before = self._age_dest()
+
+        self._call("MTBLS1")
+
+        self.assertEqual(self.dest.stat().st_mtime_ns, before)
+
+    def test_dest_mtime_bumped_even_when_another_study_fails(self) -> None:
+        """What did download is made visible before the failure is raised."""
+        (self.dest / "MTBLS1").mkdir()
+        before = self._age_dest()
+        self.server.files.pop(f"{STUDY}/i_Investigation.txt")
+        self.server.files[f"{STUDY}/i_Investigation.txt"] = (b"one", T_OLD)
+        real_retrbinary = self.server.retrbinary
+
+        def fail_mtbls2(
+            cmd: str, callback: Callable[[bytes], None], rest: int | None = None
+        ) -> None:
+            if "MTBLS2" in cmd:
+                raise ConnectionResetError("reset")
+            real_retrbinary(cmd, callback, rest)
+
+        self.server.retrbinary = fail_mtbls2
+        with self.assertRaises(CommandError):
+            self._call("MTBLS1", "MTBLS2")
+
+        self.assertGreater(self.dest.stat().st_mtime_ns, before)
 
     def test_dest_defaults_to_datasets_root(self) -> None:
         """Without --dest, studies land in settings.DATASETS_ROOT."""

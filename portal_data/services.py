@@ -256,9 +256,10 @@ def _items_cache_key(datatype: str, data_root: Path) -> str:
     study directory (e.g. when manage.py metabolights_fetch adds new studies) invalidates
     the cache immediately, and so is the mtime of the search results the
     pathogens come from, so a new metabolights_search run shows straight away.
-    In-place edits to files inside an existing study directory don't touch the
-    root's mtime; those are picked up when the entry expires
-    (``PORTAL_DATA_CACHE_TIMEOUT``).
+    Files written inside an existing study directory don't change the root's
+    mtime by themselves, so metabolights_fetch touches the root whenever it
+    downloads anything; other in-place edits are picked up when the entry
+    expires (``PORTAL_DATA_CACHE_TIMEOUT``).
     """
     root_hash = hashlib.sha1(str(data_root).encode(), usedforsecurity=False).hexdigest()[:12]
     mtime_ns = data_root.stat().st_mtime_ns
