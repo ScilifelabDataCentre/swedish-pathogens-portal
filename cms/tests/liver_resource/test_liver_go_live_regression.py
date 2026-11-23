@@ -1,7 +1,7 @@
 """Go-live regression coverage for HepaGeNIE Dash1 (Commit 9).
 
 Consolidates Option B thresholds, Plot Difference/Total, hover titles,
-DashboardData example load, and reference figure zoom chrome into one
+DashboardData example load, and reference figure download route into one
 regression suite.
 """
 
@@ -68,9 +68,9 @@ class TestLiverGoLiveRegression(TestCase):
 
         self.assertContains(response, EXAMPLE_LABEL)
         self.assertContains(response, liver_route_url(self.page, "load_example", EXAMPLE_SLUG))
-        self.assertContains(response, 'id="liver-reference-figure"')
-        self.assertContains(response, 'id="liver-reference-figure-dialog"')
-        self.assertContains(response, "text-center")  # zoom title centered
+        self.assertNotContains(response, 'id="liver-reference-figure"')
+        self.assertNotContains(response, 'id="liver-reference-figure-dialog"')
+        self.assertNotContains(response, 'id="liver-reference-figure-open"')
         self.assertNotContains(response, 'id="liver-download-supplementary"')
         self.assertContains(response, "Download DE template")
 

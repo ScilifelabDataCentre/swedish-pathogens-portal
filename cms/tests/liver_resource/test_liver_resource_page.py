@@ -199,28 +199,24 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
         self.assertNotContains(response, "> Up</span>")
         self.assertNotContains(response, "> Down</span>")
 
-    def test_page_includes_float_right_reference_figure_from_card_image(self) -> None:
-        """Test the existing card image floats beside intro content with zoom."""
+    def test_page_omits_reference_figure_zoom_chrome(self) -> None:
+        """Test card image is not shown as a floated zoomable reference figure."""
         response = self.client.get(self.page.url)
-        self.assertContains(response, 'id="liver-reference-figure"')
-        self.assertContains(response, "md:float-right")
-        self.assertContains(response, "md:w-56")
-        self.assertContains(response, 'id="liver-reference-figure-dialog"')
-        self.assertContains(response, 'id="liver-reference-figure-open"')
-        self.assertNotContains(response, 'id="liver-reference-figure-download"')
-        self.assertNotContains(response, "Download reference figure")
-        self.assertNotContains(response, "<figcaption")
+        self.assertNotContains(response, 'id="liver-reference-figure"')
+        self.assertNotContains(response, 'id="liver-reference-figure-dialog"')
+        self.assertNotContains(response, 'id="liver-reference-figure-open"')
+        self.assertNotContains(response, "Click to zoom")
+        self.assertNotContains(response, "md:float-right")
 
-    def test_page_shows_optional_image_caption_under_reference_figure(self) -> None:
-        """Test Highlights-style image_caption renders under the reference TLN map."""
+    def test_page_does_not_render_image_caption_without_reference_figure(self) -> None:
+        """Test image_caption is unused once the on-page reference figure is gone."""
         caption = "Reference TLN map (function themes)."
         self.page.image_caption = caption
         self.page.save_revision().publish()
 
         response = self.client.get(self.page.url)
-        self.assertContains(response, "<figcaption")
-        self.assertContains(response, caption)
-        self.assertContains(response, "text-sm text-pp-dark-grey mt-1 italic")
+        self.assertNotContains(response, "<figcaption")
+        self.assertNotContains(response, caption)
 
     def test_split_liver_content_moves_footer_text_below_plot(self) -> None:
         """Test supplementary + citation text blocks render below the plot in order."""
