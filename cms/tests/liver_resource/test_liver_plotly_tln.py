@@ -57,7 +57,7 @@ class TestLiverPlotlyTln(SimpleTestCase):
         self.assertEqual(len(leaf_trace["customdata"]), EXPECTED_LEAF_COUNT)
         self.assertEqual(leaf_trace["customdata"][0], "1")
 
-    def test_leaf_hovertext_includes_jackie_titles_when_present(self) -> None:
+    def test_leaf_hovertext_includes_module_titles_when_present(self) -> None:
         """Test modules 3/4/12 show titles; blank modules stay number-only."""
         figure_json = build_base_figure_json()
         leaf_trace = next(trace for trace in figure_json["data"] if trace.get("customdata"))
