@@ -89,7 +89,7 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
         self.assertGreater(len(figure["data"]), 0)
 
     def test_get_context_includes_threshold_choices(self) -> None:
-        """Test that get_context exposes Option B Adj P.val and LogFC choices."""
+        """Test that get_context exposes Adj P.val and LogFC choices."""
         request = self.client.get(self.page.url).wsgi_request
         context = self.page.get_context(request)
 

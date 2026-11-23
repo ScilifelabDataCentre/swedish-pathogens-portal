@@ -238,7 +238,7 @@ def de_entry_to_data(entry: DeFileEntry) -> dict[str, Any]:
 
 
 def _thresholds_from_payload(payload: dict[str, Any]) -> tuple[float, float]:
-    """Read Option B thresholds from session payload (``adj_p`` / ``logfc_fold`` or key)."""
+    """Read Adj P.val / LogFC fold from session payload (fields or threshold key)."""
     if "adj_p" in payload or "logfc_fold" in payload:
         return (
             parse_adj_p(payload.get("adj_p", DEFAULT_ADJ_P)),

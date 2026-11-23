@@ -45,7 +45,7 @@ class ComparisonStats:
 
 @dataclass(frozen=True)
 class LiverAnalysisResult:
-    """Computed liver projection for one or more DE files and Option B thresholds."""
+    """Computed liver projection for one or more DE files and DE thresholds."""
 
     adj_p: float
     logfc_fold: float

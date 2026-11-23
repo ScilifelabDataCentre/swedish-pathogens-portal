@@ -1,6 +1,6 @@
-"""Go-live regression coverage for HepaGeNIE Dash1 (Commit 9).
+"""Go-live regression coverage for HepaGeNIE.
 
-Consolidates Option B thresholds, Plot Difference/Total, hover titles,
+Consolidates DE thresholds, Plot Difference/Total, hover titles,
 and DashboardData example load into one regression suite.
 """
 
@@ -21,7 +21,7 @@ from dashboard_visualisation.liver_resource.thresholds import ADJ_P_CHOICES, LOG
 
 
 class TestLiverGoLiveRegression(TestCase):
-    """End-to-end regression for Dash1 go-live behaviours."""
+    """End-to-end regression for HepaGeNIE go-live behaviours."""
 
     @classmethod
     def setUpTestData(cls) -> None:
@@ -47,7 +47,7 @@ class TestLiverGoLiveRegression(TestCase):
         )
 
     def test_page_chrome_exposes_option_b_plot_and_hepagene_assets(self) -> None:
-        """Page shows Option B + Plot controls, HepaGeNIE a11y label, downloads."""
+        """Page shows DE threshold + Plot controls, HepaGeNIE a11y label, downloads."""
         response = self.client.get(self.page.url)
         self.assertEqual(response.status_code, 200)
 
