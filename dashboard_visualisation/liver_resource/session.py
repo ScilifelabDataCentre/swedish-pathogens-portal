@@ -238,7 +238,7 @@ def de_entry_to_data(entry: DeFileEntry) -> dict[str, Any]:
 
 
 def _thresholds_from_payload(payload: dict[str, Any]) -> tuple[float, float]:
-    """Read Option B thresholds, mapping legacy ``cutoff=standard`` to defaults."""
+    """Read Option B thresholds from session payload (``adj_p`` / ``logfc_fold`` or key)."""
     if "adj_p" in payload or "logfc_fold" in payload:
         return (
             parse_adj_p(payload.get("adj_p", DEFAULT_ADJ_P)),
@@ -246,7 +246,7 @@ def _thresholds_from_payload(payload: dict[str, Any]) -> tuple[float, float]:
         )
 
     legacy = payload.get("cutoff")
-    if legacy in (None, "standard", DEFAULT_THRESHOLD_KEY):
+    if legacy in (None, DEFAULT_THRESHOLD_KEY):
         return DEFAULT_ADJ_P, DEFAULT_LOGFC_FOLD
     if isinstance(legacy, str) and "_" in legacy:
         left, _, right = legacy.partition("_")

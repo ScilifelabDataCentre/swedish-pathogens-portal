@@ -99,7 +99,7 @@ class TestLiverSession(TestCase):
             "data": {"ENSG00000000003": {"logFC": 1.0, "adj.P.Val": 0.01}},
         }
         self.request.session[SESSION_KEY] = {
-            "cutoff": "standard",
+            "cutoff": "0.05_1.5",
             "files": [{"filename": "legacy.txt", **de_data}],
         }
         session = get_de_session(self.request)
