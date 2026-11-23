@@ -16,7 +16,7 @@ from dashboard_visualisation.liver_resource.session import (
     get_session_cutoff,
     store_de_session,
     store_de_uploads,
-    update_session_cutoff,
+    update_session_controls,
 )
 from dashboard_visualisation.liver_resource.session_storage import (
     get_sessions_root,
@@ -108,15 +108,15 @@ class TestLiverSession(TestCase):
         self.assertEqual(session["files"][0]["filename"], "legacy.txt")
         self.assertEqual(de_data_from_session(session), de_data)
 
-    def test_update_session_cutoff(self) -> None:
-        """Test cutoff can be changed without re-uploading."""
+    def test_update_session_controls(self) -> None:
+        """Test thresholds can be changed without re-uploading."""
         de_data = {
             "header": ["logFC", "adj.P.Val"],
             "genes": ["ENSG00000000003"],
             "data": {"ENSG00000000003": {"logFC": 1.0, "adj.P.Val": 0.01}},
         }
         store_de_session(self.request, de_data=de_data, filename="example.txt")
-        update_session_cutoff(self.request, adj_p=0.001, logfc_fold=5.0)
+        update_session_controls(self.request, adj_p=0.001, logfc_fold=5.0)
         self.assertEqual(get_session_cutoff(self.request), "0.001_5")
         session = get_de_session(self.request)
         assert session is not None

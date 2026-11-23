@@ -104,7 +104,7 @@ def build_coloured_figure(
     ratios: dict[int, float | None],
     *,
     title: str = "HepaGeNIE TLN",
-    cutoff: str = "standard",
+    threshold_label: str = "",
     max_abs: float | None = None,
     plot_metric: PlotMetric = DEFAULT_PLOT_METRIC,
 ) -> go.Figure:
@@ -116,7 +116,7 @@ def build_coloured_figure(
     leaf_ratios = {
         str(module_id): (ratio if ratio is not None else 0.0) for module_id, ratio in ratios.items()
     }
-    display_title = f"{title} ({cutoff})" if cutoff else title
+    display_title = f"{title} ({threshold_label})" if threshold_label else title
     if max_abs is None:
         valid_ratios = [value for value in ratios.values() if value is not None]
         if plot_metric == "total":
@@ -139,14 +139,14 @@ def build_multi_coloured_figure(
     comparisons: list[ComparisonRow],
     *,
     title: str = "HepaGeNIE TLN",
-    cutoff: str = "standard",
+    threshold_label: str = "",
     max_abs: float | None = None,
     plot_metric: PlotMetric = DEFAULT_PLOT_METRIC,
 ) -> go.Figure:
     """Build a TLN figure with pie-chart leaves for multiple DE comparisons."""
     graph = load_tln_graph()
     layout = get_normalised_layout()
-    display_title = f"{title} ({cutoff})" if cutoff else title
+    display_title = f"{title} ({threshold_label})" if threshold_label else title
     if max_abs is None:
         max_abs = _max_abs_from_comparisons(comparisons, plot_metric=plot_metric)
     return _build_multi_figure(
@@ -168,7 +168,7 @@ def build_coloured_figure_json(
     ratios: dict[int, float | None],
     *,
     title: str = "HepaGeNIE TLN",
-    cutoff: str = "standard",
+    threshold_label: str = "",
     max_abs: float | None = None,
     plot_metric: PlotMetric = DEFAULT_PLOT_METRIC,
 ) -> dict[str, Any]:
@@ -177,7 +177,7 @@ def build_coloured_figure_json(
         build_coloured_figure(
             ratios,
             title=title,
-            cutoff=cutoff,
+            threshold_label=threshold_label,
             max_abs=max_abs,
             plot_metric=plot_metric,
         )
@@ -188,7 +188,7 @@ def build_multi_coloured_figure_json(
     comparisons: list[ComparisonRow],
     *,
     title: str = "HepaGeNIE TLN",
-    cutoff: str = "standard",
+    threshold_label: str = "",
     max_abs: float | None = None,
     plot_metric: PlotMetric = DEFAULT_PLOT_METRIC,
 ) -> dict[str, Any]:
@@ -197,7 +197,7 @@ def build_multi_coloured_figure_json(
         build_multi_coloured_figure(
             comparisons,
             title=title,
-            cutoff=cutoff,
+            threshold_label=threshold_label,
             max_abs=max_abs,
             plot_metric=plot_metric,
         )

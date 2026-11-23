@@ -43,7 +43,7 @@ class TestLiverPlotlyTln(SimpleTestCase):
         de_data = parse_de_file(example_path)
         classified = classify_genes(de_data, adj_p=0.05, logfc_fold=1.5)
         ratios = compute_module_ratios(de_data["genes"], classified, get_module_gene_sets())
-        figure = build_coloured_figure(ratios, cutoff="adj.P<0.05, fold 1.5")
+        figure = build_coloured_figure(ratios, threshold_label="adj.P<0.05, fold 1.5")
         self.assertEqual(len(figure.data), 4)
 
     def test_base_figure_json_has_leaf_customdata(self) -> None:
@@ -77,7 +77,9 @@ class TestLiverPlotlyTln(SimpleTestCase):
         de_data = parse_de_file(example_path)
         classified = classify_genes(de_data, adj_p=0.05, logfc_fold=1.5)
         ratios = compute_module_ratios(de_data["genes"], classified, get_module_gene_sets())
-        figure_json = build_coloured_figure_json(ratios, cutoff="adj.P<0.05, fold 1.5")
+        figure_json = build_coloured_figure_json(
+            ratios, threshold_label="adj.P<0.05, fold 1.5"
+        )
 
         leaf_trace = next(trace for trace in figure_json["data"] if trace.get("customdata"))
         colours = leaf_trace["marker"]["color"]
@@ -97,7 +99,7 @@ class TestLiverPlotlyTln(SimpleTestCase):
                 ("file-a.txt", ratios, colours),
                 ("file-b.txt", ratios, colours),
             ],
-            cutoff="adj.P<0.05, fold 1.5",
+            threshold_label="adj.P<0.05, fold 1.5",
         )
 
         self.assertGreater(len(figure_json["layout"]["shapes"]), EXPECTED_LEAF_COUNT)
