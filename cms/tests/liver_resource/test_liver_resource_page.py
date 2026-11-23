@@ -156,10 +156,7 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
 
         self.assertEqual(context["liver_upload_url"], liver_route_url(self.page, "upload_de"))
         self.assertEqual(context["liver_recompute_url"], liver_route_url(self.page, "recompute"))
-        self.assertEqual(
-            context["liver_reference_figure_url"],
-            liver_route_url(self.page, "download_reference_figure"),
-        )
+        self.assertNotIn("liver_reference_figure_url", context)
         self.assertNotIn("liver_supplementary_url", context)
         self.assertIn("/upload/", context["liver_upload_url"])
         self.assertIn("/recompute/", context["liver_recompute_url"])
@@ -219,13 +216,17 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
         self.assertNotContains(response, caption)
 
     def test_split_liver_content_moves_footer_text_below_plot(self) -> None:
-        """Test supplementary + citation text blocks render below the plot in order."""
+        """Test reference TLN + workbook + citation text blocks render below the plot."""
         self.page.content = [
             ("text", "<p>Intro copy for HepaGeNIE.</p>"),
             ("alert", {"alert_type": "info", "message": "<p>Upload help.</p>"}),
             (
                 "text",
-                "<p>Download the <a href=\"/documents/1/supp.xlsx\">supplementary workbook</a>.</p>",
+                "<p>Download the <a href=\"/documents/1/tln.jpg\">HepaGeNIE reference TLN map</a>.</p>",
+            ),
+            (
+                "text",
+                "<p>Download the <a href=\"/documents/2/supp.xlsx\">supplementary workbook</a>.</p>",
             ),
             (
                 "text",
@@ -237,18 +238,22 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
 
         above, below = split_liver_content_for_plot(self.page.content)
         self.assertEqual([block.block_type for block in above], ["text", "alert"])
-        self.assertEqual(len(below), 2)
-        self.assertIn("supplementary workbook", str(below[0].value).casefold())
-        self.assertIn("How to cite the example dataset", str(below[1].value))
+        self.assertEqual(len(below), 3)
+        self.assertIn("reference tln map", str(below[0].value).casefold())
+        self.assertIn("supplementary workbook", str(below[1].value).casefold())
+        self.assertIn("How to cite the example dataset", str(below[2].value))
 
         response = self.client.get(self.page.url)
         html = response.content.decode()
         plot_pos = html.index('id="tln-container"')
+        ref_pos = html.index("reference TLN map")
         supp_pos = html.index("supplementary workbook")
         cite_pos = html.index("How to cite the example dataset")
-        self.assertGreater(supp_pos, plot_pos)
+        self.assertGreater(ref_pos, plot_pos)
+        self.assertGreater(supp_pos, ref_pos)
         self.assertGreater(cite_pos, supp_pos)
         self.assertNotContains(response, 'id="liver-download-supplementary"')
+        self.assertNotContains(response, "reference-figure")
 
     def test_page_renders_successfully(self) -> None:
         """Test that the liver dashboard page returns HTTP 200."""

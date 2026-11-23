@@ -1,8 +1,7 @@
 """Go-live regression coverage for HepaGeNIE Dash1 (Commit 9).
 
 Consolidates Option B thresholds, Plot Difference/Total, hover titles,
-DashboardData example load, and reference figure download route into one
-regression suite.
+and DashboardData example load into one regression suite.
 """
 
 from __future__ import annotations
@@ -87,7 +86,7 @@ class TestLiverGoLiveRegression(TestCase):
         self.assertTrue(hover_by_module["1"].startswith("<b>Module 1</b><br>Genes:"))
 
     def test_dashboard_data_example_load_export_and_asset_downloads(self) -> None:
-        """Example from DashboardData → session exports + reference figure route."""
+        """Example from DashboardData → session exports (CSV downloads)."""
         example_url = liver_route_url(self.page, "load_example", EXAMPLE_SLUG)
         load = self.client.get(example_url)
         self.assertEqual(load.status_code, 200)
@@ -104,10 +103,6 @@ class TestLiverGoLiveRegression(TestCase):
         genes = self.client.get(liver_route_url(self.page, "export_genes"))
         self.assertEqual(genes.status_code, 200)
         self.assertIn("text/csv", genes["Content-Type"])
-
-        figure = self.client.get(liver_route_url(self.page, "download_reference_figure"))
-        self.assertEqual(figure.status_code, 200)
-        self.assertTrue(b"".join(figure.streaming_content).startswith(b"\xff\xd8"))
 
     def test_recompute_option_b_and_total_plot_metric(self) -> None:
         """Recompute honours stricter thresholds and Total plot mode."""
