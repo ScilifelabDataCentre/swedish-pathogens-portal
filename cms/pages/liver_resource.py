@@ -2,7 +2,6 @@
 
 from typing import Any
 
-from django.db import models
 from django.http import HttpRequest, HttpResponse
 from wagtail.admin.panels import FieldPanel, MultiFieldPanel
 from wagtail.blocks import StreamValue
@@ -100,9 +99,7 @@ class LiverResourceDashboardPage(RoutablePageMixin, DashboardPage):
     template = "cms/pages/liver_resource.html"
     max_count = 1
 
-    image_caption = models.CharField(max_length=255, blank=True)
-
-    # Inject optional caption into the inherited Card details panel (Highlights pattern).
+    # Override Card details: index thumbnail only (reference TLN is a Document link).
     content_panels = [
         *DashboardPage.content_panels[:1],
         MultiFieldPanel(
@@ -117,13 +114,6 @@ class LiverResourceDashboardPage(RoutablePageMixin, DashboardPage):
                         "Thumbnail on the dashboard index card only. Link the "
                         "reference TLN map JPG from page text as a Document "
                         "(same pattern as the supplementary workbook)."
-                    ),
-                ),
-                FieldPanel(
-                    "image_caption",
-                    help_text=(
-                        "Unused on the public page (legacy). Clear this field; "
-                        "it will be removed in a follow-up migration."
                     ),
                 ),
             ],
