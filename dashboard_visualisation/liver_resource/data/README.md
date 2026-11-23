@@ -11,7 +11,6 @@ Upstream package paths below keep their original names for provenance.
 | `tln_graph.json` | Export from `ITA_Liver_resource/DINA-Liver-Clean/data/TLNgraph_102.RDS` via `export_rds_to_json.R` |
 | `TLN.EdgeList.csv.cyjs` | `DINA-Liver-Clean/data/TLN.EdgeList_102.csv.cyjs` (filename kept) |
 | `hsapiens.SYMBOL.txt` | `DINA-Liver-Clean/data/` |
-| `ITA.Liver.ModNames.2025.txt` | Contents from `ITA.Liver.ModNames_102.txt` (filename kept for code compatibility) |
 | `hover_module_titles.tsv` | Converted from collaborator `Hover module names.xlsx` (module id → hover title; blanks omitted at load) |
 | `modules/Module.*.txt` | `DINA-Liver-Clean/data/Modules_102/` (**directory name stays `modules/`**) |
 | `examples/*.txt` | `DINA-Liver-Clean/example-DE-files/` |

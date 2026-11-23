@@ -73,19 +73,6 @@ def load_symbol_map() -> dict[str, str]:
 
 
 @lru_cache(maxsize=1)
-def load_module_labels() -> dict[str, str]:
-    """Load module number to display label mapping."""
-    path = get_data_root() / "ITA.Liver.ModNames.2025.txt"
-    labels: dict[str, str] = {}
-    with path.open(encoding="utf-8", newline="") as handle:
-        reader = csv.reader(handle, delimiter="\t")
-        for row in reader:
-            if len(row) >= 2:
-                labels[row[0]] = row[1]
-    return labels
-
-
-@lru_cache(maxsize=1)
 def load_hover_module_titles() -> dict[int, str]:
     """Load hover module titles keyed by module id (blank cells omitted)."""
     path = get_data_root() / "hover_module_titles.tsv"
@@ -122,7 +109,6 @@ def clear_reference_data_cache() -> None:
     load_cyjs_layout.cache_clear()
     load_modules.cache_clear()
     load_symbol_map.cache_clear()
-    load_module_labels.cache_clear()
     load_hover_module_titles.cache_clear()
 
 
