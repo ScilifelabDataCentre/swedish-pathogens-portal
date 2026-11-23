@@ -189,6 +189,16 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
         self.assertContains(response, 'id="liver-dashboard"')
         self.assertContains(response, "liver_resource.js")
 
+    def test_page_colour_legend_uses_up_down_regulated_labels(self) -> None:
+        """Test colour legend spells out up/down regulated (not bare Up/Down)."""
+        response = self.client.get(self.page.url)
+        self.assertContains(response, 'id="liver-colour-legend"')
+        self.assertContains(response, "Up regulated")
+        self.assertContains(response, "Down regulated")
+        self.assertContains(response, "Neutral / no data")
+        self.assertNotContains(response, "> Up</span>")
+        self.assertNotContains(response, "> Down</span>")
+
     def test_page_includes_float_right_reference_figure_from_card_image(self) -> None:
         """Test the existing card image floats beside intro content with zoom."""
         response = self.client.get(self.page.url)
