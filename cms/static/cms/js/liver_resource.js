@@ -5,7 +5,7 @@
  * - DE threshold / Plot change → recompute colours (Plotly.restyle for solid
  *   Difference leaves; full htmx plot swap for pie leaves or Total scoring)
  * - Enable CSV export links after a successful upload or example load
- * - Open / close the reference TLN map zoom dialog
+ * - Fit plot height to the equal-height upload/plot cards
  *
  * Expects #liver-dashboard with data-recompute-url, and a Plotly figure with
  * leaf trace index in #liver-tln-plot data attributes.
@@ -177,18 +177,13 @@
         if (typeof htmx === "undefined") {
             return;
         }
-        dashboard.classList.add("liver-recomputing");
-        htmx
-            .ajax("GET", `${recomputeUrl}?${controlQuery()}`, {
-                target: "#liver-tln-panel",
-                swap: "innerHTML",
-                headers: {
-                    Accept: "text/html",
-                },
-            })
-            .finally(() => {
-                dashboard.classList.remove("liver-recomputing");
-            });
+        htmx.ajax("GET", `${recomputeUrl}?${controlQuery()}`, {
+            target: "#liver-tln-panel",
+            swap: "innerHTML",
+            headers: {
+                Accept: "text/html",
+            },
+        });
     }
 
     async function recomputeControls({ forceHtml = false } = {}) {
@@ -206,52 +201,47 @@
             return;
         }
 
-        dashboard.classList.add("liver-recomputing");
-        try {
-            const response = await fetch(`${recomputeUrl}?${controlQuery()}`, {
-                headers: {
-                    Accept: "application/json",
-                    "X-Requested-With": "XMLHttpRequest",
-                },
-                credentials: "same-origin",
-            });
+        const response = await fetch(`${recomputeUrl}?${controlQuery()}`, {
+            headers: {
+                Accept: "application/json",
+                "X-Requested-With": "XMLHttpRequest",
+            },
+            credentials: "same-origin",
+        });
 
-            if (!response.ok) {
-                return;
-            }
-
-            const payload = await response.json();
-            await Plotly.restyle(
-                plotDiv,
-                { "marker.color": [payload.colours_array] },
-                [payload.leaf_trace_index],
-            );
-
-            if (payload.stats?.filename && payload.stats?.cutoff) {
-                await Plotly.relayout(plotDiv, {
-                    "title.text": `HepaGeNIE TLN — ${payload.stats.filename} (${payload.stats.cutoff})`,
-                });
-            }
-
-            const wrapper = getPlotWrapper();
-            if (wrapper && payload.stats) {
-                if (payload.stats.threshold_key) {
-                    wrapper.dataset.cutoff = payload.stats.threshold_key;
-                }
-                if (payload.stats.adj_p != null) {
-                    wrapper.dataset.adjP = String(payload.stats.adj_p);
-                }
-                if (payload.stats.logfc_fold != null) {
-                    wrapper.dataset.logfcFold = String(payload.stats.logfc_fold);
-                }
-                if (payload.stats.plot_metric) {
-                    wrapper.dataset.plotMetric = String(payload.stats.plot_metric);
-                }
-            }
-            updateAnalysisStats(payload.stats);
-        } finally {
-            dashboard.classList.remove("liver-recomputing");
+        if (!response.ok) {
+            return;
         }
+
+        const payload = await response.json();
+        await Plotly.restyle(
+            plotDiv,
+            { "marker.color": [payload.colours_array] },
+            [payload.leaf_trace_index],
+        );
+
+        if (payload.stats?.filename && payload.stats?.cutoff) {
+            await Plotly.relayout(plotDiv, {
+                "title.text": `HepaGeNIE TLN — ${payload.stats.filename} (${payload.stats.cutoff})`,
+            });
+        }
+
+        const wrapper = getPlotWrapper();
+        if (wrapper && payload.stats) {
+            if (payload.stats.threshold_key) {
+                wrapper.dataset.cutoff = payload.stats.threshold_key;
+            }
+            if (payload.stats.adj_p != null) {
+                wrapper.dataset.adjP = String(payload.stats.adj_p);
+            }
+            if (payload.stats.logfc_fold != null) {
+                wrapper.dataset.logfcFold = String(payload.stats.logfc_fold);
+            }
+            if (payload.stats.plot_metric) {
+                wrapper.dataset.plotMetric = String(payload.stats.plot_metric);
+            }
+        }
+        updateAnalysisStats(payload.stats);
     }
 
     function handlePlotPanelSettled() {
