@@ -149,18 +149,15 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
 
         self.assertEqual(context["page_heading"], "Dashboards")
 
-    def test_get_context_includes_liver_endpoint_urls(self) -> None:
-        """Test that get_context exposes client-side liver endpoint URLs."""
+    def test_get_context_omits_unused_endpoint_url_keys(self) -> None:
+        """Test get_context does not inject unused liver_*_url keys."""
         request = self.client.get(self.page.url).wsgi_request
         context = self.page.get_context(request)
 
-        self.assertEqual(context["liver_upload_url"], liver_route_url(self.page, "upload_de"))
-        self.assertEqual(context["liver_recompute_url"], liver_route_url(self.page, "recompute"))
+        self.assertNotIn("liver_upload_url", context)
+        self.assertNotIn("liver_recompute_url", context)
         self.assertNotIn("liver_reference_figure_url", context)
         self.assertNotIn("liver_supplementary_url", context)
-        self.assertIn("/upload/", context["liver_upload_url"])
-        self.assertIn("/recompute/", context["liver_recompute_url"])
-        self.assertNotIn("/cms/liver/", context["liver_upload_url"])
 
     def test_get_context_example_label_uses_dashboard_data_filename(self) -> None:
         """Test example button uses GSE126848 label for an obese-named DashboardData file."""
@@ -180,11 +177,16 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
     def test_page_includes_htmx_and_plotly_wiring(self) -> None:
         """Test that the page template includes htmx upload wiring and liver JS."""
         response = self.client.get(self.page.url)
-        self.assertContains(response, f'hx-post="{liver_route_url(self.page, "upload_de")}"')
+        upload_url = liver_route_url(self.page, "upload_de")
+        recompute_url = liver_route_url(self.page, "recompute")
+        self.assertContains(response, f'hx-post="{upload_url}"')
+        self.assertContains(response, f'data-recompute-url="{recompute_url}"')
         self.assertContains(response, 'hx-target="#liver-tln-panel"')
         self.assertContains(response, 'hx-target-error="#liver-validation-errors"')
         self.assertContains(response, 'id="liver-dashboard"')
         self.assertContains(response, "liver_resource.js")
+        self.assertNotIn("/cms/liver/", upload_url)
+        self.assertNotIn("/cms/liver/", recompute_url)
 
     def test_page_colour_legend_uses_up_down_regulated_labels(self) -> None:
         """Test colour legend spells out up/down regulated (not bare Up/Down)."""

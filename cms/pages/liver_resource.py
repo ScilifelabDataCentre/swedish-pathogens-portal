@@ -162,8 +162,6 @@ class LiverResourceDashboardPage(RoutablePageMixin, DashboardPage):
         context["default_threshold_key"] = DEFAULT_THRESHOLD_KEY
         context["has_session"] = session is not None
         context["examples"] = list_examples(self.dashboard_data)
-        context["liver_upload_url"] = self.url + self.reverse_subpage("upload_de")
-        context["liver_recompute_url"] = self.url + self.reverse_subpage("recompute")
         content_above, content_below = split_liver_content_for_plot(self.content)
         context["liver_content_above"] = content_above
         context["liver_content_below"] = content_below
