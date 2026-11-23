@@ -75,3 +75,31 @@ class TestLiverDashboardFigures(SimpleTestCase):
         self.assertEqual(stored.plot_mode, "solid")
         self.assertEqual(stored.comparisons[0].filename, _FIXTURE_FILENAME)
         self.assertIn("data", stored.figure_json)
+
+    def test_get_stored_example_ignores_legacy_standard_key(self) -> None:
+        """Test figures keyed only as ``standard`` are not used for default thresholds."""
+        payload = {
+            "examples": {
+                EXAMPLE_SLUG: {
+                    "standard": {
+                        "figure": {"data": [], "layout": {}},
+                        "plot_mode": "solid",
+                        "leaf_trace_index": 2,
+                        "stats": {
+                            "filename": "legacy.txt",
+                            "gene_count": 1,
+                            "n_up": 0,
+                            "n_down": 0,
+                        },
+                    }
+                }
+            }
+        }
+        stored = get_stored_example(
+            payload,
+            slug=EXAMPLE_SLUG,
+            cutoff=DEFAULT_THRESHOLD_KEY,
+            adj_p=DEFAULT_ADJ_P,
+            logfc_fold=DEFAULT_LOGFC_FOLD,
+        )
+        self.assertIsNone(stored)

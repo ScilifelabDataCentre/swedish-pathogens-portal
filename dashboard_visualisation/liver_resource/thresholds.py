@@ -1,7 +1,6 @@
-"""Option B DE thresholds: Adj P.val × LogFC fold.
+"""DE thresholds: Adj P.val × LogFC fold.
 
-Replaces the legacy single-mode DEcutoff list with two independent controls.
-Default pair (0.05, 1.5) matches the former ``standard`` mode.
+Default pair is ``0.05`` / ``1.5`` (DashboardData key ``0.05_1.5``).
 """
 
 from __future__ import annotations

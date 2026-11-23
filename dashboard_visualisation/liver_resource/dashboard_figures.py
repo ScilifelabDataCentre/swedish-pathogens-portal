@@ -73,7 +73,6 @@ def get_stored_example(
     from dashboard_visualisation.liver_resource.thresholds import (
         DEFAULT_ADJ_P,
         DEFAULT_LOGFC_FOLD,
-        DEFAULT_THRESHOLD_KEY,
         parse_adj_p,
         parse_logfc_fold,
         threshold_key,
@@ -90,9 +89,6 @@ def get_stored_example(
     resolved_fold = parse_logfc_fold(logfc_fold if logfc_fold is not None else DEFAULT_LOGFC_FOLD)
     key = cutoff or threshold_key(resolved_adj, resolved_fold)
     cutoff_entry = slug_entry.get(key)
-    # Accept legacy precomputed key ``standard`` for the default Option B pair.
-    if cutoff_entry is None and key == DEFAULT_THRESHOLD_KEY:
-        cutoff_entry = slug_entry.get("standard")
     if not isinstance(cutoff_entry, dict):
         return None
     return _parse_stored_example(
