@@ -272,17 +272,6 @@
         }
     });
 
-    const referenceFigureDialog = document.getElementById("liver-reference-figure-dialog");
-    const referenceFigureOpen = document.getElementById("liver-reference-figure-open");
-    if (
-        referenceFigureDialog instanceof HTMLDialogElement &&
-        referenceFigureOpen instanceof HTMLElement
-    ) {
-        referenceFigureOpen.addEventListener("click", () => {
-            referenceFigureDialog.showModal();
-        });
-    }
-
     window.addEventListener("resize", () => {
         requestAnimationFrame(() => fitPlotToEqualCardHeight());
     });

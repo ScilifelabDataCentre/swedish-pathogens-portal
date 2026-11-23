@@ -23,18 +23,12 @@
         {% endif %}
     </p>
 
-    {# Intro + existing card image floated right (Data Highlights style). #}
-    {% if page.image or liver_content_above %}
-    <div class="mb-6 flow-root">
-        {% if page.image %}
-            {% include "cms/pages/liver_resource/partials/reference_figure.html" %}
-        {% endif %}
-
-        {% if liver_content_above %}
-            {% for block in liver_content_above %}
-                {% include_block block %}
-            {% endfor %}
-        {% endif %}
+    {# Intro StreamField above the upload/plot grid (no floated reference image). #}
+    {% if liver_content_above %}
+    <div class="mb-6">
+        {% for block in liver_content_above %}
+            {% include_block block %}
+        {% endfor %}
     </div>
     {% endif %}
 
