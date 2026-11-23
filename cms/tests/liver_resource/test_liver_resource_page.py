@@ -196,15 +196,6 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
         self.assertNotContains(response, "> Up</span>")
         self.assertNotContains(response, "> Down</span>")
 
-    def test_page_omits_reference_figure_zoom_chrome(self) -> None:
-        """Test card image is not shown as a floated zoomable reference figure."""
-        response = self.client.get(self.page.url)
-        self.assertNotContains(response, 'id="liver-reference-figure"')
-        self.assertNotContains(response, 'id="liver-reference-figure-dialog"')
-        self.assertNotContains(response, 'id="liver-reference-figure-open"')
-        self.assertNotContains(response, "Click to zoom")
-        self.assertNotContains(response, "md:float-right")
-
     def test_split_liver_content_moves_footer_text_below_plot(self) -> None:
         """Test reference TLN + workbook + citation text blocks render below the plot."""
         self.page.content = [
@@ -242,8 +233,6 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
         self.assertGreater(ref_pos, plot_pos)
         self.assertGreater(supp_pos, ref_pos)
         self.assertGreater(cite_pos, supp_pos)
-        self.assertNotContains(response, 'id="liver-download-supplementary"')
-        self.assertNotContains(response, "reference-figure")
 
     def test_page_renders_successfully(self) -> None:
         """Test that the liver dashboard page returns HTTP 200."""

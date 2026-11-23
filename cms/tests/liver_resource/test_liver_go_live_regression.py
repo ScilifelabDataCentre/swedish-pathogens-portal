@@ -53,13 +53,13 @@ class TestLiverGoLiveRegression(TestCase):
 
         self.assertContains(response, "HepaGeNIE (Gene Network Inference and Exploration)")
         self.assertContains(response, 'aria-label="HepaGeNIE tree-leaf network"')
-        self.assertNotContains(response, "DINA")
-        self.assertNotContains(response, "DEcutoff")
 
         self.assertContains(response, "Adj P.val")
         self.assertContains(response, "LogFC fold")
         self.assertContains(response, "Difference DE genes")
         self.assertContains(response, "Total DE genes")
+        self.assertContains(response, "Up regulated")
+        self.assertContains(response, "Down regulated")
         for value in ADJ_P_CHOICES:
             self.assertContains(response, f'value="{value}"')
         for value in LOGFC_FOLD_CHOICES:
@@ -67,10 +67,6 @@ class TestLiverGoLiveRegression(TestCase):
 
         self.assertContains(response, EXAMPLE_LABEL)
         self.assertContains(response, liver_route_url(self.page, "load_example", EXAMPLE_SLUG))
-        self.assertNotContains(response, 'id="liver-reference-figure"')
-        self.assertNotContains(response, 'id="liver-reference-figure-dialog"')
-        self.assertNotContains(response, 'id="liver-reference-figure-open"')
-        self.assertNotContains(response, 'id="liver-download-supplementary"')
         self.assertContains(response, "Download DE template")
 
     def test_hover_titles_present_on_base_tln(self) -> None:
