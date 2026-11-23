@@ -15,9 +15,6 @@ from uuid import uuid4
 
 from django.conf import settings
 
-# Directory leaf name (used only in docs / legacy references). Actual root is
-# ``settings.LIVER_SESSION_ROOT`` and must not sit under ``MEDIA_ROOT``.
-SESSIONS_SUBDIR = "liver_resource_sessions"
 _STORAGE_ID_RE = re.compile(r"^[0-9a-f]{32}$")
 
 

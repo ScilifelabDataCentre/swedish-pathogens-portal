@@ -88,7 +88,7 @@ class TestLiverComputation(SimpleTestCase):
         self.assertEqual(len(r_ratios), EXPECTED_MODULE_COUNT)
         self._compare_ratios(ratios, r_ratios)
 
-    def test_option_b_stricter_fold_reduces_de_calls(self) -> None:
+    def test_stricter_fold_reduces_de_calls(self) -> None:
         """Test a higher LogFC fold threshold classifies fewer DE genes."""
         example_path = get_data_root() / "examples" / "HCC-Control.txt"
         de_data = parse_de_file(example_path)
