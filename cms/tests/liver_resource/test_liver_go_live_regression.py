@@ -40,7 +40,7 @@ class TestLiverGoLiveRegression(TestCase):
         self.client = Client()
 
     def test_model_verbose_name_is_hepagene(self) -> None:
-        """Rename: CMS model label is HepaGeNIE, not DINA/ITA."""
+        """CMS model label is HepaGeNIE Dashboard."""
         self.assertEqual(
             LiverResourceDashboardPage._meta.verbose_name,
             "HepaGeNIE Dashboard",
@@ -70,7 +70,7 @@ class TestLiverGoLiveRegression(TestCase):
         self.assertContains(response, "Download DE template")
 
     def test_hover_titles_present_on_base_tln(self) -> None:
-        """Jackie hover titles appear for titled modules; blanks stay number-only."""
+        """Hover titles appear for titled modules; blanks stay number-only."""
         figure_json = build_base_figure_json()
         leaf_trace = next(trace for trace in figure_json["data"] if trace.get("customdata"))
         hover_by_module = dict(

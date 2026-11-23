@@ -377,7 +377,7 @@ def _build_internal_trace(
 
 
 def _module_hover_heading(module_name: str, titles: dict[int, str]) -> str:
-    """Build the Module N heading, appending Jackie title when present."""
+    """Build the Module N heading, appending the hover title when present."""
     heading = f"<b>Module {module_name}</b>"
     title = titles.get(int(module_name))
     if not title:

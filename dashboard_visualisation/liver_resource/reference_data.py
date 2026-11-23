@@ -87,7 +87,7 @@ def load_module_labels() -> dict[str, str]:
 
 @lru_cache(maxsize=1)
 def load_hover_module_titles() -> dict[int, str]:
-    """Load Jackie hover titles keyed by module id (blank cells omitted)."""
+    """Load hover module titles keyed by module id (blank cells omitted)."""
     path = get_data_root() / "hover_module_titles.tsv"
     titles: dict[int, str] = {}
     with path.open(encoding="utf-8", newline="") as handle:
