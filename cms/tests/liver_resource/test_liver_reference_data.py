@@ -73,7 +73,7 @@ class TestLiverReferenceData(SimpleTestCase):
         self.assertGreater(len(labels), 0)
 
     def test_load_hover_module_titles(self) -> None:
-        """Test Jackie hover titles load for titled modules and skip blanks."""
+        """Test hover module titles load for titled modules and skip blanks."""
         titles = load_hover_module_titles()
         self.assertEqual(len(titles), 66)
         self.assertEqual(

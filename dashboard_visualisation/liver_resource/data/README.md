@@ -1,8 +1,10 @@
-# DINA Liver Resource — bundled reference data
+# HepaGeNIE — bundled reference data
 
-Static reference model for the Liver Resource dashboard. Loaded server-side only; not served as public static files.
+Static reference model for the HepaGeNIE (liver) dashboard. Loaded server-side only; not served as public static files.
 
 ## Source (102-module network — 24 June 2026 / Multi-DE active package)
+
+Upstream package paths below keep their original names for provenance.
 
 | File | Origin |
 |------|--------|
@@ -10,7 +12,7 @@ Static reference model for the Liver Resource dashboard. Loaded server-side only
 | `TLN.EdgeList.csv.cyjs` | `DINA-Liver-Clean/data/TLN.EdgeList_102.csv.cyjs` (filename kept) |
 | `hsapiens.SYMBOL.txt` | `DINA-Liver-Clean/data/` |
 | `ITA.Liver.ModNames.2025.txt` | Contents from `ITA.Liver.ModNames_102.txt` (filename kept for code compatibility) |
-| `hover_module_titles.tsv` | Converted from Jackie `Hover module names.xlsx` (module id → hover title; blanks omitted at load) |
+| `hover_module_titles.tsv` | Converted from collaborator `Hover module names.xlsx` (module id → hover title; blanks omitted at load) |
 | `modules/Module.*.txt` | `DINA-Liver-Clean/data/Modules_102/` (**directory name stays `modules/`**) |
 | `examples/*.txt` | `DINA-Liver-Clean/example-DE-files/` |
 | `DE_upload_template.txt` | Header + sample rows from HCC-Control example |
