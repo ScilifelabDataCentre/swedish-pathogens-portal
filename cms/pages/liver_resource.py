@@ -39,14 +39,20 @@ from dashboard_visualisation.utils.plotly import plot_html_from_json
 # Text blocks with these markers render below the plot (order preserved).
 _CITATION_MARKER = "How to cite"
 _SUPPLEMENTARY_MARKER = "supplementary workbook"
+_REFERENCE_TLN_MARKER = "reference tln map"
 
 
 def _is_below_plot_text(block: Any) -> bool:
-    """Return True for footer text: citation and supplementary workbook link."""
+    """Return True for footer text: citation, workbook, or reference TLN link."""
     if block.block_type != "text":
         return False
     html = str(block.value)
-    return _CITATION_MARKER in html or _SUPPLEMENTARY_MARKER in html.casefold()
+    folded = html.casefold()
+    return (
+        _CITATION_MARKER in html
+        or _SUPPLEMENTARY_MARKER in folded
+        or _REFERENCE_TLN_MARKER in folded
+    )
 
 
 def split_liver_content_for_plot(
@@ -55,8 +61,9 @@ def split_liver_content_for_plot(
     """Split StreamField blocks into intro (above plot) and footer (below).
 
     Footer text blocks are those whose HTML contains ``How to cite`` (APA
-    citation) or ``supplementary workbook`` (Document link). Keep StreamField
-    order so supplementary can sit immediately before the citation.
+    citation), ``supplementary workbook``, or ``reference TLN map`` (Wagtail
+    Document links). Keep StreamField order so editors can place the reference
+    map and workbook links immediately before the citation.
     """
     above: list[Any] = []
     below: list[Any] = []
@@ -75,12 +82,13 @@ class LiverResourceDashboardPage(RoutablePageMixin, DashboardPage):
     The page body is rendered from a custom template with upload controls,
     Plotly TLN, and htmx partial updates rather than StreamField figures.
 
-    The existing Wagtail ``image`` (card thumbnail) is also shown beside the
-    intro text as the zoomable reference TLN map — no extra image field.
-    Optional ``image_caption`` follows the Highlights / News figcaption pattern.
+    The Wagtail ``image`` field is the dashboard index card thumbnail only.
 
-    The supplementary module workbook is a normal Wagtail Document linked from
-    page rich text (below the plot, before the citation) — not a sidebar button.
+    The unlabeled reference TLN map and the supplementary module workbook are
+    normal Wagtail Documents linked from page rich text (below the plot, before
+    the citation) — not on-page figure chrome or sidebar buttons. Include the
+    phrases ``reference TLN map`` / ``supplementary workbook`` in those text
+    blocks so they render under the plot.
 
     The sidebar example DE file is ``DashboardData.source_file`` for this
     dashboard slug — not a bundled repo file.
@@ -106,15 +114,16 @@ class LiverResourceDashboardPage(RoutablePageMixin, DashboardPage):
                 FieldPanel(
                     "image",
                     help_text=(
-                        "Thumbnail on the dashboard index card; also shown as the "
-                        "zoomable reference TLN map beside the intro text."
+                        "Thumbnail on the dashboard index card only. Link the "
+                        "reference TLN map JPG from page text as a Document "
+                        "(same pattern as the supplementary workbook)."
                     ),
                 ),
                 FieldPanel(
                     "image_caption",
                     help_text=(
-                        "Optional caption for the reference TLN map. Displayed under "
-                        "the image on this page but not on the dashboard index card."
+                        "Unused on the public page (legacy). Clear this field; "
+                        "it will be removed in a follow-up migration."
                     ),
                 ),
             ],
@@ -165,12 +174,6 @@ class LiverResourceDashboardPage(RoutablePageMixin, DashboardPage):
         context["examples"] = list_examples(self.dashboard_data)
         context["liver_upload_url"] = self.url + self.reverse_subpage("upload_de")
         context["liver_recompute_url"] = self.url + self.reverse_subpage("recompute")
-        if self.image_id:
-            context["liver_reference_figure_url"] = self.url + self.reverse_subpage(
-                "download_reference_figure"
-            )
-        else:
-            context["liver_reference_figure_url"] = None
         content_above, content_below = split_liver_content_for_plot(self.content)
         context["liver_content_above"] = content_above
         context["liver_content_below"] = content_below
@@ -199,11 +202,6 @@ class LiverResourceDashboardPage(RoutablePageMixin, DashboardPage):
     def download_template(self, request: HttpRequest) -> HttpResponse:
         """Serve the bundled DE upload template."""
         return liver_views.download_template(request)
-
-    @path("reference-figure/")
-    def download_reference_figure(self, request: HttpRequest) -> HttpResponse:
-        """Serve the page card image as the reference TLN map download."""
-        return liver_views.download_reference_figure(request, page=self)
 
     @path("export/modules/")
     def export_module_scores(self, request: HttpRequest) -> HttpResponse:
