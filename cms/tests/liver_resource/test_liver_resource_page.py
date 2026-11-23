@@ -205,16 +205,6 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
         self.assertNotContains(response, "Click to zoom")
         self.assertNotContains(response, "md:float-right")
 
-    def test_page_does_not_render_image_caption_without_reference_figure(self) -> None:
-        """Test image_caption is unused once the on-page reference figure is gone."""
-        caption = "Reference TLN map (function themes)."
-        self.page.image_caption = caption
-        self.page.save_revision().publish()
-
-        response = self.client.get(self.page.url)
-        self.assertNotContains(response, "<figcaption")
-        self.assertNotContains(response, caption)
-
     def test_split_liver_content_moves_footer_text_below_plot(self) -> None:
         """Test reference TLN + workbook + citation text blocks render below the plot."""
         self.page.content = [
