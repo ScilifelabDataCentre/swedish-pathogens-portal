@@ -157,7 +157,7 @@ class TestLiverViewEdgeCases(TestCase):
         self.assertIn(b"Upload DE file(s)", response.content)
 
     def test_recompute_invalid_thresholds_fall_back_to_defaults(self) -> None:
-        """Test invalid threshold query values fall back to Option B defaults."""
+        """Test invalid threshold query values fall back to defaults."""
         self._post_de_file(build_de_file_bytes())
         response = self.client.get(
             self.recompute_url,

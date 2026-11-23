@@ -1,22 +1,7 @@
 """HTMX and JSON handlers for the HepaGeNIE dashboard.
 
-Routed via ``LiverResourceDashboardPage`` ``RoutablePageMixin`` sub-paths
-(for example ``…/upload/``, ``…/recompute/``), not ``cms/urls.py``.
-
-These handlers support the visitor-driven workflow: upload DE file(s), change
-DE thresholds, load bundled examples, and download results. Parsed DE data lives
-in the Django session — not in ``DashboardData``.
-
-MVP endpoint map (all required unless noted):
-
-| View | Method | MVP | User story |
-|------|--------|-----|------------|
-| ``upload_de`` | POST | Yes | FR-1 — upload and plot |
-| ``load_example`` | GET | Yes | FR-9 — bundled examples |
-| ``recompute`` | GET | Yes | FR-3 — change DE thresholds |
-| ``download_template`` | GET | Yes | FR-10 — DE template |
-| ``export_module_scores`` | GET | Yes | FR-7 — module scores CSV |
-| ``export_genes`` | GET | Yes | FR-7 — gene classification CSV |
+Routed via ``LiverResourceDashboardPage`` sub-paths (upload, recompute,
+example, template, exports). Parsed DE data lives in the Django session.
 """
 
 from __future__ import annotations
@@ -199,7 +184,7 @@ def load_example(request: HttpRequest, example_slug: str) -> HttpResponse:
 
 @require_GET
 def recompute(request: HttpRequest) -> HttpResponse:
-    """Recompute module ratios for the session DE file(s) and Option B thresholds.
+    """Recompute module ratios for the session DE file(s) and current thresholds.
 
     Returns JSON for solid-leaf ``Plotly.restyle`` (default) or an HTML plot partial
     when ``Accept: text/html`` (pie-leaf mode after threshold change).
@@ -260,7 +245,7 @@ def download_template(request: HttpRequest) -> HttpResponse:
 def export_module_scores(request: HttpRequest) -> HttpResponse:
     """Download module scores CSV (R ``*_module_scores.csv`` format) for the session.
 
-    MVP requirement FR-7. Uses the first file when multiple comparisons are loaded.
+    Uses the first file when multiple comparisons are loaded.
     """
     session, error_response = _require_session_for_export(request)
     if error_response is not None:
@@ -290,7 +275,7 @@ def export_module_scores(request: HttpRequest) -> HttpResponse:
 def export_genes(request: HttpRequest) -> HttpResponse:
     """Download gene classification CSV (R ``*_genes.csv`` format) for the session.
 
-    MVP requirement FR-7. Uses the first file when multiple comparisons are loaded.
+    Uses the first file when multiple comparisons are loaded.
     """
     session, error_response = _require_session_for_export(request)
     if error_response is not None:
@@ -332,7 +317,7 @@ def _thresholds_from_request(
     default_adj_p: float = DEFAULT_ADJ_P,
     default_logfc_fold: float = DEFAULT_LOGFC_FOLD,
 ) -> tuple[float, float]:
-    """Read Option B threshold fields from GET/POST mapping."""
+    """Read Adj P.val and LogFC fold from GET/POST mapping."""
     return (
         parse_adj_p(params.get("adj_p", default_adj_p), default=default_adj_p),
         parse_logfc_fold(params.get("logfc_fold", default_logfc_fold), default=default_logfc_fold),

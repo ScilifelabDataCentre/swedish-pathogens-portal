@@ -75,31 +75,20 @@ def split_liver_content_for_plot(
 
 
 class LiverResourceDashboardPage(RoutablePageMixin, DashboardPage):
-    """Visitor-driven liver TLN dashboard with session-scoped DE uploads.
+    """Visitor-driven HepaGeNIE TLN dashboard with session-scoped DE uploads.
 
-    Shares card fields with :class:`DashboardPage` for the index listing.
-    The page body is rendered from a custom template with upload controls,
-    Plotly TLN, and htmx partial updates rather than StreamField figures.
-
-    The Wagtail ``image`` field is the dashboard index card thumbnail only.
-
-    The unlabeled reference TLN map and the supplementary module workbook are
-    normal Wagtail Documents linked from page rich text (below the plot, before
-    the citation) — not on-page figure chrome or sidebar buttons. Include the
-    phrases ``reference TLN map`` / ``supplementary workbook`` in those text
-    blocks so they render under the plot.
-
-    The sidebar example DE file is ``DashboardData.source_file`` for this
-    dashboard slug — not a bundled repo file.
-
-    HTMX / download endpoints live as sub-routes on this page (same pattern as
-    :class:`~cms.pages.portal_data.PortalDataPage`), not under ``/cms/liver/``.
+    Reuses :class:`DashboardPage` card fields; the body is a custom template
+    (upload controls, Plotly TLN, HTMX routes). ``image`` is the index
+    thumbnail only — link the reference TLN map and supplementary workbook as
+    Documents in rich text below the plot (phrase markers
+    ``reference TLN map`` / ``supplementary workbook`` / ``How to cite``).
+    The sidebar example DE file is ``DashboardData.source_file`` for this slug.
     """
 
     template = "cms/pages/liver_resource.html"
     max_count = 1
 
-    # Override Card details: index thumbnail only (reference TLN is a Document link).
+    # Same shape as DashboardPage; override Card details image help_text only.
     content_panels = [
         *DashboardPage.content_panels[:1],
         MultiFieldPanel(
