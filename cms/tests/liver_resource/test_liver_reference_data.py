@@ -14,7 +14,6 @@ from dashboard_visualisation.liver_resource.reference_data import (
     list_example_files,
     load_cyjs_layout,
     load_hover_module_titles,
-    load_module_labels,
     load_modules,
     load_symbol_map,
     load_tln_graph,
@@ -66,11 +65,6 @@ class TestLiverReferenceData(SimpleTestCase):
         """Test Ensembl to symbol mapping loads."""
         symbol_map = load_symbol_map()
         self.assertGreater(len(symbol_map), 40_000)
-
-    def test_load_module_labels(self) -> None:
-        """Test module label mapping loads."""
-        labels = load_module_labels()
-        self.assertGreater(len(labels), 0)
 
     def test_load_hover_module_titles(self) -> None:
         """Test hover module titles load for titled modules and skip blanks."""
