@@ -25,6 +25,8 @@ python manage.py collectstatic --settings core.settings.production --noinput
 
 # If first arg looks like a flag, assume we want to run gunicorn
 if [ "${1:-}" = "" ] || [ "${1#-}" != "$1" ]; then
+  # --no-control-socket turns off gunicornc (CLI to control gunicorn) which we don't use.
+  # If not set, startup logs give: "Control server error: [Errno 30] Read-only file system: '/app/.gunicorn'".
   set -- gunicorn core.wsgi:application \
     --bind 0.0.0.0:8000 \
     --workers ${GUNICORN_WORKERS:-2} \
@@ -32,6 +34,7 @@ if [ "${1:-}" = "" ] || [ "${1#-}" != "$1" ]; then
     --worker-class gthread \
     --worker-tmp-dir /dev/shm \
     --forwarded-allow-ips='*' \
+    --no-control-socket \
     --error-logfile -
 fi
 
