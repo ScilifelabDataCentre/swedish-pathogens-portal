@@ -6,16 +6,16 @@ from typing import Any, TypedDict
 
 from django.http import HttpRequest
 
+from dashboard_visualisation.liver_resource.plot_metric import (
+    DEFAULT_PLOT_METRIC,
+    PlotMetric,
+    parse_plot_metric,
+)
 from dashboard_visualisation.liver_resource.session_storage import (
     delete_storage,
     new_storage_id,
     read_uploads,
     write_uploads,
-)
-from dashboard_visualisation.liver_resource.plot_metric import (
-    DEFAULT_PLOT_METRIC,
-    PlotMetric,
-    parse_plot_metric,
 )
 from dashboard_visualisation.liver_resource.thresholds import (
     DEFAULT_ADJ_P,

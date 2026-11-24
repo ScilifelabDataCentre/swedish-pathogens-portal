@@ -48,7 +48,13 @@ class TestLiverSession(TestCase):
             "genes": ["ENSG00000000003"],
             "data": {"ENSG00000000003": {"logFC": 1.0, "adj.P.Val": 0.01}},
         }
-        store_de_session(self.request, de_data=de_data, filename="example.txt", adj_p=0.05, logfc_fold=1.5)
+        store_de_session(
+            self.request,
+            de_data=de_data,
+            filename="example.txt",
+            adj_p=0.05,
+            logfc_fold=1.5,
+        )
 
         session_meta = self.request.session[SESSION_KEY]
         self.assertIn("storage_id", session_meta)
@@ -119,7 +125,8 @@ class TestLiverSession(TestCase):
         update_session_controls(self.request, adj_p=0.001, logfc_fold=5.0)
         self.assertEqual(get_session_cutoff(self.request), "0.001_5")
         session = get_de_session(self.request)
-        assert session is not None
+        if session is None:
+            self.fail("Expected session data after update_session_controls")
         self.assertEqual(session["adj_p"], 0.001)
         self.assertEqual(session["logfc_fold"], 5.0)
 

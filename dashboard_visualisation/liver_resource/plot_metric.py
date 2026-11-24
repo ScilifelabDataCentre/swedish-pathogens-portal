@@ -19,7 +19,11 @@ PLOT_METRIC_LABELS: dict[PlotMetric, str] = {
 }
 
 
-def parse_plot_metric(value: Any, *, default: PlotMetric = DEFAULT_PLOT_METRIC) -> PlotMetric:
+def parse_plot_metric(
+    value: Any,  # noqa: ANN401
+    *,
+    default: PlotMetric = DEFAULT_PLOT_METRIC,
+) -> PlotMetric:
     """Parse a Plot dropdown value; unknown values fall back to default."""
     if isinstance(value, str):
         normalised = value.strip().lower()

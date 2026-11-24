@@ -34,8 +34,7 @@ class TestHepageniePanelBlock(SimpleTestCase):
             source,
         )
         grid = (
-            _CMS_ROOT
-            / "templates/cms/pages/liver_resource/partials/interactive_grid.html"
+            _CMS_ROOT / "templates/cms/pages/liver_resource/partials/interactive_grid.html"
         ).read_text(encoding="utf-8")
         self.assertIn('id="tln-container"', grid)
         self.assertIn('id="liver-colour-legend"', grid)

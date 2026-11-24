@@ -77,9 +77,7 @@ class TestLiverPlotlyTln(SimpleTestCase):
         de_data = parse_de_file(example_path)
         classified = classify_genes(de_data, adj_p=0.05, logfc_fold=1.5)
         ratios = compute_module_ratios(de_data["genes"], classified, get_module_gene_sets())
-        figure_json = build_coloured_figure_json(
-            ratios, threshold_label="adj.P<0.05, fold 1.5"
-        )
+        figure_json = build_coloured_figure_json(ratios, threshold_label="adj.P<0.05, fold 1.5")
 
         leaf_trace = next(trace for trace in figure_json["data"] if trace.get("customdata"))
         colours = leaf_trace["marker"]["color"]

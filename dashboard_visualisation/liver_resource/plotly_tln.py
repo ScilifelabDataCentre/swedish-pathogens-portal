@@ -30,7 +30,7 @@ DEFAULT_PLOT_HEIGHT_PX = 560
 DEFAULT_FIGURE_HEIGHT = DEFAULT_PLOT_HEIGHT_PX
 
 
-def _tln_axis(**extra: Any) -> dict[str, Any]:
+def _tln_axis(**extra: Any) -> dict[str, Any]:  # noqa: ANN401
     """Axis settings for the TLN: no ticks/grid, no subplot edge drag handles."""
     axis: dict[str, Any] = {
         "showgrid": False,
@@ -421,9 +421,7 @@ def _build_leaf_trace(
         heading = _module_hover_heading(name, hover_titles)
         if base_view:
             hovers.append(
-                f"{heading}<br>"
-                f"Genes: {gene_count}<br>"
-                "<i>Upload DE file to see ratios</i>"
+                f"{heading}<br>Genes: {gene_count}<br><i>Upload DE file to see ratios</i>"
             )
         else:
             hovers.append(f"{heading}<br>Genes: {gene_count}<br>DE ratio: {ratio:+.4f}")

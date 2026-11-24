@@ -72,7 +72,10 @@ class TestLiverReferenceData(SimpleTestCase):
         self.assertEqual(len(titles), 66)
         self.assertEqual(
             titles[3],
-            "Immune response (I) -  Myeliod cells (Phagocytosis & MHC class II antigen presentation)",
+            (
+                "Immune response (I) -  Myeliod cells "
+                "(Phagocytosis & MHC class II antigen presentation)"
+            ),
         )
         self.assertEqual(titles[4], "Amino acid catabolism and urea cycle")
         self.assertEqual(titles[12], "Cell cycle (I) - DNA replication")

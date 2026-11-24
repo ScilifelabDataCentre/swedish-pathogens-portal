@@ -33,11 +33,11 @@ def format_threshold_label(adj_p: float, logfc_fold: float) -> str:
     return f"adj.P<{format_number(adj_p)}, fold {format_number(logfc_fold)}"
 
 
-def parse_adj_p(value: Any, *, default: float = DEFAULT_ADJ_P) -> float:
+def parse_adj_p(value: Any, *, default: float = DEFAULT_ADJ_P) -> float:  # noqa: ANN401
     """Parse an Adj P.val choice; unknown values fall back to default."""
     try:
         parsed = float(value)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return default
     for choice in ADJ_P_CHOICES:
         if math.isclose(parsed, choice, rel_tol=0.0, abs_tol=1e-12):
@@ -45,11 +45,11 @@ def parse_adj_p(value: Any, *, default: float = DEFAULT_ADJ_P) -> float:
     return default
 
 
-def parse_logfc_fold(value: Any, *, default: float = DEFAULT_LOGFC_FOLD) -> float:
+def parse_logfc_fold(value: Any, *, default: float = DEFAULT_LOGFC_FOLD) -> float:  # noqa: ANN401
     """Parse a LogFC fold choice; unknown values fall back to default."""
     try:
         parsed = float(value)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         return default
     for choice in LOGFC_FOLD_CHOICES:
         if math.isclose(parsed, choice, rel_tol=0.0, abs_tol=1e-12):

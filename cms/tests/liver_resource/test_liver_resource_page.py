@@ -15,12 +15,12 @@ from cms.tests.liver_resource.liver_helpers import (
     liver_route_url,
 )
 from cms.tests.utils import create_test_image
-from dashboard_visualisation.liver_resource.thresholds import ADJ_P_CHOICES, LOGFC_FOLD_CHOICES
 from dashboard_visualisation.liver_resource.examples import list_example_slugs, list_examples
 from dashboard_visualisation.liver_resource.reference_data import (
     clear_reference_data_cache,
     get_data_root,
 )
+from dashboard_visualisation.liver_resource.thresholds import ADJ_P_CHOICES, LOGFC_FOLD_CHOICES
 
 
 class LiverResourcePageTestCase(WagtailPageTestCase):
@@ -222,11 +222,17 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
             ("hepagene_panel", {}),
             (
                 "text",
-                "<p>Download the <a href=\"/documents/1/tln.jpg\">HepaGeNIE reference TLN map</a>.</p>",
+                (
+                    '<p>Download the <a href="/documents/1/tln.jpg">'
+                    "HepaGeNIE reference TLN map</a>.</p>"
+                ),
             ),
             (
                 "text",
-                "<p>Download the <a href=\"/documents/2/supp.xlsx\">supplementary workbook</a>.</p>",
+                (
+                    '<p>Download the <a href="/documents/2/supp.xlsx">'
+                    "supplementary workbook</a>.</p>"
+                ),
             ),
             (
                 "text",

@@ -71,9 +71,7 @@ class TestLiverGoLiveRegression(TestCase):
         """Hover titles appear for titled modules; blanks stay number-only."""
         figure_json = build_base_figure_json()
         leaf_trace = next(trace for trace in figure_json["data"] if trace.get("customdata"))
-        hover_by_module = dict(
-            zip(leaf_trace["customdata"], leaf_trace["hovertext"], strict=True)
-        )
+        hover_by_module = dict(zip(leaf_trace["customdata"], leaf_trace["hovertext"], strict=True))
         self.assertIn("Myeliod cells", hover_by_module["3"])
         self.assertTrue(hover_by_module["1"].startswith("<b>Module 1</b><br>Genes:"))
 

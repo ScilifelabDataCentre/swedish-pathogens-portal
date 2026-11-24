@@ -6,6 +6,8 @@ example, template, exports). Parsed DE data lives in the Django session.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+
 import structlog
 from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import render
@@ -32,6 +34,7 @@ from dashboard_visualisation.liver_resource.exports import (
 )
 from dashboard_visualisation.liver_resource.plot_metric import (
     DEFAULT_PLOT_METRIC,
+    PlotMetric,
     parse_plot_metric,
 )
 from dashboard_visualisation.liver_resource.plotly_tln import (
@@ -312,7 +315,7 @@ def _csv_attachment_response(filename: str, content: str) -> HttpResponse:
 
 
 def _thresholds_from_request(
-    params,
+    params: Mapping[str, object],
     *,
     default_adj_p: float = DEFAULT_ADJ_P,
     default_logfc_fold: float = DEFAULT_LOGFC_FOLD,
@@ -324,7 +327,11 @@ def _thresholds_from_request(
     )
 
 
-def _plot_metric_from_request(params, *, default=DEFAULT_PLOT_METRIC):
+def _plot_metric_from_request(
+    params: Mapping[str, object],
+    *,
+    default: PlotMetric = DEFAULT_PLOT_METRIC,
+) -> PlotMetric:
     """Read Plot Difference/Total from GET/POST mapping."""
     return parse_plot_metric(params.get("plot_metric", default), default=default)
 
@@ -335,7 +342,7 @@ def _store_and_render_analysis(
     uploads: list[tuple[str, dict]],
     adj_p: float,
     logfc_fold: float,
-    plot_metric=DEFAULT_PLOT_METRIC,
+    plot_metric: PlotMetric = DEFAULT_PLOT_METRIC,
     log_event: str,
 ) -> HttpResponse:
     """Persist uploads in session, run analysis, log, and return the plot partial."""

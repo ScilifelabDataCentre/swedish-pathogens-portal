@@ -181,7 +181,7 @@ def _parse_stored_example(
     try:
         resolved_adj = float(stats_adj)
         resolved_fold = float(stats_fold)
-    except (TypeError, ValueError):
+    except TypeError, ValueError:
         resolved_adj, resolved_fold = adj_p, logfc_fold
 
     return StoredExampleFigure(

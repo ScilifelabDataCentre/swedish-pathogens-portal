@@ -132,7 +132,8 @@ class TestLiverComputation(SimpleTestCase):
                 continue
             self.assertGreaterEqual(total_ratio, 0.0)
             diff_ratio = difference[module_id]
-            assert diff_ratio is not None
+            if diff_ratio is None:
+                self.fail(f"Expected difference ratio for module {module_id}")
             self.assertGreaterEqual(total_ratio, abs(diff_ratio) - 1e-12)
             compared += 1
         self.assertGreater(compared, 0)

@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Any
 
 EXAMPLE_SLUG = "obese-control"
 EXAMPLE_LABEL = "Obese vs control (GSE126848)"
@@ -42,7 +41,7 @@ def _is_obese_example_filename(filename: str) -> bool:
     return stem in {"obese-control", "gse126848-obese-control", "gse126848 obese-control"}
 
 
-def _dashboard_source_file(dashboard_data: object | None) -> Any | None:
+def _dashboard_source_file(dashboard_data: object | None) -> object | None:
     """Return DashboardData.source_file when it has a stored name."""
     source_file = getattr(dashboard_data, "source_file", None)
     if source_file is not None and getattr(source_file, "name", ""):
@@ -76,7 +75,7 @@ def get_example_uploads(
         return None
     try:
         path = Path(source_file.path)
-    except (AttributeError, NotImplementedError, ValueError):
+    except AttributeError, NotImplementedError, ValueError:
         return None
     if not path.is_file():
         return None

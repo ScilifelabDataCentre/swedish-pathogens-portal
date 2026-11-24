@@ -26,12 +26,12 @@ from dashboard_visualisation.liver_resource.dashboard_figures import (
     resolve_base_tln_figure,
 )
 from dashboard_visualisation.liver_resource.examples import list_examples
-from dashboard_visualisation.liver_resource.plotly_tln import DEFAULT_PLOT_HEIGHT_PX
 from dashboard_visualisation.liver_resource.plot_metric import (
     DEFAULT_PLOT_METRIC,
     PLOT_METRIC_CHOICES,
     PLOT_METRIC_LABELS,
 )
+from dashboard_visualisation.liver_resource.plotly_tln import DEFAULT_PLOT_HEIGHT_PX
 from dashboard_visualisation.liver_resource.session import (
     get_de_session,
     get_session_plot_metric,
