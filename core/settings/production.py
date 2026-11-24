@@ -140,11 +140,7 @@ DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL")
 CONTACT_RECIPIENT_EMAIL = env("CONTACT_RECIPIENT_EMAIL")
 
 # LOGGING
-# REVIEW: Currently logs are not aggregated, only written to stdout.
-# We write to stdout using the plain_console formatter.
-# When ready, we can uncomment out the below line and switch to json_formatter in production
-# NOTE: prod-entrypoint.sh sets '--access-logfile -', which writes non JSON format logs to STDOUT.
-# This either needs to be removed or configured seperately
-# to ensure all logs are written in JSON format to STDOUT.
-# https://gunicorn.org/guides/docker/?h=json#logging
-# LOGGING["handlers"]["console"]["formatter"] = "json_formatter"  # noqa: F405
+# Log as JSON for the DC observability stack (see doc/developer-docs/operations.md#logging).
+# Gunicorn's access log is disabled, but its error log (prod-entrypoint.sh) is plain text.
+# Making Gunicorn log JSON not worth it for the few lines it writes (startup, worker boots, errors).
+LOGGING["handlers"]["console"]["formatter"] = "json_formatter"  # noqa: F405

@@ -32,7 +32,7 @@ if [ "${1:-}" = "" ] || [ "${1#-}" != "$1" ]; then
     --worker-class gthread \
     --worker-tmp-dir /dev/shm \
     --forwarded-allow-ips='*' \
-    --access-logfile -
+    --error-logfile -
 fi
 
 exec "$@"
