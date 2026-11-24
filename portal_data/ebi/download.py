@@ -26,7 +26,7 @@ import httpx
 import structlog
 
 from cms.services.api_client import CLIENT
-from portal_data.ebi_search import (
+from portal_data.ebi.search import (
     BASE_QUERY,
     EBI_SEARCH_URL,
     Column,

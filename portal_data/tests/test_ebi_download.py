@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 import httpx
 from django.test import SimpleTestCase
 
-from portal_data.ebi_download import (
+from portal_data.ebi.download import (
     ENA_BROWSER_API_URL,
     FASTA,
     TSV,
@@ -20,7 +20,7 @@ from portal_data.ebi_download import (
     iter_tsv,
     parse_accessions,
 )
-from portal_data.ebi_search import BASE_QUERY, DATA_TYPES, EBI_SEARCH_URL
+from portal_data.ebi.search import BASE_QUERY, DATA_TYPES, EBI_SEARCH_URL
 
 RAW_READS = DATA_TYPES["raw-reads"]
 SEQUENCES = DATA_TYPES["sequences"]
@@ -69,11 +69,11 @@ class TestParseAccessions(SimpleTestCase):
         self.assertEqual(parse_accessions(""), [])
 
 
-@patch("portal_data.ebi_download.CLIENT")
+@patch("portal_data.ebi.download.CLIENT")
 class TestIterAccessions(SimpleTestCase):
     """Tests for iter_accessions."""
 
-    @patch("portal_data.ebi_download.ACCESSION_PAGE_SIZE", 2)
+    @patch("portal_data.ebi.download.ACCESSION_PAGE_SIZE", 2)
     def test_pages_until_a_short_page(self, mock_client: MagicMock):
         """Test pages are requested until one comes back short, with the search and facets."""
         mock_client.get.side_effect = [
@@ -97,13 +97,13 @@ class TestIterAccessions(SimpleTestCase):
         """Test EBI Search being unreachable raises DownloadError."""
         mock_client.get.side_effect = httpx.ConnectError("down")
         with (
-            self.assertLogs("portal_data.ebi_download", level="ERROR"),
+            self.assertLogs("portal_data.ebi.download", level="ERROR"),
             self.assertRaises(DownloadError),
         ):
             list(iter_accessions(RAW_READS))
 
 
-@patch("portal_data.ebi_download.CLIENT")
+@patch("portal_data.ebi.download.CLIENT")
 class TestIterTsv(SimpleTestCase):
     """Tests for iter_tsv."""
 
@@ -130,7 +130,7 @@ class TestIterTsv(SimpleTestCase):
         self.assertEqual(params["query"], f"{BASE_QUERY} AND (coli*)")
         self.assertEqual(params["fields"].split(",")[0], "acc")
 
-    @patch("portal_data.ebi_download.TSV_PAGE_SIZE", 1)
+    @patch("portal_data.ebi.download.TSV_PAGE_SIZE", 1)
     def test_all_results_are_paged(self, mock_client: MagicMock):
         """Test pages are requested until one comes back short."""
         header = self.EBI_TSV.splitlines()[0] + "\n"
@@ -139,7 +139,7 @@ class TestIterTsv(SimpleTestCase):
         self.assertEqual(len(lines), 2)
         self.assertEqual(mock_client.get.call_args_list[1].kwargs["params"]["start"], 1)
 
-    @patch("portal_data.ebi_download.SELECTED_BATCH_SIZE", 2)
+    @patch("portal_data.ebi.download.SELECTED_BATCH_SIZE", 2)
     def test_selected_accessions_are_looked_up_in_batches(self, mock_client: MagicMock):
         """Test selected records are queried by accession, a batch at a time."""
         mock_client.get.return_value = response(text=self.EBI_TSV)
@@ -157,11 +157,11 @@ class TestIterTsv(SimpleTestCase):
         self.assertTrue(lines[1].startswith('ERX1\t"a\tb"\t'))
 
 
-@patch("portal_data.ebi_download.CLIENT")
+@patch("portal_data.ebi.download.CLIENT")
 class TestIterEnaData(SimpleTestCase):
     """Tests for iter_ena_data."""
 
-    @patch("portal_data.ebi_download.ENA_BATCH_SIZE", 2)
+    @patch("portal_data.ebi.download.ENA_BATCH_SIZE", 2)
     def test_fasta_batches_are_concatenated(self, mock_client: MagicMock):
         """Test accessions are posted as JSON in batches and the files concatenated."""
         mock_client.post.side_effect = [
@@ -176,7 +176,7 @@ class TestIterEnaData(SimpleTestCase):
             first.kwargs["json"], {"accessions": "A,B", "download": False, "gzip": False}
         )
 
-    @patch("portal_data.ebi_download.ENA_BATCH_SIZE", 1)
+    @patch("portal_data.ebi.download.ENA_BATCH_SIZE", 1)
     def test_xml_batches_are_merged_under_one_root(self, mock_client: MagicMock):
         """Test each batch's root element is merged, so the file is one valid XML document."""
         declaration = '<?xml version="1.0" encoding="UTF-8"?>\n'
@@ -199,7 +199,7 @@ class TestIterEnaData(SimpleTestCase):
         self.assertEqual(b"".join(iter_ena_data(XML, [])), b"")
         mock_client.post.assert_not_called()
 
-    @patch("portal_data.ebi_download.ENA_BATCH_SIZE", 4)
+    @patch("portal_data.ebi.download.ENA_BATCH_SIZE", 4)
     def test_rejected_batch_is_split_and_bad_accessions_skipped(self, mock_client: MagicMock):
         """Test a batch ENA rejects is split in half until only the bad accession is left out."""
 
@@ -210,7 +210,7 @@ class TestIterEnaData(SimpleTestCase):
             return response(content="".join(f">{a}\n" for a in accessions).encode())
 
         mock_client.post.side_effect = post
-        with self.assertLogs("portal_data.ebi_download", level="WARNING"):
+        with self.assertLogs("portal_data.ebi.download", level="WARNING"):
             data = b"".join(iter_ena_data(FASTA, ["A", "BAD", "C", "D"]))
         self.assertEqual(data, b">A\n>C\n>D\n")
 
@@ -218,7 +218,7 @@ class TestIterEnaData(SimpleTestCase):
         """Test ENA server errors are retried once before DownloadError."""
         mock_client.post.return_value = response(503, text="busy")
         with (
-            self.assertLogs("portal_data.ebi_download", level="ERROR"),
+            self.assertLogs("portal_data.ebi.download", level="ERROR"),
             self.assertRaises(DownloadError),
         ):
             list(iter_ena_data(FASTA, ["A"]))

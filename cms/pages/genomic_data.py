@@ -12,7 +12,8 @@ from wagtail.models import Page
 from wagtail.search import index
 
 from cms.blocks import AlertBlock, EnaDataBlock
-from cms.services.genomic_data import MAX_SEARCH_LENGTH, build_context_dict, serve_download
+from portal_data.ebi.context import MAX_SEARCH_LENGTH, build_context_dict
+from portal_data.ebi.views import serve_download
 
 
 class GenomicDataPage(RoutablePageMixin, Page):
