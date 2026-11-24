@@ -8,10 +8,7 @@ from wagtail.test.utils import WagtailPageTestCase
 
 from cms.pages.dashboard import DashboardPage
 from cms.pages.dashboard_index import DashboardIndexPage
-from cms.pages.liver_resource import (
-    LiverResourceDashboardPage,
-    split_liver_content_for_plot,
-)
+from cms.pages.liver_resource import LiverResourceDashboardPage
 from cms.snippets.dashboard_data import DashboardData
 from cms.tests.liver_resource.liver_helpers import (
     create_published_liver_resource_page,
@@ -217,11 +214,12 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
         self.assertNotContains(response, "> Up</span>")
         self.assertNotContains(response, "> Down</span>")
 
-    def test_split_liver_content_moves_footer_text_below_plot(self) -> None:
-        """Test reference TLN + workbook + citation text blocks render below the plot."""
+    def test_stream_order_places_blocks_around_hepagene_panel(self) -> None:
+        """Test StreamField order alone places intro above and footer below the panel."""
         self.page.liver_content = [
             ("text", "<p>Intro copy for HepaGeNIE.</p>"),
             ("alert", {"alert_type": "info", "message": "<p>Upload help.</p>"}),
+            ("hepagene_panel", {}),
             (
                 "text",
                 "<p>Download the <a href=\"/documents/1/tln.jpg\">HepaGeNIE reference TLN map</a>.</p>",
@@ -238,22 +236,31 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
         self.page.save_revision().publish()
         self.page.refresh_from_db()
 
-        above, below = split_liver_content_for_plot(self.page.liver_content)
-        self.assertEqual([block.block_type for block in above], ["text", "alert"])
-        self.assertEqual(len(below), 3)
-        self.assertIn("reference tln map", str(below[0].value).casefold())
-        self.assertIn("supplementary workbook", str(below[1].value).casefold())
-        self.assertIn("How to cite the example dataset", str(below[2].value))
+        block_types = [block.block_type for block in self.page.liver_content]
+        self.assertEqual(block_types.count("hepagene_panel"), 1)
+        panel_index = block_types.index("hepagene_panel")
+        self.assertEqual(block_types[:panel_index], ["text", "alert"])
+        self.assertEqual(block_types[panel_index + 1 :], ["text", "text", "text"])
 
         response = self.client.get(self.page.url)
         html = response.content.decode()
+        self.assertEqual(html.count('id="tln-container"'), 1)
+        intro_pos = html.index("Intro copy for HepaGeNIE")
         plot_pos = html.index('id="tln-container"')
         ref_pos = html.index("reference TLN map")
         supp_pos = html.index("supplementary workbook")
         cite_pos = html.index("How to cite the example dataset")
+        self.assertLess(intro_pos, plot_pos)
         self.assertGreater(ref_pos, plot_pos)
         self.assertGreater(supp_pos, ref_pos)
         self.assertGreater(cite_pos, supp_pos)
+
+    def test_get_context_does_not_expose_marker_split_lists(self) -> None:
+        """Test phrase-marker above/below context keys are gone after cut-over."""
+        request = self.client.get(self.page.url).wsgi_request
+        context = self.page.get_context(request)
+        self.assertNotIn("liver_content_above", context)
+        self.assertNotIn("liver_content_below", context)
 
     def test_page_renders_successfully(self) -> None:
         """Test that the liver dashboard page returns HTTP 200."""

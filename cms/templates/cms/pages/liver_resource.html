@@ -23,26 +23,9 @@
         {% endif %}
     </p>
 
-    {# Intro StreamField above the upload/plot grid (no floated reference image). #}
-    {% if liver_content_above %}
-    <div class="mb-6">
-        {% for block in liver_content_above %}
-            {% include_block block %}
-        {% endfor %}
-    </div>
-    {% endif %}
-
-    {# Hardcoded grid until Commit 4 cut-over (do not also render HepageniePanel here). #}
-    {% include "cms/pages/liver_resource/partials/interactive_grid.html" %}
-
-    {# APA "How to cite …" blocks — same pattern as other portal dashboards. #}
-    {% if liver_content_below %}
-    <div class="mt-8">
-        {% for block in liver_content_below %}
-            {% include_block block %}
-        {% endfor %}
-    </div>
-    {% endif %}
+    {% for block in page.liver_content %}
+        {% include_block block %}
+    {% endfor %}
 </div>
 
 <script src="{% static 'cms/js/liver_resource.js' %}" defer></script>
