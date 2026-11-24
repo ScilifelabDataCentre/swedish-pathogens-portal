@@ -298,6 +298,8 @@ LOGGING = {
     # - JSONRenderer produces structured logs as JSON
     # - foreign_pre_chain enriches JSON records from plain stdlib logging calls (e.g. Django's)
     #   with the same logger/level/timestamp fields structlog's own records already have.
+    #   merge_contextvars also adds the request context bound by the middleware (e.g. request_id).
+    # - format_exc_info keeps tracebacks from stdlib logging (e.g. django.request) in JSON.
     # --------------------------------------------------------------------------------------------
     "formatters": {
         "plain_console": {
@@ -308,9 +310,11 @@ LOGGING = {
             "()": structlog.stdlib.ProcessorFormatter,
             "processor": structlog.processors.JSONRenderer(),
             "foreign_pre_chain": [
+                structlog.contextvars.merge_contextvars,
                 structlog.stdlib.add_logger_name,
                 structlog.stdlib.add_log_level,
                 structlog.processors.TimeStamper(fmt="iso"),
+                structlog.processors.format_exc_info,
             ],
         },
     },
@@ -337,6 +341,9 @@ LOGGING = {
     # - Setting Non-root loggers to propagate=False to prevent logs being passed to parent loggers
     # - django_structlog and werkzeug loggers are used by the packages called exactly that
     # - werkzeug logger produces access logs (in local development)
+    # - django.request is set to ERROR, as django_structlog already logs 4xx responses.
+    #     It stays on to catch errors raised outside django_structlog's middleware,
+    #     meaning most 5xx are logged twice.
     # --------------------------------------------------------------------------------------------
     "root": {
         "handlers": ["console"],
@@ -351,6 +358,11 @@ LOGGING = {
         "werkzeug": {
             "handlers": ["console"],
             "level": "INFO",
+            "propagate": False,
+        },
+        "django.request": {
+            "handlers": ["console"],
+            "level": "ERROR",
             "propagate": False,
         },
     },
