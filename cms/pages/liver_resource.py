@@ -4,7 +4,7 @@ from typing import Any
 
 from django.http import HttpRequest, HttpResponse
 from wagtail.admin.panels import FieldPanel, MultiFieldPanel
-from wagtail.blocks import RichTextBlock, StreamValue
+from wagtail.blocks import RichTextBlock
 from wagtail.contrib.routable_page.models import RoutablePageMixin, path
 from wagtail.fields import StreamField
 from wagtail.search import index
@@ -46,44 +46,6 @@ from dashboard_visualisation.liver_resource.thresholds import (
 )
 from dashboard_visualisation.utils.plotly import plot_html_from_json
 
-# Text blocks with these markers render below the plot (order preserved).
-_CITATION_MARKER = "How to cite"
-_SUPPLEMENTARY_MARKER = "supplementary workbook"
-_REFERENCE_TLN_MARKER = "reference tln map"
-
-
-def _is_below_plot_text(block: Any) -> bool:
-    """Return True for footer text: citation, workbook, or reference TLN link."""
-    if block.block_type != "text":
-        return False
-    html = str(block.value)
-    folded = html.casefold()
-    return (
-        _CITATION_MARKER in html
-        or _SUPPLEMENTARY_MARKER in folded
-        or _REFERENCE_TLN_MARKER in folded
-    )
-
-
-def split_liver_content_for_plot(
-    content: StreamValue,
-) -> tuple[list[Any], list[Any]]:
-    """Split StreamField blocks into intro (above plot) and footer (below).
-
-    Footer text blocks are those whose HTML contains ``How to cite`` (APA
-    citation), ``supplementary workbook``, or ``reference TLN map`` (Wagtail
-    Document links). Keep StreamField order so editors can place the reference
-    map and workbook links immediately before the citation.
-    """
-    above: list[Any] = []
-    below: list[Any] = []
-    for block in content:
-        if _is_below_plot_text(block):
-            below.append(block)
-        else:
-            above.append(block)
-    return above, below
-
 
 class LiverResourceDashboardPage(RoutablePageMixin, DashboardPage):
     """Visitor-driven HepaGeNIE TLN dashboard with session-scoped DE uploads.
@@ -93,11 +55,10 @@ class LiverResourceDashboardPage(RoutablePageMixin, DashboardPage):
     ``hepagene_panel`` is not added to other dashboards. Django MTI forbids
     redefining the inherited ``content`` field on this subclass.
 
-    Until the panel cut-over, the body still uses a custom template with a
-    hardcoded sidebar+TLN and phrase markers
-    (``reference TLN map`` / ``supplementary workbook`` / ``How to cite``) to
-    split intro vs footer. ``image`` is the index thumbnail only. The sidebar
-    example DE file is ``DashboardData.source_file`` for this slug.
+    Layout follows StreamField order: blocks before ``hepagene_panel`` render
+    above the interactive sidebar+TLN; blocks after render below. ``image`` is
+    the index thumbnail only. The sidebar example DE file is
+    ``DashboardData.source_file`` for this slug.
     """
 
     template = "cms/pages/liver_resource.html"
@@ -138,8 +99,8 @@ class LiverResourceDashboardPage(RoutablePageMixin, DashboardPage):
                     "image",
                     help_text=(
                         "Thumbnail on the dashboard index card only. Link the "
-                        "reference TLN map JPG from page text as a Document "
-                        "(same pattern as the supplementary workbook)."
+                        "reference TLN map and supplementary workbook as Documents "
+                        "in liver_content (below the HepaGeNIE panel)."
                     ),
                 ),
             ],
@@ -149,8 +110,8 @@ class LiverResourceDashboardPage(RoutablePageMixin, DashboardPage):
         FieldPanel(
             "liver_content",
             help_text=(
-                "Main HepaGeNIE content. Includes the HepaGeNIE interactive panel "
-                "block (liver-only; not available on other dashboards)."
+                "Main HepaGeNIE content. Place the HepaGeNIE interactive panel "
+                "once; drag blocks above or below it for layout."
             ),
         ),
     ]
@@ -195,9 +156,6 @@ class LiverResourceDashboardPage(RoutablePageMixin, DashboardPage):
         context["default_threshold_key"] = DEFAULT_THRESHOLD_KEY
         context["has_session"] = session is not None
         context["examples"] = list_examples(self.dashboard_data)
-        content_above, content_below = split_liver_content_for_plot(self.liver_content)
-        context["liver_content_above"] = content_above
-        context["liver_content_below"] = content_below
         return context
 
     # ------------------------------------------------------------------ #
