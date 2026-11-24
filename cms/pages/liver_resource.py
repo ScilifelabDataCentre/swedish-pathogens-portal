@@ -4,9 +4,20 @@ from typing import Any
 
 from django.http import HttpRequest, HttpResponse
 from wagtail.admin.panels import FieldPanel, MultiFieldPanel
-from wagtail.blocks import StreamValue
+from wagtail.blocks import RichTextBlock, StreamValue
 from wagtail.contrib.routable_page.models import RoutablePageMixin, path
+from wagtail.fields import StreamField
+from wagtail.search import index
 
+from cms.blocks import (
+    AlertBlock,
+    CollapsibleBlock,
+    DataTableBlock,
+    HepageniePanelBlock,
+    LastUpdatedBlock,
+    PlotlyFigureBlock,
+    StaticFigureBlock,
+)
 from cms.pages.dashboard import DashboardPage
 from cms.views import liver_resource as liver_views
 from dashboard_visualisation.liver_resource.analysis import LEAF_TRACE_INDEX
@@ -77,18 +88,44 @@ def split_liver_content_for_plot(
 class LiverResourceDashboardPage(RoutablePageMixin, DashboardPage):
     """Visitor-driven HepaGeNIE TLN dashboard with session-scoped DE uploads.
 
-    Reuses :class:`DashboardPage` card fields; the body is a custom template
-    (upload controls, Plotly TLN, HTMX routes). ``image`` is the index
-    thumbnail only — link the reference TLN map and supplementary workbook as
-    Documents in rich text below the plot (phrase markers
-    ``reference TLN map`` / ``supplementary workbook`` / ``How to cite``).
-    The sidebar example DE file is ``DashboardData.source_file`` for this slug.
+    Reuses :class:`DashboardPage` card fields. Uses a liver-only
+    ``liver_content`` StreamField (same idea as SLU ``slu_content``) so
+    ``hepagene_panel`` is not added to other dashboards. Django MTI forbids
+    redefining the inherited ``content`` field on this subclass.
+
+    Until the panel cut-over, the body still uses a custom template with a
+    hardcoded sidebar+TLN and phrase markers
+    (``reference TLN map`` / ``supplementary workbook`` / ``How to cite``) to
+    split intro vs footer. ``image`` is the index thumbnail only. The sidebar
+    example DE file is ``DashboardData.source_file`` for this slug.
     """
 
     template = "cms/pages/liver_resource.html"
     max_count = 1
 
-    # Same shape as DashboardPage; override Card details image help_text only.
+    # Liver-only StreamField: shared dashboard blocks + HepaGeNIE panel.
+    # Parent DashboardPage.content is unused in the editor (see content_panels).
+    liver_content = StreamField(
+        [
+            ("text", RichTextBlock()),
+            ("alert", AlertBlock()),
+            ("collapsible", CollapsibleBlock()),
+            ("data_table", DataTableBlock()),
+            ("last_updated", LastUpdatedBlock()),
+            ("plotly_figure", PlotlyFigureBlock()),
+            ("static_figure", StaticFigureBlock()),
+            ("hepagene_panel", HepageniePanelBlock()),
+        ],
+        blank=False,
+        default=list,
+    )
+
+    search_fields = DashboardPage.search_fields + [
+        index.SearchField("liver_content"),
+        index.AutocompleteField("liver_content"),
+    ]
+
+    # Drop parent ``content`` panel; show ``liver_content`` instead (SLU pattern).
     content_panels = [
         *DashboardPage.content_panels[:1],
         MultiFieldPanel(
@@ -108,7 +145,14 @@ class LiverResourceDashboardPage(RoutablePageMixin, DashboardPage):
             ],
             heading="Card details",
         ),
-        *DashboardPage.content_panels[2:],
+        *DashboardPage.content_panels[2:-1],
+        FieldPanel(
+            "liver_content",
+            help_text=(
+                "Main HepaGeNIE content. Includes the HepaGeNIE interactive panel "
+                "block (liver-only; not available on other dashboards)."
+            ),
+        ),
     ]
 
     class Meta:
@@ -151,7 +195,7 @@ class LiverResourceDashboardPage(RoutablePageMixin, DashboardPage):
         context["default_threshold_key"] = DEFAULT_THRESHOLD_KEY
         context["has_session"] = session is not None
         context["examples"] = list_examples(self.dashboard_data)
-        content_above, content_below = split_liver_content_for_plot(self.content)
+        content_above, content_below = split_liver_content_for_plot(self.liver_content)
         context["liver_content_above"] = content_above
         context["liver_content_below"] = content_below
         return context
@@ -162,30 +206,30 @@ class LiverResourceDashboardPage(RoutablePageMixin, DashboardPage):
 
     @path("upload/")
     def upload_de(self, request: HttpRequest) -> HttpResponse:
-        """Accept DE upload(s) and return the TLN plot partial."""
+        """HTMX/JSON: validate upload, store session, return coloured figure."""
         return liver_views.upload_de(request)
-
-    @path("recompute/")
-    def recompute(self, request: HttpRequest) -> HttpResponse:
-        """Recompute colours / plot for the active session DE thresholds."""
-        return liver_views.recompute(request)
 
     @path("example/<slug:example_slug>/")
     def load_example(self, request: HttpRequest, example_slug: str) -> HttpResponse:
-        """Load a bundled example dataset into session and return the plot."""
+        """HTMX/JSON: load a curated example DE file into the session."""
         return liver_views.load_example(request, example_slug)
 
-    @path("template/")
+    @path("recompute/")
+    def recompute(self, request: HttpRequest) -> HttpResponse:
+        """HTMX/JSON: recolour the TLN from the current session thresholds."""
+        return liver_views.recompute(request)
+
+    @path("download-template/")
     def download_template(self, request: HttpRequest) -> HttpResponse:
-        """Serve the bundled DE upload template."""
+        """Download the empty DE upload template."""
         return liver_views.download_template(request)
 
     @path("export/modules/")
     def export_module_scores(self, request: HttpRequest) -> HttpResponse:
-        """Download module scores CSV for the session upload."""
+        """Download module scores CSV for the current session."""
         return liver_views.export_module_scores(request)
 
     @path("export/genes/")
     def export_genes(self, request: HttpRequest) -> HttpResponse:
-        """Download gene classification CSV for the session upload."""
+        """Download gene classification CSV for the current session."""
         return liver_views.export_genes(request)

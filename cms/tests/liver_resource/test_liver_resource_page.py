@@ -67,6 +67,25 @@ class TestLiverResourceDashboardPageModel(LiverResourcePageTestCase):
             "cms/pages/liver_resource.html",
         )
 
+    def test_liver_content_stream_includes_hepagene_panel(self) -> None:
+        """Test liver-only StreamField offers the HepaGeNIE panel block."""
+        block_names = list(self.page.liver_content.stream_block.child_blocks)
+        self.assertNotIn(
+            "hepagene_panel",
+            DashboardPage._meta.get_field("content").stream_block.child_blocks,
+        )
+        self.assertIn("hepagene_panel", block_names)
+        for shared in (
+            "text",
+            "alert",
+            "collapsible",
+            "data_table",
+            "last_updated",
+            "plotly_figure",
+            "static_figure",
+        ):
+            self.assertIn(shared, block_names)
+
     def test_dashboard_index_allows_liver_child(self) -> None:
         """Test that DashboardIndexPage accepts liver dashboard children."""
         self.assertIn(
@@ -200,7 +219,7 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
 
     def test_split_liver_content_moves_footer_text_below_plot(self) -> None:
         """Test reference TLN + workbook + citation text blocks render below the plot."""
-        self.page.content = [
+        self.page.liver_content = [
             ("text", "<p>Intro copy for HepaGeNIE.</p>"),
             ("alert", {"alert_type": "info", "message": "<p>Upload help.</p>"}),
             (
@@ -219,7 +238,7 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
         self.page.save_revision().publish()
         self.page.refresh_from_db()
 
-        above, below = split_liver_content_for_plot(self.page.content)
+        above, below = split_liver_content_for_plot(self.page.liver_content)
         self.assertEqual([block.block_type for block in above], ["text", "alert"])
         self.assertEqual(len(below), 3)
         self.assertIn("reference tln map", str(below[0].value).casefold())
