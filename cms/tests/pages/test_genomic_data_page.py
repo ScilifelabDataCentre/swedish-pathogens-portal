@@ -371,6 +371,19 @@ class TestGenomicDataPage(WagtailPageTestCase):
         response = self.get_htmx()
         self.assertContains(response, "The sequences can't be shown right now")
         self.assertContains(response, "isn't responding at the moment")
+        # with no facets to show, the filters column is left out and the message is full width
+        self.assertNotContains(response, 'aria-label="Filter results"')
+        self.assertContains(response, "lg:col-span-full")
+
+    @patch("portal_data.ebi.search.fetch_json")
+    def test_failure_with_filters_selected_keeps_clear_filters(self, mock_fetch: MagicMock):
+        """Test the filters column stays, with "Clear all filters", if filters are selected."""
+        mock_fetch.return_value = None
+        response = self.get_htmx({"host": "Homo sapiens"})
+        self.assertContains(response, "The sequences can't be shown right now")
+        self.assertContains(response, 'aria-label="Filter results"')
+        self.assertContains(response, "Clear all filters")
+        self.assertNotContains(response, "lg:col-span-full")
 
     @patch("portal_data.ebi.search.COUNT_CACHE_TTL_SECONDS", 0)
     @patch("portal_data.ebi.search.SEARCH_CACHE_TTL_SECONDS", 0)

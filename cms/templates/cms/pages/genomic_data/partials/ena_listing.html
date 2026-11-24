@@ -34,6 +34,12 @@
 
 <div class="grid grid-cols-1 gap-6 lg:grid-cols-12">
 
+    {% comment %}
+        The filters column is left out when there's nothing to show in it, e.g. when
+        EBI Search fails before returning any facets, so the results or message use the
+        full width. "Clear all filters" still needs it while filters are selected.
+    {% endcomment %}
+    {% if facets or facets_active %}
     <aside class="flex flex-col gap-4 lg:col-span-3" aria-label="Filter results">
         {% for facet in facets %}
         {% with facet_id=facet.field|slugify %}
@@ -84,8 +90,9 @@
             <button type="submit" class="btn btn-primary btn-sm">Apply filters</button>
         </noscript>
     </aside>
+    {% endif %}
 
-    <div class="min-w-0 lg:col-span-9">
+    <div class="min-w-0 {% if facets or facets_active %}lg:col-span-9{% else %}lg:col-span-full{% endif %}">
         {% if stale_since and not fetch_error %}
         {# Shown when EBI Search fails but an earlier copy of these results is still cached. #}
         <div class="mb-3 rounded border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900" role="status">
