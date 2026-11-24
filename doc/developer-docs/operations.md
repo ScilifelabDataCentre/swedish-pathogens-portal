@@ -92,7 +92,7 @@ All logs go to stdout or stderr:
 
 What gets logged per request:
 
-- Request logs come from django-structlog only. Gunicorn's access log is turned off. Its error log (startup, worker boots, timeouts) is still on and goes to stderr as plain text.
+- Request logs come from django-structlog. Gunicorn's access log is turned off. Its error log (startup, worker boots, timeouts) is still on and goes to stderr as JSON ([gunicorn.conf.py](../../gunicorn.conf.py)).
 - Successful static file requests (e.g. `/static/cms/js/matomo_script.<hash>.js`) are not logged, as WhiteNoise sits outside the structlog middleware. Failures (e.g. 404s) are.
 - Successful `GET`/`HEAD` requests to `/healthz/` are not logged ([core/log_processors.py](../../core/log_processors.py)). A failed `/healthz/` check would be logged.
 

@@ -28,6 +28,7 @@ if [ "${1:-}" = "" ] || [ "${1#-}" != "$1" ]; then
   # --no-control-socket turns off gunicornc (CLI to control gunicorn) which we don't use.
   # If not set, startup logs give: "Control server error: [Errno 30] Read-only file system: '/app/.gunicorn'".
   set -- gunicorn core.wsgi:application \
+    --config gunicorn.conf.py \
     --bind 0.0.0.0:8000 \
     --workers ${GUNICORN_WORKERS:-2} \
     --threads ${GUNICORN_THREADS:-4} \
