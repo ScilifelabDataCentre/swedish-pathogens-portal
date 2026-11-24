@@ -144,3 +144,7 @@ CONTACT_RECIPIENT_EMAIL = env("CONTACT_RECIPIENT_EMAIL")
 # Gunicorn's access log is disabled, but its error log (prod-entrypoint.sh) is plain text.
 # Making Gunicorn log JSON not worth it for the few lines it writes (startup, worker boots, errors).
 LOGGING["handlers"]["console"]["formatter"] = "json_formatter"  # noqa: F405
+# Django returns a body for HEAD requests which gunicorn drops before sending to client.
+# gunicorn.http.wsgi warns about this for every HEAD request it receives,
+# this would mean a log warning for every HEAD request to /healthz/ (noisy).
+LOGGING["loggers"]["gunicorn.http.wsgi"] = {"level": "ERROR"}  # noqa: F405
