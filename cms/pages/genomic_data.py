@@ -4,7 +4,6 @@ from typing import Any
 
 from django.http import HttpRequest, HttpResponse
 from django.shortcuts import render
-from django.template.response import TemplateResponse
 from wagtail.admin.panels import FieldPanel
 from wagtail.blocks import RichTextBlock
 from wagtail.contrib.routable_page.models import RoutablePageMixin, path
@@ -82,7 +81,7 @@ class GenomicDataPage(RoutablePageMixin, Page):
                 template_name="cms/pages/genomic_data/partials/ena_listing.html",
                 context=build_context_dict(request=request, page=self),
             )
-        return TemplateResponse(request, self.get_template(request), self.get_context(request))
+        return render(request, self.get_template(request), self.get_context(request))
 
     @path("download/")
     def download(self, request: HttpRequest) -> HttpResponse:
