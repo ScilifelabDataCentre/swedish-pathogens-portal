@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import ftplib
 import io
+import os
 import tempfile
 from collections.abc import Callable
 from datetime import UTC, datetime
@@ -144,24 +145,103 @@ class FetchStudiesTests(FtpTestCase):
         """Fetch the single test study from server into self.dest."""
         return ftp.fetch_studies([f"{STUDY}/"], self.dest, ftp_factory=lambda: server, **kwargs)
 
-    def test_default_mode_fetches_only_the_investigation_file(self) -> None:
-        """Subdirectories and other files are left on the server by default."""
+    def test_default_mode_fetches_only_the_metadata_files(self) -> None:
+        """Investigation and sample files are fetched; data, assays and subdirectories aren't."""
         server = FakeFtp(
             {
                 f"{STUDY}/i_Investigation.txt": (b"investigation", T_OLD),
-                f"{STUDY}/s_study.txt": (b"sample", T_OLD),
+                f"{STUDY}/s_MTBLS1.txt": (b"sample", T_NEW),
+                f"{STUDY}/a_MTBLS1_assay.txt": (b"assay", T_OLD),
+                f"{STUDY}/raw.mzML": (b"raw", T_OLD),
                 f"{STUDY}/METADATA_REVISIONS/i_Investigation.txt": (b"old", T_OLD),
+                f"{STUDY}/METADATA_REVISIONS/s_MTBLS1.txt": (b"old", T_OLD),
             }
         )
 
         summary = self._fetch(server)
 
-        local = self.dest / "MTBLS1" / "i_Investigation.txt"
-        self.assertEqual(summary.downloaded, [local])
-        self.assertEqual(local.read_bytes(), b"investigation")
-        self.assertEqual(int(local.stat().st_mtime), int(T_OLD))
-        self.assertEqual(sorted(p.name for p in (self.dest / "MTBLS1").iterdir()), [local.name])
+        study = self.dest / "MTBLS1"
+        self.assertEqual(
+            sorted(p.name for p in summary.downloaded), ["i_Investigation.txt", "s_MTBLS1.txt"]
+        )
+        self.assertEqual(
+            sorted(p.name for p in study.iterdir()), ["i_Investigation.txt", "s_MTBLS1.txt"]
+        )
+        self.assertEqual((study / "s_MTBLS1.txt").read_bytes(), b"sample")
+        self.assertEqual(int((study / "i_Investigation.txt").stat().st_mtime), int(T_OLD))
+        self.assertEqual(int((study / "s_MTBLS1.txt").stat().st_mtime), int(T_NEW))
         self.assertTrue(server.closed)
+
+    def test_default_mode_without_mlsd_uses_list_and_mdtm(self) -> None:
+        """Servers without MLSD still get the metadata files, with their mtimes."""
+        server = FakeFtp(
+            {
+                f"{STUDY}/i_Investigation.txt": (b"i", T_OLD),
+                f"{STUDY}/s_MTBLS1.txt": (b"s", T_NEW),
+            },
+            mlsd_supported=False,
+        )
+
+        summary = self._fetch(server)
+
+        self.assertEqual(len(summary.downloaded), 2)
+        sample = self.dest / "MTBLS1" / "s_MTBLS1.txt"
+        self.assertEqual(int(sample.stat().st_mtime), int(T_NEW))
+
+    def test_study_without_investigation_file_is_unavailable(self) -> None:
+        """A study with no i_Investigation.txt (e.g. only FILES/) is skipped, not failed."""
+        server = FakeFtp(
+            {
+                f"{STUDY}/s_MTBLS1.txt": (b"s", T_OLD),
+                f"{STUDY}/FILES/data.mzML": (b"raw", T_OLD),
+                f"{STUDY}/METADATA_REVISIONS/MTBLS1_01/HASHES/hashes.txt": (b"h", T_OLD),
+            }
+        )
+
+        summary = self._fetch(server)
+
+        self.assertEqual(summary.failed, {})
+        self.assertIn(f"{STUDY}/", summary.unavailable)
+        self.assertIn("i_Investigation.txt", summary.unavailable[f"{STUDY}/"])
+        self.assertEqual(summary.downloaded, [])
+
+    def test_study_missing_from_public_area_is_unavailable(self) -> None:
+        """A study directory the server answers 550 for is skipped, not failed."""
+        server = FakeFtp({})
+
+        summary = self._fetch(server)
+
+        self.assertEqual(summary.failed, {})
+        self.assertIn("no such public study", summary.unavailable[f"{STUDY}/"])
+        self.assertTrue(server.closed)
+
+    def test_study_missing_without_mlsd_is_unavailable(self) -> None:
+        """Via the LIST fallback a missing directory lists as empty: still skipped."""
+        summary = self._fetch(FakeFtp({}, mlsd_supported=False))
+
+        self.assertEqual(summary.failed, {})
+        self.assertIn(f"{STUDY}/", summary.unavailable)
+
+    def test_all_mode_study_missing_from_public_area_is_unavailable(self) -> None:
+        """--all also skips a study whose directory isn't on the server."""
+        summary = self._fetch(FakeFtp({}), all_files=True)
+
+        self.assertEqual(summary.failed, {})
+        self.assertIn(f"{STUDY}/", summary.unavailable)
+
+    def test_other_listing_errors_still_fail(self) -> None:
+        """Only 550 means 'not public'; any other refusal is a real failure."""
+        server = FakeFtp({f"{STUDY}/i_Investigation.txt": (b"i", T_OLD)}, mlsd_supported=False)
+
+        def refuse(cmd: str, callback: Callable[[str], None]) -> None:
+            raise ftplib.error_perm("530 Not logged in")
+
+        server.retrlines = refuse
+
+        summary = self._fetch(server)
+
+        self.assertEqual(summary.unavailable, {})
+        self.assertIn("530", summary.failed[f"{STUDY}/"])
 
     def test_rerun_skips_unchanged_and_refetches_updated_file(self) -> None:
         """Same size+mtime is skipped; a changed remote file is downloaded again."""
@@ -225,7 +305,29 @@ class FetchStudiesTests(FtpTestCase):
         self.assertFalse(partial.exists())
 
     def test_failed_study_is_recorded_and_others_continue(self) -> None:
-        """A study missing on the server doesn't stop the next one."""
+        """A study whose connection fails doesn't stop the next one."""
+        server = FakeFtp({f"{STUDY}/i_Investigation.txt": (b"i", T_OLD)})
+        connections = iter([ConnectionRefusedError("refused"), server])
+
+        def factory() -> FakeFtp:
+            connection = next(connections)
+            if isinstance(connection, Exception):
+                raise connection
+            return connection
+
+        summary = ftp.fetch_studies(
+            ["/pub/databases/metabolights/studies/public/MTBLS404/", f"{STUDY}/"],
+            self.dest,
+            ftp_factory=factory,
+        )
+
+        self.assertEqual(
+            list(summary.failed), ["/pub/databases/metabolights/studies/public/MTBLS404/"]
+        )
+        self.assertEqual(len(summary.downloaded), 1)
+
+    def test_unavailable_study_is_recorded_and_others_continue(self) -> None:
+        """A study missing from the public area doesn't stop the next one either."""
         server = FakeFtp({f"{STUDY}/i_Investigation.txt": (b"i", T_OLD)})
 
         summary = ftp.fetch_studies(
@@ -235,8 +337,9 @@ class FetchStudiesTests(FtpTestCase):
         )
 
         self.assertEqual(
-            list(summary.failed), ["/pub/databases/metabolights/studies/public/MTBLS404/"]
+            list(summary.unavailable), ["/pub/databases/metabolights/studies/public/MTBLS404/"]
         )
+        self.assertEqual(summary.failed, {})
         self.assertEqual(len(summary.downloaded), 1)
 
     def test_unsafe_remote_name_is_refused(self) -> None:
@@ -314,9 +417,28 @@ class MetabolightsFetchCommandTests(FtpTestCase):
 
     def test_failed_study_makes_the_command_fail(self) -> None:
         """Any failed study gives a non-zero exit after trying the rest."""
+        server = self.server
+
+        def short_transfer(
+            cmd: str, callback: Callable[[bytes], None], rest: int | None = None
+        ) -> None:
+            content = server.files[cmd.partition(" ")[2]][0]
+            callback(content[:1] if "MTBLS2" in cmd else content)
+
+        server.retrbinary = short_transfer
         with self.assertRaises(CommandError) as raised:
-            self._call("MTBLS1", "MTBLS404")
-        self.assertIn("MTBLS404", str(raised.exception))
+            self._call("MTBLS1", "MTBLS2")
+        self.assertIn("MTBLS2", str(raised.exception))
+        self.assertTrue((self.dest / "MTBLS1" / "i_Investigation.txt").exists())
+
+    def test_study_without_public_metadata_is_skipped_not_failed(self) -> None:
+        """A study that isn't public yet is a warning, and the command still succeeds."""
+        output = self._call("MTBLS1", "MTBLS404")
+
+        self.assertIn("1 skipped (no public metadata), 0 failed.", output)
+        self.assertIn("Skipped studies with no public metadata yet:", output)
+        self.assertIn("MTBLS404", output)
+        self.assertIn("Done.", output)
         self.assertTrue((self.dest / "MTBLS1" / "i_Investigation.txt").exists())
 
     def test_read_only_dest_fails_once_before_connecting(self) -> None:
@@ -334,7 +456,54 @@ class MetabolightsFetchCommandTests(FtpTestCase):
     def test_summary_pluralises(self) -> None:
         """The closing summary reads naturally for one study and one file."""
         output = self._call("MTBLS1")
-        self.assertIn("1 study: 1 file downloaded, 0 unchanged, 0 failed.", output)
+        self.assertIn(
+            "1 study: 1 file downloaded, 0 unchanged, 0 skipped (no public metadata), 0 failed.",
+            output,
+        )
+
+    def _age_dest(self) -> int:
+        """Set self.dest's mtime to a fixed past time and return it in ns."""
+        os.utime(self.dest, (T_OLD, T_OLD))
+        return self.dest.stat().st_mtime_ns
+
+    def test_download_bumps_dest_mtime_to_invalidate_listing_cache(self) -> None:
+        """A download inside an existing study folder still moves the root's mtime."""
+        (self.dest / "MTBLS1").mkdir()
+        before = self._age_dest()
+
+        self._call("MTBLS1")
+
+        self.assertGreater(self.dest.stat().st_mtime_ns, before)
+
+    def test_nothing_downloaded_leaves_dest_mtime_alone(self) -> None:
+        """A run where every file is unchanged doesn't invalidate the cache."""
+        self._call("MTBLS1")
+        before = self._age_dest()
+
+        self._call("MTBLS1")
+
+        self.assertEqual(self.dest.stat().st_mtime_ns, before)
+
+    def test_dest_mtime_bumped_even_when_another_study_fails(self) -> None:
+        """What did download is made visible before the failure is raised."""
+        (self.dest / "MTBLS1").mkdir()
+        before = self._age_dest()
+        self.server.files.pop(f"{STUDY}/i_Investigation.txt")
+        self.server.files[f"{STUDY}/i_Investigation.txt"] = (b"one", T_OLD)
+        real_retrbinary = self.server.retrbinary
+
+        def fail_mtbls2(
+            cmd: str, callback: Callable[[bytes], None], rest: int | None = None
+        ) -> None:
+            if "MTBLS2" in cmd:
+                raise ConnectionResetError("reset")
+            real_retrbinary(cmd, callback, rest)
+
+        self.server.retrbinary = fail_mtbls2
+        with self.assertRaises(CommandError):
+            self._call("MTBLS1", "MTBLS2")
+
+        self.assertGreater(self.dest.stat().st_mtime_ns, before)
 
     def test_dest_defaults_to_datasets_root(self) -> None:
         """Without --dest, studies land in settings.DATASETS_ROOT."""

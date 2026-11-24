@@ -16,6 +16,7 @@ def write_investigation_file(
     title: str,
     release_date: str = "2024-01-01",
     platform: str = "LC-MS",
+    technology: str = "mass spectrometry",
 ) -> None:
     """Write a minimal MetaboLights investigation file for tests."""
     study_dir.mkdir(parents=True, exist_ok=True)
@@ -28,7 +29,7 @@ def write_investigation_file(
                 "Study Factor Name\tTreatment",
                 "Study Design Type\tcase control design",
                 f"Study Assay Technology Platform\t{platform}",
-                "Study Assay Technology Type\tmass spectrometry",
+                f"Study Assay Technology Type\t{technology}",
             ]
         ),
         encoding="utf-8",
@@ -70,7 +71,10 @@ class PortalDataContextTests(TestCase):
         self.assertEqual(context["items"][0]["accession"], "MTBLS1001")
         facet_fields = [facet["field"] for facet in context["facets"]]
         self.assertIn("year", facet_fields)
-        self.assertIn("platforms", facet_fields)
+        self.assertIn("organisms", facet_fields)
+        # Removed after user feedback; see test_removed_facets_in_the_url_are_ignored.
+        self.assertNotIn("platforms", facet_fields)
+        self.assertNotIn("factors", facet_fields)
 
     def test_build_portal_data_context_applies_search(self) -> None:
         """Filter listing context by a free-text search query."""
@@ -97,31 +101,37 @@ class PortalDataContextTests(TestCase):
         """Filter listing context by a selected facet value."""
         write_investigation_file(
             self.datasets_root / "MTBLS1001",
-            title="LCMS study",
-            platform="LC-MS",
+            title="MS study",
+            technology="mass spectrometry",
         )
         write_investigation_file(
             self.datasets_root / "MTBLS1002",
             title="NMR study",
-            platform="NMR spectroscopy",
+            technology="NMR spectroscopy",
         )
 
         with override_settings(DATASETS_ROOT=self.datasets_root):
-            request = self.factory.get(
-                "/data/",
-                {
-                    "facet": ["platforms"],
-                    "platforms": ["LC-MS"],
-                },
-            )
+            request = self.factory.get("/data/", {"technology": ["mass spectrometry"]})
             context = build_portal_data_context(
                 request,
                 datatype="metabolomics",
             )
 
-        self.assertEqual(context["filters"], {"platforms": ["LC-MS"]})
+        self.assertEqual(context["filters"], {"technology": ["mass spectrometry"]})
         self.assertEqual(context["total"], 1)
         self.assertEqual(context["items"][0]["accession"], "MTBLS1001")
+
+    def test_removed_facets_in_the_url_are_ignored(self) -> None:
+        """An old link such as ?platforms=LC-MS shows everything rather than filtering."""
+        write_investigation_file(self.datasets_root / "MTBLS1001", title="A", platform="LC-MS")
+        write_investigation_file(self.datasets_root / "MTBLS1002", title="B", platform="NMR")
+
+        with override_settings(DATASETS_ROOT=self.datasets_root):
+            request = self.factory.get("/data/", {"platforms": ["LC-MS"]})
+            context = build_portal_data_context(request, datatype="metabolomics")
+
+        self.assertEqual(context["filters"], {})
+        self.assertEqual(context["total"], 2)
 
     def test_unknown_datatype_returns_an_error_context(self) -> None:
         """Return an empty, error-flagged context for an unsupported datatype."""

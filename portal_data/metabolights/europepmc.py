@@ -912,16 +912,16 @@ def build_keyword_pattern(keywords: list[str]) -> re.Pattern[str]:
     if not keywords:
         raise ValueError("keywords list is empty")
 
-    # Sort by length descending so longer alternatives are tried first.
-    cs = sorted([kw for kw in keywords if is_uppercase_abbrev(kw)], key=len, reverse=True)
-    ci = sorted([kw for kw in keywords if not is_uppercase_abbrev(kw)], key=len, reverse=True)
-
-    parts = []
-    if cs:
-        parts.append("|".join(re.escape(kw) for kw in cs))
-    if ci:
-        parts.append(r"(?i:" + "|".join(re.escape(kw) for kw in ci) + r")")
-    return re.compile(r"\b(?:" + "|".join(parts) + r")\b")
+    # One alternation over every keyword, longest first, so the longest keyword
+    # at a position wins whichever kind it is. Sorting the case-sensitive and
+    # case-insensitive keywords as two separate groups let a short abbreviation
+    # shadow a longer keyword it begins: "SARS" matched at the start of
+    # "SARS-CoV-2", so COVID papers were recorded as matching "SARS".
+    alternatives = [
+        re.escape(kw) if is_uppercase_abbrev(kw) else r"(?i:" + re.escape(kw) + r")"
+        for kw in sorted(keywords, key=len, reverse=True)
+    ]
+    return re.compile(r"\b(?:" + "|".join(alternatives) + r")\b")
 
 
 def find_keyword_matches(text: str, pattern: re.Pattern[str]) -> list[str]:

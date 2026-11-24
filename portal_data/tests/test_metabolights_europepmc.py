@@ -199,6 +199,19 @@ class PureFunctionTests(SepmcTestCase):
         expected = "/pub/databases/metabolights/studies/public/MTBLS42/"
         self.assertEqual(sepmc.study_ftp_path("MTBLS42"), expected)
 
+    def test_longer_keyword_beats_an_abbreviation_it_starts_with(self) -> None:
+        """'SARS-CoV-2' is matched as itself, not as the case-sensitive 'SARS'."""
+        pattern = sepmc.build_keyword_pattern(["SARS", "SARS-CoV-2", "GAS", "bacteria"])
+
+        self.assertEqual(
+            sepmc.find_keyword_matches("Metabolic effects of SARS-CoV-2 infection", pattern),
+            ["SARS-CoV-2"],
+        )
+        self.assertEqual(sepmc.find_keyword_matches("The 2003 SARS outbreak", pattern), ["SARS"])
+        # Abbreviations stay case-sensitive; other keywords don't.
+        self.assertEqual(sepmc.find_keyword_matches("gas chromatography", pattern), [])
+        self.assertEqual(sepmc.find_keyword_matches("BACTERIA", pattern), ["BACTERIA"])
+
     def test_bundled_keywords_file_exists(self) -> None:
         """The default keyword list ships next to the module."""
         self.assertTrue(sepmc.DEFAULT_KEYWORDS_CSV.is_file())

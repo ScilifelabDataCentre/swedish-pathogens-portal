@@ -4,15 +4,21 @@ Fetches each study listed in targets.txt (as written by
 ``metabolights_search``), or the accessions given on the command line, into
 its own ``<dest>/<accession>/`` folder -- by default under
 ``settings.DATASETS_ROOT``, which is where the Portal Data page reads studies
-from. Only i_Investigation.txt is fetched unless --all is given. Re-running is
+from. Only the study metadata (i_Investigation.txt and the s_*.txt sample
+files) is fetched unless --all is given. Re-running is
 cheap: unchanged files are skipped and updated ones re-downloaded. See
 ``portal_data.metabolights.ftp`` for details.
+
+Studies with no public metadata yet (not in EBI's public area, or no
+i_Investigation.txt published) are skipped with a warning and don't affect
+the exit status; a later run picks them up once they appear.
 
 Exits 1 if any study failed to download (after trying all of them).
 """
 
 from __future__ import annotations
 
+import os
 import re
 from pathlib import Path
 
@@ -29,7 +35,7 @@ class Command(BaseCommand):
     """Download MetaboLights studies from the EBI FTP server."""
 
     help = (
-        "Download MetaboLights studies (i_Investigation.txt, or everything with --all) "
+        "Download MetaboLights studies (their metadata files, or everything with --all) "
         "listed in targets.txt or given as accessions."
     )
 
@@ -61,14 +67,18 @@ class Command(BaseCommand):
             "--all",
             dest="all_files",
             action="store_true",
-            help="Mirror every file in each study's directory, not just i_Investigation.txt.",
+            help="Mirror every file in each study's directory, not just the metadata files.",
         )
 
     def handle(self, *args: object, **options: object) -> None:
         """Fetch the requested studies and report what changed."""
         dest: Path = options["dest"] or Path(settings.DATASETS_ROOT)
         remote_dirs = self._remote_dirs(options["accessions"], options["targets"])
-        mode = "all files per study" if options["all_files"] else ftp.INVESTIGATION_FILE + " only"
+        mode = (
+            "all files per study"
+            if options["all_files"]
+            else f"metadata only ({ftp.INVESTIGATION_FILE} and s_*.txt)"
+        )
         # Fail once, before connecting, rather than once per study.
         try:
             services.ensure_writable_dir(dest)
@@ -94,8 +104,19 @@ class Command(BaseCommand):
         self.stdout.write(
             f"{_count(summary.studies, 'study', 'studies')}: "
             f"{_count(len(summary.downloaded), 'file')} downloaded, "
-            f"{len(summary.unchanged)} unchanged, {len(summary.failed)} failed."
+            f"{len(summary.unchanged)} unchanged, "
+            f"{len(summary.unavailable)} skipped (no public metadata), "
+            f"{len(summary.failed)} failed."
         )
+        if summary.unavailable:
+            skipped = "\n".join(
+                f"  {path}: {reason}" for path, reason in summary.unavailable.items()
+            )
+            self.stdout.write(
+                self.style.WARNING(f"Skipped studies with no public metadata yet:\n{skipped}")
+            )
+        if summary.downloaded:
+            os.utime(dest, None)
         if summary.failed:
             failures = "\n".join(f"  {path}: {reason}" for path, reason in summary.failed.items())
             raise CommandError(f"Some studies could not be fetched:\n{failures}")
