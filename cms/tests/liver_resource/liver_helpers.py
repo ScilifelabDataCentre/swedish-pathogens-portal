@@ -70,7 +70,7 @@ def create_published_liver_resource_page(
         description=description,
         image=image,
         data_status="active",
-        content=[("text", "<p>Upload a limma-style DE file to colour the TLN.</p>")],
+        liver_content=[("text", "<p>Upload a limma-style DE file to colour the TLN.</p>")],
     )
     index.add_child(instance=page)
     page.save_revision().publish()
