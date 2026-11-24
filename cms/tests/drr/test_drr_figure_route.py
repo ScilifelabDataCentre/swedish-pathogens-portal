@@ -321,7 +321,7 @@ class DrrRadarPartialTests(DrrFigureRouteTestCase):
         body = self.page_body()
 
         positions = [
-            body.index('aria-label="PCA of profiles"'),
+            body.index('id="drr-pca"'),
             body.index('id="drr-radars-heading"'),
             body.index('id="drr-radar-compound"'),
             body.index('id="drr-radar-radar_compound"'),

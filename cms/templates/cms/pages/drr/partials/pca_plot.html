@@ -1,0 +1,36 @@
+{% comment %}
+The DRR PCA and its colour-by picker, rendered together so the control sits
+above the figure it changes (FREYA-3201).
+
+The picker offers only the colourings precompute wrote, so no option can 404,
+and the default comes first. It is progressive enhancement: the default view
+below is complete before the control is touched, and a 404 leaves that figure
+standing. The request is an ordinary GET answered with server-rendered HTML, as
+the radar picker's is: no client-side Plotly callback is involved.
+{% endcomment %}
+{% if pca_figure %}
+    <section aria-labelledby="drr-pca-heading" class="mt-10">
+        <h2 id="drr-pca-heading" class="text-2xl">Principal component analysis</h2>
+
+        {% if pca_colourings %}
+            <form
+                class="mt-3 flex w-full flex-col gap-3 sm:flex-row sm:items-center"
+                hx-get="{{ pca_url }}"
+                hx-target="#drr-pca"
+                hx-swap="outerHTML"
+                hx-indicator="#drr-pca-indicator"
+            >
+                <label for="drr-pca-colour" class="text-sm font-semibold text-pp-almost-black">Colour by</label>
+                <select id="drr-pca-colour" name="colour" class="select select-bordered w-full sm:w-auto">
+                    {% for colouring in pca_colourings %}
+                        <option value="{{ colouring.key }}"{% if forloop.first %} selected{% endif %}>{{ colouring.label }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="btn btn-primary btn-sm">Show colouring</button>
+                <span id="drr-pca-indicator" class="htmx-indicator loading loading-spinner loading-sm"></span>
+            </form>
+        {% endif %}
+
+        {% include "cms/pages/drr/partials/pca_figure.html" with figure=pca_figure %}
+    </section>
+{% endif %}

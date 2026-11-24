@@ -14,6 +14,7 @@ from django.http import FileResponse, Http404, HttpRequest, HttpResponse, HttpRe
 from django.shortcuts import render
 from django.utils.functional import cached_property
 from wagtail.admin.panels import FieldPanel, MultiFieldPanel
+from wagtail.blocks import StreamValue
 from wagtail.contrib.routable_page.models import RoutablePageMixin, path
 from wagtail.search import index
 
@@ -22,6 +23,8 @@ from cms.services.data_table import get_table_context
 from cms.services.file_downloads import resolve_file_in_directory, serve_file_from_directory
 from dashboard_visualisation.drr import (
     HIT_THRESHOLD,
+    PCA_COLOURINGS,
+    PCA_DEFAULT_COLOURING,
     POPULATION_LABELS,
     SORT_OPTIONS,
     TABLE_HEADERS,
@@ -88,6 +91,42 @@ _SWAPPED_RADAR_CAPTION = (
 # Where the per-compound radar set lives inside the artefact directory.
 _RADAR_SET_DIR = "figures/radar"
 
+# The PCA, rendered by the page's own partial as the radars are, so its colour-by
+# picker always sits above the figure it swaps (FREYA-3201). A PCA block left in
+# ``content`` is not drawn, or the page would show two.
+_PCA_FIGURE: dict[str, Any] = {
+    "figure_id": "pca",
+    "alt_text": (
+        "Scatter plot of the first two principal components of the well-level "
+        "morphological profiles"
+    ),
+    "height": 600,
+}
+
+# The colourings in picker order: the key precompute writes, the picker's label,
+# and the caption the figure carries in that colouring. The keys are
+# ``PCA_COLOURINGS``; only the default lives in the snippet.
+_PCA_COLOURING_CHOICES: tuple[tuple[str, str, str], ...] = (
+    (
+        PCA_DEFAULT_COLOURING,
+        "Population",
+        "Each point is one well, coloured by its population.",
+    ),
+    (
+        "morphology",
+        "Morphology score",
+        "Treated wells coloured by their compound's morphology score at its best-scoring "
+        "dose, as in the compound table.",
+    ),
+    (
+        "moa",
+        "Mechanism of action",
+        "Treated wells coloured by their compound's broad mechanism of action: the eight "
+        "largest groups, then the rest.",
+    ),
+)
+_PCA_SET_DIR = "figures/pca"
+
 # The compound table (FREYA-3011): its artefact, the id the shared data-table
 # templates key their htmx targets on, and the page sizes offered. 629 rows is
 # small enough to read whole on each request.
@@ -95,9 +134,9 @@ _TABLE_ARTEFACT = "table.parquet"
 _TABLE_ID = "drr-compounds"
 _TABLE_PER_PAGE = (25, 50, 100)
 
-# Rendered radar HTML is cached like the shared figure block's, keyed on the
-# data row's hash so a rebuild that changes a figure cannot serve the old one.
-_RADAR_CACHE_TIMEOUT_SECONDS = 60 * 60 * 24
+# Rendered radar and PCA HTML is cached like the shared figure block's, keyed on
+# the data row's hash so a rebuild that changes a figure cannot serve the old one.
+_FIGURE_CACHE_TIMEOUT_SECONDS = 60 * 60 * 24
 
 
 class DrrDatasetPage(RoutablePageMixin, DashboardPage):
@@ -189,7 +228,7 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
         return rows
 
     def get_context(self, request: HttpRequest) -> dict[str, Any]:
-        """Add the DRR summary payload, the download URLs, the radars and both pickers."""
+        """Add the summary payload, the download URLs, the PCA, the radars and their pickers."""
         context = super().get_context(request)
         context["summary"] = getattr(self.dashboard_data, "summary", {})
         population_counts = self._population_counts(context["summary"])
@@ -207,7 +246,18 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
         if "compound_base" in download_urls and options:
             context["compounds"] = options
 
+        context["drr_content"] = self._drr_content()
+
         figures = getattr(self.dashboard_data, "data", {}) or {}
+        pca_json = figures.get(_PCA_FIGURE["figure_id"])
+        if pca_json is not None:
+            context["pca_figure"] = self._pca_figure(PCA_DEFAULT_COLOURING, pca_json)
+            # A picker whose only option is the view already shown changes nothing.
+            pca_options = self._pca_colouring_options()
+            if len(pca_options) > 1:
+                context["pca_colourings"] = pca_options
+                context["pca_url"] = (self.url or "") + self.reverse_subpage("pca_figure")
+
         radar_figures = [
             self._radar_figure(settings, figures[settings["figure_id"]])
             for settings in _RADAR_FIGURES
@@ -524,6 +574,33 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
     # Figure swap                                                        #
     # ------------------------------------------------------------------ #
 
+    def _cached_plot_html(
+        self, cache_prefix: str, variant: str, figure_json: dict[str, Any], height_px: int
+    ) -> str | None:
+        """Render precomputed Plotly JSON to HTML, cached per data generation.
+
+        Args:
+            cache_prefix: The figure family's key prefix.
+            variant: What distinguishes this render within the family, so one
+                compound's or colouring's render is never served for another's.
+            figure_json: The precomputed Plotly JSON.
+            height_px: The rendered height, which the HTML carries.
+
+        Returns:
+            str | None: The HTML, or ``None`` when the JSON does not render.
+        """
+        file_hash = getattr(self.dashboard_data, "source_file_hash", "") or ""
+        cache_key = f"{cache_prefix}:{self.slug}:{variant}:{file_hash}:{height_px}"
+
+        plot_html = cache.get(cache_key)
+        if plot_html is None:
+            plot_html = plot_html_from_json(
+                figure_json, height=f"{height_px}px", include_plotlyjs=False
+            )
+            if plot_html is not None:
+                cache.set(cache_key, plot_html, _FIGURE_CACHE_TIMEOUT_SECONDS)
+        return plot_html
+
     def _radar_figure(
         self, settings: dict[str, Any], figure_json: dict[str, Any], cbkid: str = ""
     ) -> dict[str, Any]:
@@ -540,20 +617,127 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
             dict[str, Any]: ``settings`` plus the rendered ``plot_html`` and the
                 ``caveat`` the payload carries about itself.
         """
-        figure_id = settings["figure_id"]
-        height_px = int(settings["height"])
-        file_hash = getattr(self.dashboard_data, "source_file_hash", "") or ""
-        cache_key = f"drr_radar_html:{self.slug}:{figure_id}:{cbkid}:{file_hash}:{height_px}"
-
-        plot_html = cache.get(cache_key)
-        if plot_html is None:
-            plot_html = plot_html_from_json(
-                figure_json, height=f"{height_px}px", include_plotlyjs=False
-            )
-            if plot_html is not None:
-                cache.set(cache_key, plot_html, _RADAR_CACHE_TIMEOUT_SECONDS)
-
+        plot_html = self._cached_plot_html(
+            "drr_radar_html",
+            f"{settings['figure_id']}:{cbkid}",
+            figure_json,
+            int(settings["height"]),
+        )
         return {**settings, "plot_html": plot_html, "caveat": self._radar_caveat(figure_json)}
+
+    def _pca_figure(self, colouring: str, figure_json: dict[str, Any]) -> dict[str, Any]:
+        """Render the PCA in one colouring into the context its partial reads.
+
+        Args:
+            colouring: One of ``PCA_COLOURINGS``. It keys the cache, so one
+                colouring's render is never served for another's.
+            figure_json: That colouring's precomputed Plotly JSON.
+
+        Returns:
+            dict[str, Any]: ``_PCA_FIGURE`` plus that colouring's caption and the
+                rendered ``plot_html``.
+        """
+        caption = next(text for key, _, text in _PCA_COLOURING_CHOICES if key == colouring)
+        plot_html = self._cached_plot_html(
+            "drr_pca_html", colouring, figure_json, int(_PCA_FIGURE["height"])
+        )
+        return {**_PCA_FIGURE, "caption": caption, "plot_html": plot_html}
+
+    def _pca_colouring_options(self) -> list[dict[str, str]]:
+        """List the PCA colourings precompute wrote, as options for the colour-by picker.
+
+        The default is offered when the snippet holds it and every other
+        colouring when its file is on disk, so no option can 404.
+
+        Returns:
+            list[dict[str, str]]: ``key`` / ``label`` pairs in picker order.
+        """
+        figures = getattr(self.dashboard_data, "data", {}) or {}
+        pca_dir = self._artefact_dir() / _PCA_SET_DIR
+        return [
+            {"key": key, "label": label}
+            for key, label, _ in _PCA_COLOURING_CHOICES
+            if (
+                figures.get(_PCA_FIGURE["figure_id"]) is not None
+                if key == PCA_DEFAULT_COLOURING
+                else (pca_dir / f"{key}.json").is_file()
+            )
+        ]
+
+    def _pca_payload(self, colouring: str) -> dict[str, Any]:
+        """Read the PCA in one colouring: the default from the snippet, the rest from disk.
+
+        The colouring is checked against ``PCA_COLOURINGS`` before any path is
+        built, so no request value reaches one, and the file then goes through
+        the same traversal guard the downloads use.
+
+        Args:
+            colouring: The colouring from the query string.
+
+        Returns:
+            dict[str, Any]: The figure's Plotly JSON.
+
+        Raises:
+            Http404: If the colouring is unknown, or was not precomputed, or its
+                artefact is unreadable.
+        """
+        if colouring not in PCA_COLOURINGS:
+            raise Http404("No such PCA colouring")
+        if colouring == PCA_DEFAULT_COLOURING:
+            figures = getattr(self.dashboard_data, "data", {}) or {}
+            payload = figures.get(_PCA_FIGURE["figure_id"])
+            if payload is None:
+                raise Http404("No PCA has been precomputed for this dataset")
+            return payload
+
+        artefact = resolve_file_in_directory(
+            self._artefact_dir(), f"{_PCA_SET_DIR}/{colouring}.json"
+        )
+        try:
+            return json.loads(artefact.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as error:
+            LOGGER.warning("drr.figure.unreadable_pca", path=str(artefact), error=str(error))
+            raise Http404("PCA colouring is not readable") from error
+
+    def _drr_content(self) -> StreamValue:
+        """Return the editorial stream without any PCA block, which the page draws itself."""
+        return StreamValue(
+            self.content.stream_block,
+            [
+                (child.block_type, child.value, child.id)
+                for child in self.content
+                if not (
+                    child.block_type == "plotly_figure"
+                    and child.value.get("figure_id") == _PCA_FIGURE["figure_id"]
+                )
+            ],
+        )
+
+    @path("pca/", name="pca_figure")
+    def pca_figure(self, request: HttpRequest) -> HttpResponse:
+        """Serve the PCA in one colouring as a server-rendered partial for an htmx swap.
+
+        The response goes through the same partial the page renders, so the
+        swapped figure carries the same id and alt text, and repeated swaps keep
+        working.
+
+        Args:
+            request: The incoming request; ``?colour=`` names the colouring.
+
+        Returns:
+            HttpResponse: The PCA partial.
+
+        Raises:
+            Http404: If the colouring is unknown or was not precomputed. The page
+                then keeps the PCA it already rendered.
+        """
+        colouring = request.GET.get("colour", "").strip()
+        figure_json = self._pca_payload(colouring)
+        return render(
+            request,
+            "cms/pages/drr/partials/pca_figure.html",
+            {"figure": self._pca_figure(colouring, figure_json)},
+        )
 
     @staticmethod
     def _radar_caveat(figure_json: dict[str, Any]) -> str:

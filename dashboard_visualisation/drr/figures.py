@@ -8,15 +8,19 @@ basis** — the morphology columns, with the screen's infection-readout channel
 excluded (``channels``, FREYA-2923), clipped to ``FIGURE_CLIP_BOUND`` as the
 published pipeline does (FREYA-2968) — while the downloads carry every column
 exactly as delivered. The PCA alone also leaves out the near-empty wells
-(``NEAR_EMPTY_NUCLEI_THRESHOLD``, FREYA-3200); the radars keep every well. Trace
-``uid``s (randomly assigned by Plotly) are stripped so the serialised output is
-byte-stable across identical runs, which the ``drr_precompute`` idempotency
-contract depends on.
+(``NEAR_EMPTY_NUCLEI_THRESHOLD``, FREYA-3200); the radars keep every well. The PCA
+is fitted once and drawn in each of ``PCA_COLOURINGS``, which recolour the treated
+wells only (FREYA-3201). Trace ``uid``s (randomly assigned by Plotly) are stripped
+so the serialised output is byte-stable across identical runs, which the
+``drr_precompute`` idempotency contract depends on.
 """
 
 from __future__ import annotations
 
 import json
+import math
+from collections import Counter
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
@@ -116,6 +120,52 @@ PCA_CONTROL_MARKER_SIZE = 6.0
 PCA_DOSE_MARKER_SIZES: tuple[float, float] = (4.0, 12.0)
 _PCA_MARKER_OPACITY = 0.6
 _PCA_ANTIVIRAL_OPACITY = 0.9
+
+# The PCA's colourings, in the picker's order. The default is the view the snippet
+# holds; the others are written under ``figures/pca/``, and the page serves only
+# these keys, so no request value names a file.
+PCA_DEFAULT_COLOURING = "population"
+PCA_COLOURINGS: tuple[str, ...] = (PCA_DEFAULT_COLOURING, "morphology", "moa")
+
+# Where a colouring has nothing to colour a treated well by, it says so in words.
+PCA_NOT_REPORTED = "Not reported"
+PCA_OTHER_MECHANISMS = "Other mechanisms"
+PCA_NOT_ANNOTATED = "Not annotated"
+_PCA_MISSING_COLOUR = PCA_POPULATION_COLOURS[TREATMENT_POPULATION]
+_PCA_OTHER_MECHANISMS_COLOUR = "#a8a8a8"
+
+# Each compound's morphology score as the compound table shows it, on Plotly's
+# colour-blind-safe sequential scale.
+PCA_MORPHOLOGY_TRACE = "Morphology score"
+_PCA_MORPHOLOGY_COLOURSCALE = "Cividis"
+# The bar sits in the legend's column, beneath the legend, so the plot area is the
+# same size in every colouring and a swap does not move the points.
+_PCA_COLOUR_BAR: dict[str, Any] = {
+    "title": {"text": PCA_MORPHOLOGY_TRACE, "side": "top"},
+    "orientation": "h",
+    "x": 1.02,
+    "xanchor": "left",
+    "y": 0,
+    "yanchor": "bottom",
+    "len": 160,
+    "lenmode": "pixels",
+    "thickness": 12,
+}
+
+# The mechanisms with the most compounds drawn take these in rank order: the first
+# eight of Paul Tol's colour-blind-safe "muted" scheme, none of them a grey that
+# would read as a bucket above or as the positive controls.
+PCA_MOA_GROUPS = 8
+PCA_MOA_COLOURS: tuple[str, ...] = (
+    "#cc6677",
+    "#332288",
+    "#ddcc77",
+    "#117733",
+    "#88ccee",
+    "#882255",
+    "#44aa99",
+    "#999933",
+)
 
 
 @dataclass
@@ -287,7 +337,7 @@ def _prepare(table: FeatureTable, feature_columns: list[str]) -> _Prepared:
     figure cannot be computed partly from the assay's own answer (FREYA-2923).
     The downloads keep every column, unclipped.
 
-    Every row is kept here, near-empty wells included: only ``build_pca`` leaves
+    Every row is kept here, near-empty wells included: only the PCA's fit leaves
     them out, so the radars average every well as before (FREYA-3200).
 
     Raises:
@@ -365,20 +415,43 @@ def _check_populations(pert_types: np.ndarray) -> None:
         )
 
 
-def build_pca(prep: _Prepared) -> go.Figure:
-    """Build a PC1/PC2 scatter of the fitted well-level profiles.
+@dataclass(frozen=True)
+class _PcaFit:
+    """One PCA fit, which every colouring draws.
 
-    PCA is computed via numpy SVD on the clipped figure basis (no sklearn), over
-    the wells with at least ``NEAR_EMPTY_NUCLEI_THRESHOLD`` nuclei. Near-empty
-    wells are neither fitted nor drawn, and the axes autorange over what is
-    drawn, so each axis's share is of the fitted wells' variation (FREYA-3200).
+    Attributes:
+        scores: PC1 and PC2 of each fitted well.
+        explained: Each component's share of the fitted wells' variance.
+        pert_types: The fitted wells' ``pert_type``.
+        cbkids: The fitted wells' ``cbkid``.
+        doses: The fitted wells' ``cmpd_conc``.
+        sizes: Each fitted well's marker size, by dose rank for a dosed well.
+        antiviral: Which fitted wells are one of ``PCA_ANTIVIRALS``.
+        dosed: Which fitted wells are sized by dose: treated and antiviral.
+    """
 
-    Traces run bottom to top in ``PCA_POPULATION_ORDER``, then the three
-    ``PCA_ANTIVIRALS``, each in its fixed colour. Populations are named by
-    ``radar.population_label`` rather than by their raw ``pert_type`` token
-    (FREYA-3009); an antiviral's wells leave their population at every dose. A
-    treated or antiviral well's marker grows with its dose, the controls keep
-    one size, and the subtitle says so.
+    scores: np.ndarray
+    explained: np.ndarray
+    pert_types: np.ndarray
+    cbkids: np.ndarray
+    doses: np.ndarray
+    sizes: np.ndarray
+    antiviral: np.ndarray
+    dosed: np.ndarray
+
+    @property
+    def treated(self) -> np.ndarray:
+        """Return which fitted wells a colouring recolours: treated, not antiviral."""
+        return (self.pert_types == TREATMENT_POPULATION) & ~self.antiviral
+
+
+def _fit_pca(prep: _Prepared) -> _PcaFit:
+    """Fit the PCA over the wells with at least ``NEAR_EMPTY_NUCLEI_THRESHOLD`` nuclei.
+
+    PCA is computed via numpy SVD on the clipped figure basis (no sklearn).
+    Near-empty wells are neither fitted nor drawn, and the axes autorange over
+    what is drawn, so each axis's share is of the fitted wells' variation
+    (FREYA-3200).
 
     Raises:
         ValueError: If a population has no plain-language name or no place in
@@ -401,56 +474,216 @@ def build_pca(prep: _Prepared) -> go.Figure:
     sizes = np.full(pert_types.shape[0], PCA_CONTROL_MARKER_SIZE)
     if dosed.any():
         sizes[dosed] = _dose_marker_sizes(doses[dosed])
+    return _PcaFit(
+        scores=scores,
+        explained=explained,
+        pert_types=pert_types,
+        cbkids=cbkids,
+        doses=doses,
+        sizes=sizes,
+        antiviral=antiviral,
+        dosed=dosed,
+    )
 
+
+def _pca_trace(fit: _PcaFit, mask: np.ndarray, name: str, marker: dict[str, Any]) -> dict[str, Any]:
+    """Return one PCA trace's ``add_scatter`` arguments: the masked wells, as markers."""
+    return {
+        "x": fit.scores[mask, 0],
+        "y": fit.scores[mask, 1],
+        "mode": "markers",
+        "name": name,
+        "marker": marker,
+    }
+
+
+def _treated_marker(fit: _PcaFit, mask: np.ndarray, colour: object) -> dict[str, Any]:
+    """Return a treated trace's marker: its colour, sized by dose like every treated well."""
+    return {"color": colour, "size": fit.sizes[mask], "opacity": _PCA_MARKER_OPACITY}
+
+
+def _population_traces(fit: _PcaFit) -> list[dict[str, Any]]:
+    """Return the default view's treated trace: every treated well in one pale grey."""
+    mask = fit.treated
+    if not mask.any():
+        return []
+    colour = PCA_POPULATION_COLOURS[TREATMENT_POPULATION]
+    return [
+        _pca_trace(
+            fit, mask, population_label(TREATMENT_POPULATION), _treated_marker(fit, mask, colour)
+        )
+    ]
+
+
+def _finite_score(value: float | None) -> float:
+    """Return a score, or NaN when it is missing or not a finite number."""
+    if value is None or not math.isfinite(value):
+        return math.nan
+    return float(value)
+
+
+def _morphology_traces(
+    fit: _PcaFit, scores: Mapping[str, float | None]
+) -> tuple[list[dict[str, Any]], dict[str, int]]:
+    """Return the morphology view's treated traces and how many compounds it scored.
+
+    Each treated well takes its compound's score as the compound table shows it.
+    A compound with no score is one grey "Not reported" trace at the bottom, never
+    a zero on the scale.
+    """
+    values = np.array([_finite_score(scores.get(cbkid)) for cbkid in fit.cbkids])
+    scored = fit.treated & np.isfinite(values)
+    unscored = fit.treated & ~np.isfinite(values)
+
+    traces = []
+    if unscored.any():
+        marker = _treated_marker(fit, unscored, _PCA_MISSING_COLOUR)
+        traces.append(_pca_trace(fit, unscored, PCA_NOT_REPORTED, marker))
+    if scored.any():
+        marker = {
+            **_treated_marker(fit, scored, values[scored]),
+            "colorscale": _PCA_MORPHOLOGY_COLOURSCALE,
+            "showscale": True,
+            "colorbar": _PCA_COLOUR_BAR,
+        }
+        traces.append(_pca_trace(fit, scored, PCA_MORPHOLOGY_TRACE, marker))
+    report = {
+        "n_compounds_scored": len(set(fit.cbkids[scored].tolist())),
+        "n_compounds_not_reported": len(set(fit.cbkids[unscored].tolist())),
+    }
+    return traces, report
+
+
+def _mechanism(value: object) -> str | None:
+    """Return a ``broad_moa`` as written, or ``None`` when it names nothing."""
+    return value if isinstance(value, str) and value.strip() else None
+
+
+def _moa_traces(
+    fit: _PcaFit, mechanisms: Mapping[str, str | None]
+) -> tuple[list[dict[str, Any]], list[str]]:
+    """Return the mechanism view's treated traces and the groups it coloured.
+
+    A pipe-joined ``broad_moa`` is a group of its own. Groups rank by how many of
+    the drawn compounds they hold, ties by name; the top ``PCA_MOA_GROUPS`` take
+    ``PCA_MOA_COLOURS`` in that order, every other group is "Other mechanisms",
+    and a compound with none is "Not annotated". Both buckets are drawn first, so
+    no coloured group hides under them.
+    """
+    group_of = {
+        cbkid: _mechanism(mechanisms.get(cbkid)) for cbkid in set(fit.cbkids[fit.treated].tolist())
+    }
+    counts = Counter(group for group in group_of.values() if group is not None)
+    ranked = sorted(counts, key=lambda group: (-counts[group], group))[:PCA_MOA_GROUPS]
+
+    def bucket(cbkid: str) -> str:
+        group = group_of.get(cbkid)
+        if group is None:
+            return PCA_NOT_ANNOTATED
+        return group if group in ranked else PCA_OTHER_MECHANISMS
+
+    labels = np.array([bucket(cbkid) if cbkid in group_of else "" for cbkid in fit.cbkids])
+    traces = []
+    for name, colour in (
+        (PCA_NOT_ANNOTATED, _PCA_MISSING_COLOUR),
+        (PCA_OTHER_MECHANISMS, _PCA_OTHER_MECHANISMS_COLOUR),
+        *zip(ranked, PCA_MOA_COLOURS, strict=False),
+    ):
+        mask = fit.treated & (labels == name)
+        if mask.any():
+            traces.append(_pca_trace(fit, mask, name, _treated_marker(fit, mask, colour)))
+    return traces, ranked
+
+
+def _draw_pca(fit: _PcaFit, treated_traces: list[dict[str, Any]]) -> go.Figure:
+    """Draw one view of the fit: its treated traces, then the controls and antivirals on top.
+
+    Traces run bottom to top: the view's own treated traces, then the rest of
+    ``PCA_POPULATION_ORDER``, then the three ``PCA_ANTIVIRALS``, each control and
+    antiviral in its fixed colour, so they are identical in every view.
+    Populations are named by ``radar.population_label`` rather than by their raw
+    ``pert_type`` token (FREYA-3009); an antiviral's wells leave their population
+    at every dose. A treated or antiviral well's marker grows with its dose, the
+    controls keep one size, and the subtitle says so.
+    """
     figure = go.Figure()
+    for trace in treated_traces:
+        figure.add_scatter(**trace)
     for token in PCA_POPULATION_ORDER:
-        mask = (pert_types == token) & ~antiviral
-        if not mask.any():
+        mask = (fit.pert_types == token) & ~fit.antiviral
+        if token == TREATMENT_POPULATION or not mask.any():
             continue
-        figure.add_scatter(
-            x=scores[mask, 0],
-            y=scores[mask, 1],
-            mode="markers",
-            name=population_label(token),
-            marker={
-                "color": PCA_POPULATION_COLOURS[token],
-                "size": sizes[mask] if token == TREATMENT_POPULATION else PCA_CONTROL_MARKER_SIZE,
-                "opacity": _PCA_MARKER_OPACITY,
-            },
-        )
+        marker = {
+            "color": PCA_POPULATION_COLOURS[token],
+            "size": PCA_CONTROL_MARKER_SIZE,
+            "opacity": _PCA_MARKER_OPACITY,
+        }
+        figure.add_scatter(**_pca_trace(fit, mask, population_label(token), marker))
     for cbkid, name in PCA_ANTIVIRALS:
-        mask = cbkids == cbkid
+        mask = fit.cbkids == cbkid
         if not mask.any():
             continue
-        figure.add_scatter(
-            x=scores[mask, 0],
-            y=scores[mask, 1],
-            mode="markers",
-            name=name,
-            marker={
-                "color": PCA_ANTIVIRAL_COLOUR,
-                "size": sizes[mask],
-                "opacity": _PCA_ANTIVIRAL_OPACITY,
-                "line": {"color": PCA_ANTIVIRAL_OUTLINE, "width": 1},
-            },
-        )
+        marker = {
+            "color": PCA_ANTIVIRAL_COLOUR,
+            "size": fit.sizes[mask],
+            "opacity": _PCA_ANTIVIRAL_OPACITY,
+            "line": {"color": PCA_ANTIVIRAL_OUTLINE, "width": 1},
+        }
+        figure.add_scatter(**_pca_trace(fit, mask, name, marker))
 
     title: dict[str, Any] = {"text": "PCA of well-level morphological profiles"}
-    if dosed.any():
+    if fit.dosed.any():
+        doses = fit.doses[fit.dosed]
         title["subtitle"] = {
             "text": (
-                f"Marker size shows dose: larger is higher, from {doses[dosed].min():g} "
-                f"to {doses[dosed].max():g} {DOSE_UNIT}"
+                f"Marker size shows dose: larger is higher, from {doses.min():g} "
+                f"to {doses.max():g} {DOSE_UNIT}"
             )
         }
     figure.update_layout(
         title=title,
-        xaxis_title=f"PC1 ({explained[0] * 100:.1f}% of the fitted wells' variance)",
-        yaxis_title=f"PC2 ({explained[1] * 100:.1f}% of the fitted wells' variance)",
+        xaxis_title=f"PC1 ({fit.explained[0] * 100:.1f}% of the fitted wells' variance)",
+        yaxis_title=f"PC2 ({fit.explained[1] * 100:.1f}% of the fitted wells' variance)",
         legend_title=POPULATION_LEGEND_TITLE,
         plot_bgcolor="white",
     )
     return figure
+
+
+def build_pca_views(
+    prep: _Prepared,
+    *,
+    morphology_scores: Mapping[str, float | None] | None = None,
+    mechanisms: Mapping[str, str | None] | None = None,
+) -> tuple[dict[str, go.Figure], dict[str, Any]]:
+    """Fit the PCA once and draw it in every colouring there is something to draw by.
+
+    Args:
+        prep: The prepared figure inputs.
+        morphology_scores: ``cbkid`` to the compound table's morphology score.
+            ``None`` when precompute built no table, which leaves the morphology
+            view unbuilt rather than every well "Not reported".
+        mechanisms: ``cbkid`` to the compound index's ``broad_moa``.
+
+    Returns:
+        The views keyed by colouring, in ``PCA_COLOURINGS`` order, and a report
+        for ``summary.json``: the colourings written, how many drawn compounds
+        the morphology view scored, and the mechanism groups it coloured.
+
+    Raises:
+        ValueError: As ``_fit_pca``.
+    """
+    fit = _fit_pca(prep)
+    views = {PCA_DEFAULT_COLOURING: _draw_pca(fit, _population_traces(fit))}
+    report: dict[str, Any] = {}
+    if morphology_scores is not None:
+        traces, report["morphology"] = _morphology_traces(fit, morphology_scores)
+        views["morphology"] = _draw_pca(fit, traces)
+    traces, report["moa_groups"] = _moa_traces(fit, mechanisms or {})
+    views["moa"] = _draw_pca(fit, traces)
+
+    ordered = {colouring: views[colouring] for colouring in PCA_COLOURINGS if colouring in views}
+    return ordered, {"written": list(ordered), **report}
 
 
 def _radar_caveat(prep: _Prepared) -> str:
@@ -614,12 +847,19 @@ class FigureBundle:
             These go to disk and are served by the figure-swap route.
         axes: The radar ring this run plotted, for the run's own report.
         unplotted_columns: Figure-basis columns no axis averages.
+        pca_colourings: The PCA's colourings other than the default, keyed by
+            colouring. These go to disk under ``figures/pca/`` and are served by
+            the PCA's swap route; the default is ``figures["pca"]``.
+        pca_report: What the colourings wrote, for ``summary.json``
+            (``build_pca_views``).
     """
 
     figures: dict[str, Any]
     radars: dict[str, Any]
     axes: list[RadarAxis]
     unplotted_columns: list[str]
+    pca_colourings: dict[str, Any]
+    pca_report: dict[str, Any]
 
 
 def build_figure_bundle(
@@ -628,6 +868,8 @@ def build_figure_bundle(
     feature_columns: list[str],
     channels: tuple[Channel, ...],
     compound_labels: dict[str, str] | None = None,
+    morphology_scores: Mapping[str, float | None] | None = None,
+    mechanisms: Mapping[str, str | None] | None = None,
 ) -> FigureBundle:
     """Build the snippet's figures and the per-compound radar set in one pass.
 
@@ -642,6 +884,10 @@ def build_figure_bundle(
             come from.
         compound_labels: Optional ``cbkid`` to display-name map, used for each
             per-compound radar's title.
+        morphology_scores: Optional ``cbkid`` to the compound table's morphology
+            score; the morphology colouring is built only when it is given.
+        mechanisms: Optional ``cbkid`` to ``broad_moa``, for the mechanism
+            colouring.
 
     Returns:
         The bundle. Its ``figures`` always contain ``FEATURE_BASIS_FIGURE_IDS``.
@@ -652,9 +898,12 @@ def build_figure_bundle(
     prep = _prepare(table, feature_columns)
     axes = build_ring(feature_columns, channels)
     labels = compound_labels or {}
+    pca_views, pca_report = build_pca_views(
+        prep, morphology_scores=morphology_scores, mechanisms=mechanisms
+    )
 
     figures: dict[str, Any] = {
-        "pca": _to_json(build_pca(prep)),
+        "pca": _to_json(pca_views[PCA_DEFAULT_COLOURING]),
         "radar_compound": _to_json(build_compound_radar(prep, axes)),
         "radar_infected": _to_json(build_infected_radar(prep, axes)),
     }
@@ -669,6 +918,12 @@ def build_figure_bundle(
         radars=radars,
         axes=axes,
         unplotted_columns=unplotted_columns(feature_columns, axes),
+        pca_colourings={
+            colouring: _to_json(view)
+            for colouring, view in pca_views.items()
+            if colouring != PCA_DEFAULT_COLOURING
+        },
+        pca_report=pca_report,
     )
 
 

@@ -174,15 +174,25 @@ class Command(BaseCommand):
             feature_columns=figure_columns,
             channels=channels,
             compound_labels=self._compound_labels(compound_index),
+            morphology_scores=self._morphology_scores(compound_table),
+            mechanisms=self._mechanisms(compound_index),
         )
         figures = bundle.figures
-        oversized = oversized_figures(figures)
+        # The PCA's colourings sit on disk, but each is served whole on a swap, so
+        # each is held to the same ceiling as a snippet figure (FREYA-3201).
+        oversized = oversized_figures(
+            {
+                **figures,
+                **{f"pca/{key}": payload for key, payload in bundle.pca_colourings.items()},
+            }
+        )
         if oversized:
             raise CommandError(
-                "These figures are too large for the snippet, which is read whole to render "
-                f"any one of them: {oversized} bytes against a ceiling of "
-                f"{SNIPPET_FIGURE_BYTE_CEILING}. A figure this size belongs on disk as a set "
-                "under figures/, not in DrrDatasetData.data."
+                "These figures are over the figure ceiling: "
+                f"{oversized} bytes against {SNIPPET_FIGURE_BYTE_CEILING}. The snippet is "
+                "read whole to render any one of its figures, and a PCA colouring is read "
+                "whole on every swap. A set of many figures belongs on disk under figures/, "
+                "one file each."
             )
         radar_keys = {cbkid: artefact_key(cbkid) for cbkid in bundle.radars}
         compound_index = self._with_radar_keys(compound_index, radar_keys)
@@ -205,6 +215,7 @@ class Command(BaseCommand):
 
         self._write_figures(figures_dir, figures)
         self._write_radar_set(figures_dir / "radar", bundle.radars, radar_keys)
+        self._write_pca_set(figures_dir / "pca", bundle.pca_colourings)
 
         feature_hash = self._hash_file(input_path)
         names_hash = self._hash_file(names_path) if names_path else None
@@ -237,6 +248,7 @@ class Command(BaseCommand):
             inputs_hash=inputs_hash,
             generated_at=generated_at.isoformat(),
         )
+        summary["feature_sets"]["figures"]["pca_colourings"] = bundle.pca_report
         summary["compound_reconciliation"] = reconciliation
         summary["plate_basis"] = plate_basis_report(
             stems=plate_stems,
@@ -304,8 +316,17 @@ class Command(BaseCommand):
             f"{clip['n_columns_clipped']} column(s) brought to "
             f"{clip['lower']:g}..{clip['upper']:g}; the downloads keep every value\n"
             f"  radar: {len(bundle.axes)} axes, {len(bundle.radars)} per-compound file(s) under "
-            f"figures/radar/, {len(bundle.unplotted_columns)} figure-basis column(s) on no axis"
+            f"figures/radar/, {len(bundle.unplotted_columns)} figure-basis column(s) on no axis\n"
+            f"  pca colourings: {', '.join(bundle.pca_report['written'])}; "
+            f"{', '.join(sorted(bundle.pca_colourings))} under figures/pca/"
         )
+        morphology = bundle.pca_report.get("morphology")
+        if morphology:
+            report += (
+                f"\n  pca morphology: {morphology['n_compounds_scored']} drawn compound(s) "
+                f"scored, {morphology['n_compounds_not_reported']} not reported"
+            )
+        report += f"\n  pca mechanisms: {' / '.join(bundle.pca_report['moa_groups']) or 'none'}"
         if names_path:
             name_lookup = summary["name_lookup"]
             report += (
@@ -341,6 +362,28 @@ class Command(BaseCommand):
             row["cbkid"]: compound_label(row["cbkid"], name=row.get("name"), kind=row.get("kind"))
             for row in compound_index.select(columns).to_dicts()
         }
+
+    @staticmethod
+    def _morphology_scores(compound_table: pl.DataFrame | None) -> dict[str, float] | None:
+        """Map each scored compound to its morphology score as the compound table shows it.
+
+        ``None`` when no table was built, so the PCA's morphology colouring is not
+        built either rather than drawing every treated well "Not reported".
+        """
+        if compound_table is None:
+            return None
+        return {
+            row["cbkid"]: row["morphology_score"]
+            for row in compound_table.select("cbkid", "morphology_score").iter_rows(named=True)
+            if row["morphology_score"] is not None
+        }
+
+    @staticmethod
+    def _mechanisms(compound_index: pl.DataFrame) -> dict[str, str | None]:
+        """Map each compound to its ``broad_moa`` as written, for the PCA's mechanism colouring."""
+        if "broad_moa" not in compound_index.columns:
+            return {}
+        return dict(compound_index.select("cbkid", "broad_moa").iter_rows())
 
     @staticmethod
     def _with_radar_keys(compound_index: pl.DataFrame, radar_keys: dict[str, str]) -> pl.DataFrame:
@@ -385,6 +428,21 @@ class Command(BaseCommand):
             (radar_dir / f"{radar_keys[cbkid]}.json").write_text(
                 json.dumps(payload), encoding="utf-8"
             )
+
+    @staticmethod
+    def _write_pca_set(pca_dir: Path, colourings: dict[str, Any]) -> None:
+        """Write each of the PCA's colourings but the default, clearing stale ones first.
+
+        The default stays in ``DrrDatasetData.data``. The keys are
+        ``figures.PCA_COLOURINGS``, never a request value, and a colouring this
+        run did not build — the morphology one without the table — is removed
+        rather than left to describe another generation.
+        """
+        pca_dir.mkdir(parents=True, exist_ok=True)
+        for stale in pca_dir.glob("*.json"):
+            stale.unlink()
+        for colouring, payload in colourings.items():
+            (pca_dir / f"{colouring}.json").write_text(json.dumps(payload), encoding="utf-8")
 
     @staticmethod
     def _hash_file(path: Path) -> str:

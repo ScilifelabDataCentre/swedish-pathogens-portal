@@ -20,6 +20,8 @@ from .compounds import (
 from .figures import (
     FIGURE_CLIP_BOUND,
     NEAR_EMPTY_NUCLEI_THRESHOLD,
+    PCA_COLOURINGS,
+    PCA_DEFAULT_COLOURING,
     SNIPPET_FIGURE_BYTE_CEILING,
     FigureBundle,
     build_all_figures,
@@ -69,6 +71,8 @@ __all__ = [
     "HIT_THRESHOLD",
     "NEAR_EMPTY_NUCLEI_THRESHOLD",
     "NOT_REPORTED",
+    "PCA_COLOURINGS",
+    "PCA_DEFAULT_COLOURING",
     "POPULATION_LABELS",
     "POPULATION_LEGEND_TITLE",
     "SNIPPET_FIGURE_BYTE_CEILING",
