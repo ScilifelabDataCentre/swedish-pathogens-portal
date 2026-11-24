@@ -19,6 +19,7 @@ from .compounds import (
 )
 from .figures import (
     FIGURE_CLIP_BOUND,
+    NEAR_EMPTY_NUCLEI_THRESHOLD,
     SNIPPET_FIGURE_BYTE_CEILING,
     FigureBundle,
     build_all_figures,
@@ -27,6 +28,7 @@ from .figures import (
     clip_report,
     figure_basis_token,
     oversized_figures,
+    pca_fit_report,
 )
 from .loader import FeatureTable, load_compound_names, load_feature_table, load_metadata
 from .plates import (
@@ -65,6 +67,7 @@ __all__ = [
     "EXCLUDED_PLATES",
     "FIGURE_CLIP_BOUND",
     "HIT_THRESHOLD",
+    "NEAR_EMPTY_NUCLEI_THRESHOLD",
     "NOT_REPORTED",
     "POPULATION_LABELS",
     "POPULATION_LEGEND_TITLE",
@@ -101,6 +104,7 @@ __all__ = [
     "name_lookup_report",
     "normalize_cbkid",
     "oversized_figures",
+    "pca_fit_report",
     "plate_basis_report",
     "population_label",
     "present_channels",

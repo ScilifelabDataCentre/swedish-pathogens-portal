@@ -710,7 +710,9 @@ class DrrPrecomputeTests(TestCase):
 
         for axis, component, want in (("xaxis", "PC1", expected[0]), ("yaxis", "PC2", expected[1])):
             title = layout[axis]["title"]["text"]
-            match = re.fullmatch(rf"{component} \((\d+\.\d)% variance\)", title)
+            match = re.fullmatch(
+                rf"{component} \((\d+\.\d)% of the fitted wells' variance\)", title
+            )
             self.assertIsNotNone(match, title)
             self.assertEqual(match.group(1), f"{want:.1f}", title)
 
@@ -718,6 +720,71 @@ class DrrPrecomputeTests(TestCase):
         # assertion above is sensitive to which basis the figure actually used.
         on_all_columns = self._variance_shares(table.numeric_matrix())
         self.assertNotEqual(f"{on_all_columns[0]:.1f}", f"{expected[0]:.1f}")
+
+    def test_summary_records_the_pca_threshold_and_its_count(self) -> None:
+        """``summary.json`` says which wells the PCA fits and how many it leaves out.
+
+        Every fixture well has over a thousand nuclei, so at the agreed 50 none
+        is near-empty; at 1,200 the two wells below it are (FREYA-3200).
+        """
+        self._run()
+        default = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))
+
+        with patch("dashboard_visualisation.drr.figures.NEAR_EMPTY_NUCLEI_THRESHOLD", 1200):
+            self._run()
+        raised = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))
+
+        self.assertEqual(
+            default["feature_sets"]["figures"]["pca_fit"],
+            {
+                "column": "Count_nuclei",
+                "min_nuclei": 50,
+                "n_wells_fitted": 6,
+                "n_near_empty_wells": 0,
+            },
+        )
+        self.assertEqual(
+            raised["feature_sets"]["figures"]["pca_fit"],
+            {
+                "column": "Count_nuclei",
+                "min_nuclei": 1200,
+                "n_wells_fitted": 4,
+                "n_near_empty_wells": 2,
+            },
+        )
+
+    def test_the_pca_threshold_leaves_the_downloads_byte_identical(self) -> None:
+        """The near-empty wells leave the PCA only: both downloads keep every well."""
+        self._run()
+        before = {
+            name: (self.out_dir / name).read_bytes()
+            for name in ("features.csv", "features.parquet")
+        }
+
+        with patch("dashboard_visualisation.drr.figures.NEAR_EMPTY_NUCLEI_THRESHOLD", 1200):
+            self._run()
+
+        for name, content in before.items():
+            self.assertEqual((self.out_dir / name).read_bytes(), content, name)
+        self.assertEqual(pl.read_parquet(self.out_dir / "features.parquet").height, 6)
+
+    def test_the_pca_threshold_busts_the_render_cache(self) -> None:
+        """A changed threshold moves the snippet digest, though no input moved."""
+        self._run()
+        first = DrrDatasetData.get_data(SLUG)
+        first_inputs = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))[
+            "source"
+        ]["inputs_sha256"]
+
+        with patch("dashboard_visualisation.drr.figures.NEAR_EMPTY_NUCLEI_THRESHOLD", 1200):
+            self._run()
+        second = DrrDatasetData.get_data(SLUG)
+        second_inputs = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))[
+            "source"
+        ]["inputs_sha256"]
+
+        self.assertNotEqual(second.source_file_hash, first.source_file_hash)
+        self.assertEqual(second_inputs, first_inputs)
 
     @staticmethod
     def _variance_shares(matrix: np.ndarray) -> np.ndarray:
