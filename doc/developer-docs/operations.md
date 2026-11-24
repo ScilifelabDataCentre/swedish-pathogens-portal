@@ -83,7 +83,18 @@ See [Docker deployment](docker-deployment.md), [Getting started — email](getti
 
 ## Logging
 
-Production logging uses **django-structlog** — [ADR-0008](../architecture/decisions/0008-use-django-structlog-for-logging.md). Use structlog in new CMS/service code; avoid bare `print` in application paths. Broader observability dashboards may follow Data Centre / Agar work; until then keep structlog as-is.
+Logging uses **django-structlog** — [ADR-0008](../architecture/decisions/0008-use-django-structlog-for-logging.md). Use structlog in new CMS/service code; avoid bare `print` in application paths.
+
+All logs go to stdout or stderr:
+
+- Local development: human-readable console format.
+- Deployed environments: JSON. This is collected by Team Agar's [DC-wide observability stack](https://grafana.dc.scilifelab.se/).
+
+What gets logged per request:
+
+- Request logs come from django-structlog only. Gunicorn's access log is turned off. Its error log (startup, worker boots, timeouts) is still on and goes to stderr as plain text.
+- Successful static file requests (e.g. `/static/cms/js/matomo_script.<hash>.js`) are not logged, as WhiteNoise sits outside the structlog middleware. Failures (e.g. 404s) are.
+- Successful `GET`/`HEAD` requests to `/healthz/` are not logged ([core/log_processors.py](../../core/log_processors.py)). A failed `/healthz/` check would be logged.
 
 ---
 
