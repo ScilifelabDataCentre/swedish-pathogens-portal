@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from .channels import Channel, present_channels
-from .figures import FEATURE_BASIS_FIGURE_IDS, clip_report
+from .figures import FEATURE_BASIS_FIGURE_IDS, clip_report, pca_fit_report
 from .loader import FeatureTable
 
 # Canonical display order for CellProfiler segmentation compartments.
@@ -43,7 +43,8 @@ def _feature_sets(
     excludes the infection-readout channel and is clipped. Recording both counts,
     the clip, and which figures used the figure set is what keeps a later session
     from re-deriving the wrong basis (FREYA-2923 criterion 5, FREYA-2968
-    criterion 3).
+    criterion 3). The PCA's own fit, which leaves out the near-empty wells the
+    other figures and the downloads keep, is recorded beside it (FREYA-3200).
     """
     excluded = [channel.column_tag for channel in channels if not channel.in_figures]
     return {
@@ -55,6 +56,7 @@ def _feature_sets(
             "n_features": len(figure_feature_columns),
             "excluded_channels": excluded,
             "clip": clip_report(table, figure_feature_columns),
+            "pca_fit": pca_fit_report(table),
             "used_by": list(FEATURE_BASIS_FIGURE_IDS),
         },
     }

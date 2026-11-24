@@ -97,6 +97,14 @@ FULL_SUMMARY = {
                     {"column": "AreaShape_FormFactor_nuclei", "n_clipped": 311}
                 ],
             },
+            # The PCA leaves out the near-empty wells the downloads keep, so the
+            # panel says how many (FREYA-3200).
+            "pca_fit": {
+                "column": "Count_nuclei",
+                "min_nuclei": 50,
+                "n_wells_fitted": 6681,
+                "n_near_empty_wells": 98,
+            },
             "used_by": ["pca", "radar_compound", "radar_infected"],
         },
     },
@@ -307,6 +315,13 @@ class TestDrrDatasetPageRender(DrrDatasetPageTestCase):
         self.assertContains(response, "clipped to &plusmn;50")
         self.assertContains(response, "the downloads carry all of them, as delivered")
 
+        # The PCA leaves out the near-empty wells and the downloads do not, so
+        # the panel gives the count and the threshold (FREYA-3200).
+        self.assertContains(
+            response, "The PCA leaves out 98 near-empty wells (fewer than 50 nuclei);"
+        )
+        self.assertContains(response, "the downloads keep them.")
+
         # No column token reaches a reader: they are the authors' internal slot
         # names, and they mean opposite stains on the two screens (FREYA-2923).
         self.assertNotContains(response, "illumCONC")
@@ -385,11 +400,41 @@ class TestDrrDatasetPageRender(DrrDatasetPageTestCase):
         self.assertNotContains(response, ">Channels<")
         self.assertNotContains(response, "excluded from figures")
         self.assertNotContains(response, "The figures are computed on")
+        self.assertNotContains(response, "The PCA leaves out")
         # A token must never reach a reader, least of all as a stain name.
         self.assertNotContains(response, "PHAandWGA")
         # The panel is otherwise intact, so the gap is legible as a stale artefact.
         self.assertContains(response, "Summary statistics")
         self.assertContains(response, "nuclei, cells, cytoplasm")
+
+    def test_a_pre_3200_summary_says_nothing_about_the_pca_fit(self) -> None:
+        """A summary precomputed before FREYA-3200 has no ``pca_fit``, so it states no count.
+
+        Its PCA was fitted on every well, so a sentence about near-empty wells
+        left out would be untrue of the figure beside it. The figure-basis
+        sentence, which predates it, still renders.
+        """
+        figures = {
+            key: value
+            for key, value in FULL_SUMMARY["feature_sets"]["figures"].items()
+            if key != "pca_fit"
+        }
+        DrrDatasetData.objects.create(
+            dataset_slug="sars-cov2-a549-ace2-validation",
+            data={"pca": {"data": [], "layout": {}}},
+            summary={
+                **FULL_SUMMARY,
+                "feature_sets": {**FULL_SUMMARY["feature_sets"], "figures": figures},
+            },
+            source_file_hash="deadbeefcafe0002",
+        )
+
+        response = self.client.get(self.page.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, "The PCA leaves out")
+        self.assertNotContains(response, "near-empty")
+        self.assertContains(response, "The figures are computed on")
 
 
 class TestDrrDatasetDownloadsWired(DrrDatasetPageTestCase):

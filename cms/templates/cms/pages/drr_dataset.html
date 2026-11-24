@@ -111,12 +111,19 @@
                                 </li>
                             {% endfor %}
                         </ul>
-                        {% with figure_features=summary.feature_sets.figures.n_features clip=summary.feature_sets.figures.clip %}
+                        {% with figure_features=summary.feature_sets.figures.n_features clip=summary.feature_sets.figures.clip pca_fit=summary.feature_sets.figures.pca_fit %}
                             {% if figure_features %}
                                 <p class="mt-2 text-sm text-pp-dark-grey">
                                     The figures are computed on {{ figure_features|intcomma }} of the
                                     {{ summary.n_features|intcomma }} feature columns{% if clip.upper %}, clipped to &plusmn;{{ clip.upper|floatformat }} as the published pipeline does{% endif %};
                                     the downloads carry all of them, as delivered.
+                                </p>
+                            {% endif %}
+                            {# A summary precomputed before FREYA-3200 has no pca_fit, so it says nothing. #}
+                            {% if pca_fit %}
+                                <p class="mt-2 text-sm text-pp-dark-grey">
+                                    The PCA leaves out {{ pca_fit.n_near_empty_wells|intcomma }} near-empty well{{ pca_fit.n_near_empty_wells|pluralize }} (fewer than {{ pca_fit.min_nuclei|intcomma }} nuclei);
+                                    the downloads keep them.
                                 </p>
                             {% endif %}
                         {% endwith %}

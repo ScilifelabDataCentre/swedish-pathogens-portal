@@ -1,5 +1,6 @@
-"""Tests for the channel map, the figure feature basis and its clip (FREYA-2923, 2968).
+"""Tests for the channel map, the figure basis and its clip, and the PCA's fit and styling.
 
+FREYA-2923 and 2968 own the basis and the clip; FREYA-3200 the PCA's fit and styling.
 Every fixture here carries a column in **each of the five** imaging channels. That
 is deliberate: the A549-ACE2 and Vero E6 screens name opposite stains with the same
 two tokens, so a fixture that omits a channel cannot tell an inverted map from a
@@ -10,6 +11,7 @@ these figures.
 from __future__ import annotations
 
 import base64
+from itertools import pairwise
 from unittest.mock import patch
 
 import numpy as np
@@ -25,10 +27,13 @@ from dashboard_visualisation.drr.channels import (
 from dashboard_visualisation.drr.figures import (
     FEATURE_BASIS_FIGURE_IDS,
     FIGURE_CLIP_BOUND,
+    NEAR_EMPTY_NUCLEI_THRESHOLD,
+    PCA_CONTROL_MARKER_SIZE,
     build_all_figures,
     clip_figure_values,
     clip_report,
     figure_basis_token,
+    pca_fit_report,
 )
 from dashboard_visualisation.drr.loader import FeatureTable
 from dashboard_visualisation.drr.radar import POPULATION_LABELS, population_label
@@ -112,13 +117,16 @@ def _feature_table(values: dict[str, float] | None = None) -> FeatureTable:
 
     The two control rows are the populations the radars contrast — the infected
     DMSO baseline and the uninfected wells — because a table missing either now
-    fails the run rather than widening to every profile (FREYA-2636).
+    fails the run rather than widening to every profile (FREYA-2636). Every
+    well has a typical nuclei count, so the PCA fits all four (FREYA-3200).
     """
     row_values = {**TRT_VALUES, **(values or {})}
     frame = pl.DataFrame(
         {
             "pert_type": ["trt", "trt", "negcon", "non-inf"],
             "cbkid": ["CBK1", "CBK1", "CBK2", "CBK2"],
+            "cmpd_conc": [1.0, 10.0, 0.3, 0.3],
+            "Count_nuclei": [240.0, 240.0, 240.0, 240.0],
             **{
                 column: [value, value, value / 2, value / 2] for column, value in row_values.items()
             },
@@ -126,7 +134,7 @@ def _feature_table(values: dict[str, float] | None = None) -> FeatureTable:
     )
     return FeatureTable(
         frame=frame,
-        metadata_columns=["pert_type", "cbkid"],
+        metadata_columns=["pert_type", "cbkid", "cmpd_conc", "Count_nuclei"],
         feature_columns=FEATURE_COLUMNS,
     )
 
@@ -310,16 +318,16 @@ class DrrPopulationLabelTests(SimpleTestCase):
         self.assertEqual(population_label("trt"), "Treated")
 
     def test_the_pca_legend_names_every_population_and_no_token(self) -> None:
-        """One trace per population, in token order so the colours stay put."""
+        """One trace per population, bottom to top, so no control hides under Treated."""
         pca = self._figures(self._table_with("poscon"))["pca"]
 
         self.assertEqual(
             [trace["name"] for trace in pca["data"]],
             [
+                "Treated",
+                "Positive control",
                 "Infected control (DMSO)",
                 "Uninfected control (DMSO)",
-                "Positive control",
-                "Treated",
             ],
         )
         self.assertEqual(pca["layout"]["legend"]["title"]["text"], "Well population")
@@ -455,14 +463,16 @@ class DrrFigureClipTests(SimpleTestCase):
     def test_the_basis_token_carries_the_column_count_then_the_bound(self) -> None:
         """A fixed order, so the digest it feeds is stable across runs."""
         self.assertEqual(
-            figure_basis_token(self.columns), "figure-basis:7:50.0:labels-9b654e1eb7fc"
+            figure_basis_token(self.columns),
+            "figure-basis:7:50.0:min-nuclei-50:labels-9b654e1eb7fc",
         )
 
     def test_the_basis_token_moves_with_the_bound_and_with_the_basis(self) -> None:
         """Either half of "how the figures were computed" busts the render cache."""
         with patch("dashboard_visualisation.drr.figures.FIGURE_CLIP_BOUND", 25.0):
             self.assertEqual(
-                figure_basis_token(self.columns), "figure-basis:7:25.0:labels-9b654e1eb7fc"
+                figure_basis_token(self.columns),
+                "figure-basis:7:25.0:min-nuclei-50:labels-9b654e1eb7fc",
             )
 
         self.assertNotEqual(
@@ -480,6 +490,325 @@ class DrrFigureClipTests(SimpleTestCase):
         with patch("dashboard_visualisation.drr.radar.POPULATION_LEGEND_TITLE", "Population"):
             self.assertNotEqual(figure_basis_token(self.columns), before)
         self.assertEqual(figure_basis_token(self.columns), before)
+
+
+# One well per entry: ``(pert_type, cbkid, dose in µM, nuclei)``. Well 3 is
+# near-empty, at a dose no fitted well has; well 4 sits exactly on the threshold,
+# which the fit keeps. The positive control's dose is below every treated dose,
+# so a dose range that counted the controls would say so.
+PCA_WELLS: list[tuple[str, str, float, float]] = [
+    ("trt", "CBK1", 0.1, 240.0),
+    ("trt", "CBK1", 1.0, 240.0),
+    ("trt", "CBK1", 10.0, 240.0),
+    ("trt", "CBK2", 100.0, 49.0),
+    ("trt", "CBK2", 30.0, 50.0),
+    ("poscon", "[stau]", 0.01, 240.0),
+    ("negcon", "CBK281357", 0.3, 240.0),
+    ("non-inf", "CBK281357", 0.3, 240.0),
+    ("trt", "CBK310015", 0.3, 240.0),
+    ("trt", "CBK310015", 30.0, 240.0),
+    ("trt", "DO8167002", 3.0, 240.0),
+    ("trt", "CBK310023", 10.0, 240.0),
+]
+NEAR_EMPTY_WELL = 3
+ON_THRESHOLD_WELL = 4
+TREATED_WELLS = [0, 1, 2, 4]
+ANTIVIRAL_WELLS = {"Remdesivir": [8, 9], "Nirmatrelvir": [10], "GC376": [11]}
+CONTROL_TRACES = ["Positive control", "Infected control (DMSO)", "Uninfected control (DMSO)"]
+
+# A second component for the variance-share test: the near-empty well is the
+# outlier on it, so the shares move when it enters the fit.
+NEIGHBORS_VALUES = [0.0, 1.0, 0.0, 40.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 0.0]
+
+
+def _pca_table(
+    wells: list[tuple[str, str, float, float]] | None = None,
+    *,
+    neighbors: list[float] | None = None,
+) -> FeatureTable:
+    """Return one profile per well, each placed on PC1 by its own position.
+
+    Well ``i`` carries ``i + 1`` in the AreaShape column and zero in every other
+    feature, so PC1 is that column centred over the fitted wells: each well's
+    score names it, a trace's scores say exactly which wells it holds, and their
+    centre says which wells were fitted. ``neighbors`` gives the Neighbors column
+    values of its own, for a second component.
+    """
+    wells = PCA_WELLS if wells is None else wells
+    features = {column: [0.0] * len(wells) for column in FEATURE_COLUMNS}
+    features[AREA_SHAPE_COLUMN] = [float(index + 1) for index in range(len(wells))]
+    if neighbors is not None:
+        features[NEIGHBORS_COLUMN] = neighbors
+    frame = pl.DataFrame(
+        {
+            "pert_type": [well[0] for well in wells],
+            "cbkid": [well[1] for well in wells],
+            "cmpd_conc": [well[2] for well in wells],
+            "Count_nuclei": [well[3] for well in wells],
+            **features,
+        }
+    )
+    return FeatureTable(
+        frame=frame,
+        metadata_columns=["pert_type", "cbkid", "cmpd_conc", "Count_nuclei"],
+        feature_columns=FEATURE_COLUMNS,
+    )
+
+
+def _build(table: FeatureTable, threshold: float | None = None) -> dict:
+    """Build every figure of ``table``, optionally against another near-empty threshold."""
+    channels = channel_map(SLUG)
+    columns = figure_feature_columns(table.feature_columns, channels)
+    if threshold is None:
+        return build_all_figures(table, feature_columns=columns, channels=channels)
+    with patch("dashboard_visualisation.drr.figures.NEAR_EMPTY_NUCLEI_THRESHOLD", threshold):
+        return build_all_figures(table, feature_columns=columns, channels=channels)
+
+
+def _expected_pc1(indices: list[int]) -> list[float]:
+    """Return the PC1 scores ``_pca_table`` gives these wells, sorted."""
+    positions = np.arange(1, len(PCA_WELLS) + 1, dtype=np.float64)
+    fitted = np.array([well[3] >= NEAR_EMPTY_NUCLEI_THRESHOLD for well in PCA_WELLS])
+    return sorted((positions - positions[fitted].mean())[indices].tolist())
+
+
+def _traces(pca: dict) -> dict[str, dict]:
+    """Return a PCA figure's traces keyed by legend name."""
+    return {trace["name"]: trace for trace in pca["data"]}
+
+
+def _pc1(trace: dict) -> list[float]:
+    """Return one trace's PC1 scores, sorted."""
+    return sorted(_decode_array(trace["x"]).tolist())
+
+
+class DrrPcaFitTests(SimpleTestCase):
+    """Which wells the PCA fits, and what that leaves alone (FREYA-3200)."""
+
+    def setUp(self) -> None:
+        """Build every figure of the well-by-well fixture."""
+        self.pca = _build(_pca_table())["pca"]
+
+    def test_the_threshold_is_the_agreed_one(self) -> None:
+        """50 nuclei, the line the group's four defaults settled on 2026-11-20."""
+        self.assertEqual(NEAR_EMPTY_NUCLEI_THRESHOLD, 50)
+
+    def test_a_near_empty_well_is_neither_fitted_nor_drawn(self) -> None:
+        """Every drawn score is centred on the fitted wells alone, and well 3 is not drawn.
+
+        Had the near-empty well been fitted, the centre would move and every
+        score with it; had it been drawn, there would be one point more.
+        """
+        drawn = sorted(score for trace in self.pca["data"] for score in _pc1(trace))
+        fitted = [index for index in range(len(PCA_WELLS)) if index != NEAR_EMPTY_WELL]
+
+        self.assertEqual(len(drawn), len(PCA_WELLS) - 1)
+        for got, want in zip(drawn, _expected_pc1(fitted), strict=True):
+            self.assertAlmostEqual(got, want, places=9)
+
+    def test_a_well_at_exactly_the_threshold_is_kept(self) -> None:
+        """The comparison is strict: 50 nuclei is not near-empty."""
+        treated = _pc1(_traces(self.pca)["Treated"])
+
+        self.assertEqual(len(treated), len(TREATED_WELLS))
+        self.assertTrue(
+            any(abs(score - _expected_pc1([ON_THRESHOLD_WELL])[0]) < 1e-9 for score in treated)
+        )
+
+    def test_the_axis_shares_are_of_the_fitted_wells(self) -> None:
+        """Each axis title states its component's share of the fitted wells' variation."""
+        table = _pca_table(neighbors=NEIGHBORS_VALUES)
+        layout = _build(table)["pca"]["layout"]
+        columns = figure_feature_columns(table.feature_columns, channel_map(SLUG))
+        matrix = clip_figure_values(table.numeric_matrix(columns))
+        fitted = table.frame["Count_nuclei"].to_numpy() >= NEAR_EMPTY_NUCLEI_THRESHOLD
+
+        expected = self._variance_shares(matrix[fitted])
+        for axis, component, want in (("xaxis", "PC1", expected[0]), ("yaxis", "PC2", expected[1])):
+            self.assertEqual(
+                layout[axis]["title"]["text"],
+                f"{component} ({want:.1f}% of the fitted wells' variance)",
+            )
+        # Over every well the outlier would have moved the shares, so the
+        # assertion above is sensitive to which wells were fitted.
+        self.assertNotEqual(f"{self._variance_shares(matrix)[0]:.1f}", f"{expected[0]:.1f}")
+
+    def test_the_axes_autorange(self) -> None:
+        """No range is pinned, so the axes follow the fitted wells."""
+        layout = self.pca["layout"]
+
+        self.assertNotIn("range", layout.get("xaxis", {}))
+        self.assertNotIn("range", layout.get("yaxis", {}))
+
+    def test_the_radars_keep_every_well(self) -> None:
+        """Only the PCA changes: the radars are identical whatever the threshold."""
+        table = _pca_table(neighbors=NEIGHBORS_VALUES)
+        at_threshold = _build(table)
+        every_well = _build(table, threshold=0)
+
+        for figure_id in ("radar_compound", "radar_infected"):
+            self.assertEqual(at_threshold[figure_id], every_well[figure_id], figure_id)
+        # The fit itself did move, so the comparison above is not vacuous.
+        self.assertNotEqual(at_threshold["pca"], every_well["pca"])
+
+    def test_the_basis_token_moves_with_the_threshold(self) -> None:
+        """A changed threshold busts the render cache, as a changed clip bound does."""
+        columns = figure_feature_columns(FEATURE_COLUMNS, channel_map(SLUG))
+        before = figure_basis_token(columns)
+
+        with patch("dashboard_visualisation.drr.figures.NEAR_EMPTY_NUCLEI_THRESHOLD", 100):
+            moved = figure_basis_token(columns)
+
+        self.assertNotEqual(moved, before)
+        self.assertIn(":min-nuclei-100:", moved)
+
+    def test_the_report_counts_the_fitted_and_the_near_empty_wells(self) -> None:
+        """``summary.json`` is told the threshold and how many wells it leaves out."""
+        self.assertEqual(
+            pca_fit_report(_pca_table()),
+            {
+                "column": "Count_nuclei",
+                "min_nuclei": 50,
+                "n_wells_fitted": len(PCA_WELLS) - 1,
+                "n_near_empty_wells": 1,
+            },
+        )
+
+    def test_a_table_without_nuclei_counts_or_doses_fails_naming_the_column(self) -> None:
+        """Neither column is guessed: an absent one stops the build, naming it."""
+        for column in ("Count_nuclei", "cmpd_conc"):
+            with self.subTest(column=column):
+                table = _pca_table()
+                without = FeatureTable(
+                    frame=table.frame.drop(column),
+                    metadata_columns=[name for name in table.metadata_columns if name != column],
+                    feature_columns=table.feature_columns,
+                )
+                with self.assertRaisesMessage(ValueError, repr(column)):
+                    _build(without)
+
+    def test_an_incomplete_nuclei_count_or_dose_fails_naming_the_column(self) -> None:
+        """A missing value is not read as near-empty, nor as the smallest dose."""
+        for position, column in ((3, "Count_nuclei"), (2, "cmpd_conc")):
+            with self.subTest(column=column):
+                wells = [list(well) for well in PCA_WELLS]
+                wells[0][position] = float("nan")
+                with self.assertRaisesMessage(ValueError, repr(column)):
+                    _build(_pca_table([tuple(well) for well in wells]))
+
+    def test_a_table_with_no_fitted_well_fails(self) -> None:
+        """An empty fit stops the build rather than drawing an empty figure."""
+        with self.assertRaisesMessage(ValueError, "nothing to fit"):
+            _build(_pca_table(), threshold=1e6)
+
+    def test_a_named_population_with_no_place_in_the_order_fails(self) -> None:
+        """A population the drawing order does not know would otherwise go undrawn."""
+        wells = [*PCA_WELLS, ("extra", "CBK9", 1.0, 240.0)]
+        labelled = {**POPULATION_LABELS, "extra": "Extra population"}
+
+        with (
+            patch("dashboard_visualisation.drr.radar.POPULATION_LABELS", labelled),
+            self.assertRaisesMessage(ValueError, "no place in the PCA's drawing order"),
+        ):
+            _build(_pca_table(wells))
+
+    @staticmethod
+    def _variance_shares(matrix: np.ndarray) -> np.ndarray:
+        """Return the percent variance of the first two components of a matrix."""
+        eigenvalues = np.sort(np.linalg.eigvalsh(np.cov(matrix, rowvar=False, bias=True)))[::-1]
+        return 100 * eigenvalues[:2] / eigenvalues.sum()
+
+
+class DrrPcaStylingTests(SimpleTestCase):
+    """How the PCA draws what it fitted: order, colours, antivirals, dose (FREYA-3200)."""
+
+    def setUp(self) -> None:
+        """Build the PCA of the well-by-well fixture."""
+        self.pca = _build(_pca_table())["pca"]
+        self.traces = _traces(self.pca)
+
+    def test_the_traces_run_bottom_to_top_with_the_antivirals_last(self) -> None:
+        """Plotly draws later traces on top, so no control hides under Treated."""
+        self.assertEqual(
+            [trace["name"] for trace in self.pca["data"]],
+            [
+                "Treated",
+                "Positive control",
+                "Infected control (DMSO)",
+                "Uninfected control (DMSO)",
+                "Remdesivir",
+                "Nirmatrelvir",
+                "GC376",
+            ],
+        )
+
+    def test_each_population_has_its_fixed_colour(self) -> None:
+        """The portal's red and blue for the two DMSO controls, greys for the rest."""
+        self.assertEqual(
+            {name: trace["marker"]["color"] for name, trace in self.traces.items()},
+            {
+                "Treated": "#d8d8d8",
+                "Positive control": "#55585a",
+                "Infected control (DMSO)": "#a0302c",
+                "Uninfected control (DMSO)": "#4770b1",
+                "Remdesivir": "#f3b153",
+                "Nirmatrelvir": "#f3b153",
+                "GC376": "#f3b153",
+            },
+        )
+
+    def test_the_antivirals_are_outlined(self) -> None:
+        """The yellow is under 3:1 against white, so each antiviral marker is outlined."""
+        for name in ANTIVIRAL_WELLS:
+            self.assertEqual(self.traces[name]["marker"]["line"]["color"], "#1a1c1a", name)
+        for name in ("Treated", *CONTROL_TRACES):
+            self.assertNotIn("line", self.traces[name]["marker"], name)
+
+    def test_each_antiviral_trace_holds_exactly_its_own_wells(self) -> None:
+        """Each id's wells, at every dose, and none of them left in Treated."""
+        for name, wells in ANTIVIRAL_WELLS.items():
+            for got, want in zip(_pc1(self.traces[name]), _expected_pc1(wells), strict=True):
+                self.assertAlmostEqual(got, want, places=9, msg=name)
+        for got, want in zip(
+            _pc1(self.traces["Treated"]), _expected_pc1(TREATED_WELLS), strict=True
+        ):
+            self.assertAlmostEqual(got, want, places=9)
+
+    def test_a_marker_grows_strictly_with_its_dose(self) -> None:
+        """Across Treated and the antivirals, a higher dose is always a larger marker."""
+        index_of = {round(_expected_pc1([index])[0], 6): index for index in range(len(PCA_WELLS))}
+        size_by_dose: dict[float, set[float]] = {}
+        for name in ("Treated", *ANTIVIRAL_WELLS):
+            trace = self.traces[name]
+            scores = _decode_array(trace["x"]).tolist()
+            sizes = _decode_array(trace["marker"]["size"]).tolist()
+            for score, size in zip(scores, sizes, strict=True):
+                dose = PCA_WELLS[index_of[round(score, 6)]][2]
+                size_by_dose.setdefault(dose, set()).add(size)
+
+        self.assertTrue(all(len(sizes) == 1 for sizes in size_by_dose.values()), size_by_dose)
+        sizes_in_dose_order = [size_by_dose[dose].pop() for dose in sorted(size_by_dose)]
+        self.assertEqual(len(sizes_in_dose_order), 6)
+        self.assertTrue(
+            all(lower < higher for lower, higher in pairwise(sizes_in_dose_order)),
+            sizes_in_dose_order,
+        )
+
+    def test_the_controls_keep_one_size(self) -> None:
+        """Only treated and antiviral wells are sized by dose; every control shares one size."""
+        sizes = {self.traces[name]["marker"]["size"] for name in CONTROL_TRACES}
+
+        self.assertEqual(sizes, {PCA_CONTROL_MARKER_SIZE})
+
+    def test_the_subtitle_says_larger_is_higher_and_gives_the_drawn_dose_range(self) -> None:
+        """The range is the drawn dosed wells': not the near-empty 100, not the control's 0.01."""
+        subtitle = self.pca["layout"]["title"]["subtitle"]["text"]
+
+        self.assertEqual(subtitle, "Marker size shows dose: larger is higher, from 0.1 to 30 µM")
+
+    def test_the_legend_keeps_its_title(self) -> None:
+        """The legend still names what its entries are."""
+        self.assertEqual(self.pca["layout"]["legend"]["title"]["text"], "Well population")
 
 
 class DrrTwoDimensionalArraySerialisationTests(SimpleTestCase):
