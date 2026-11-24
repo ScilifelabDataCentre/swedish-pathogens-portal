@@ -16,6 +16,8 @@ from pathlib import Path
 import environ
 import structlog
 
+from core.log_processors import drop_successful_health_checks
+
 # ENVIRONMENT
 # ------------------------------------------------------------------------------
 # Project root (build paths like this: BASE_DIR / "subdir")
@@ -374,6 +376,7 @@ LOGGING = {
 # Processors:
 # - structlog.contextvars.merge_contextvars pulls request context from middleware
 # - structlog.stdlib.filter_by_level ignores logs below the logger's level
+# - drop_successful_health_checks drops successful logs for /healthz/ requests by e.g. kube-probe.
 # - structlog.processors.TimeStamper(fmt="iso") gives human readable timestamps
 #     example: YYYY-MM-DDTHH:MM:SS.sssZ instead of e.g. 1770289147.3015254
 # - structlog.stdlib.add_logger_name includes the logger's name
@@ -393,6 +396,7 @@ structlog.configure(
     processors=[
         structlog.contextvars.merge_contextvars,
         structlog.stdlib.filter_by_level,
+        drop_successful_health_checks,
         structlog.processors.TimeStamper(fmt="iso"),
         structlog.stdlib.add_logger_name,
         structlog.stdlib.add_log_level,
