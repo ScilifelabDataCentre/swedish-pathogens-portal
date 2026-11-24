@@ -4,14 +4,15 @@ from wagtail import blocks
 
 
 class HepageniePanelBlock(blocks.StructBlock):
-    """Placeholder slot for the live HepaGeNIE sidebar and TLN.
+    """StreamField slot for the live HepaGeNIE sidebar and TLN.
 
     Editors place this block in StreamField order so content above/below it
     sits above/below the interactive dashboard. It is not a static Plotly
     figure — use Plotly figure for pre-computed charts.
 
-    No editor fields yet; later commits render the interactive UI from the
-    block template using page context.
+    The block template includes the shared interactive grid partial (sidebar,
+    TLN, legend). Page context (session, examples, figures) is supplied by the
+    parent page; until cut-over the page still renders that grid itself.
     """
 
     class Meta:
