@@ -79,6 +79,7 @@ class LiverResourceDashboardPage(RoutablePageMixin, DashboardPage):
         ],
         blank=False,
         default=list,
+        block_counts={"hepagene_panel": {"min_num": 1, "max_num": 1}},
     )
 
     search_fields = DashboardPage.search_fields + [
@@ -110,8 +111,8 @@ class LiverResourceDashboardPage(RoutablePageMixin, DashboardPage):
         FieldPanel(
             "liver_content",
             help_text=(
-                "Main HepaGeNIE content. Place the HepaGeNIE interactive panel "
-                "once; drag blocks above or below it for layout."
+                "Main HepaGeNIE content. Exactly one HepaGeNIE interactive panel "
+                "is required; drag other blocks above or below it for layout."
             ),
         ),
     ]

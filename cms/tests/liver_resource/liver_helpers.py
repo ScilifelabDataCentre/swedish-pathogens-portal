@@ -72,7 +72,7 @@ def create_published_liver_resource_page(
         data_status="active",
         liver_content=[
             ("text", "<p>Upload a limma-style DE file to colour the TLN.</p>"),
-            ("hepagene_panel", {}),
+            ("hepagene_panel", None),
         ],
     )
     index.add_child(instance=page)

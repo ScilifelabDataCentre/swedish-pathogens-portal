@@ -3,6 +3,7 @@
 from pathlib import Path
 
 from django.test import SimpleTestCase
+from wagtail.blocks import StaticBlock
 
 from cms.blocks import HepageniePanelBlock
 from cms.blocks.hepagene_panel import HepageniePanelBlock as HepageniePanelBlockDirect
@@ -17,12 +18,13 @@ class TestHepageniePanelBlock(SimpleTestCase):
         """cms.blocks export exposes the same class as the module."""
         self.assertIs(HepageniePanelBlock, HepageniePanelBlockDirect)
 
-    def test_meta_label_and_template(self) -> None:
-        """Editor label and block template are wired for StreamField placement."""
+    def test_is_static_block_with_admin_text(self) -> None:
+        """Panel is a StaticBlock with editor admin_text (contact/ENA pattern)."""
         block = HepageniePanelBlock()
+        self.assertIsInstance(block, StaticBlock)
         self.assertEqual(block.meta.label, "HepaGeNIE interactive panel")
         self.assertEqual(block.meta.template, "cms/blocks/hepagene_panel.html")
-        self.assertFalse(block.child_blocks)
+        self.assertIn("exactly once", block.meta.admin_text)
 
     def test_block_template_includes_interactive_grid_partial(self) -> None:
         """Block template delegates to the shared sidebar+TLN partial."""
@@ -38,3 +40,4 @@ class TestHepageniePanelBlock(SimpleTestCase):
         ).read_text(encoding="utf-8")
         self.assertIn('id="tln-container"', grid)
         self.assertIn('id="liver-colour-legend"', grid)
+        self.assertNotIn("until cut-over", grid)

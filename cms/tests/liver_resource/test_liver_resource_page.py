@@ -83,6 +83,16 @@ class TestLiverResourceDashboardPageModel(LiverResourcePageTestCase):
         ):
             self.assertIn(shared, block_names)
 
+    def test_liver_content_requires_exactly_one_hepagene_panel(self) -> None:
+        """Test StreamField enforces a single HepaGeNIE panel (contact pattern)."""
+        stream_block = LiverResourceDashboardPage._meta.get_field(
+            "liver_content"
+        ).stream_block
+        self.assertEqual(
+            stream_block.meta.block_counts,
+            {"hepagene_panel": {"min_num": 1, "max_num": 1}},
+        )
+
     def test_dashboard_index_allows_liver_child(self) -> None:
         """Test that DashboardIndexPage accepts liver dashboard children."""
         self.assertIn(
@@ -219,7 +229,7 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
         self.page.liver_content = [
             ("text", "<p>Intro copy for HepaGeNIE.</p>"),
             ("alert", {"alert_type": "info", "message": "<p>Upload help.</p>"}),
-            ("hepagene_panel", {}),
+            ("hepagene_panel", None),
             (
                 "text",
                 (
@@ -262,7 +272,7 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
         self.assertGreater(cite_pos, supp_pos)
 
     def test_get_context_does_not_expose_marker_split_lists(self) -> None:
-        """Test phrase-marker above/below context keys are gone after cut-over."""
+        """Test phrase-marker above/below context keys are gone."""
         request = self.client.get(self.page.url).wsgi_request
         context = self.page.get_context(request)
         self.assertNotIn("liver_content_above", context)
