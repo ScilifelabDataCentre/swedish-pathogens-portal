@@ -70,6 +70,22 @@ def mock_client(get_fn: Callable[..., FakeResponse]) -> httpx.Client:
     return httpx.Client(transport=httpx.MockTransport(handler))
 
 
+def person(full_name: str, affiliation: str | None = None, **fields: object) -> dict:
+    """Build an authorList/investigatorList entry for a "Lastname Initials" name."""
+    *last, initials = full_name.split()
+    entry: dict[str, object] = {
+        "fullName": full_name,
+        "lastName": " ".join(last),
+        "initials": initials,
+        **fields,
+    }
+    if affiliation:
+        entry["authorAffiliationDetailsList"] = {
+            "authorAffiliation": [{"affiliation": affiliation}]
+        }
+    return entry
+
+
 def make_paper(
     epmc_id: str,
     author_name: str,
@@ -87,18 +103,25 @@ def make_paper(
         "pubYear": "2024",
         "hasTMAccessionNumbers": "N",
         "dbCrossReferenceList": {"dbCrossReference": []},
+        "authorList": {"author": [person(author_name, affiliation)]},
     }
-    if affiliation:
-        author_affiliation = {"authorAffiliation": [{"affiliation": affiliation}]}
-        paper["authorList"] = {
-            "author": [
-                {
-                    "fullName": author_name,
-                    "authorAffiliationDetailsList": author_affiliation,
-                }
-            ]
-        }
     return paper
+
+
+def failing_paper(author_name: str) -> dict:
+    """Build a paper by author_name whose text-mined accession lookup will fail.
+
+    With authors matched locally against the bulk candidates, that lookup is
+    the one per-author request left that can fail -- see make_fake_get.
+    """
+    paper = make_paper(f"fail-{author_name.replace(' ', '-')}", author_name)
+    paper["hasTMAccessionNumbers"] = "Y"
+    return paper
+
+
+def page(papers: list[dict], next_cursor: str | None = None) -> FakeResponse:
+    """Build a Europe PMC search response holding one page of papers."""
+    return FakeResponse(200, {"resultList": {"result": papers}, "nextCursorMark": next_cursor})
 
 
 def researcher(family: str, initials: str, n_publications: int = 1, **extra: object) -> dict:
@@ -121,27 +144,27 @@ def make_fake_get(
 ) -> Callable[..., FakeResponse]:
     """Build a fake get(...) for mock_client.
 
-    Raises (simulating an exhausted-retries network failure) for any
-    author name appearing in `fail_authors`'s AUTH: query, and otherwise
-    returns a canned single-page result for that author if one was
-    registered in `papers_by_author`, else an empty result. Requests for
-    the SciLifeLab researcher list get `researchers`.
+    The bulk candidate queries return every paper in `papers_by_author`,
+    plus one failing_paper per author in `fail_authors`, whose text-mined
+    accession lookup raises (simulating an exhausted-retries network
+    failure) -- so those authors end up errored. Requests for the
+    SciLifeLab researcher list get `researchers`.
     """
+    candidates = [*papers_by_author.values(), *(failing_paper(a) for a in sorted(fail_authors))]
+    failing_ids = {f"MED:{p['id']}" for p in candidates if p["id"].startswith("fail-")}
 
     def fake_get(
         url: str, params: dict[str, Any] | None = None, timeout: float | None = None
     ) -> FakeResponse:  # noqa: ARG001
         if url == sepmc.RESEARCHERS_JSON_URL:
             return FakeResponse(200, {"entity": "researchers", "researchers": researchers or []})
-        query = (params or {}).get("query", "")
-        for author in fail_authors:
-            if f'AUTH:"{author}"' in query:
-                raise httpx.ConnectError(f"Max retries exceeded (simulated failure for {author})")
-        for author, paper in papers_by_author.items():
-            if f'AUTH:"{author}"' in query:
-                result = {"resultList": {"result": [paper]}, "nextCursorMark": None}
-                return FakeResponse(200, result)
-        return FakeResponse(200, {"resultList": {"result": []}, "nextCursorMark": None})
+        if url == sepmc.ANNOTATIONS_API_URL:
+            if (params or {}).get("articleIds") in failing_ids:
+                raise httpx.ConnectError("Max retries exceeded (simulated annotations failure)")
+            return FakeResponse(200, {})
+        if (params or {}).get("query") in sepmc.BULK_QUERIES:
+            return page(candidates)
+        return page([])
 
     return fake_get
 
@@ -229,10 +252,6 @@ class PureFunctionTests(SepmcTestCase):
         implied_per_minute = sepmc.EUROPEPMC_MAX_CALLS_PER_SECOND * 60
         self.assertLessEqual(implied_per_minute, sepmc.EUROPEPMC_MAX_PER_MINUTE)
 
-    def test_normalize_name_strips_diacritics_and_case(self) -> None:
-        """Diacritic- and case-differing spellings normalize to the same key."""
-        self.assertEqual(sepmc._normalize_name("Bösch Y"), sepmc._normalize_name("Bosch y"))
-
     def test_sweden_flag_three_states(self) -> None:
         """_sweden_flag distinguishes Y (Sweden), N (other), and unknown ('')."""
         self.assertEqual(sepmc._sweden_flag(["Karolinska Institutet, Stockholm, Sweden."]), "Y")
@@ -301,69 +320,163 @@ class DedupeAndExpandTests(SepmcTestCase):
 # ---------------------------------------------------------------------------
 
 
+class AuthorMatchingTests(SepmcTestCase):
+    """find_author_papers reproduces Europe PMC's AUTH:"Lastname Initials" search.
+
+    Each case is one that came up when the local matching was checked
+    against a full per-author run on the real candidate papers.
+    """
+
+    def _matches(self, author: str, *papers: dict) -> list[str]:
+        """Return the ids of the papers author is matched to."""
+        index = sepmc.build_author_index(list(papers))
+        return [paper["id"] for paper, _ in sepmc.find_author_papers(index, author)]
+
+    def test_case_accents_and_initials_prefix(self) -> None:
+        """'Jonsson L' matches 'Jönsson LJ': accents ignored, more initials allowed."""
+        self.assertEqual(self._matches("Jonsson L", make_paper("1", "Jönsson LJ")), ["1"])
+        self.assertEqual(self._matches("jönsson lj", make_paper("1", "Jonsson LJ")), ["1"])
+
+    def test_initials_must_start_with_the_searched_ones(self) -> None:
+        """Fewer or different initials on the paper don't match."""
+        self.assertEqual(self._matches("Keller TA", make_paper("1", "Keller T")), [])
+        self.assertEqual(self._matches("Keller T", make_paper("1", "Keller AT")), [])
+
+    def test_surname_must_match_whole(self) -> None:
+        """'Smith C' doesn't match 'Long-Smith CM', nor 'Lee D' 'Cleere DW'."""
+        self.assertEqual(self._matches("Smith C", make_paper("1", "Long-Smith CM")), [])
+        self.assertEqual(self._matches("Lee D", make_paper("1", "Cleere DW")), [])
+
+    def test_hyphens_in_names(self) -> None:
+        """Hyphenated surnames match spaced ones, and 'J-L' initials match 'JL'."""
+        self.assertEqual(self._matches("Suarez Diez M", make_paper("1", "Suarez-Diez M")), ["1"])
+        self.assertEqual(self._matches("Li JL", make_paper("1", "Li J-L")), ["1"])
+
+    def test_letters_without_a_decomposed_form(self) -> None:
+        """Ø and ł are folded like accented letters."""
+        self.assertEqual(self._matches("Palsson BO", make_paper("1", "Palsson BØ")), ["1"])
+        self.assertEqual(self._matches("Sokolowska K", make_paper("1", "Sokołowska K")), ["1"])
+
+    def test_consortium_investigators_count_as_authors(self) -> None:
+        """A paper authored as a consortium matches its named investigators."""
+        paper = make_paper("1", "Other O")
+        paper["authorList"]["author"] = [{"collectiveName": "RA-MAP Consortium."}]
+        paper["investigatorList"] = {"investigator": [person("Lindholm C")]}
+        self.assertEqual(self._matches("Lindholm C", paper), ["1"])
+
+    def test_full_name_fallback_and_unusable_names(self) -> None:
+        """Without lastName, fullName is split; names without initials match nothing."""
+        paper = make_paper("1", "Good A")
+        paper["authorList"]["author"] = [{"fullName": "Good AB"}]
+        self.assertEqual(self._matches("Good A", paper), ["1"])
+        self.assertEqual(self._matches("Good", paper), [])
+        self.assertEqual(self._matches("", paper), [])
+
+    def test_each_paper_returned_once_in_candidate_order(self) -> None:
+        """Two matching people on one paper still give one result."""
+        first = make_paper("1", "Li X")
+        first["authorList"]["author"].append(person("Li XY"))
+        second = make_paper("2", "Li X")
+        self.assertEqual(self._matches("Li X", second, first), ["2", "1"])
+
+
+class FetchCandidatePapersTests(SepmcTestCase):
+    """fetch_candidate_papers: the bulk download replacing per-author queries."""
+
+    def test_fetches_both_queries_follows_pages_and_dedupes(self) -> None:
+        """Both halves of BASE_FILTER are fetched in full and merged."""
+        shared, only_first, only_second = (make_paper(i, "Good A") for i in "123")
+        requests: list[tuple[str, str]] = []
+
+        def fake_get(
+            url: str, params: dict[str, Any] | None = None, timeout: object = None
+        ) -> FakeResponse:
+            query, cursor = params["query"], params["cursorMark"]
+            requests.append((query, cursor))
+            if query == sepmc.BULK_QUERIES[0]:
+                if cursor == "*":
+                    return page([shared], next_cursor="page2")
+                return page([only_first]) if cursor == "page2" else page([])
+            return page([shared, only_second])
+
+        self._patch_session(fake_get)
+
+        papers = sepmc.fetch_candidate_papers()
+
+        self.assertEqual([p["id"] for p in papers], ["1", "2", "3"])
+        self.assertEqual({q for q, _ in requests}, set(sepmc.BULK_QUERIES))
+
+    def test_uses_the_long_bulk_timeout(self) -> None:
+        """Full 1000-record pages are slow, so they get BULK_TIMEOUT_SECONDS."""
+        with mock.patch.object(sepmc, "search_europe_pmc", return_value=[]) as search:
+            sepmc.fetch_candidate_papers()
+        for call in search.call_args_list:
+            self.assertEqual(call.kwargs["timeout"], sepmc.BULK_TIMEOUT_SECONDS)
+
+
 class SearchAuthorsTests(SepmcTestCase):
-    """Mocked-network tests for search_authors."""
+    """search_authors: local matching, keyword filter and per-author errors."""
+
+    def setUp(self) -> None:
+        """Answer every request (only accession lookups are made) from self.answer."""
+        super().setUp()
+        self.annotation_requests: list[str] = []
+        self.failing_lookups: set[str] = set()
+
+        def fake_get(
+            url: str, params: dict[str, Any] | None = None, timeout: object = None
+        ) -> FakeResponse:
+            self.assertEqual(url, sepmc.ANNOTATIONS_API_URL)  # no per-author searches
+            article = (params or {})["articleIds"]
+            self.annotation_requests.append(article)
+            if article in self.failing_lookups:
+                raise httpx.ConnectError("simulated annotations API failure")
+            return FakeResponse(200, {})
+
+        self._patch_session(fake_get)
+        self.pattern = sepmc.build_keyword_pattern(["bacteria", "pathogen"])
 
     def test_search_authors_finds_and_filters(self) -> None:
-        """A single matching, keyword-passing paper is found and recorded."""
-        paper = make_paper("1", "Good A")
-        fake_get = make_fake_get(fail_authors=set(), papers_by_author={"Good A": paper})
-        self._patch_session(fake_get)
-        pattern = sepmc.build_keyword_pattern(["bacteria", "pathogen"])
+        """A matching, keyword-passing paper is recorded; an off-topic one only counted."""
+        on_topic = make_paper("1", "Good A")
+        off_topic = make_paper("2", "Good A", title="Plant genomics", abstract="leaves")
 
-        paper_rows, summary_rows = sepmc.search_authors(["Good A"], pattern)
+        paper_rows, summary_rows = sepmc.search_authors(
+            ["Good A"], [on_topic, off_topic], self.pattern
+        )
 
         self.assertEqual(len(paper_rows), 1)
         self.assertEqual(paper_rows[0]["input_author"], "Good A")
-        self.assertEqual(summary_rows[0]["match_count"], 1)
+        self.assertEqual(paper_rows[0]["query"], sepmc.build_query("Good A"))
+        self.assertEqual(summary_rows[0]["match_count"], 2)
         self.assertEqual(summary_rows[0]["filtered_count"], 1)
         self.assertFalse(summary_rows[0].get("error"))
 
-    def test_search_authors_records_error_for_failing_author(self) -> None:
-        """One author's search failing doesn't affect another author's results."""
-        good_paper = make_paper("1", "Good A")
-        fake_get = make_fake_get(fail_authors={"Bad B"}, papers_by_author={"Good A": good_paper})
-        self._patch_session(fake_get)
-        pattern = sepmc.build_keyword_pattern(["bacteria", "pathogen"])
+    def test_records_the_matched_authors_own_affiliation(self) -> None:
+        """Affiliations come from the matched person, even with extra initials."""
+        paper = make_paper("1", "Jönsson LJ", affiliation="Umeå University, Sweden.")
+        paper["authorList"]["author"].append(person("Other O", "Fudan University, China."))
 
-        paper_rows, summary_rows = sepmc.search_authors(["Good A", "Bad B"], pattern)
+        paper_rows, _ = sepmc.search_authors(["Jonsson L"], [paper], self.pattern)
+
+        self.assertEqual(paper_rows[0]["author_affiliation"], "Umeå University, Sweden.")
+        self.assertEqual(paper_rows[0]["author_sweden_affiliation"], "Y")
+
+    def test_search_authors_records_error_for_failing_author(self) -> None:
+        """One author's failing lookup doesn't affect another author's results."""
+        good_paper = make_paper("1", "Good A")
+        bad_paper = failing_paper("Bad B")
+        self.failing_lookups.add(f"MED:{bad_paper['id']}")
+
+        paper_rows, summary_rows = sepmc.search_authors(
+            ["Good A", "Bad B"], [good_paper, bad_paper], self.pattern
+        )
 
         good_summary = next(r for r in summary_rows if r["input_author"] == "Good A")
         bad_summary = next(r for r in summary_rows if r["input_author"] == "Bad B")
-
         self.assertFalse(good_summary.get("error"))
-        self.assertTrue(bad_summary.get("error"))  # deliberately failed
-        self.assertEqual(len(paper_rows), 1)  # only Good A's paper made it through
-        self.assertEqual(paper_rows[0]["input_author"], "Good A")
-
-    def test_search_authors_records_error_when_annotation_lookup_fails(self) -> None:
-        """A failing text-mined-accession lookup marks the author as errored too.
-
-        Swallowing this (recording accessions=[] instead) would be
-        indistinguishable from "this paper genuinely has no accession" and
-        would never be caught by --retry-errors.
-        """
-        paper = make_paper("1", "Good A")
-        paper["hasTMAccessionNumbers"] = "Y"  # forces the annotations API fallback
-
-        def fake_get(
-            url: str, params: dict[str, Any] | None = None, timeout: float | None = None
-        ) -> FakeResponse:
-            if url == sepmc.ANNOTATIONS_API_URL:
-                raise httpx.ConnectError("simulated annotations API failure")
-            query = (params or {}).get("query", "")
-            if 'AUTH:"Good A"' in query:
-                result = {"resultList": {"result": [paper]}, "nextCursorMark": None}
-                return FakeResponse(200, result)
-            return FakeResponse(200, {"resultList": {"result": []}, "nextCursorMark": None})
-
-        self._patch_session(fake_get)
-        pattern = sepmc.build_keyword_pattern(["bacteria", "pathogen"])
-
-        paper_rows, summary_rows = sepmc.search_authors(["Good A"], pattern)
-
-        self.assertTrue(summary_rows[0].get("error"))
-        self.assertEqual(paper_rows, [])  # the failing paper never got recorded
+        self.assertTrue(bad_summary.get("error"))
+        self.assertEqual([r["input_author"] for r in paper_rows], ["Good A"])
 
     def test_search_authors_discards_partial_batch_on_mid_batch_failure(self) -> None:
         """If paper 2 of 2 fails, paper 1's already-processed row is discarded too.
@@ -374,29 +487,38 @@ class SearchAuthorsTests(SepmcTestCase):
         """
         paper_ok = make_paper("1", "Good A", title="First paper, lookup succeeds")
         paper_fails = make_paper("2", "Good A", title="Second paper, lookup fails")
-        paper_fails["hasTMAccessionNumbers"] = "Y"  # forces the annotations API fallback
+        paper_fails["hasTMAccessionNumbers"] = "Y"
+        self.failing_lookups.add("MED:2")
 
-        def fake_get(
-            url: str, params: dict[str, Any] | None = None, timeout: float | None = None
-        ) -> FakeResponse:
-            if url == sepmc.ANNOTATIONS_API_URL:
-                raise httpx.ConnectError("simulated annotations API failure")
-            query = (params or {}).get("query", "")
-            if 'AUTH:"Good A"' in query:
-                result = {
-                    "resultList": {"result": [paper_ok, paper_fails]},
-                    "nextCursorMark": None,
-                }
-                return FakeResponse(200, result)
-            return FakeResponse(200, {"resultList": {"result": []}, "nextCursorMark": None})
-
-        self._patch_session(fake_get)
-        pattern = sepmc.build_keyword_pattern(["bacteria", "pathogen"])
-
-        paper_rows, summary_rows = sepmc.search_authors(["Good A"], pattern)
+        paper_rows, summary_rows = sepmc.search_authors(
+            ["Good A"], [paper_ok, paper_fails], self.pattern
+        )
 
         self.assertTrue(summary_rows[0].get("error"))
-        self.assertEqual(paper_rows, [])  # paper 1's row must not linger either
+        self.assertEqual(paper_rows, [])
+
+    def test_each_papers_accessions_are_looked_up_once(self) -> None:
+        """A paper matched by several authors costs one lookup, not one per author."""
+        paper = make_paper("1", "Good A")
+        paper["hasTMAccessionNumbers"] = "Y"
+        paper["authorList"]["author"].append(person("Also B"))
+
+        paper_rows, _ = sepmc.search_authors(["Good A", "Also B"], [paper], self.pattern)
+
+        self.assertEqual(len(paper_rows), 2)
+        self.assertEqual(self.annotation_requests, ["MED:1"])
+
+    def test_a_failed_lookup_errors_every_matching_author_once(self) -> None:
+        """A failing lookup isn't retried per author, and marks them all for --retry-errors."""
+        paper = failing_paper("Bad B")
+        paper["authorList"]["author"].append(person("Also C"))
+        self.failing_lookups.add(f"MED:{paper['id']}")
+
+        _, summary_rows = sepmc.search_authors(["Bad B", "Also C"], [paper], self.pattern)
+
+        self.assertTrue(all(r.get("error") for r in summary_rows))
+        # One lookup with _get's own retries -- not another round for the second author.
+        self.assertEqual(len(self.annotation_requests), sepmc.MAX_RETRIES + 1)
 
 
 class RetryErroredAuthorsTests(SepmcTestCase):
@@ -608,6 +730,24 @@ class RunSearchTests(SepmcTestCase):
             )
         self.assertFalse((tmp_dir / sepmc.SUMMARY_OUTPUT_CSV).exists())
 
+    def test_run_search_fails_before_writing_when_candidates_unavailable(self) -> None:
+        """Without the candidate papers nothing can be matched: raise, write nothing."""
+        tmp_dir = self._make_tmp_dir()
+        researchers_only = make_fake_get(set(), {}, researchers=[researcher("Good", "A")])
+
+        def fake_get(
+            url: str, params: dict[str, Any] | None = None, timeout: object = None
+        ) -> FakeResponse:
+            if url == sepmc.BASE_URL:
+                raise httpx.ReadTimeout("simulated Europe PMC timeout")
+            return researchers_only(url, params, timeout)
+
+        self._patch_session(fake_get)
+
+        with self.assertRaises(httpx.HTTPError):
+            sepmc.run_search(tmp_dir, keywords_csv=self._write_keywords(tmp_dir))
+        self.assertFalse((tmp_dir / sepmc.SUMMARY_OUTPUT_CSV).exists())
+
     def test_run_search_refuses_an_empty_researcher_list(self) -> None:
         """An empty feed is an error, not a clean run that searched nobody."""
         tmp_dir = self._make_tmp_dir()
@@ -741,6 +881,23 @@ class MetabolightsSearchCommandTests(SepmcTestCase):
         self.assertEqual(raised.exception.returncode, 1)
         self.assertFalse((self.tmp_dir / sepmc.SUMMARY_OUTPUT_CSV).exists())
 
+    def test_exits_1_when_candidate_papers_unavailable(self) -> None:
+        """Failing to download the candidate papers is a failed run -> exit 1."""
+        researchers_only = make_fake_get(set(), {}, researchers=[researcher("Good", "A")])
+
+        def fake_get(
+            url: str, params: dict[str, Any] | None = None, timeout: object = None
+        ) -> FakeResponse:
+            if url == sepmc.BASE_URL:
+                raise httpx.ReadTimeout("simulated Europe PMC timeout")
+            return researchers_only(url, params, timeout)
+
+        self._patch_session(fake_get)
+        with self.assertRaises(CommandError) as raised:
+            self._call()
+        self.assertEqual(raised.exception.returncode, 1)
+        self.assertFalse((self.tmp_dir / sepmc.SUMMARY_OUTPUT_CSV).exists())
+
     def test_retry_errors_exits_3_while_authors_still_fail(self) -> None:
         """--retry-errors keeps exiting 3 until every author has recovered."""
         self._patch_session(make_fake_get({"Bad B"}, {}, researchers=[researcher("Bad", "B")]))
@@ -779,7 +936,7 @@ class MetabolightsSearchCommandTests(SepmcTestCase):
         self.assertTrue((self.tmp_dir / "metabolights_search" / sepmc.SUMMARY_OUTPUT_CSV).exists())
 
     def test_unwritable_work_dir_fails_before_any_request(self) -> None:
-        """A read-only work dir is caught up front, not after an hour of searching."""
+        """A read-only work dir is caught up front, before any request."""
         requested: list[str] = []
 
         def fake_get(url: str, params: object = None, timeout: object = None) -> FakeResponse:

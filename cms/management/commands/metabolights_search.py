@@ -9,11 +9,12 @@ columns.
 
 Exit codes, for cron-style scheduling:
   0  Completed with no errors.
-  3  Completed, but one or more authors' searches errored (see the error
-     column in the summary CSV) -- run again with --retry-errors before
-     treating the output as complete or running metabolights_fetch.
-  1  The run did not complete (e.g. the researcher list could not be
-     downloaded, or an input file was missing).
+  3  Completed, but one or more authors errored (a matched paper's text-mined
+     accessions couldn't be looked up; see the error column in the summary
+     CSV) -- run again with --retry-errors before treating the output as
+     complete or running metabolights_fetch.
+  1  The run did not complete (e.g. the researcher list or the candidate
+     papers could not be downloaded, or an input file was missing).
 """
 
 from __future__ import annotations
@@ -79,9 +80,9 @@ class Command(BaseCommand):
     def handle(self, *args: object, **options: object) -> None:
         """Run a full search or a retry, then report and set the exit code.
 
-        httpx logs every request at INFO, which over a full run (one request
-        or more per author) would bury the progress lines, so it is quietened
-        to warnings for the run unless --verbosity 3 asks for everything.
+        httpx logs every request at INFO, which would mix request lines into
+        the progress output, so it is quietened to warnings for the run unless
+        --verbosity 3 asks for everything.
         """
         httpx_logger = logging.getLogger("httpx")
         previous_level = httpx_logger.level
@@ -97,7 +98,7 @@ class Command(BaseCommand):
         work_dir: Path = options["work_dir"] or services.get_metabolights_work_dir()
         keywords: Path = options["keywords"]
 
-        # The outputs are only written at the end of a run that can take an hour,
+        # The outputs are only written at the end of the run,
         # so check the work dir is usable before any of the searching.
         try:
             services.ensure_writable_dir(work_dir)
@@ -122,10 +123,11 @@ class Command(BaseCommand):
                     progress=self.stdout.write,
                 )
         except (httpx.HTTPError, OSError, ValueError, csv.Error) as error:
-            # The researcher list couldn't be downloaded, or an input was
-            # missing/malformed: the run never completed. Per-author Europe PMC
-            # failures don't land here -- they are recorded and reported
-            # through outcome.errored_authors.
+            # The researcher list or the candidate papers couldn't be
+            # downloaded, or an input was missing/malformed: the run never
+            # completed. A failed accession lookup for a matched paper doesn't
+            # land here -- it is recorded per author and reported through
+            # outcome.errored_authors.
             raise CommandError(str(error)) from error
 
         self.stdout.write("")

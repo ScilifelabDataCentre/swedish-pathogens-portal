@@ -16,7 +16,8 @@ Inputs:
         of authors in "Lastname Initials" form (e.g. "Keller T, Etana A,
         Bosch Y"). Download it from https://publications.scilifelab.se/
         (Publications -> download CSV).
-    Either way, unique author names are searched individually.
+    Either way, each unique author name is matched against the candidate
+    papers (see "How authors are matched" below).
     pathogen_infectious_disease_keywords_just_keywords.csv
         One keyword per line, used to filter results by title/abstract
         content (bundled next to this module, see DEFAULT_KEYWORDS_CSV).
@@ -69,6 +70,23 @@ Outputs (written to the work directory):
                                          metabolights_fetch``, which controls
                                          the local download location.
 
+How authors are matched:
+    Rather than one Europe PMC query per author (~14,000 slow requests,
+    a day-long run), the candidate papers -- everything matching
+    BASE_FILTER, i.e. every paper with a curated MetaboLights link
+    (ACCESSION_TYPE) or in Europe PMC's MetaboLights lab-links set
+    (LABS_PUBS), together only a couple of thousand -- are downloaded in
+    bulk (fetch_candidate_papers, a handful of requests), and each author
+    is matched against their author lists locally (find_author_papers).
+    The matching reproduces what the per-author ``AUTH:"Lastname
+    Initials"`` query used to return: same surname ignoring case,
+    accents and hyphens, the paper author's initials starting with the
+    searched initials ("Jonsson L" matches "Jönsson LJ"), across both
+    the authors and a consortium's named investigators. Checked against
+    a full per-author run, it agreed for all but a handful of authors,
+    each explained by papers added in between or by Europe PMC
+    mishandling a letter such as "ł".
+
 Requests to Europe PMC are throttled by a shared RateLimiter to stay within
 their documented per-IP limits (10 requests/second, 500 requests/minute).
 All requests go through the project's shared httpx client
@@ -96,6 +114,12 @@ from cms.services import api_client
 
 BASE_URL = "https://www.ebi.ac.uk/europepmc/webservices/rest/search"
 BASE_FILTER = '((ACCESSION_TYPE:"metabolights") OR (LABS_PUBS:"1782"))'
+# The two halves of BASE_FILTER, fetched separately in bulk and merged: each
+# is small (about a thousand papers), so a few 1000-record pages cover both.
+BULK_QUERIES = ('ACCESSION_TYPE:"metabolights"', 'LABS_PUBS:"1782"')
+# A 1000-record page of full ("core") records can take Europe PMC well over
+# the default 10 seconds to produce (up to a minute has been seen).
+BULK_TIMEOUT_SECONDS = 180.0
 
 RESEARCHERS_JSON_URL = "https://publications.scilifelab.se/researchers_json"
 RESEARCHERS_TIMEOUT_SECONDS = 60
@@ -142,7 +166,12 @@ SUMMARY_FIELDNAMES = ["input_author", "query", "match_count", "filtered_count", 
 
 
 def build_query(author_name: str) -> str:
-    """Build a Europe PMC query string for the given author name."""
+    """Build the Europe PMC query equivalent to matching author_name.
+
+    No longer sent to Europe PMC (authors are matched locally, see
+    find_author_papers), but recorded in the summary CSV's query column to
+    say what each author's counts mean.
+    """
     author_name = (author_name or "").strip()
     if not author_name:
         raise ValueError("author_name is empty")
@@ -262,7 +291,9 @@ def _get(
     raise AssertionError(msg)
 
 
-def search_europe_pmc(query: str, page_size: int = 1000) -> list[dict]:
+def search_europe_pmc(
+    query: str, page_size: int = 1000, timeout: float = DEFAULT_TIMEOUT_SECONDS
+) -> list[dict]:
     """Retrieve all Europe PMC results for a query using cursor pagination.
 
     Returns a list of result records.
@@ -280,7 +311,7 @@ def search_europe_pmc(query: str, page_size: int = 1000) -> list[dict]:
         }
 
         RATE_LIMITER.wait()
-        data = _get(BASE_URL, params=params).json()
+        data = _get(BASE_URL, params=params, timeout=timeout).json()
 
         results = data.get("resultList", {}).get("result", [])
         all_results.extend(results)
@@ -391,54 +422,6 @@ def get_metabolights_accessions(paper: dict) -> list[str]:
     return fetch_textmined_metabolights_accessions(source, ext_id)
 
 
-def _normalize_name(name: str) -> str:
-    """Fold a name to a comparable form: strip diacritics, collapse whitespace, lowercase.
-
-    Used to match our own "Lastname Initials" strings against Europe
-    PMC's authorList fullName field, which should normally already be in
-    the same format but may differ slightly in accenting or spacing.
-    """
-    name = unicodedata.normalize("NFKD", name or "")
-    name = "".join(c for c in name if not unicodedata.combining(c))
-    return re.sub(r"\s+", " ", name).strip().casefold()
-
-
-def get_author_affiliations(paper: dict) -> dict[str, list[str]]:
-    """Map each author's fullName to their list of affiliation strings.
-
-    Only populated for resultType=core records, and only for MEDLINE
-    records from 2014 onward (per Europe PMC's docs) -- a paper with no
-    affiliation data at all doesn't necessarily mean its authors lack one.
-    Keys are normalized via _normalize_name for reliable lookup.
-    """
-    affiliations: dict[str, list[str]] = {}
-    authors = paper.get("authorList", {}).get("author", [])
-    for author in authors:
-        full_name = (author.get("fullName") or "").strip()
-        if not full_name:
-            continue
-        details = author.get("authorAffiliationDetailsList", {}).get("authorAffiliation", [])
-        author_affils = [
-            (d.get("affiliation") or "").strip()
-            for d in details
-            if (d.get("affiliation") or "").strip()
-        ]
-        if author_affils:
-            key = _normalize_name(full_name)
-            affiliations.setdefault(key, []).extend(author_affils)
-    return affiliations
-
-
-def get_affiliation_for_author(affiliations: dict[str, list[str]], author_name: str) -> list[str]:
-    """Look up the specific matched author's affiliation(s) on this paper.
-
-    Looks up by normalized name, and only that author (not just any
-    co-author's). Returns [] if no affiliation data was found for that
-    author on this paper.
-    """
-    return affiliations.get(_normalize_name(author_name), [])
-
-
 def _sweden_flag(author_affiliations: list[str]) -> str:
     """Return "Y"/"N"/"" for whether the affiliations mention Sweden.
 
@@ -462,7 +445,7 @@ def flatten_paper(
     """Flatten a Europe PMC result record into a row dict for CSV output.
 
     author_affiliations should be the specific matched author's own
-    affiliation string(s) on this paper (see get_affiliation_for_author),
+    affiliation string(s) on this paper (see find_author_papers),
     not just any co-author's -- empty means no affiliation data was found
     for that author on this record.
     """
@@ -751,7 +734,9 @@ def run_search(
     researcher list at researchers_url. Overwrites the papers/summary/
     targets outputs in work_dir. The keywords and authors are loaded and
     validated before any Europe PMC search, so a missing or malformed
-    input raises without touching earlier output.
+    input raises without touching earlier output. If the candidate papers
+    can't be downloaded, the httpx.HTTPError propagates and nothing is
+    written either.
     """
     keywords = load_keywords(keywords_csv)
     keyword_pattern = build_keyword_pattern(keywords)
@@ -768,7 +753,8 @@ def run_search(
         raise ValueError(msg)
     progress(f"Searching {len(authors)} author(s) from {source}")
 
-    paper_rows, summary_rows = search_authors(authors, keyword_pattern, progress)
+    papers = fetch_candidate_papers(progress)
+    paper_rows, summary_rows = search_authors(authors, papers, keyword_pattern, progress)
     deduped_paper_rows = dedupe_paper_rows(paper_rows)
     accession_targets = accession_targets_from_paper_rows(deduped_paper_rows)
 
@@ -813,7 +799,10 @@ def retry_errored_authors(
     keywords = load_keywords(keywords_csv)
     keyword_pattern = build_keyword_pattern(keywords)
 
-    new_paper_rows, new_summary_rows = search_authors(errored_authors, keyword_pattern, progress)
+    papers = fetch_candidate_papers(progress)
+    new_paper_rows, new_summary_rows = search_authors(
+        errored_authors, papers, keyword_pattern, progress
+    )
 
     expanded_existing = [
         r for row in _read_csv_rows(papers_csv) for r in expand_deduped_row_to_author_rows(row)
@@ -954,48 +943,202 @@ def has_strong_match(matches: list[str]) -> bool:
     return any(m.lower() not in WEAK_KEYWORDS for m in matches)
 
 
+def fetch_candidate_papers(progress: Progress = _no_progress) -> list[dict]:
+    """Download every paper matching BASE_FILTER, as full ("core") records.
+
+    Fetches each of BULK_QUERIES with cursor pagination and merges them,
+    dropping papers found by both, in order of first appearance. Raises
+    (an httpx.HTTPError) if a page can't be fetched after retries: without
+    the full candidate set no author can be matched reliably, so the run
+    fails rather than writing incomplete output.
+    """
+    papers: dict[tuple[str, str], dict] = {}
+    for query in BULK_QUERIES:
+        progress(f"Fetching papers for {query} ...")
+        results = search_europe_pmc(query, timeout=BULK_TIMEOUT_SECONDS)
+        progress(f"  {len(results)} paper(s)")
+        for paper in results:
+            papers.setdefault((paper.get("source") or "", paper.get("id") or ""), paper)
+    progress(f"{len(papers)} unique candidate paper(s)")
+    return list(papers.values())
+
+
+# Letters NFKD doesn't decompose into a base letter plus an accent, folded by
+# hand so e.g. "Palsson BØ" and "Palsson BO" are the same author.
+_NAME_TRANSLATIONS = str.maketrans({"ø": "o", "Ø": "O", "ł": "l", "Ł": "L"})
+
+
+def _fold(text: str) -> str:
+    """Lowercase text and strip its accents, for comparing names."""
+    text = unicodedata.normalize("NFKD", (text or "").translate(_NAME_TRANSLATIONS))
+    return "".join(c for c in text if not unicodedata.combining(c)).casefold()
+
+
+def fold_surname(surname: str) -> str:
+    """Fold a surname for matching: no case or accents, hyphens as spaces."""
+    return re.sub(r"[\s\-]+", " ", _fold(surname)).strip()
+
+
+def fold_initials(initials: str) -> str:
+    """Fold initials for matching: lowercase letters only ("C-H." -> "ch")."""
+    return re.sub(r"[^a-z]", "", _fold(initials))
+
+
+def split_author_name(name: str) -> tuple[str, str]:
+    """Split a "Lastname Initials" name into folded (surname, initials).
+
+    The last word is the initials and everything before it the surname
+    ("Lukić Bilela L" -> ("lukic bilela", "l")). Returns ("", "") for a
+    name without both parts, which then matches nothing.
+    """
+    *surname, initials = (name or "").split() or [""]
+    if not surname:
+        return "", ""
+    return fold_surname(" ".join(surname)), fold_initials(initials)
+
+
+def _paper_people(paper: dict) -> list[dict]:
+    """Return a paper's authors and its consortium's named investigators."""
+    authors = paper.get("authorList", {}).get("author", [])
+    investigators = paper.get("investigatorList", {}).get("investigator", [])
+    return [p for p in [*authors, *investigators] if isinstance(p, dict)]
+
+
+def _person_name(person: dict) -> tuple[str, str]:
+    """Return a paper author's folded (surname, initials).
+
+    Uses the structured lastName/initials fields, falling back to splitting
+    fullName ("Lastname Initials"); a collective name has neither and gives
+    ("", "").
+    """
+    if person.get("lastName"):
+        return fold_surname(person["lastName"]), fold_initials(person.get("initials") or "")
+    return split_author_name(person.get("fullName") or "")
+
+
+@dataclass
+class AuthorIndex:
+    """Candidate papers indexed by author surname, for find_author_papers."""
+
+    papers: list[dict]
+    # folded surname -> [(folded initials, paper index, person record)]
+    by_surname: dict[str, list[tuple[str, int, dict]]]
+
+
+def build_author_index(papers: list[dict]) -> AuthorIndex:
+    """Index every author and investigator of every paper by surname."""
+    by_surname: dict[str, list[tuple[str, int, dict]]] = {}
+    for index, paper in enumerate(papers):
+        for person in _paper_people(paper):
+            surname, initials = _person_name(person)
+            if surname:
+                by_surname.setdefault(surname, []).append((initials, index, person))
+    return AuthorIndex(papers, by_surname)
+
+
+def find_author_papers(index: AuthorIndex, author_name: str) -> list[tuple[dict, list[dict]]]:
+    """Return the papers author_name ("Lastname Initials") is an author of.
+
+    Reproduces Europe PMC's ``AUTH:"Lastname Initials"`` search (see the
+    module docstring): same folded surname, and the paper author's initials
+    starting with the searched ones. Each result is (paper, matched people)
+    -- usually one person, the record whose affiliations describe this
+    author on that paper -- in the candidates' order.
+    """
+    surname, initials = split_author_name(author_name)
+    if not surname or not initials:
+        return []
+    matched: dict[int, list[dict]] = {}
+    for person_initials, paper_index, person in index.by_surname.get(surname, []):
+        if person_initials.startswith(initials):
+            matched.setdefault(paper_index, []).append(person)
+    return [(index.papers[i], people) for i, people in sorted(matched.items())]
+
+
+def _people_affiliations(people: list[dict]) -> list[str]:
+    """Return the distinct affiliation strings of the given paper authors."""
+    affiliations: list[str] = []
+    for person in people:
+        details = person.get("authorAffiliationDetailsList", {}).get("authorAffiliation", [])
+        for detail in details:
+            text = (detail.get("affiliation") or "").strip()
+            if text and text not in affiliations:
+                affiliations.append(text)
+    return affiliations
+
+
 def search_authors(
     authors: list[str],
+    papers: list[dict],
     keyword_pattern: re.Pattern[str],
     progress: Progress = _no_progress,
 ) -> tuple[list[dict], list[dict]]:
-    """Search Europe PMC for each author in turn.
+    """Match each author against the candidate papers (see fetch_candidate_papers).
 
     Returns (paper_rows, summary_rows): paper_rows are per-(author, paper)
     match dicts in flatten_paper's shape (not yet deduped -- see
     dedupe_paper_rows), and summary_rows are one dict per author with its
-    match/filtered counts, or an "error" key if the search itself failed.
+    match/filtered counts, or an "error" key if looking up a matched
+    paper's text-mined accessions failed. Each paper's keyword matches and
+    accessions are worked out once, however many authors it matches; a
+    failed accession lookup is not repeated within the run, and every
+    author of that paper is marked errored for ``--retry-errors``.
     """
+    index = build_author_index(papers)
+    keyword_cache: dict[int, list[str]] = {}
+    accession_cache: dict[int, list[str] | Exception] = {}
+
+    def keywords_for(paper: dict) -> list[str]:
+        key = id(paper)
+        if key not in keyword_cache:
+            text = " ".join([safe_get(paper, "title"), safe_get(paper, "abstractText")])
+            keyword_cache[key] = find_keyword_matches(text, keyword_pattern)
+        return keyword_cache[key]
+
+    def accessions_for(paper: dict) -> list[str]:
+        key = id(paper)
+        if key not in accession_cache:
+            try:
+                accession_cache[key] = get_metabolights_accessions(paper)
+            except Exception as error:  # noqa: BLE001 -- recorded per author below
+                accession_cache[key] = error
+        cached = accession_cache[key]
+        if isinstance(cached, Exception):
+            raise cached
+        return cached
+
     paper_rows = []
     summary_rows = []
+    matched_authors = 0
 
     for idx, author_name in enumerate(authors, start=1):
+        query = build_query(author_name) if author_name.strip() else ""
         try:
-            query = build_query(author_name)
-            results = search_europe_pmc(query)
+            results = find_author_papers(index, author_name)
 
             filtered_count = 0
             author_paper_rows = []
-            for paper in results:
-                text = " ".join([safe_get(paper, "title"), safe_get(paper, "abstractText")])
-                matches = find_keyword_matches(text, keyword_pattern)
+            for paper, people in results:
+                matches = keywords_for(paper)
                 if not matches or not has_strong_match(matches):
                     continue
                 filtered_count += 1
 
-                # Let a failure here propagate to the per-author except below,
-                # same as a failure in the main search call: it's the same
-                # class of Europe PMC request failure, and silently recording
-                # accessions=[] would be indistinguishable from "this paper
-                # genuinely has none" -- both should mark the author for
-                # --retry-errors rather than being swallowed.
-                accessions = get_metabolights_accessions(paper)
-
-                affiliations = get_author_affiliations(paper)
-                author_affils = get_affiliation_for_author(affiliations, author_name)
+                # Let a failure here propagate to the per-author except below:
+                # silently recording accessions=[] would be indistinguishable
+                # from "this paper genuinely has none" -- it should mark the
+                # author for --retry-errors rather than being swallowed.
+                accessions = accessions_for(paper)
 
                 author_paper_rows.append(
-                    flatten_paper(author_name, query, paper, matches, accessions, author_affils)
+                    flatten_paper(
+                        author_name,
+                        query,
+                        paper,
+                        matches,
+                        accessions,
+                        _people_affiliations(people),
+                    )
                 )
 
             # Only commit this author's rows once the whole batch succeeded --
@@ -1004,10 +1147,12 @@ def search_authors(
             # subsequent --retry-errors run starts from a clean slate for them.
             paper_rows.extend(author_paper_rows)
 
-            progress(
-                f"[{idx}/{len(authors)}] {author_name}: "
-                f"{len(results)} matches, {filtered_count} after keyword filter"
-            )
+            if results:
+                matched_authors += 1
+                progress(
+                    f"[{idx}/{len(authors)}] {author_name}: "
+                    f"{len(results)} matches, {filtered_count} after keyword filter"
+                )
 
             summary_rows.append(
                 {
@@ -1023,13 +1168,14 @@ def search_authors(
             summary_rows.append(
                 {
                     "input_author": author_name,
-                    "query": "",
+                    "query": query,
                     "match_count": "",
                     "filtered_count": "",
                     "error": str(e),
                 }
             )
 
+    progress(f"{matched_authors} of {len(authors)} author(s) matched at least one paper")
     return paper_rows, summary_rows
 
 
