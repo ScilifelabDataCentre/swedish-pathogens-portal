@@ -10,7 +10,8 @@ published pipeline does (FREYA-2968) — while the downloads carry every column
 exactly as delivered. The PCA alone also leaves out the near-empty wells
 (``NEAR_EMPTY_NUCLEI_THRESHOLD``, FREYA-3200); the radars keep every well. The PCA
 is fitted once and drawn in each of ``PCA_COLOURINGS``, which recolour the treated
-wells only (FREYA-3201). Trace ``uid``s (randomly assigned by Plotly) are stripped
+wells only (FREYA-3201), and one compound's wells and dose line can be drawn over
+any of them (FREYA-3202). Trace ``uid``s (randomly assigned by Plotly) are stripped
 so the serialised output is byte-stable across identical runs, which the
 ``drr_precompute`` idempotency contract depends on.
 """
@@ -166,6 +167,17 @@ PCA_MOA_COLOURS: tuple[str, ...] = (
     "#44aa99",
     "#999933",
 )
+
+# One compound's overlay, drawn over every colouring: its wells, then a line
+# through its per-dose centroids. The portal's almost-black alone is under 3:1
+# against the darkest fills — 1.1:1 on Cividis's dark end — so the markers carry a
+# white outline and the line runs over a wider white halo: one of the two always
+# contrasts with what lies beneath.
+PCA_OVERLAY_COLOUR = "#1a1c1a"
+PCA_OVERLAY_HALO_COLOUR = "#ffffff"
+_PCA_OVERLAY_LINE_WIDTH = 2
+_PCA_OVERLAY_HALO_WIDTH = 6
+PCA_OVERLAY_CENTROID_SUFFIX = ": dose centroids"
 
 
 @dataclass
@@ -673,7 +685,16 @@ def build_pca_views(
     Raises:
         ValueError: As ``_fit_pca``.
     """
-    fit = _fit_pca(prep)
+    return _pca_views(_fit_pca(prep), morphology_scores=morphology_scores, mechanisms=mechanisms)
+
+
+def _pca_views(
+    fit: _PcaFit,
+    *,
+    morphology_scores: Mapping[str, float | None] | None,
+    mechanisms: Mapping[str, str | None] | None,
+) -> tuple[dict[str, go.Figure], dict[str, Any]]:
+    """Draw one fit in every colouring there is something to draw by (``build_pca_views``)."""
     views = {PCA_DEFAULT_COLOURING: _draw_pca(fit, _population_traces(fit))}
     report: dict[str, Any] = {}
     if morphology_scores is not None:
@@ -684,6 +705,95 @@ def build_pca_views(
 
     ordered = {colouring: views[colouring] for colouring in PCA_COLOURINGS if colouring in views}
     return ordered, {"written": list(ordered), **report}
+
+
+def _pca_overlay(fit: _PcaFit, cbkid: str, name: str) -> go.Figure:
+    """Draw one compound's overlay: its fitted wells, then a line through its dose centroids.
+
+    The wells keep the size every view gives them, and each centroid takes its
+    dose's size, so the line reads from low dose to high. A centroid is the mean
+    PC1 and PC2 of the compound's fitted wells at one dose; the line joins them in
+    ascending dose, over a white halo that keeps it visible on dark points. The
+    halo is no legend entry of its own: it shares the line's legend group, so
+    hiding the line hides it too. No trace depends on a colouring, so the overlay
+    can be drawn over any view of the same fit.
+
+    Args:
+        fit: The PCA fit every view draws.
+        cbkid: The compound, which has at least one fitted dosed well.
+        name: The compound's name in the legend.
+
+    Returns:
+        A figure holding three traces: the wells, the halo, then the line.
+    """
+    mask = fit.dosed & (fit.cbkids == cbkid)
+    doses = fit.doses[mask]
+    scores = fit.scores[mask]
+    sizes = fit.sizes[mask]
+    levels = np.unique(doses)
+    centroids = np.array([scores[doses == level].mean(axis=0) for level in levels])
+    outline = {"color": PCA_OVERLAY_HALO_COLOUR, "width": 1}
+    line_name = f"{name}{PCA_OVERLAY_CENTROID_SUFFIX}"
+    line_group = f"pca-overlay-{cbkid}"
+
+    figure = go.Figure()
+    figure.add_scatter(
+        **_pca_trace(fit, mask, name, {"color": PCA_OVERLAY_COLOUR, "size": sizes, "line": outline})
+    )
+    figure.add_scatter(
+        x=centroids[:, 0],
+        y=centroids[:, 1],
+        mode="lines",
+        name=line_name,
+        legendgroup=line_group,
+        showlegend=False,
+        hoverinfo="skip",
+        line={"color": PCA_OVERLAY_HALO_COLOUR, "width": _PCA_OVERLAY_HALO_WIDTH},
+    )
+    figure.add_scatter(
+        x=centroids[:, 0],
+        y=centroids[:, 1],
+        mode="lines+markers",
+        name=line_name,
+        legendgroup=line_group,
+        line={"color": PCA_OVERLAY_COLOUR, "width": _PCA_OVERLAY_LINE_WIDTH},
+        marker={
+            "symbol": "diamond",
+            "color": PCA_OVERLAY_COLOUR,
+            "size": np.array([sizes[doses == level][0] for level in levels]),
+            "line": outline,
+        },
+    )
+    return figure
+
+
+def _pca_overlays(fit: _PcaFit, labels: Mapping[str, str]) -> dict[str, go.Figure]:
+    """Draw an overlay for every compound with at least one fitted treated or antiviral well.
+
+    A compound whose wells are all near-empty is not fitted, so it gets none, and
+    neither do the controls, whose wells are not dosed. The antivirals keep the
+    fixed names their own traces carry (``PCA_ANTIVIRALS``); every other compound
+    is named as the page's picker names it.
+    """
+    antiviral_names = dict(PCA_ANTIVIRALS)
+    return {
+        cbkid: _pca_overlay(fit, cbkid, antiviral_names.get(cbkid) or labels.get(cbkid) or cbkid)
+        for cbkid in sorted(set(fit.cbkids[fit.dosed].tolist()))
+    }
+
+
+def combine_pca_overlay(view: dict[str, Any], overlay: dict[str, Any]) -> dict[str, Any]:
+    """Return a PCA view with one compound's overlay drawn above every trace it has.
+
+    Args:
+        view: One colouring's precomputed figure JSON.
+        overlay: One compound's precomputed overlay, which carries ``data`` only.
+
+    Returns:
+        The view with its own traces and layout unchanged and the overlay's traces
+        appended last, since Plotly draws a later trace over an earlier one.
+    """
+    return {**view, "data": [*view.get("data", []), *overlay.get("data", [])]}
 
 
 def _radar_caveat(prep: _Prepared) -> str:
@@ -852,6 +962,11 @@ class FigureBundle:
             the PCA's swap route; the default is ``figures["pca"]``.
         pca_report: What the colourings wrote, for ``summary.json``
             (``build_pca_views``).
+        pca_overlays: One overlay per compound with a fitted treated or
+            antiviral well, keyed by ``cbkid``: its wells and its dose line,
+            ``data`` only. These go to disk under ``figures/pca/compound/``, and
+            the PCA's swap route draws one over the colouring shown
+            (``combine_pca_overlay``).
     """
 
     figures: dict[str, Any]
@@ -860,6 +975,7 @@ class FigureBundle:
     unplotted_columns: list[str]
     pca_colourings: dict[str, Any]
     pca_report: dict[str, Any]
+    pca_overlays: dict[str, Any]
 
 
 def build_figure_bundle(
@@ -871,7 +987,7 @@ def build_figure_bundle(
     morphology_scores: Mapping[str, float | None] | None = None,
     mechanisms: Mapping[str, str | None] | None = None,
 ) -> FigureBundle:
-    """Build the snippet's figures and the per-compound radar set in one pass.
+    """Build the snippet's figures and the per-compound radar and PCA overlay sets in one pass.
 
     Args:
         table: The loaded feature table.
@@ -883,7 +999,7 @@ def build_figure_bundle(
         channels: This screen's channel map, which the radar ring's stain groups
             come from.
         compound_labels: Optional ``cbkid`` to display-name map, used for each
-            per-compound radar's title.
+            per-compound radar's title and each PCA overlay's legend.
         morphology_scores: Optional ``cbkid`` to the compound table's morphology
             score; the morphology colouring is built only when it is given.
         mechanisms: Optional ``cbkid`` to ``broad_moa``, for the mechanism
@@ -898,8 +1014,9 @@ def build_figure_bundle(
     prep = _prepare(table, feature_columns)
     axes = build_ring(feature_columns, channels)
     labels = compound_labels or {}
-    pca_views, pca_report = build_pca_views(
-        prep, morphology_scores=morphology_scores, mechanisms=mechanisms
+    fit = _fit_pca(prep)
+    pca_views, pca_report = _pca_views(
+        fit, morphology_scores=morphology_scores, mechanisms=mechanisms
     )
 
     figures: dict[str, Any] = {
@@ -924,6 +1041,10 @@ def build_figure_bundle(
             if colouring != PCA_DEFAULT_COLOURING
         },
         pca_report=pca_report,
+        pca_overlays={
+            cbkid: {"data": _to_json(overlay)["data"]}
+            for cbkid, overlay in _pca_overlays(fit, labels).items()
+        },
     )
 
 

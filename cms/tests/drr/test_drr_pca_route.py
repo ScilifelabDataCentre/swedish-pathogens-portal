@@ -4,7 +4,8 @@ The page draws the PCA from its own partial, and a colour-by picker swaps in one
 the colourings precompute wrote. Every colouring is drawn from one fit and recolours
 the treated wells only: the controls and the three antivirals keep their traces,
 colours and place on top, so a reader comparing two views compares the treated
-wells and nothing else.
+wells and nothing else. A compound picker beside it draws one compound's wells and
+its dose line over whichever colouring is shown (FREYA-3202).
 """
 
 from __future__ import annotations
@@ -16,6 +17,7 @@ from typing import Any
 from unittest.mock import patch
 
 import plotly.graph_objects as go
+import polars as pl
 from django.core.cache import cache
 from django.core.management import call_command
 from django.core.management.base import CommandError
@@ -24,7 +26,14 @@ from django.test import SimpleTestCase, TestCase, override_settings
 from django.utils.html import escape
 from openpyxl import Workbook
 
-from cms.pages.drr_dataset import _PCA_COLOURING_CHOICES, _PCA_FIGURE, DrrDatasetPage
+from cms.pages.drr_dataset import (
+    _PCA_COLOURING_CHOICES,
+    _PCA_FIGURE,
+    _PCA_OVERLAY_ALT_TEXT,
+    _PCA_OVERLAY_CAPTION,
+    DrrDatasetPage,
+)
+from cms.services.file_downloads import resolve_file_in_directory
 from cms.snippets.drr_dataset_data import DrrDatasetData
 from cms.tests.drr.test_drr_dataset_page import DrrDatasetPageTestCase
 from cms.tests.drr.test_drr_figures import SLUG as FIGURES_SLUG
@@ -33,9 +42,11 @@ from cms.tests.drr.test_drr_precompute import FEATURE_CSV, METADATA_TSV, PLATE_M
 from cms.tests.drr.test_drr_precompute import SLUG as PRECOMPUTE_SLUG
 from cms.tests.drr.test_drr_table import page_table
 from cms.tests.utils import create_test_image, use_temp_media_root
+from dashboard_visualisation.drr import artefact_key
 from dashboard_visualisation.drr.channels import channel_map, figure_feature_columns
 from dashboard_visualisation.drr.figures import (
     NEAR_EMPTY_NUCLEI_THRESHOLD,
+    PCA_ANTIVIRAL_COLOUR,
     PCA_COLOURINGS,
     PCA_DEFAULT_COLOURING,
     PCA_MOA_COLOURS,
@@ -43,7 +54,13 @@ from dashboard_visualisation.drr.figures import (
     PCA_NOT_ANNOTATED,
     PCA_NOT_REPORTED,
     PCA_OTHER_MECHANISMS,
+    PCA_OVERLAY_CENTROID_SUFFIX,
+    PCA_OVERLAY_COLOUR,
+    PCA_OVERLAY_HALO_COLOUR,
+    PCA_POPULATION_COLOURS,
+    FigureBundle,
     build_figure_bundle,
+    combine_pca_overlay,
 )
 from dashboard_visualisation.drr.loader import FeatureTable
 
@@ -311,7 +328,7 @@ class DrrPcaColouringTests(SimpleTestCase):
 
 
 class DrrPcaPrecomputeTests(TestCase):
-    """What precompute writes for the colourings, and what it refuses to write.
+    """What precompute writes for the colourings and the overlays, and what it refuses to write.
 
     The fixture is ``test_drr_precompute``'s: two treated compounds, CBK1 named
     ``compoundA`` with a ``broad_moa`` and a Table S8 score, and CBK3 with neither.
@@ -369,11 +386,15 @@ class DrrPcaPrecomputeTests(TestCase):
         return path
 
     def test_the_colourings_go_under_figures_pca_and_the_default_stays_in_the_snippet(self) -> None:
-        """Two files on disk, none for the default, and the snippet's figure ids unchanged."""
+        """Two files on disk, none for the default, and the snippet's figure ids unchanged.
+
+        The overlays' folder sits beside them (FREYA-3202).
+        """
         self._run()
 
         self.assertEqual(
-            sorted(path.name for path in self.pca_dir.iterdir()), ["moa.json", "morphology.json"]
+            sorted(path.name for path in self.pca_dir.iterdir()),
+            ["compound", "moa.json", "morphology.json"],
         )
         self.assertEqual(
             set(DrrDatasetData.get_data(PRECOMPUTE_SLUG).data),
@@ -385,7 +406,9 @@ class DrrPcaPrecomputeTests(TestCase):
         self._run()
         self._run(with_table=False)
 
-        self.assertEqual(sorted(path.name for path in self.pca_dir.iterdir()), ["moa.json"])
+        self.assertEqual(
+            sorted(path.name for path in self.pca_dir.iterdir()), ["compound", "moa.json"]
+        )
 
     def test_the_summary_records_the_colourings_and_the_scored_count(self) -> None:
         """CBK1 is scored and CBK3 is not; ``inhibitor`` is the one mechanism drawn."""
@@ -426,12 +449,23 @@ class DrrPcaPrecomputeTests(TestCase):
         self.assertIsNone(DrrDatasetData.get_data(PRECOMPUTE_SLUG))
 
     def test_the_colourings_are_byte_stable_across_runs(self) -> None:
-        """The idempotency contract holds for the set as for every other artefact."""
+        """The idempotency contract holds for the set as for every other artefact.
+
+        Every file under ``figures/pca/``, the overlays included (FREYA-3202).
+        """
         self._run()
-        first = {path.name: path.read_bytes() for path in self.pca_dir.iterdir()}
+        first = self._pca_files()
         self._run()
 
-        self.assertEqual({path.name: path.read_bytes() for path in self.pca_dir.iterdir()}, first)
+        self.assertEqual(self._pca_files(), first)
+
+    def _pca_files(self) -> dict[str, bytes]:
+        """Return every file under ``figures/pca/``, keyed by its path there."""
+        return {
+            str(path.relative_to(self.pca_dir)): path.read_bytes()
+            for path in sorted(self.pca_dir.rglob("*"))
+            if path.is_file()
+        }
 
     def test_the_default_view_does_not_depend_on_the_table(self) -> None:
         """Only the morphology colouring reads the table; the snippet's PCA never does."""
@@ -440,6 +474,81 @@ class DrrPcaPrecomputeTests(TestCase):
         self._run(with_table=False)
 
         self.assertEqual(DrrDatasetData.get_data(PRECOMPUTE_SLUG).data["pca"], with_table)
+
+    # The per-compound overlays (FREYA-3202).
+
+    def test_one_overlay_per_fitted_compound_goes_under_figures_pca_compound(self) -> None:
+        """CBK1 and CBK3 are treated and fitted; CBK2's wells are controls, so it has none."""
+        self._run()
+        overlay_dir = self.pca_dir / "compound"
+
+        self.assertEqual(
+            sorted(path.name for path in overlay_dir.iterdir()), ["CBK1.json", "CBK3.json"]
+        )
+        overlay = json.loads((overlay_dir / "CBK1.json").read_text(encoding="utf-8"))
+        self.assertEqual(set(overlay), {"data"})
+        self.assertEqual(len(overlay["data"]), 3)
+
+    def test_an_overlay_names_its_compound_the_way_the_radar_does(self) -> None:
+        """One label rule, so the legend agrees with the picker and the radar."""
+        self._run()
+        overlay = json.loads((self.pca_dir / "compound" / "CBK1.json").read_text(encoding="utf-8"))
+        radar = json.loads(
+            (self.out_dir / "figures" / "radar" / "CBK1.json").read_text(encoding="utf-8")
+        )
+        name = overlay["data"][0]["name"]
+
+        self.assertEqual(
+            radar["layout"]["title"]["text"], f"Radar: {name} vs infected DMSO baseline"
+        )
+        self.assertEqual(overlay["data"][-1]["name"], f"{name}{PCA_OVERLAY_CENTROID_SUFFIX}")
+
+    def test_the_index_records_each_overlay_s_key(self) -> None:
+        """The route resolves a reader's cbkid through this column; a null means no overlay."""
+        self._run()
+        index = pl.read_parquet(self.out_dir / "compounds.parquet")
+
+        keys = dict(zip(index["cbkid"].to_list(), index["pca_key"].to_list(), strict=True))
+        self.assertEqual(keys, {"CBK1": "CBK1", "CBK2": None, "CBK3": "CBK3"})
+
+    def test_a_stale_overlay_does_not_survive_a_re_run(self) -> None:
+        """The set describes this generation, as the radar set does."""
+        self._run()
+        stale = self.pca_dir / "compound" / "CBK404.json"
+        stale.write_text("{}", encoding="utf-8")
+
+        self._run()
+
+        self.assertFalse(stale.exists())
+
+    def test_an_oversized_overlay_combination_fails_the_run_before_anything_is_written(
+        self,
+    ) -> None:
+        """Each view is checked with the heaviest overlay drawn over it, as a swap serves it."""
+        checked: dict[str, Any] = {}
+
+        def only_combinations_too_large(figures: dict[str, Any]) -> dict[str, int]:
+            checked.update(figures)
+            return {key: 2_000_000 for key in figures if key.endswith("+compound")}
+
+        with (
+            patch(
+                "cms.management.commands.drr_precompute.oversized_figures",
+                side_effect=only_combinations_too_large,
+            ),
+            self.assertRaisesMessage(CommandError, "'pca/population+compound': 2000000"),
+        ):
+            self._run()
+
+        self.assertEqual([path for path in self.out_dir.rglob("*") if path.is_file()], [])
+        self.assertIsNone(DrrDatasetData.get_data(PRECOMPUTE_SLUG))
+        self.assertEqual(
+            sorted(key for key in checked if key.endswith("+compound")),
+            [f"pca/{key}+compound" for key in sorted(PCA_COLOURINGS)],
+        )
+        combined = checked["pca/moa+compound"]["data"]
+        self.assertEqual(combined[:-3], checked["pca/moa"]["data"])
+        self.assertTrue(combined[-1]["name"].endswith(PCA_OVERLAY_CENTROID_SUFFIX))
 
 
 ROUTE_SLUG = "drr-pca-route"
@@ -706,3 +815,456 @@ class DrrPcaCacheTests(DrrPcaRouteTestCase):
         self.data.save()
 
         self.assertContains(self.pca(colour="moa"), "Rewritten view")
+
+
+# The overlays (FREYA-3202). The colouring fixture's compounds with a fitted treated
+# or antiviral well: CBK25's only well is near-empty, and the rest are controls.
+OVERLAID = sorted(
+    {f"CBK{number}" for number in range(11, 25)} | {"CBK310015", "DO8167002", "CBK310023"}
+)
+
+# One compound at three doses, given out of order, two wells at 10 µM and a
+# near-empty one at 1 µM, plus the two controls the radars need. Well ``i`` sits
+# at ``i + 1`` on PC1 before centring, so the centroids are known exactly, and
+# they do not rise with PC1: an order taken from the scores would fail.
+OVERLAY_WELLS: list[tuple[str, str, float, float]] = [
+    ("trt", "CBK31", 10.0, 240.0),
+    ("trt", "CBK31", 0.1, 240.0),
+    ("trt", "CBK31", 1.0, 240.0),
+    ("trt", "CBK31", 10.0, 240.0),
+    ("trt", "CBK31", 1.0, 10.0),
+    ("trt", "CBK32", 3.0, 240.0),
+    ("negcon", "CBK281357", 0.3, 240.0),
+    ("non-inf", "CBK281357", 0.3, 240.0),
+]
+
+
+def _bundle(
+    wells: list[tuple[str, str, float, float]],
+    *,
+    compound_labels: dict[str, str] | None = None,
+) -> FigureBundle:
+    """Build the figure bundle of a well fixture on the registered screen's basis."""
+    table = _pca_table(wells)
+    channels = channel_map(FIGURES_SLUG)
+    return build_figure_bundle(
+        table,
+        feature_columns=figure_feature_columns(table.feature_columns, channels),
+        channels=channels,
+        compound_labels=compound_labels,
+    )
+
+
+def _sizes_by_well(trace: dict[str, Any]) -> dict[int, float]:
+    """Return the marker size of each colouring-fixture well a trace draws."""
+    wells = _well_order(trace)
+    size = trace["marker"]["size"]
+    values = _decode_array(size).tolist() if isinstance(size, dict | list) else [size] * len(wells)
+    return dict(zip(wells, values, strict=True))
+
+
+def _colourscale_stops(name: str) -> list[tuple[float, str]]:
+    """Return a named Plotly colour scale's stops as ``(position, '#rrggbb')`` pairs."""
+    stops = go.scatter.Marker(colorscale=name).to_plotly_json()["colorscale"]
+    pairs = []
+    for position, colour in stops:
+        if colour.startswith("#"):
+            pairs.append((position, colour))
+            continue
+        red, green, blue = (
+            round(float(part)) for part in colour[colour.index("(") + 1 : -1].split(",")
+        )
+        pairs.append((position, f"#{red:02x}{green:02x}{blue:02x}"))
+    return pairs
+
+
+def _contrast(first: str, second: str) -> float:
+    """Return the WCAG 2 contrast ratio between two ``#rrggbb`` colours."""
+
+    def luminance(colour: str) -> float:
+        channels = [int(colour[index : index + 2], 16) / 255 for index in (1, 3, 5)]
+        linear = [
+            value / 12.92 if value <= 0.03928 else ((value + 0.055) / 1.055) ** 2.4
+            for value in channels
+        ]
+        return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
+
+    lighter, darker = sorted((luminance(first), luminance(second)), reverse=True)
+    return (lighter + 0.05) / (darker + 0.05)
+
+
+class DrrPcaOverlayTests(SimpleTestCase):
+    """What one compound's overlay draws, and how it joins a colouring."""
+
+    def setUp(self) -> None:
+        """Build the colouring fixture's bundle."""
+        self.bundle = _bundle(COLOURING_WELLS)
+
+    def test_only_compounds_with_a_fitted_dosed_well_get_an_overlay(self) -> None:
+        """No overlay for the near-empty CBK25, the positive control or the DMSO wells."""
+        self.assertEqual(sorted(self.bundle.pca_overlays), OVERLAID)
+
+    def test_an_overlay_carries_its_traces_only(self) -> None:
+        """Wells, the halo, then the dose line: no layout, so any colouring's layout stands."""
+        overlay = self.bundle.pca_overlays["CBK11"]
+        wells, _halo, line = overlay["data"]
+
+        self.assertEqual(set(overlay), {"data"})
+        self.assertEqual((wells["name"], wells["mode"]), ("CBK11", "markers"))
+        self.assertEqual(
+            (line["name"], line["mode"]), (f"CBK11{PCA_OVERLAY_CENTROID_SUFFIX}", "lines+markers")
+        )
+        self.assertEqual(wells["marker"]["color"], PCA_OVERLAY_COLOUR)
+        self.assertEqual(line["line"]["color"], PCA_OVERLAY_COLOUR)
+
+    def test_the_dose_line_runs_over_a_wider_white_halo_hidden_from_the_legend(self) -> None:
+        """The halo keeps the line visible on dark points; hiding the line hides it too."""
+        _wells, halo, line = self.bundle.pca_overlays["CBK11"]["data"]
+
+        self.assertEqual(halo["mode"], "lines")
+        self.assertEqual(halo["line"]["color"], PCA_OVERLAY_HALO_COLOUR)
+        self.assertGreater(halo["line"]["width"], line["line"]["width"])
+        self.assertIs(halo["showlegend"], False)
+        self.assertEqual(halo["hoverinfo"], "skip")
+        self.assertEqual(halo["legendgroup"], line["legendgroup"])
+        self.assertNotIn("showlegend", line)
+        for axis in ("x", "y"):
+            with self.subTest(axis=axis):
+                self.assertEqual(
+                    _decode_array(halo[axis]).tolist(), _decode_array(line[axis]).tolist()
+                )
+
+    def test_the_halo_and_the_line_contrast_with_every_fill_between_them(self) -> None:
+        """Over any fill a colouring draws, the white halo or the dark line clears 3:1."""
+        fills = {
+            *PCA_POPULATION_COLOURS.values(),
+            *PCA_MOA_COLOURS,
+            PCA_ANTIVIRAL_COLOUR,
+            "#a8a8a8",
+            *(stop for _, stop in _colourscale_stops("Cividis")),
+        }
+
+        for fill in sorted(fills):
+            with self.subTest(fill=fill):
+                self.assertGreaterEqual(
+                    max(
+                        _contrast(PCA_OVERLAY_HALO_COLOUR, fill),
+                        _contrast(PCA_OVERLAY_COLOUR, fill),
+                    ),
+                    3.0,
+                )
+
+    def test_an_overlay_draws_its_compound_s_fitted_wells_at_their_view_sizes(self) -> None:
+        """Each well where the default view draws it, as large as the view draws it."""
+        default = self.bundle.figures["pca"]
+        view_sizes: dict[int, float] = {}
+        for trace in default["data"]:
+            view_sizes.update(_sizes_by_well(trace))
+
+        for cbkid in ("CBK11", "CBK310015", "DO8167002"):
+            with self.subTest(cbkid=cbkid):
+                wells = self.bundle.pca_overlays[cbkid]["data"][0]
+                sizes = _sizes_by_well(wells)
+
+                self.assertEqual(sorted(sizes), _wells_of(cbkid))
+                self.assertEqual(sizes, {well: view_sizes[well] for well in sizes})
+
+    def test_the_antivirals_keep_their_fixed_names(self) -> None:
+        """The index files Nirmatrelvir as a control (FREYA-3126); the overlay does not."""
+        bundle = _bundle(
+            COLOURING_WELLS,
+            compound_labels={"DO8167002": "DO8167002 (control)", "CBK11": "compoundK (CBK11)"},
+        )
+
+        self.assertEqual(bundle.pca_overlays["DO8167002"]["data"][0]["name"], "Nirmatrelvir")
+        self.assertEqual(bundle.pca_overlays["CBK11"]["data"][0]["name"], "compoundK (CBK11)")
+
+    def test_the_centroids_run_in_ascending_dose_one_per_fitted_dose(self) -> None:
+        """Each dose's fitted wells averaged, lowest dose first; the near-empty well left out."""
+        bundle = _bundle(OVERLAY_WELLS)
+        line = bundle.pca_overlays["CBK31"]["data"][-1]
+        fitted = [index for index, well in enumerate(OVERLAY_WELLS) if well[3] >= 50]
+        centre = sum(index + 1 for index in fitted) / len(fitted)
+
+        self.assertEqual(
+            [round(value, 6) for value in _decode_array(line["x"]).tolist()],
+            [round(position - centre, 6) for position in (2.0, 3.0, 2.5)],
+        )
+        sizes = _decode_array(line["marker"]["size"]).tolist()
+        self.assertEqual(sizes, sorted(set(sizes)))
+
+    def test_combining_draws_the_overlay_above_every_trace_of_the_view(self) -> None:
+        """The view's traces and layout unchanged, then the overlay's three traces last."""
+        overlay = self.bundle.pca_overlays["CBK11"]
+
+        for colouring, view in (
+            (PCA_DEFAULT_COLOURING, self.bundle.figures["pca"]),
+            *self.bundle.pca_colourings.items(),
+        ):
+            with self.subTest(colouring=colouring):
+                traces = list(view["data"])
+                combined = combine_pca_overlay(view, overlay)
+
+                self.assertEqual(combined["data"][:-3], traces)
+                self.assertEqual(combined["data"][-3:], overlay["data"])
+                self.assertEqual(combined["layout"], view["layout"])
+                self.assertEqual(view["data"], traces)
+
+
+STAU_KEY = artefact_key("[stau]")
+
+# CBK2 has no overlay and no radar; CBK4 has a radar but no fitted well, so the PCA
+# picker must not offer it while the radar picker does.
+OVERLAY_INDEX_ROWS: dict[str, list[Any]] = {
+    "cbkid": ["CBK1", "CBK2", "[stau]", "CBK4"],
+    "kind": ["compound", "compound", "control", "compound"],
+    "name": ["Remdesivir", "aloxistatin", None, "compoundD"],
+    "radar_key": ["CBK1", None, STAU_KEY, "CBK4"],
+    "pca_key": ["CBK1", None, STAU_KEY, None],
+}
+
+
+def _overlay(name: str) -> dict[str, Any]:
+    """Return an overlay whose two trace names identify it."""
+    return {
+        "data": [
+            {"type": "scatter", "name": f"{name} wells", "x": [3.0], "y": [4.0]},
+            {
+                "type": "scatter",
+                "name": f"{name} centroids",
+                "mode": "lines+markers",
+                "x": [3.0],
+                "y": [4.0],
+            },
+        ]
+    }
+
+
+class DrrPcaOverlayRouteTestCase(DrrPcaRouteTestCase):
+    """The PCA route's page, with a compound index and two overlays on disk."""
+
+    def setUp(self) -> None:
+        """Write the index the route resolves keys through, and the overlays."""
+        super().setUp()
+        self.overlay_dir = self.pca_dir / "compound"
+        self.overlay_dir.mkdir()
+        self.write_index(OVERLAY_INDEX_ROWS)
+        self.write_overlay("CBK1", _overlay("Remdesivir"))
+        self.write_overlay(STAU_KEY, _overlay("Staurosporine"))
+
+    def write_index(self, rows: dict[str, list[Any]]) -> None:
+        """Write ``compounds.parquet``."""
+        pl.DataFrame(rows).write_parquet(self.artefacts / "compounds.parquet")
+
+    def write_overlay(self, key: str, payload: dict[str, Any] | str) -> None:
+        """Write one overlay under ``figures/pca/compound/``, as precompute does."""
+        text = payload if isinstance(payload, str) else json.dumps(payload)
+        (self.overlay_dir / f"{key}.json").write_text(text, encoding="utf-8")
+
+
+class DrrPcaOverlayRouteTests(DrrPcaOverlayRouteTestCase):
+    """What the ``pca/`` route serves for a compound, and what it refuses."""
+
+    def test_each_colouring_combines_with_a_compound(self) -> None:
+        """The colouring's own trace, then the compound's wells and line on top."""
+        for colouring, trace in VIEW_TRACES.items():
+            with self.subTest(colouring=colouring):
+                response = self.pca(colour=colouring, cbkid="CBK1")
+                body = response.content.decode()
+
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(body.count('id="drr-pca"'), 1)
+                self.assertEqual([name for name in VIEW_TRACES.values() if name in body], [trace])
+                self.assertLess(body.index(trace), body.index("Remdesivir wells"))
+                self.assertLess(body.index("Remdesivir wells"), body.index("Remdesivir centroids"))
+
+    def test_the_caption_names_the_compound(self) -> None:
+        """The colouring's caption, then one sentence on what is drawn on top."""
+        body = self.pca(colour="moa", cbkid="CBK1").content.decode()
+
+        self.assertIn(
+            escape(f"{CAPTIONS['moa']} {_PCA_OVERLAY_CAPTION.format(label='Remdesivir (CBK1)')}"),
+            body,
+        )
+
+    def test_the_alt_text_names_the_compound(self) -> None:
+        """A screen reader hears what was drawn, not only the figure it was drawn over."""
+        for cbkid, label in (("CBK1", "Remdesivir (CBK1)"), ("[stau]", "[stau] (control)")):
+            with self.subTest(cbkid=cbkid):
+                body = self.pca(colour="moa", cbkid=cbkid).content.decode()
+                alt_text = _PCA_OVERLAY_ALT_TEXT.format(
+                    alt_text=_PCA_FIGURE["alt_text"], label=label
+                )
+
+                self.assertIn(f'aria-label="{escape(alt_text)}"', body)
+                self.assertEqual(body.count('aria-label="'), 1)
+
+    def test_no_compound_is_the_plain_colouring(self) -> None:
+        """The picker's "None" sends an empty id, which draws no overlay."""
+        body = self.pca(colour="moa", cbkid="").content.decode()
+
+        self.assertIn(VIEW_TRACES["moa"], body)
+        self.assertNotIn("Remdesivir wells", body)
+        self.assertIn(escape(CAPTIONS["moa"]), body)
+        self.assertNotIn(escape(_PCA_OVERLAY_CAPTION.format(label="")), body)
+        self.assertIn(f'aria-label="{_PCA_FIGURE["alt_text"]}"', body)
+
+    def test_a_bracketed_id_round_trips(self) -> None:
+        """A control id such as ``[stau]`` travels in the query string and finds its overlay."""
+        response = self.pca(colour="population", cbkid="[stau]")
+
+        self.assertContains(response, "Staurosporine wells")
+        self.assertContains(response, escape("[stau] (control)"))
+
+    def test_an_unknown_compound_or_one_without_an_overlay_is_404_before_any_path(self) -> None:
+        """Only an id the index gives a ``pca_key`` is looked up, so no request value is a path.
+
+        The default colouring is read from the snippet, so no path is resolved for it.
+        """
+        with patch("cms.pages.drr_dataset.resolve_file_in_directory") as resolve:
+            for cbkid in ("CBK404", "CBK2", "CBK4", "cbk1", "../summary", "CBK1.json", "stau"):
+                with self.subTest(cbkid=cbkid):
+                    response = self.pca(colour=PCA_DEFAULT_COLOURING, cbkid=cbkid)
+                    self.assertEqual(response.status_code, 404)
+
+        resolve.assert_not_called()
+        self.assertIn('id="drr-pca"', self.page_body())
+
+    def test_an_unknown_colouring_is_404_whatever_the_compound(self) -> None:
+        """The colouring is checked first, so a valid compound cannot widen it."""
+        with patch("cms.pages.drr_dataset.resolve_file_in_directory") as resolve:
+            self.assertEqual(self.pca(colour="umap", cbkid="CBK1").status_code, 404)
+
+        resolve.assert_not_called()
+
+    def test_a_missing_overlay_is_404_and_leaves_the_page_s_figure_standing(self) -> None:
+        """An overlay the run did not write costs the swap, not the page."""
+        (self.overlay_dir / "CBK1.json").unlink()
+
+        self.assertEqual(self.pca(colour="moa", cbkid="CBK1").status_code, 404)
+        self.assertIn('id="drr-pca"', self.page_body())
+
+    def test_an_unreadable_or_malformed_overlay_is_404(self) -> None:
+        """A truncated file, or JSON that is not an overlay, is refused rather than drawn."""
+        for payload in ("{not json", "[1, 2]", '{"data": {}}'):
+            with self.subTest(payload=payload):
+                self.write_overlay("CBK1", payload)
+
+                self.assertEqual(self.pca(colour="moa", cbkid="CBK1").status_code, 404)
+
+    def test_a_poisoned_key_is_refused_by_the_downloads_guard(self) -> None:
+        """Even an index pointing out of the directory cannot reach a file there.
+
+        The default colouring is read from the snippet, so the overlay is the one
+        path this request resolves.
+        """
+        (self.artefacts.parent / "escaped.json").write_text(
+            json.dumps(_overlay("Escaped")), encoding="utf-8"
+        )
+        self.write_index(
+            {**OVERLAY_INDEX_ROWS, "pca_key": ["../../../../escaped", None, None, None]}
+        )
+
+        with patch(
+            "cms.pages.drr_dataset.resolve_file_in_directory", wraps=resolve_file_in_directory
+        ) as resolve:
+            response = self.pca(colour=PCA_DEFAULT_COLOURING, cbkid="CBK1")
+
+        self.assertEqual(response.status_code, 404)
+        resolve.assert_called_once_with(
+            self.artefacts, "figures/pca/compound/../../../../escaped.json"
+        )
+
+
+class DrrPcaCompoundPickerTests(DrrPcaOverlayRouteTestCase):
+    """The compound picker beside the colour-by picker."""
+
+    def test_the_picker_offers_only_compounds_with_an_overlay(self) -> None:
+        """Labelled as the radar picker labels them; CBK4 has a radar but no overlay."""
+        context = self.context()
+
+        self.assertEqual(
+            [(option["cbkid"], option["label"]) for option in context["pca_compounds"]],
+            [("CBK1", "Remdesivir (CBK1)"), ("[stau]", "[stau] (control)")],
+        )
+        self.assertIn("CBK4", [option["cbkid"] for option in context["radar_compounds"]])
+
+    def test_one_form_carries_both_choices_and_starts_on_no_compound(self) -> None:
+        """Colour, then compound, in the one form that swaps the PCA, "None" selected."""
+        body = self.page_body()
+
+        self.assertEqual(body.count('hx-target="#drr-pca"'), 1)
+        self.assertIn('<select id="drr-pca-compound" name="cbkid"', body)
+        self.assertIn('<label for="drr-pca-compound"', body)
+        self.assertInHTML('<option value="" selected>None</option>', body)
+        start = body.index('id="drr-pca-compound"')
+        options = body[start : body.index("</select>", start)]
+        self.assertInHTML('<option value="[stau]">[stau] (control)</option>', options)
+        self.assertNotIn('value="CBK4"', options)
+        positions = [
+            body.index('hx-target="#drr-pca"'),
+            body.index('id="drr-pca-colour"'),
+            body.index('id="drr-pca-compound"'),
+            body.index("</form>", body.index('id="drr-pca-compound"')),
+            body.index('id="drr-pca"'),
+        ]
+        self.assertEqual(positions, sorted(positions))
+
+    def test_with_one_colouring_a_hidden_field_carries_the_default(self) -> None:
+        """Nothing to pick a colouring from, but the route still needs one."""
+        for colouring in ("morphology", "moa"):
+            (self.pca_dir / f"{colouring}.json").unlink()
+
+        body = self.page_body()
+
+        self.assertNotIn('id="drr-pca-colour"', body)
+        self.assertInHTML('<input type="hidden" name="colour" value="population">', body)
+        self.assertIn('<select id="drr-pca-compound" name="cbkid"', body)
+        self.assertIn('hx-get="' + self.page.url + 'pca/"', body)
+
+    def test_an_index_from_before_the_overlays_offers_no_compound(self) -> None:
+        """An index without ``pca_key`` keeps the colour-by picker and adds nothing."""
+        self.write_index(
+            {key: value for key, value in OVERLAY_INDEX_ROWS.items() if key != "pca_key"}
+        )
+
+        body = self.page_body()
+
+        self.assertNotIn("pca_compounds", self.context())
+        self.assertNotIn('id="drr-pca-compound"', body)
+        self.assertIn('id="drr-pca-colour"', body)
+
+
+class DrrPcaOverlayCacheTests(DrrPcaOverlayRouteTestCase):
+    """The render cache keys on the compound as well as the colouring."""
+
+    def test_two_compounds_cannot_serve_each_other_s_render(self) -> None:
+        """The second compound's request is not the first's cached HTML."""
+        self.assertContains(self.pca(colour="moa", cbkid="CBK1"), "Remdesivir wells")
+
+        second = self.pca(colour="moa", cbkid="[stau]")
+
+        self.assertContains(second, "Staurosporine wells")
+        self.assertNotContains(second, "Remdesivir wells")
+
+    def test_a_compound_and_a_colouring_combine_without_crossing(self) -> None:
+        """One compound over two colourings, then the colouring alone: three renders."""
+        self.assertContains(self.pca(colour="moa", cbkid="CBK1"), VIEW_TRACES["moa"])
+
+        over_population = self.pca(colour="population", cbkid="CBK1")
+        alone = self.pca(colour="moa")
+
+        self.assertContains(over_population, VIEW_TRACES["population"])
+        self.assertNotContains(over_population, VIEW_TRACES["moa"])
+        self.assertContains(over_population, "Remdesivir wells")
+        self.assertNotContains(alone, "Remdesivir wells")
+
+    def test_a_new_source_file_hash_re_renders_an_overlay(self) -> None:
+        """A re-run's overlay reaches the reader rather than yesterday's cached HTML."""
+        self.assertContains(self.pca(colour="moa", cbkid="CBK1"), "Remdesivir wells")
+
+        self.write_overlay("CBK1", _overlay("Rewritten"))
+        self.data.source_file_hash = "hash-two"
+        self.data.save()
+
+        self.assertContains(self.pca(colour="moa", cbkid="CBK1"), "Rewritten wells")

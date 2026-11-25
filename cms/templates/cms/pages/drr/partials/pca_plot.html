@@ -1,32 +1,49 @@
 {% comment %}
-The DRR PCA and its colour-by picker, rendered together so the control sits
-above the figure it changes (FREYA-3201).
+The DRR PCA and its pickers, rendered together so the controls sit above the
+figure they change (FREYA-3201, FREYA-3202).
 
-The picker offers only the colourings precompute wrote, so no option can 404,
-and the default comes first. It is progressive enhancement: the default view
-below is complete before the control is touched, and a 404 leaves that figure
-standing. The request is an ordinary GET answered with server-rendered HTML, as
-the radar picker's is: no client-side Plotly callback is involved.
+One form carries both choices, so a colouring and a compound combine: the
+server draws the chosen compound's wells and dose line over the chosen
+colouring. Each picker offers only what precompute wrote, so no option can 404,
+and the defaults come first: the population view and no compound. With a
+single colouring there is nothing to pick, so a hidden field carries the
+default. It is progressive enhancement: the default view below is complete
+before a control is touched, and a 404 leaves that figure standing. The request
+is an ordinary GET answered with server-rendered HTML, as the radar picker's
+is: no client-side Plotly callback is involved.
 {% endcomment %}
 {% if pca_figure %}
     <section aria-labelledby="drr-pca-heading" class="mt-10">
         <h2 id="drr-pca-heading" class="text-2xl">Principal component analysis</h2>
 
-        {% if pca_colourings %}
+        {% if pca_colourings or pca_compounds %}
             <form
-                class="mt-3 flex w-full flex-col gap-3 sm:flex-row sm:items-center"
+                class="mt-3 flex w-full flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center"
                 hx-get="{{ pca_url }}"
                 hx-target="#drr-pca"
                 hx-swap="outerHTML"
                 hx-indicator="#drr-pca-indicator"
             >
-                <label for="drr-pca-colour" class="text-sm font-semibold text-pp-almost-black">Colour by</label>
-                <select id="drr-pca-colour" name="colour" class="select select-bordered w-full sm:w-auto">
-                    {% for colouring in pca_colourings %}
-                        <option value="{{ colouring.key }}"{% if forloop.first %} selected{% endif %}>{{ colouring.label }}</option>
-                    {% endfor %}
-                </select>
-                <button type="submit" class="btn btn-primary btn-sm">Show colouring</button>
+                {% if pca_colourings %}
+                    <label for="drr-pca-colour" class="text-sm font-semibold text-pp-almost-black">Colour by</label>
+                    <select id="drr-pca-colour" name="colour" class="select select-bordered w-full sm:w-auto">
+                        {% for colouring in pca_colourings %}
+                            <option value="{{ colouring.key }}"{% if forloop.first %} selected{% endif %}>{{ colouring.label }}</option>
+                        {% endfor %}
+                    </select>
+                {% else %}
+                    <input type="hidden" name="colour" value="{{ pca_default_colouring }}">
+                {% endif %}
+                {% if pca_compounds %}
+                    <label for="drr-pca-compound" class="text-sm font-semibold text-pp-almost-black">Compound</label>
+                    <select id="drr-pca-compound" name="cbkid" class="select select-bordered w-full sm:w-auto">
+                        <option value="" selected>None</option>
+                        {% for compound in pca_compounds %}
+                            <option value="{{ compound.cbkid }}">{{ compound.label|default:compound.cbkid }}</option>
+                        {% endfor %}
+                    </select>
+                {% endif %}
+                <button type="submit" class="btn btn-primary btn-sm">Show</button>
                 <span id="drr-pca-indicator" class="htmx-indicator loading loading-spinner loading-sm"></span>
             </form>
         {% endif %}

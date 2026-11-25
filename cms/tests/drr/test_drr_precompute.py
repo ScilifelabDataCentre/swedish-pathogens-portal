@@ -847,6 +847,7 @@ class DrrPrecomputeTests(TestCase):
                 "broad_moa",
                 "broad_target",
                 "radar_key",
+                "pca_key",
             ],
         )
         self.assertEqual(compounds["cbkid_normalized"].to_list(), ["CBK1", "CBK2", "CBK3"])
@@ -869,6 +870,7 @@ class DrrPrecomputeTests(TestCase):
                 "broad_target",
                 "pert_iname",
                 "radar_key",
+                "pca_key",
             ],
         )
         self.assertEqual(compounds["pert_iname"].to_list(), ["remdesivir", None, None])

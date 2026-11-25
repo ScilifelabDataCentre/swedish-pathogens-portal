@@ -29,6 +29,7 @@ from dashboard_visualisation.drr import (
     SORT_OPTIONS,
     TABLE_HEADERS,
     artefact_dir,
+    combine_pca_overlay,
     compound_label,
     filter_state,
     select_rows,
@@ -51,8 +52,9 @@ _UNSAFE_FILENAME_CHARS = re.compile(r"[^A-Za-z0-9._-]")
 # The compound-index columns the pickers label from. ``name`` and ``kind`` are
 # read when present rather than required: an index built without CBCS metadata
 # carries neither, and the picker still has to offer every downloadable id.
-# ``radar_key`` names the compound's per-compound radar on disk (FREYA-2636).
-_COMPOUND_OPTION_COLUMNS = ("cbkid", "name", "kind", "radar_key")
+# ``radar_key`` names the compound's per-compound radar on disk (FREYA-2636), and
+# ``pca_key`` its overlay on the PCA (FREYA-3202).
+_COMPOUND_OPTION_COLUMNS = ("cbkid", "name", "kind", "radar_key", "pca_key")
 
 # The radars, in page order, rendered by the page's own radar partial rather
 # than placed as editorial PlotlyFigureBlocks, so the compound picker always
@@ -126,6 +128,15 @@ _PCA_COLOURING_CHOICES: tuple[tuple[str, str, str], ...] = (
     ),
 )
 _PCA_SET_DIR = "figures/pca"
+# One compound's wells and dose line, drawn over the colouring shown (FREYA-3202),
+# the sentence the chosen compound adds to that colouring's caption, and the
+# clause it adds to the alt text, so a screen reader is told what was drawn.
+_PCA_OVERLAY_DIR = "figures/pca/compound"
+_PCA_OVERLAY_CAPTION = (
+    "{label} is drawn on top: its wells, and a line through its per-dose centroids "
+    "from the lowest dose to the highest."
+)
+_PCA_OVERLAY_ALT_TEXT = "{alt_text}, with the wells and dose line of {label} drawn on top"
 
 # The compound table (FREYA-3011): its artefact, the id the shared data-table
 # templates key their htmx targets on, and the page sizes offered. 629 rows is
@@ -256,7 +267,13 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
             pca_options = self._pca_colouring_options()
             if len(pca_options) > 1:
                 context["pca_colourings"] = pca_options
+            # Only the compounds precompute wrote an overlay for, so no option 404s.
+            pca_compounds = [option for option in options if option["pca_key"]]
+            if pca_compounds:
+                context["pca_compounds"] = pca_compounds
+            if "pca_colourings" in context or pca_compounds:
                 context["pca_url"] = (self.url or "") + self.reverse_subpage("pca_figure")
+                context["pca_default_colouring"] = PCA_DEFAULT_COLOURING
 
         radar_figures = [
             self._radar_figure(settings, figures[settings["figure_id"]])
@@ -437,10 +454,12 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
         the same failure posture the figures already take.
 
         Returns:
-            list[dict[str, str]]: ``cbkid`` / ``label`` / ``radar_key`` triples,
-                compounds before controls and then by label; empty when no index
-                is readable. ``radar_key`` is empty for a compound precompute
-                wrote no radar for, which is what the figure picker filters on.
+            list[dict[str, str]]: ``cbkid`` / ``label`` / ``radar_key`` /
+                ``pca_key`` records, compounds before controls and then by label;
+                empty when no index is readable. ``radar_key`` is empty for a
+                compound precompute wrote no radar for, and ``pca_key`` for one
+                it wrote no PCA overlay for, which is what the radar and PCA
+                pickers filter on.
         """
         index = self._artefact_dir() / "compounds.parquet"
         if not index.is_file():
@@ -467,6 +486,7 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
                     self._compound_label(row),
                     row["cbkid"],
                     row.get("radar_key") or "",
+                    row.get("pca_key") or "",
                 )
                 for row in rows
                 if isinstance(row.get("cbkid"), str) and row["cbkid"].strip()
@@ -474,8 +494,8 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
             key=lambda option: (option[0], option[1].casefold(), option[2]),
         )
         return [
-            {"cbkid": cbkid, "label": label, "radar_key": radar_key}
-            for _, label, cbkid, radar_key in options
+            {"cbkid": cbkid, "label": label, "radar_key": radar_key, "pca_key": pca_key}
+            for _, label, cbkid, radar_key, pca_key in options
         ]
 
     @staticmethod
@@ -625,23 +645,37 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
         )
         return {**settings, "plot_html": plot_html, "caveat": self._radar_caveat(figure_json)}
 
-    def _pca_figure(self, colouring: str, figure_json: dict[str, Any]) -> dict[str, Any]:
-        """Render the PCA in one colouring into the context its partial reads.
+    def _pca_figure(
+        self,
+        colouring: str,
+        figure_json: dict[str, Any],
+        compound: dict[str, str] | None = None,
+    ) -> dict[str, Any]:
+        """Render the PCA in one colouring, with or without a compound, into its partial's context.
 
         Args:
-            colouring: One of ``PCA_COLOURINGS``. It keys the cache, so one
-                colouring's render is never served for another's.
-            figure_json: That colouring's precomputed Plotly JSON.
+            colouring: One of ``PCA_COLOURINGS``.
+            figure_json: That colouring's precomputed Plotly JSON, with the
+                compound's overlay already drawn over it when one was chosen.
+            compound: The chosen compound's picker option, or ``None``.
 
         Returns:
-            dict[str, Any]: ``_PCA_FIGURE`` plus that colouring's caption and the
-                rendered ``plot_html``.
+            dict[str, Any]: ``_PCA_FIGURE`` plus the caption and the rendered
+                ``plot_html``, with the alt text naming the compound when one was
+                chosen. The colouring and the compound both key the cache, so no
+                render is served for another colouring or compound.
         """
         caption = next(text for key, _, text in _PCA_COLOURING_CHOICES if key == colouring)
+        alt_text = _PCA_FIGURE["alt_text"]
+        cbkid = ""
+        if compound is not None:
+            cbkid = compound["cbkid"]
+            caption = f"{caption} {_PCA_OVERLAY_CAPTION.format(label=compound['label'])}"
+            alt_text = _PCA_OVERLAY_ALT_TEXT.format(alt_text=alt_text, label=compound["label"])
         plot_html = self._cached_plot_html(
-            "drr_pca_html", colouring, figure_json, int(_PCA_FIGURE["height"])
+            "drr_pca_html", f"{colouring}:{cbkid}", figure_json, int(_PCA_FIGURE["height"])
         )
-        return {**_PCA_FIGURE, "caption": caption, "plot_html": plot_html}
+        return {**_PCA_FIGURE, "alt_text": alt_text, "caption": caption, "plot_html": plot_html}
 
     def _pca_colouring_options(self) -> list[dict[str, str]]:
         """List the PCA colourings precompute wrote, as options for the colour-by picker.
@@ -699,6 +733,47 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
             LOGGER.warning("drr.figure.unreadable_pca", path=str(artefact), error=str(error))
             raise Http404("PCA colouring is not readable") from error
 
+    def _pca_overlay(self, cbkid: str) -> tuple[dict[str, str], dict[str, Any]]:
+        """Read one compound's PCA overlay from disk, with the picker option that names it.
+
+        The filename is the key precompute derived and recorded on the compound
+        index as ``pca_key``; the request's ``cbkid`` only ever looks that key up,
+        so no request value reaches a path. The lookup then goes through the same
+        traversal guard the downloads use.
+
+        Args:
+            cbkid: The compound id from the query string.
+
+        Returns:
+            tuple[dict[str, str], dict[str, Any]]: The compound's picker option and
+                its overlay, whose ``data`` holds the traces to draw on top.
+
+        Raises:
+            Http404: If the index is missing or unreadable, the compound has no
+                overlay, or the artefact is not on disk or not an overlay.
+        """
+        match = next(
+            (option for option in self._compound_options() if option["cbkid"] == cbkid),
+            None,
+        )
+        if match is None or not match["pca_key"]:
+            raise Http404("No PCA overlay has been precomputed for this compound")
+
+        artefact = resolve_file_in_directory(
+            self._artefact_dir(), f"{_PCA_OVERLAY_DIR}/{match['pca_key']}.json"
+        )
+        try:
+            overlay = json.loads(artefact.read_text(encoding="utf-8"))
+        except (OSError, ValueError) as error:
+            LOGGER.warning(
+                "drr.figure.unreadable_pca_overlay", path=str(artefact), error=str(error)
+            )
+            raise Http404("PCA overlay is not readable") from error
+        if not isinstance(overlay, dict) or not isinstance(overlay.get("data"), list):
+            LOGGER.warning("drr.figure.malformed_pca_overlay", path=str(artefact))
+            raise Http404("PCA overlay is not readable")
+        return match, overlay
+
     def _drr_content(self) -> StreamValue:
         """Return the editorial stream without any PCA block, which the page draws itself."""
         return StreamValue(
@@ -715,28 +790,38 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
 
     @path("pca/", name="pca_figure")
     def pca_figure(self, request: HttpRequest) -> HttpResponse:
-        """Serve the PCA in one colouring as a server-rendered partial for an htmx swap.
+        """Serve the PCA in one colouring, optionally with one compound drawn on top.
 
         The response goes through the same partial the page renders, so the
         swapped figure carries the same id and alt text, and repeated swaps keep
-        working.
+        working. A chosen compound's overlay is drawn over the colouring here, on
+        the server, so any colouring combines with any compound.
 
         Args:
-            request: The incoming request; ``?colour=`` names the colouring.
+            request: The incoming request; ``?colour=`` names the colouring and
+                the optional ``?cbkid=`` the compound. The id travels in the query
+                string because control ids such as ``[stau]`` cannot sit in a
+                path segment.
 
         Returns:
             HttpResponse: The PCA partial.
 
         Raises:
-            Http404: If the colouring is unknown or was not precomputed. The page
-                then keeps the PCA it already rendered.
+            Http404: If the colouring is unknown or was not precomputed, or the
+                compound has no readable overlay. The page then keeps the PCA it
+                already rendered.
         """
         colouring = request.GET.get("colour", "").strip()
         figure_json = self._pca_payload(colouring)
+        compound = None
+        cbkid = request.GET.get("cbkid", "").strip()
+        if cbkid:
+            compound, overlay = self._pca_overlay(cbkid)
+            figure_json = combine_pca_overlay(figure_json, overlay)
         return render(
             request,
             "cms/pages/drr/partials/pca_figure.html",
-            {"figure": self._pca_figure(colouring, figure_json)},
+            {"figure": self._pca_figure(colouring, figure_json, compound)},
         )
 
     @staticmethod
