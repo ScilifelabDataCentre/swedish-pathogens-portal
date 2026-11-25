@@ -271,7 +271,7 @@
                     <tr>
                         {% for header in sort_headers %}
                         <th scope="col" data-col="{{ header.column.field }}"
-                            class="whitespace-nowrap bg-primary text-primary-content{% if forloop.first %} sticky left-0 z-20{% endif %}"
+                            class="whitespace-nowrap bg-primary text-primary-content{% if forloop.first %} sticky left-0{% endif %}"
                             {% if header.state %}aria-sort="{{ header.state }}"{% endif %}>
                             {% if forloop.first %}
                             <input type="checkbox" id="ena-select-page"
@@ -295,7 +295,7 @@
                 <tbody>
                     {% for row in rows %}
                     <tr>
-                        <th scope="row" class="sticky left-0 z-10 whitespace-nowrap bg-base-100 font-normal">
+                        <th scope="row" class="sticky left-0 whitespace-nowrap bg-base-100 font-normal">
                             <input type="checkbox" class="ena-select checkbox checkbox-accent checkbox-sm me-2 align-middle"
                                 data-acc="{{ row.record.accession }}" aria-label="Select {{ row.record.accession }}">
                             <a href="{{ row.record.url }}" target="_blank" rel="noopener noreferrer"
