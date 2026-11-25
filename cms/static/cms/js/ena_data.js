@@ -53,7 +53,8 @@ document.body.addEventListener("htmx:afterSettle", (event) => {
         const dataType = currentDataType();
         if (!dataType) return;
         const hidden = loadHidden(dataType);
-        document.querySelectorAll("#ena-listing [data-col]").forEach((cell) => {
+        // Only the table's cells: the column checkboxes carry data-col too, and must stay visible.
+        document.querySelectorAll("#ena-listing th[data-col], #ena-listing td[data-col]").forEach((cell) => {
             cell.classList.toggle("hidden", hidden.has(cell.dataset.col));
         });
         document.querySelectorAll("#ena-listing .column-toggle").forEach((toggle) => {
