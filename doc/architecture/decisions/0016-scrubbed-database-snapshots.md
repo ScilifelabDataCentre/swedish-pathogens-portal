@@ -1,4 +1,4 @@
-# 15. Scrubbed database snapshots for non-production instances
+# 16. Scrubbed database snapshots for non-production instances
 
 **Date**: 2026-11-02
 
@@ -10,6 +10,7 @@ Proposed
 
 - [0006 – Adopt Wagtail as CMS](0006-adopt-wagtail-as-cms.md)
 - [0011 – django-allauth for authentication](0011-django-allauth-for-authentication.md)
+- [0015 – Implement django-allauth for authentication (Phase 1) ](0015-implement-django-allauth-for-authentication.md)
 
 ## Context
 
