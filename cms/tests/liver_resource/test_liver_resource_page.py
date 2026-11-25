@@ -85,9 +85,7 @@ class TestLiverResourceDashboardPageModel(LiverResourcePageTestCase):
 
     def test_liver_content_requires_exactly_one_hepagene_panel(self) -> None:
         """Test StreamField enforces a single HepaGeNIE panel (contact pattern)."""
-        stream_block = LiverResourceDashboardPage._meta.get_field(
-            "liver_content"
-        ).stream_block
+        stream_block = LiverResourceDashboardPage._meta.get_field("liver_content").stream_block
         self.assertEqual(
             stream_block.meta.block_counts,
             {"hepagene_panel": {"min_num": 1, "max_num": 1}},
