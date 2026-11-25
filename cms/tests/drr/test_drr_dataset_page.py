@@ -19,7 +19,7 @@ from wagtail.test.utils import WagtailPageTestCase
 
 from cms.pages.dashboard import DashboardPage, DashboardTopic
 from cms.pages.dashboard_index import DashboardIndexPage
-from cms.pages.drr_dataset import DrrDatasetPage
+from cms.pages.drr_dataset import _PCA_FIGURE, DrrDatasetPage
 from cms.pages.home import HomePage
 from cms.pages.topics import TopicPage
 from cms.pages.topics_index import TopicsIndexPage
@@ -338,9 +338,12 @@ class TestDrrDatasetPageRender(DrrDatasetPageTestCase):
         self.assertContains(response, "datasetForPLS-DA.csv")
         self.assertContains(response, "0f1e2d3c4b5a6978")
 
-        # Figure rendered server-side through the inherited PlotlyFigureBlock path.
+        # The PCA is rendered server-side from the page's own partial, with the
+        # page's alt text; the PCA block left in content draws nothing (FREYA-3201).
+        self.assertContains(response, 'id="drr-pca"', count=1)
         self.assertContains(response, 'class="plotly-figure"')
-        self.assertContains(response, 'aria-label="PCA plot"')
+        self.assertContains(response, f'aria-label="{_PCA_FIGURE["alt_text"]}"')
+        self.assertNotContains(response, 'aria-label="PCA plot"')
 
     def test_an_unnamed_population_renders_as_itself_rather_than_failing(self) -> None:
         """A summary token with no name is shown raw; the page still renders.
@@ -362,11 +365,18 @@ class TestDrrDatasetPageRender(DrrDatasetPageTestCase):
         self.assertContains(response, "Treated: 6,800")
         self.assertContains(response, "mystery: 12")
 
-    def test_figure_falls_back_when_figure_json_missing(self) -> None:
-        """With no precomputed figure JSON the block shows its unavailable-data fallback."""
+    def test_no_pca_is_drawn_without_precomputed_figure_json(self) -> None:
+        """Without data the PCA section is withheld and the content's PCA block draws nothing.
+
+        The block used to show its unavailable-data fallback; the page draws the
+        PCA itself now (FREYA-3201), so neither a section nor a fallback appears.
+        """
         response = self.client.get(self.page.url)
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Chart data is not available for this figure.")
+        self.assertNotContains(response, 'id="drr-pca"')
+        self.assertNotContains(response, "Principal component analysis")
+        self.assertNotContains(response, 'aria-label="PCA plot"')
+        self.assertNotContains(response, "Chart data is not available for this figure.")
         self.assertNotContains(response, 'class="plotly-figure"')
 
     def test_summary_panel_hidden_without_data(self) -> None:

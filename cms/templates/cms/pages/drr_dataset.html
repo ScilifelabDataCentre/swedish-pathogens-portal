@@ -151,13 +151,16 @@
 {% comment %}
 Editorial content: prose plus server-side PlotlyFigureBlocks, rendered via the
 inherited context (figures + source_file_hash set by DashboardPage.get_context).
-The radars are not placed here: they render from the partial below.
+drr_content is the stream without any PCA block (FREYA-3201): the PCA and the
+radars are not placed here, they render from the partials below.
 {% endcomment %}
 {% if page.show_toc %}
-    {% content_with_toc page.content %}
+    {% content_with_toc drr_content %}
 {% else %}
-    {% include_block page.content %}
+    {% include_block drr_content %}
 {% endif %}
+
+{% include "cms/pages/drr/partials/pca_plot.html" %}
 
 {% include "cms/pages/drr/partials/radar_plots.html" %}
 
