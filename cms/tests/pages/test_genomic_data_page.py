@@ -121,7 +121,9 @@ class TestGenomicDataPage(WagtailPageTestCase):
         # the page's only <h1>, hidden visually as the banner already shows the title
         self.assertContains(response, '<h1 class="sr-only">Genomic data</h1>', count=1)
         self.assertContains(response, "<h1", count=1)
-        self.assertContains(response, 'href="/genomic-data/" class="btn btn-outline btn-sm hover:no-underline"')
+        self.assertContains(
+            response, 'href="/genomic-data/" class="btn btn-outline btn-sm hover:no-underline"'
+        )
         self.assertContains(response, 'hx-get="/genomic-data/?q=coli&amp;type=samples"')
         mock_fetch.assert_not_called()
 
@@ -192,9 +194,7 @@ class TestGenomicDataPage(WagtailPageTestCase):
         self.assertIn('data-col="acc"', content)
         self.assertNotRegex(content, r'column-toggle"\s+data-col="acc"')
         self.assertIn('<table class="table table-sm" data-data-type="raw-reads">', content)
-        self.assertIn(
-            'class="sticky left-0 whitespace-nowrap bg-base-100 font-normal"', content
-        )
+        self.assertIn('class="sticky left-0 whitespace-nowrap bg-base-100 font-normal"', content)
 
     @patch("portal_data.ebi.search.fetch_json")
     def test_long_text_is_capped_with_full_text_in_tooltip(self, mock_fetch: MagicMock):
