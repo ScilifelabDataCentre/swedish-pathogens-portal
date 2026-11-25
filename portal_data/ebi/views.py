@@ -11,9 +11,9 @@ from django.http import (
     HttpRequest,
     HttpResponse,
     HttpResponseBadRequest,
-    HttpResponseNotAllowed,
     StreamingHttpResponse,
 )
+from django.views.decorators.http import require_POST
 
 from portal_data.ebi.context import ListingState, resolve_state
 from portal_data.ebi.download import (
@@ -75,6 +75,7 @@ def download_filename(data_type: DataType, scope: str, download_format: Download
     )
 
 
+@require_POST
 def serve_download(request: HttpRequest) -> HttpResponse:
     """Stream a download of the selected records, or all results of the current view.
 
@@ -83,9 +84,6 @@ def serve_download(request: HttpRequest) -> HttpResponse:
     (see ``portal_data.ebi.download``) and, for selected records, ``ids``: the
     accessions, comma-separated.
     """
-    if request.method != "POST":
-        return HttpResponseNotAllowed(["POST"])
-
     state = resolve_state(request)
     download_format = get_format(state.data_type, request.POST.get("format", ""))
     if download_format is None:
