@@ -193,7 +193,7 @@ class TestGenomicDataPage(WagtailPageTestCase):
         self.assertNotRegex(content, r'column-toggle"\s+data-col="acc"')
         self.assertIn('<table class="table table-sm" data-data-type="raw-reads">', content)
         self.assertIn(
-            'class="sticky left-0 z-10 whitespace-nowrap bg-base-100 font-normal"', content
+            'class="sticky left-0 whitespace-nowrap bg-base-100 font-normal"', content
         )
 
     @patch("portal_data.ebi.search.fetch_json")
