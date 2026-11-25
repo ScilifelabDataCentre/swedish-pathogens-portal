@@ -129,12 +129,14 @@ _PCA_COLOURING_CHOICES: tuple[tuple[str, str, str], ...] = (
 )
 _PCA_SET_DIR = "figures/pca"
 # One compound's wells and dose line, drawn over the colouring shown (FREYA-3202),
-# and the sentence the chosen compound adds to that colouring's caption.
+# the sentence the chosen compound adds to that colouring's caption, and the
+# clause it adds to the alt text, so a screen reader is told what was drawn.
 _PCA_OVERLAY_DIR = "figures/pca/compound"
 _PCA_OVERLAY_CAPTION = (
     "{label} is drawn on top: its wells, and a line through its per-dose centroids "
     "from the lowest dose to the highest."
 )
+_PCA_OVERLAY_ALT_TEXT = "{alt_text}, with the wells and dose line of {label} drawn on top"
 
 # The compound table (FREYA-3011): its artefact, the id the shared data-table
 # templates key their htmx targets on, and the page sizes offered. 629 rows is
@@ -659,18 +661,21 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
 
         Returns:
             dict[str, Any]: ``_PCA_FIGURE`` plus the caption and the rendered
-                ``plot_html``. The colouring and the compound both key the cache,
-                so no render is served for another colouring or compound.
+                ``plot_html``, with the alt text naming the compound when one was
+                chosen. The colouring and the compound both key the cache, so no
+                render is served for another colouring or compound.
         """
         caption = next(text for key, _, text in _PCA_COLOURING_CHOICES if key == colouring)
+        alt_text = _PCA_FIGURE["alt_text"]
         cbkid = ""
         if compound is not None:
             cbkid = compound["cbkid"]
             caption = f"{caption} {_PCA_OVERLAY_CAPTION.format(label=compound['label'])}"
+            alt_text = _PCA_OVERLAY_ALT_TEXT.format(alt_text=alt_text, label=compound["label"])
         plot_html = self._cached_plot_html(
             "drr_pca_html", f"{colouring}:{cbkid}", figure_json, int(_PCA_FIGURE["height"])
         )
-        return {**_PCA_FIGURE, "caption": caption, "plot_html": plot_html}
+        return {**_PCA_FIGURE, "alt_text": alt_text, "caption": caption, "plot_html": plot_html}
 
     def _pca_colouring_options(self) -> list[dict[str, str]]:
         """List the PCA colourings precompute wrote, as options for the colour-by picker.

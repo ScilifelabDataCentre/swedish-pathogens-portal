@@ -29,6 +29,7 @@ from openpyxl import Workbook
 from cms.pages.drr_dataset import (
     _PCA_COLOURING_CHOICES,
     _PCA_FIGURE,
+    _PCA_OVERLAY_ALT_TEXT,
     _PCA_OVERLAY_CAPTION,
     DrrDatasetPage,
 )
@@ -45,6 +46,7 @@ from dashboard_visualisation.drr import artefact_key
 from dashboard_visualisation.drr.channels import channel_map, figure_feature_columns
 from dashboard_visualisation.drr.figures import (
     NEAR_EMPTY_NUCLEI_THRESHOLD,
+    PCA_ANTIVIRAL_COLOUR,
     PCA_COLOURINGS,
     PCA_DEFAULT_COLOURING,
     PCA_MOA_COLOURS,
@@ -54,6 +56,8 @@ from dashboard_visualisation.drr.figures import (
     PCA_OTHER_MECHANISMS,
     PCA_OVERLAY_CENTROID_SUFFIX,
     PCA_OVERLAY_COLOUR,
+    PCA_OVERLAY_HALO_COLOUR,
+    PCA_POPULATION_COLOURS,
     FigureBundle,
     build_figure_bundle,
     combine_pca_overlay,
@@ -483,7 +487,7 @@ class DrrPcaPrecomputeTests(TestCase):
         )
         overlay = json.loads((overlay_dir / "CBK1.json").read_text(encoding="utf-8"))
         self.assertEqual(set(overlay), {"data"})
-        self.assertEqual(len(overlay["data"]), 2)
+        self.assertEqual(len(overlay["data"]), 3)
 
     def test_an_overlay_names_its_compound_the_way_the_radar_does(self) -> None:
         """One label rule, so the legend agrees with the picker and the radar."""
@@ -497,7 +501,7 @@ class DrrPcaPrecomputeTests(TestCase):
         self.assertEqual(
             radar["layout"]["title"]["text"], f"Radar: {name} vs infected DMSO baseline"
         )
-        self.assertEqual(overlay["data"][1]["name"], f"{name}{PCA_OVERLAY_CENTROID_SUFFIX}")
+        self.assertEqual(overlay["data"][-1]["name"], f"{name}{PCA_OVERLAY_CENTROID_SUFFIX}")
 
     def test_the_index_records_each_overlay_s_key(self) -> None:
         """The route resolves a reader's cbkid through this column; a null means no overlay."""
@@ -543,7 +547,7 @@ class DrrPcaPrecomputeTests(TestCase):
             [f"pca/{key}+compound" for key in sorted(PCA_COLOURINGS)],
         )
         combined = checked["pca/moa+compound"]["data"]
-        self.assertEqual(combined[:-2], checked["pca/moa"]["data"])
+        self.assertEqual(combined[:-3], checked["pca/moa"]["data"])
         self.assertTrue(combined[-1]["name"].endswith(PCA_OVERLAY_CENTROID_SUFFIX))
 
 
@@ -859,6 +863,36 @@ def _sizes_by_well(trace: dict[str, Any]) -> dict[int, float]:
     return dict(zip(wells, values, strict=True))
 
 
+def _colourscale_stops(name: str) -> list[tuple[float, str]]:
+    """Return a named Plotly colour scale's stops as ``(position, '#rrggbb')`` pairs."""
+    stops = go.scatter.Marker(colorscale=name).to_plotly_json()["colorscale"]
+    pairs = []
+    for position, colour in stops:
+        if colour.startswith("#"):
+            pairs.append((position, colour))
+            continue
+        red, green, blue = (
+            round(float(part)) for part in colour[colour.index("(") + 1 : -1].split(",")
+        )
+        pairs.append((position, f"#{red:02x}{green:02x}{blue:02x}"))
+    return pairs
+
+
+def _contrast(first: str, second: str) -> float:
+    """Return the WCAG 2 contrast ratio between two ``#rrggbb`` colours."""
+
+    def luminance(colour: str) -> float:
+        channels = [int(colour[index : index + 2], 16) / 255 for index in (1, 3, 5)]
+        linear = [
+            value / 12.92 if value <= 0.03928 else ((value + 0.055) / 1.055) ** 2.4
+            for value in channels
+        ]
+        return 0.2126 * linear[0] + 0.7152 * linear[1] + 0.0722 * linear[2]
+
+    lighter, darker = sorted((luminance(first), luminance(second)), reverse=True)
+    return (lighter + 0.05) / (darker + 0.05)
+
+
 class DrrPcaOverlayTests(SimpleTestCase):
     """What one compound's overlay draws, and how it joins a colouring."""
 
@@ -871,9 +905,9 @@ class DrrPcaOverlayTests(SimpleTestCase):
         self.assertEqual(sorted(self.bundle.pca_overlays), OVERLAID)
 
     def test_an_overlay_carries_its_traces_only(self) -> None:
-        """Wells, then the dose line: no layout, so any colouring's layout stands."""
+        """Wells, the halo, then the dose line: no layout, so any colouring's layout stands."""
         overlay = self.bundle.pca_overlays["CBK11"]
-        wells, line = overlay["data"]
+        wells, _halo, line = overlay["data"]
 
         self.assertEqual(set(overlay), {"data"})
         self.assertEqual((wells["name"], wells["mode"]), ("CBK11", "markers"))
@@ -882,6 +916,43 @@ class DrrPcaOverlayTests(SimpleTestCase):
         )
         self.assertEqual(wells["marker"]["color"], PCA_OVERLAY_COLOUR)
         self.assertEqual(line["line"]["color"], PCA_OVERLAY_COLOUR)
+
+    def test_the_dose_line_runs_over_a_wider_white_halo_hidden_from_the_legend(self) -> None:
+        """The halo keeps the line visible on dark points; hiding the line hides it too."""
+        _wells, halo, line = self.bundle.pca_overlays["CBK11"]["data"]
+
+        self.assertEqual(halo["mode"], "lines")
+        self.assertEqual(halo["line"]["color"], PCA_OVERLAY_HALO_COLOUR)
+        self.assertGreater(halo["line"]["width"], line["line"]["width"])
+        self.assertIs(halo["showlegend"], False)
+        self.assertEqual(halo["hoverinfo"], "skip")
+        self.assertEqual(halo["legendgroup"], line["legendgroup"])
+        self.assertNotIn("showlegend", line)
+        for axis in ("x", "y"):
+            with self.subTest(axis=axis):
+                self.assertEqual(
+                    _decode_array(halo[axis]).tolist(), _decode_array(line[axis]).tolist()
+                )
+
+    def test_the_halo_and_the_line_contrast_with_every_fill_between_them(self) -> None:
+        """Over any fill a colouring draws, the white halo or the dark line clears 3:1."""
+        fills = {
+            *PCA_POPULATION_COLOURS.values(),
+            *PCA_MOA_COLOURS,
+            PCA_ANTIVIRAL_COLOUR,
+            "#a8a8a8",
+            *(stop for _, stop in _colourscale_stops("Cividis")),
+        }
+
+        for fill in sorted(fills):
+            with self.subTest(fill=fill):
+                self.assertGreaterEqual(
+                    max(
+                        _contrast(PCA_OVERLAY_HALO_COLOUR, fill),
+                        _contrast(PCA_OVERLAY_COLOUR, fill),
+                    ),
+                    3.0,
+                )
 
     def test_an_overlay_draws_its_compound_s_fitted_wells_at_their_view_sizes(self) -> None:
         """Each well where the default view draws it, as large as the view draws it."""
@@ -911,7 +982,7 @@ class DrrPcaOverlayTests(SimpleTestCase):
     def test_the_centroids_run_in_ascending_dose_one_per_fitted_dose(self) -> None:
         """Each dose's fitted wells averaged, lowest dose first; the near-empty well left out."""
         bundle = _bundle(OVERLAY_WELLS)
-        line = bundle.pca_overlays["CBK31"]["data"][1]
+        line = bundle.pca_overlays["CBK31"]["data"][-1]
         fitted = [index for index, well in enumerate(OVERLAY_WELLS) if well[3] >= 50]
         centre = sum(index + 1 for index in fitted) / len(fitted)
 
@@ -923,7 +994,7 @@ class DrrPcaOverlayTests(SimpleTestCase):
         self.assertEqual(sizes, sorted(set(sizes)))
 
     def test_combining_draws_the_overlay_above_every_trace_of_the_view(self) -> None:
-        """The view's traces and layout unchanged, then the overlay's two traces last."""
+        """The view's traces and layout unchanged, then the overlay's three traces last."""
         overlay = self.bundle.pca_overlays["CBK11"]
 
         for colouring, view in (
@@ -934,8 +1005,8 @@ class DrrPcaOverlayTests(SimpleTestCase):
                 traces = list(view["data"])
                 combined = combine_pca_overlay(view, overlay)
 
-                self.assertEqual(combined["data"][:-2], traces)
-                self.assertEqual(combined["data"][-2:], overlay["data"])
+                self.assertEqual(combined["data"][:-3], traces)
+                self.assertEqual(combined["data"][-3:], overlay["data"])
                 self.assertEqual(combined["layout"], view["layout"])
                 self.assertEqual(view["data"], traces)
 
@@ -1016,6 +1087,18 @@ class DrrPcaOverlayRouteTests(DrrPcaOverlayRouteTestCase):
             body,
         )
 
+    def test_the_alt_text_names_the_compound(self) -> None:
+        """A screen reader hears what was drawn, not only the figure it was drawn over."""
+        for cbkid, label in (("CBK1", "Remdesivir (CBK1)"), ("[stau]", "[stau] (control)")):
+            with self.subTest(cbkid=cbkid):
+                body = self.pca(colour="moa", cbkid=cbkid).content.decode()
+                alt_text = _PCA_OVERLAY_ALT_TEXT.format(
+                    alt_text=_PCA_FIGURE["alt_text"], label=label
+                )
+
+                self.assertIn(f'aria-label="{escape(alt_text)}"', body)
+                self.assertEqual(body.count('aria-label="'), 1)
+
     def test_no_compound_is_the_plain_colouring(self) -> None:
         """The picker's "None" sends an empty id, which draws no overlay."""
         body = self.pca(colour="moa", cbkid="").content.decode()
@@ -1024,6 +1107,7 @@ class DrrPcaOverlayRouteTests(DrrPcaOverlayRouteTestCase):
         self.assertNotIn("Remdesivir wells", body)
         self.assertIn(escape(CAPTIONS["moa"]), body)
         self.assertNotIn(escape(_PCA_OVERLAY_CAPTION.format(label="")), body)
+        self.assertIn(f'aria-label="{_PCA_FIGURE["alt_text"]}"', body)
 
     def test_a_bracketed_id_round_trips(self) -> None:
         """A control id such as ``[stau]`` travels in the query string and finds its overlay."""

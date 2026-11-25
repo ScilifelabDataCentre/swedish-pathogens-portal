@@ -169,11 +169,14 @@ PCA_MOA_COLOURS: tuple[str, ...] = (
 )
 
 # One compound's overlay, drawn over every colouring: its wells, then a line
-# through its per-dose centroids. The portal's almost-black with a white outline
-# stands out against every fill the colourings use, the darkest Cividis included.
+# through its per-dose centroids. The portal's almost-black alone is under 3:1
+# against the darkest fills — 1.1:1 on Cividis's dark end — so the markers carry a
+# white outline and the line runs over a wider white halo: one of the two always
+# contrasts with what lies beneath.
 PCA_OVERLAY_COLOUR = "#1a1c1a"
-_PCA_OVERLAY_OUTLINE = "#ffffff"
+PCA_OVERLAY_HALO_COLOUR = "#ffffff"
 _PCA_OVERLAY_LINE_WIDTH = 2
+_PCA_OVERLAY_HALO_WIDTH = 6
 PCA_OVERLAY_CENTROID_SUFFIX = ": dose centroids"
 
 
@@ -710,8 +713,10 @@ def _pca_overlay(fit: _PcaFit, cbkid: str, name: str) -> go.Figure:
     The wells keep the size every view gives them, and each centroid takes its
     dose's size, so the line reads from low dose to high. A centroid is the mean
     PC1 and PC2 of the compound's fitted wells at one dose; the line joins them in
-    ascending dose. Neither trace depends on a colouring, so the overlay can be
-    drawn over any view of the same fit.
+    ascending dose, over a white halo that keeps it visible on dark points. The
+    halo is no legend entry of its own: it shares the line's legend group, so
+    hiding the line hides it too. No trace depends on a colouring, so the overlay
+    can be drawn over any view of the same fit.
 
     Args:
         fit: The PCA fit every view draws.
@@ -719,7 +724,7 @@ def _pca_overlay(fit: _PcaFit, cbkid: str, name: str) -> go.Figure:
         name: The compound's name in the legend.
 
     Returns:
-        A figure holding the two traces, wells first.
+        A figure holding three traces: the wells, the halo, then the line.
     """
     mask = fit.dosed & (fit.cbkids == cbkid)
     doses = fit.doses[mask]
@@ -727,7 +732,9 @@ def _pca_overlay(fit: _PcaFit, cbkid: str, name: str) -> go.Figure:
     sizes = fit.sizes[mask]
     levels = np.unique(doses)
     centroids = np.array([scores[doses == level].mean(axis=0) for level in levels])
-    outline = {"color": _PCA_OVERLAY_OUTLINE, "width": 1}
+    outline = {"color": PCA_OVERLAY_HALO_COLOUR, "width": 1}
+    line_name = f"{name}{PCA_OVERLAY_CENTROID_SUFFIX}"
+    line_group = f"pca-overlay-{cbkid}"
 
     figure = go.Figure()
     figure.add_scatter(
@@ -736,8 +743,19 @@ def _pca_overlay(fit: _PcaFit, cbkid: str, name: str) -> go.Figure:
     figure.add_scatter(
         x=centroids[:, 0],
         y=centroids[:, 1],
+        mode="lines",
+        name=line_name,
+        legendgroup=line_group,
+        showlegend=False,
+        hoverinfo="skip",
+        line={"color": PCA_OVERLAY_HALO_COLOUR, "width": _PCA_OVERLAY_HALO_WIDTH},
+    )
+    figure.add_scatter(
+        x=centroids[:, 0],
+        y=centroids[:, 1],
         mode="lines+markers",
-        name=f"{name}{PCA_OVERLAY_CENTROID_SUFFIX}",
+        name=line_name,
+        legendgroup=line_group,
         line={"color": PCA_OVERLAY_COLOUR, "width": _PCA_OVERLAY_LINE_WIDTH},
         marker={
             "symbol": "diamond",
