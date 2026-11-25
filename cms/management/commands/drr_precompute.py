@@ -23,6 +23,7 @@ from django.utils import timezone
 
 from cms.snippets.drr_dataset_data import DrrDatasetData
 from dashboard_visualisation.drr import (
+    PCA_DEFAULT_COLOURING,
     SNIPPET_FIGURE_BYTE_CEILING,
     artefact_dir,
     artefact_key,
@@ -31,6 +32,7 @@ from dashboard_visualisation.drr import (
     build_figure_bundle,
     build_summary,
     channel_map,
+    combine_pca_overlay,
     compound_label,
     exclude_plates,
     excluded_plates,
@@ -179,11 +181,26 @@ class Command(BaseCommand):
         )
         figures = bundle.figures
         # The PCA's colourings sit on disk, but each is served whole on a swap, so
-        # each is held to the same ceiling as a snippet figure (FREYA-3201).
+        # each is held to the same ceiling as a snippet figure (FREYA-3201). A swap
+        # naming a compound serves its colouring with that compound's overlay drawn
+        # on top, so each view is held to it with the heaviest overlay too
+        # (FREYA-3202).
+        pca_views = {PCA_DEFAULT_COLOURING: figures["pca"], **bundle.pca_colourings}
+        heaviest_overlay = max(
+            bundle.pca_overlays.values(), key=lambda payload: len(json.dumps(payload)), default=None
+        )
         oversized = oversized_figures(
             {
                 **figures,
                 **{f"pca/{key}": payload for key, payload in bundle.pca_colourings.items()},
+                **(
+                    {
+                        f"pca/{key}+compound": combine_pca_overlay(view, heaviest_overlay)
+                        for key, view in pca_views.items()
+                    }
+                    if heaviest_overlay is not None
+                    else {}
+                ),
             }
         )
         if oversized:
@@ -191,11 +208,13 @@ class Command(BaseCommand):
                 "These figures are over the figure ceiling: "
                 f"{oversized} bytes against {SNIPPET_FIGURE_BYTE_CEILING}. The snippet is "
                 "read whole to render any one of its figures, and a PCA colouring is read "
-                "whole on every swap. A set of many figures belongs on disk under figures/, "
-                "one file each."
+                "whole on every swap, with a compound's overlay drawn over it when one is "
+                "chosen. A set of many figures belongs on disk under figures/, one file each."
             )
         radar_keys = {cbkid: artefact_key(cbkid) for cbkid in bundle.radars}
-        compound_index = self._with_radar_keys(compound_index, radar_keys)
+        pca_keys = {cbkid: artefact_key(cbkid) for cbkid in bundle.pca_overlays}
+        compound_index = self._with_artefact_keys(compound_index, "radar_key", radar_keys)
+        compound_index = self._with_artefact_keys(compound_index, "pca_key", pca_keys)
 
         output_dir = artefact_dir(slug)
         figures_dir = output_dir / "figures"
@@ -214,8 +233,9 @@ class Command(BaseCommand):
         table.frame.write_parquet(output_dir / "features.parquet")
 
         self._write_figures(figures_dir, figures)
-        self._write_radar_set(figures_dir / "radar", bundle.radars, radar_keys)
+        self._write_figure_set(figures_dir / "radar", bundle.radars, radar_keys)
         self._write_pca_set(figures_dir / "pca", bundle.pca_colourings)
+        self._write_figure_set(figures_dir / "pca" / "compound", bundle.pca_overlays, pca_keys)
 
         feature_hash = self._hash_file(input_path)
         names_hash = self._hash_file(names_path) if names_path else None
@@ -292,6 +312,7 @@ class Command(BaseCommand):
             radar_axes=len(bundle.axes),
             radar_files=len(bundle.radars),
             radar_unplotted_columns=len(bundle.unplotted_columns),
+            pca_overlays=len(bundle.pca_overlays),
             figure_values_clipped=summary["feature_sets"]["figures"]["clip"]["n_values_clipped"],
             matched=reconciliation["n_annotated"],
             unmatched=reconciliation["n_unannotated"],
@@ -318,7 +339,8 @@ class Command(BaseCommand):
             f"  radar: {len(bundle.axes)} axes, {len(bundle.radars)} per-compound file(s) under "
             f"figures/radar/, {len(bundle.unplotted_columns)} figure-basis column(s) on no axis\n"
             f"  pca colourings: {', '.join(bundle.pca_report['written'])}; "
-            f"{', '.join(sorted(bundle.pca_colourings))} under figures/pca/"
+            f"{', '.join(sorted(bundle.pca_colourings))} under figures/pca/\n"
+            f"  pca overlays: {len(bundle.pca_overlays)} compound(s) under figures/pca/compound/"
         )
         morphology = bundle.pca_report.get("morphology")
         if morphology:
@@ -354,7 +376,7 @@ class Command(BaseCommand):
 
     @staticmethod
     def _compound_labels(compound_index: pl.DataFrame) -> dict[str, str]:
-        """Map each compound id to the name a reader sees, for the radar titles."""
+        """Map each compound id to the name a reader sees, for the radars and PCA overlays."""
         columns = [
             column for column in ("cbkid", "name", "kind") if column in compound_index.columns
         ]
@@ -386,19 +408,21 @@ class Command(BaseCommand):
         return dict(compound_index.select("cbkid", "broad_moa").iter_rows())
 
     @staticmethod
-    def _with_radar_keys(compound_index: pl.DataFrame, radar_keys: dict[str, str]) -> pl.DataFrame:
-        """Record each compound's radar artefact key on the index.
+    def _with_artefact_keys(
+        compound_index: pl.DataFrame, column: str, keys: dict[str, str]
+    ) -> pl.DataFrame:
+        """Record each compound's key into one per-compound figure set on the index.
 
         The key is derived here, from the compound id, and never from a request
-        value: the figure-swap route resolves a reader's ``cbkid`` by looking it
-        up in this column. A compound with no treated well has no radar and
-        carries a null, which is also what keeps the figure picker from offering
-        an option that would 404 (FREYA-2636 criterion 5).
+        value: the swap routes resolve a reader's ``cbkid`` by looking it up in
+        this column — ``radar_key`` for the radar set, ``pca_key`` for the PCA's
+        overlays. A compound the set has no figure for carries a null: no treated
+        well means no radar, and no fitted treated or antiviral well no overlay.
+        That null is also what keeps each picker from offering an option that
+        would 404 (FREYA-2636 criterion 5, FREYA-3202).
         """
         return compound_index.with_columns(
-            pl.col("cbkid")
-            .replace_strict(radar_keys, default=None, return_dtype=pl.String)
-            .alias("radar_key")
+            pl.col("cbkid").replace_strict(keys, default=None, return_dtype=pl.String).alias(column)
         )
 
     @staticmethod
@@ -410,24 +434,23 @@ class Command(BaseCommand):
             (figures_dir / f"{figure_id}.json").write_text(json.dumps(payload), encoding="utf-8")
 
     @staticmethod
-    def _write_radar_set(
-        radar_dir: Path,
-        radars: dict[str, Any],
-        radar_keys: dict[str, str],
+    def _write_figure_set(
+        set_dir: Path,
+        payloads: dict[str, Any],
+        keys: dict[str, str],
     ) -> None:
-        """Write one radar per compound, keyed by its sanitised artefact key.
+        """Write one figure per compound, keyed by its sanitised artefact key.
 
-        The set stays on disk and out of ``DrrDatasetData.data``: the snippet is
-        a single ``JSONField`` deserialised whole to render one figure, and a
-        ``RevisionMixin`` that would snapshot every re-run.
+        The radars and the PCA's overlays are such sets. Each stays on disk and
+        out of ``DrrDatasetData.data``: the snippet is a single ``JSONField``
+        deserialised whole to render one figure, and a ``RevisionMixin`` that
+        would snapshot every re-run.
         """
-        radar_dir.mkdir(parents=True, exist_ok=True)
-        for stale in radar_dir.glob("*.json"):
+        set_dir.mkdir(parents=True, exist_ok=True)
+        for stale in set_dir.glob("*.json"):
             stale.unlink()
-        for cbkid, payload in radars.items():
-            (radar_dir / f"{radar_keys[cbkid]}.json").write_text(
-                json.dumps(payload), encoding="utf-8"
-            )
+        for cbkid, payload in payloads.items():
+            (set_dir / f"{keys[cbkid]}.json").write_text(json.dumps(payload), encoding="utf-8")
 
     @staticmethod
     def _write_pca_set(pca_dir: Path, colourings: dict[str, Any]) -> None:
