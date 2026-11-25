@@ -22,7 +22,7 @@
         {% for link in type_links %}
         <li>
             <a href="{{ link.url }}" hx-get="{{ link.url }}"
-                class="btn btn-sm {% if link.active %}btn-primary{% else %}btn-outline{% endif %}"
+                class="btn btn-sm hover:no-underline {% if link.active %}btn-primary{% else %}btn-outline{% endif %}"
                 {% if link.active %}aria-current="page"{% endif %}>
                 {{ link.label }}
                 <span class="badge badge-ghost badge-sm">{{ link.count_display }}</span>
@@ -331,7 +331,7 @@
             {% if page_obj.paginator.num_pages > 1 %}
             <nav aria-label="Pagination" class="join flex flex-wrap justify-center">
                 {% if previous_url %}
-                <a href="{{ previous_url }}" hx-get="{{ previous_url }}" class="join-item btn"
+                <a href="{{ previous_url }}" hx-get="{{ previous_url }}" class="join-item btn hover:no-underline"
                     aria-label="Previous page">«</a>
                 {% endif %}
                 {% for link in page_links %}
@@ -341,12 +341,12 @@
                     <span class="join-item btn btn-active" aria-current="page"
                         aria-label="Page {{ link.number }}">{{ link.number }}</span>
                     {% else %}
-                    <a href="{{ link.url }}" hx-get="{{ link.url }}" class="join-item btn"
+                    <a href="{{ link.url }}" hx-get="{{ link.url }}" class="join-item btn hover:no-underline"
                         aria-label="Page {{ link.number }}">{{ link.number }}</a>
                     {% endif %}
                 {% endfor %}
                 {% if next_url %}
-                <a href="{{ next_url }}" hx-get="{{ next_url }}" class="join-item btn"
+                <a href="{{ next_url }}" hx-get="{{ next_url }}" class="join-item btn hover:no-underline"
                     aria-label="Next page">»</a>
                 {% endif %}
             </nav>
