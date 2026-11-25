@@ -204,12 +204,6 @@ class SepmcTestCase(SimpleTestCase):
 class PureFunctionTests(SepmcTestCase):
     """Unit tests for pure functions -- no network involved at all."""
 
-    def test_build_query(self) -> None:
-        """build_query wraps the base filter and rejects an empty name."""
-        self.assertEqual(sepmc.build_query("Li X"), f'{sepmc.BASE_FILTER} AND AUTH:"Li X"')
-        with self.assertRaises(ValueError):
-            sepmc.build_query("   ")
-
     def test_has_strong_match(self) -> None:
         """A weak-only match is rejected; any non-weak match is accepted."""
         self.assertFalse(sepmc.has_strong_match(["host"]))
@@ -290,8 +284,8 @@ class DedupeAndExpandTests(SepmcTestCase):
         li_paper = make_paper("1", "Li X")
         muller_paper = make_paper("1", "Muller M")
         rows = [
-            sepmc.flatten_paper("Li X", "q1", li_paper, ["bacteria"], [], ["China."]),
-            sepmc.flatten_paper("Muller M", "q2", muller_paper, ["bacteria"], [], ["Sweden."]),
+            sepmc.flatten_paper("Li X", li_paper, ["bacteria"], [], ["China."]),
+            sepmc.flatten_paper("Muller M", muller_paper, ["bacteria"], [], ["Sweden."]),
         ]
         # both rows describe the same paper (source=MED, epmc_id=1)
         deduped = sepmc.dedupe_paper_rows(rows)
@@ -305,8 +299,8 @@ class DedupeAndExpandTests(SepmcTestCase):
         li_paper = make_paper("1", "Li X")
         muller_paper = make_paper("1", "Muller M")
         rows = [
-            sepmc.flatten_paper("Li X", "q1", li_paper, ["bacteria"], [], ["China."]),
-            sepmc.flatten_paper("Muller M", "q2", muller_paper, ["bacteria"], [], ["Sweden."]),
+            sepmc.flatten_paper("Li X", li_paper, ["bacteria"], [], ["China."]),
+            sepmc.flatten_paper("Muller M", muller_paper, ["bacteria"], [], ["Sweden."]),
         ]
         deduped_once = sepmc.dedupe_paper_rows(rows)
         expanded = sepmc.expand_deduped_row_to_author_rows(deduped_once[0])
@@ -384,7 +378,7 @@ class FetchCandidatePapersTests(SepmcTestCase):
     """fetch_candidate_papers: the bulk download replacing per-author queries."""
 
     def test_fetches_both_queries_follows_pages_and_dedupes(self) -> None:
-        """Both halves of BASE_FILTER are fetched in full and merged."""
+        """Both BULK_QUERIES are fetched in full and merged."""
         shared, only_first, only_second = (make_paper(i, "Good A") for i in "123")
         requests: list[tuple[str, str]] = []
 
@@ -447,7 +441,6 @@ class SearchAuthorsTests(SepmcTestCase):
 
         self.assertEqual(len(paper_rows), 1)
         self.assertEqual(paper_rows[0]["input_author"], "Good A")
-        self.assertEqual(paper_rows[0]["query"], sepmc.build_query("Good A"))
         self.assertEqual(summary_rows[0]["match_count"], 2)
         self.assertEqual(summary_rows[0]["filtered_count"], 1)
         self.assertFalse(summary_rows[0].get("error"))
@@ -532,7 +525,7 @@ class RetryErroredAuthorsTests(SepmcTestCase):
         papers_csv = tmp_dir / sepmc.PAPERS_OUTPUT_CSV
 
         # --- pass 1: "Bad B" fails, written out by a normal run ---
-        publications = tmp_dir / sepmc.PUBLICATIONS_CSV
+        publications = tmp_dir / "publications.csv"
         publications.write_text('Authors\n"Bad B"\n')
         self._patch_session(make_fake_get(fail_authors={"Bad B"}, papers_by_author={}))
         first = sepmc.run_search(tmp_dir, publications_csv=publications, keywords_csv=keywords)
@@ -563,9 +556,7 @@ class RetryErroredAuthorsTests(SepmcTestCase):
         with (tmp_dir / sepmc.SUMMARY_OUTPUT_CSV).open("w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=sepmc.SUMMARY_FIELDNAMES)
             writer.writeheader()
-            writer.writerow(
-                {"input_author": "Good A", "query": "q", "match_count": 0, "filtered_count": 0}
-            )
+            writer.writerow({"input_author": "Good A", "match_count": 0, "filtered_count": 0})
 
         outcome = sepmc.retry_errored_authors(tmp_dir)
 
@@ -580,7 +571,7 @@ class RetryErroredAuthorsTests(SepmcTestCase):
         with (tmp_dir / sepmc.SUMMARY_OUTPUT_CSV).open("w", newline="", encoding="utf-8") as f:
             writer = csv.DictWriter(f, fieldnames=sepmc.SUMMARY_FIELDNAMES)
             writer.writeheader()
-            writer.writerow({"input_author": "Bad B", "query": "", "error": "boom"})
+            writer.writerow({"input_author": "Bad B", "error": "boom"})
 
         # still fails on retry too
         self._patch_session(make_fake_get(fail_authors={"Bad B"}, papers_by_author={}))
@@ -589,6 +580,31 @@ class RetryErroredAuthorsTests(SepmcTestCase):
 
         self.assertEqual(outcome.errored_authors, 1)
         self.assertEqual(sepmc.load_errored_authors(tmp_dir / sepmc.SUMMARY_OUTPUT_CSV), ["Bad B"])
+
+    def test_retry_errored_authors_reads_output_from_older_runs(self) -> None:
+        """A summary CSV with the since-removed "query" column can still be retried.
+
+        Runs before authors were matched locally wrote a "query" column;
+        merging those rows back must drop it rather than fail.
+        """
+        tmp_dir = self._make_tmp_dir()
+        keywords = self._write_keywords(tmp_dir)
+        summary_csv = tmp_dir / sepmc.SUMMARY_OUTPUT_CSV
+        old_fieldnames = ["input_author", "query", "match_count", "filtered_count", "error"]
+        with summary_csv.open("w", newline="", encoding="utf-8") as f:
+            writer = csv.DictWriter(f, fieldnames=old_fieldnames)
+            writer.writeheader()
+            writer.writerow({"input_author": "Good A", "query": "q", "match_count": 0})
+            writer.writerow({"input_author": "Bad B", "query": "q", "error": "boom"})
+        self._patch_session(make_fake_get(fail_authors=set(), papers_by_author={}))
+
+        outcome = sepmc.retry_errored_authors(tmp_dir, keywords_csv=keywords)
+
+        self.assertEqual(outcome.errored_authors, 0)
+        with summary_csv.open(newline="", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            self.assertEqual(reader.fieldnames, sepmc.SUMMARY_FIELDNAMES)
+            self.assertEqual([r["input_author"] for r in reader], ["Good A", "Bad B"])
 
 
 class RetryTests(SepmcTestCase):

@@ -28,7 +28,7 @@ Inputs:
 
 Outputs (written to the work directory):
     europepmc_metabolights_papers.csv   One row per unique paper (deduplicated
-                                         across every author query that found
+                                         across every author that matched
                                          it). matching_authors lists every
                                          distinct input author that matched,
                                          and matching_author_count is how many
@@ -72,10 +72,10 @@ Outputs (written to the work directory):
 
 How authors are matched:
     Rather than one Europe PMC query per author (~14,000 slow requests,
-    a day-long run), the candidate papers -- everything matching
-    BASE_FILTER, i.e. every paper with a curated MetaboLights link
-    (ACCESSION_TYPE) or in Europe PMC's MetaboLights lab-links set
-    (LABS_PUBS), together only a couple of thousand -- are downloaded in
+    a day-long run), the candidate papers -- every paper with a curated
+    MetaboLights link (ACCESSION_TYPE) or in Europe PMC's MetaboLights
+    lab-links set (LABS_PUBS), together only a couple of thousand -- are
+    downloaded in
     bulk (fetch_candidate_papers, a handful of requests), and each author
     is matched against their author lists locally (find_author_papers).
     The matching reproduces what the per-author ``AUTH:"Lastname
@@ -113,9 +113,10 @@ import httpx
 from cms.services import api_client
 
 BASE_URL = "https://www.ebi.ac.uk/europepmc/webservices/rest/search"
-BASE_FILTER = '((ACCESSION_TYPE:"metabolights") OR (LABS_PUBS:"1782"))'
-# The two halves of BASE_FILTER, fetched separately in bulk and merged: each
-# is small (about a thousand papers), so a few 1000-record pages cover both.
+# The candidate papers: those with a curated MetaboLights link, and those in
+# Europe PMC's MetaboLights lab-links set. Fetched separately in bulk and
+# merged; each is small (about a thousand papers), so a few 1000-record pages
+# cover both.
 BULK_QUERIES = ('ACCESSION_TYPE:"metabolights"', 'LABS_PUBS:"1782"')
 # A 1000-record page of full ("core") records can take Europe PMC well over
 # the default 10 seconds to produce (up to a minute has been seen).
@@ -123,7 +124,6 @@ BULK_TIMEOUT_SECONDS = 180.0
 
 RESEARCHERS_JSON_URL = "https://publications.scilifelab.se/researchers_json"
 RESEARCHERS_TIMEOUT_SECONDS = 60
-PUBLICATIONS_CSV = "publications.csv"
 PUBLICATIONS_AUTHORS_COLUMN = "Authors"
 PAPERS_OUTPUT_CSV = "europepmc_metabolights_papers.csv"
 SUMMARY_OUTPUT_CSV = "europepmc_metabolights_summary.csv"
@@ -162,20 +162,7 @@ PAPER_FIELDNAMES = [
     "metabolights_accessions",
     "matching_authors_affiliations",
 ]
-SUMMARY_FIELDNAMES = ["input_author", "query", "match_count", "filtered_count", "error"]
-
-
-def build_query(author_name: str) -> str:
-    """Build the Europe PMC query equivalent to matching author_name.
-
-    No longer sent to Europe PMC (authors are matched locally, see
-    find_author_papers), but recorded in the summary CSV's query column to
-    say what each author's counts mean.
-    """
-    author_name = (author_name or "").strip()
-    if not author_name:
-        raise ValueError("author_name is empty")
-    return f'{BASE_FILTER} AND AUTH:"{author_name}"'
+SUMMARY_FIELDNAMES = ["input_author", "match_count", "filtered_count", "error"]
 
 
 # Europe PMC's documented per-IP limits: 10 requests/second, 500 requests/minute.
@@ -436,7 +423,6 @@ def _sweden_flag(author_affiliations: list[str]) -> str:
 
 def flatten_paper(
     author_name: str,
-    query: str,
     paper: dict,
     matched_keywords: list[str] | None = None,
     metabolights_accessions: list[str] | None = None,
@@ -451,7 +437,6 @@ def flatten_paper(
     """
     return {
         "input_author": author_name,
-        "query": query,
         "epmc_id": safe_get(paper, "id"),
         "source": safe_get(paper, "source"),
         "pmid": safe_get(paper, "pmid"),
@@ -482,7 +467,7 @@ def dedupe_paper_rows(paper_rows: list[dict]) -> list[dict]:
     hit, since Europe PMC's AUTH filter matches on name text alone with
     no affiliation check. This groups by (source, epmc_id), keeps the
     paper-level fields as-is (they don't vary between duplicate rows of
-    the same paper), and replaces the per-author `input_author`/`query`/
+    the same paper), and replaces the per-author `input_author`/
     `author_affiliation`/`author_sweden_affiliation` fields with:
       - matching_authors / matching_author_count: every distinct author
         that matched, in order of first appearance, and how many.
@@ -514,7 +499,6 @@ def dedupe_paper_rows(paper_rows: list[dict]) -> list[dict]:
         if key not in grouped:
             new_row = dict(row)
             for field in (
-                "query",
                 "input_author",
                 "author_affiliation",
                 "author_sweden_affiliation",
@@ -658,9 +642,14 @@ def _read_csv_rows(path: Path) -> list[dict]:
 
 
 def _write_csv_rows(path: Path, fieldnames: list[str], rows: list[dict]) -> None:
-    """Write rows to a CSV file with the given header, replacing it."""
+    """Write rows to a CSV file with the given header, replacing it.
+
+    Columns not in fieldnames are dropped, so rows read back from an older
+    output file (e.g. its since-removed "query" column) can be merged in by
+    --retry-errors.
+    """
     with path.open("w", newline="", encoding="utf-8") as f:
-        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer = csv.DictWriter(f, fieldnames=fieldnames, extrasaction="ignore")
         writer.writeheader()
         writer.writerows(rows)
 
@@ -944,7 +933,7 @@ def has_strong_match(matches: list[str]) -> bool:
 
 
 def fetch_candidate_papers(progress: Progress = _no_progress) -> list[dict]:
-    """Download every paper matching BASE_FILTER, as full ("core") records.
+    """Download every candidate paper (see BULK_QUERIES), as full ("core") records.
 
     Fetches each of BULK_QUERIES with cursor pagination and merges them,
     dropping papers found by both, in order of first appearance. Raises
@@ -1112,7 +1101,6 @@ def search_authors(
     matched_authors = 0
 
     for idx, author_name in enumerate(authors, start=1):
-        query = build_query(author_name) if author_name.strip() else ""
         try:
             results = find_author_papers(index, author_name)
 
@@ -1133,7 +1121,6 @@ def search_authors(
                 author_paper_rows.append(
                     flatten_paper(
                         author_name,
-                        query,
                         paper,
                         matches,
                         accessions,
@@ -1157,7 +1144,6 @@ def search_authors(
             summary_rows.append(
                 {
                     "input_author": author_name,
-                    "query": query,
                     "match_count": len(results),
                     "filtered_count": filtered_count,
                 }
@@ -1168,7 +1154,6 @@ def search_authors(
             summary_rows.append(
                 {
                     "input_author": author_name,
-                    "query": query,
                     "match_count": "",
                     "filtered_count": "",
                     "error": str(e),
