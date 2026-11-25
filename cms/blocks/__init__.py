@@ -10,7 +10,6 @@ from .cards import (
 from .collapsible import CollapsibleBlock
 from .data_table import DataTableBlock
 from .ena_data import EnaDataBlock
-from .hepagene_panel import HepageniePanelBlock
 from .last_updated import LastUpdatedBlock
 from .page_section import PageSectionBlock
 from .plotly_figure import PlotlyFigureBlock
@@ -27,7 +26,6 @@ __all__ = [
     "CollapsibleBlock",
     "DataTableBlock",
     "EnaDataBlock",
-    "HepageniePanelBlock",
     "LastUpdatedBlock",
     "PageSectionBlock",
     "PathogenBlock",

@@ -91,6 +91,31 @@ class TestLiverResourceDashboardPageModel(LiverResourcePageTestCase):
             {"hepagene_panel": {"min_num": 1, "max_num": 1}},
         )
 
+    def test_hepagene_panel_is_inline_static_block(self) -> None:
+        """Test panel is an inline StaticBlock (contact pattern), not a cms.blocks class."""
+        from pathlib import Path
+
+        from wagtail.blocks import StaticBlock
+
+        panel = LiverResourceDashboardPage._meta.get_field(
+            "liver_content"
+        ).stream_block.child_blocks["hepagene_panel"]
+        self.assertIsInstance(panel, StaticBlock)
+        self.assertEqual(
+            panel.meta.template,
+            "cms/pages/liver_resource/partials/hepagene_panel.html",
+        )
+        self.assertIn("exactly once", panel.meta.admin_text)
+        template = (
+            Path(__file__).resolve().parents[2]
+            / "templates/cms/pages/liver_resource/partials/hepagene_panel.html"
+        )
+        source = template.read_text(encoding="utf-8")
+        self.assertIn(
+            "cms/pages/liver_resource/partials/interactive_grid.html",
+            source,
+        )
+
     def test_dashboard_index_allows_liver_child(self) -> None:
         """Test that DashboardIndexPage accepts liver dashboard children."""
         self.assertIn(

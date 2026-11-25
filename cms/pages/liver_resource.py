@@ -4,7 +4,7 @@ from typing import Any
 
 from django.http import HttpRequest, HttpResponse
 from wagtail.admin.panels import FieldPanel, MultiFieldPanel
-from wagtail.blocks import RichTextBlock
+from wagtail.blocks import RichTextBlock, StaticBlock
 from wagtail.contrib.routable_page.models import RoutablePageMixin, path
 from wagtail.fields import StreamField
 from wagtail.search import index
@@ -13,7 +13,6 @@ from cms.blocks import (
     AlertBlock,
     CollapsibleBlock,
     DataTableBlock,
-    HepageniePanelBlock,
     LastUpdatedBlock,
     PlotlyFigureBlock,
     StaticFigureBlock,
@@ -55,10 +54,10 @@ class LiverResourceDashboardPage(RoutablePageMixin, DashboardPage):
     ``hepagene_panel`` is not added to other dashboards. Django MTI forbids
     redefining the inherited ``content`` field on this subclass.
 
-    Layout follows StreamField order: blocks before ``hepagene_panel`` render
-    above the interactive sidebar+TLN; blocks after render below. ``image`` is
-    the index thumbnail only. The sidebar example DE file is
-    ``DashboardData.source_file`` for this slug.
+    Layout follows StreamField order: blocks before the inline
+    ``hepagene_panel`` StaticBlock render above the interactive sidebar+TLN;
+    blocks after render below. ``image`` is the index thumbnail only. The
+    sidebar example DE file is ``DashboardData.source_file`` for this slug.
     """
 
     template = "cms/pages/liver_resource.html"
@@ -75,7 +74,17 @@ class LiverResourceDashboardPage(RoutablePageMixin, DashboardPage):
             ("last_updated", LastUpdatedBlock()),
             ("plotly_figure", PlotlyFigureBlock()),
             ("static_figure", StaticFigureBlock()),
-            ("hepagene_panel", HepageniePanelBlock()),
+            (
+                "hepagene_panel",
+                StaticBlock(
+                    admin_text=(
+                        "Place exactly once; renders the interactive HepaGeNIE "
+                        "sidebar + TLN. Drag StreamField blocks above or below "
+                        "it for layout."
+                    ),
+                    template="cms/pages/liver_resource/partials/hepagene_panel.html",
+                ),
+            ),
         ],
         blank=False,
         default=list,
