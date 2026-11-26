@@ -11,9 +11,10 @@ exactly as delivered. The PCA alone also leaves out the near-empty wells
 (``NEAR_EMPTY_NUCLEI_THRESHOLD``, FREYA-3200); the radars keep every well. The PCA
 is fitted once and drawn in each of ``PCA_COLOURINGS``, which recolour the treated
 wells only (FREYA-3201), and one compound's wells and dose line can be drawn over
-any of them (FREYA-3202). Trace ``uid``s (randomly assigned by Plotly) are stripped
-so the serialised output is byte-stable across identical runs, which the
-``drr_precompute`` idempotency contract depends on.
+any of them (FREYA-3202), fading the view beneath; every view titles its legend
+by its colouring and carries a size key (FREYA-3205). Trace ``uid``s (randomly
+assigned by Plotly) are stripped so the serialised output is byte-stable across
+identical runs, which the ``drr_precompute`` idempotency contract depends on.
 """
 
 from __future__ import annotations
@@ -135,23 +136,57 @@ PCA_NOT_ANNOTATED = "Not annotated"
 _PCA_MISSING_COLOUR = PCA_POPULATION_COLOURS[TREATMENT_POPULATION]
 _PCA_OTHER_MECHANISMS_COLOUR = "#a8a8a8"
 
+# The page draws the PCA at this height, and the layout is laid out in pixels
+# against it. The margins are pinned so the plot area is the same in every
+# colouring, with or without a compound, and a swap does not move the points.
+# The legend sits below the plot, where its 7 to 20 entries wrap with the width
+# rather than squeezing the plot to a sliver on a narrow screen. Below the plot
+# come the axis's room, then the morphology view's colour bar, then the legend,
+# capped to what is left and scrolling past it.
+PCA_FIGURE_HEIGHT = 880
+_PCA_MARGIN_TOP = 100
+_PCA_MARGIN_BOTTOM = 380
+_PCA_AXIS_ROOM = 60
+_PCA_COLOUR_BAR_ROOM = 80
+_PCA_PLOT_HEIGHT = PCA_FIGURE_HEIGHT - _PCA_MARGIN_TOP - _PCA_MARGIN_BOTTOM
+
 # Each compound's morphology score as the compound table shows it, on Plotly's
 # colour-blind-safe sequential scale.
 PCA_MORPHOLOGY_TRACE = "Morphology score"
 _PCA_MORPHOLOGY_COLOURSCALE = "Cividis"
-# The bar sits in the legend's column, beneath the legend, so the plot area is the
-# same size in every colouring and a swap does not move the points.
+# Paper-referenced: a container-referenced bar draws its title over itself.
 _PCA_COLOUR_BAR: dict[str, Any] = {
     "title": {"text": PCA_MORPHOLOGY_TRACE, "side": "top"},
     "orientation": "h",
-    "x": 1.02,
+    "x": 0,
     "xanchor": "left",
-    "y": 0,
-    "yanchor": "bottom",
+    "y": -(_PCA_AXIS_ROOM + 10) / _PCA_PLOT_HEIGHT,
+    "yanchor": "top",
     "len": 160,
     "lenmode": "pixels",
     "thickness": 12,
 }
+
+# What each view's legend is titled by: what colours its treated wells.
+PCA_LEGEND_TITLES: dict[str, str] = {
+    PCA_DEFAULT_COLOURING: POPULATION_LEGEND_TITLE,
+    "morphology": PCA_MORPHOLOGY_TRACE,
+    "moa": "Mechanism of action",
+}
+
+# Box and lasso select select nothing on this page.
+PCA_MODEBAR_REMOVED: tuple[str, ...] = ("select2d", "lasso2d")
+
+# The size key: the smallest and the largest dose marker, hollow so they read as
+# a size rather than as a population, last in the legend and drawing no point.
+PCA_SIZE_KEY_GROUP = "pca-size-key"
+PCA_SIZE_KEY_TITLE = "Dose (marker size)"
+_PCA_SIZE_KEY_RANK = 2000
+
+# While a compound is drawn on top, every trace of the view beneath keeps this
+# share of its opacity, so the overlay reads first. Plotly draws a legend symbol at
+# its trace's opacity, so a much smaller share leaves the legend's swatches unreadable.
+PCA_FADED_OPACITY_SHARE = 1 / 2
 
 # The mechanisms with the most compounds drawn take these in rank order: the first
 # eight of Paul Tol's colour-blind-safe "muted" scheme, none of them a grey that
@@ -178,6 +213,15 @@ PCA_OVERLAY_HALO_COLOUR = "#ffffff"
 _PCA_OVERLAY_LINE_WIDTH = 2
 _PCA_OVERLAY_HALO_WIDTH = 6
 PCA_OVERLAY_CENTROID_SUFFIX = ": dose centroids"
+# The dose line names its lowest and highest dose beside the first and last
+# centroid, pushed outward along the line. The layered white shadow keeps the dark
+# text legible over the compound's own dark wells.
+_PCA_DOSE_LABEL_FONT: dict[str, Any] = {
+    "color": PCA_OVERLAY_COLOUR,
+    "size": 13,
+    "weight": "bold",
+    "shadow": "0 0 2px #ffffff, 0 0 3px #ffffff, 0 0 4px #ffffff",
+}
 
 
 @dataclass
@@ -607,7 +651,62 @@ def _moa_traces(
     return traces, ranked
 
 
-def _draw_pca(fit: _PcaFit, treated_traces: list[dict[str, Any]]) -> go.Figure:
+def _dose_label(dose: float) -> str:
+    """Return a dose as the figures write it, for example "0.1 µM"."""
+    return f"{dose:g} {DOSE_UNIT}"
+
+
+def _size_key_traces(fit: _PcaFit) -> list[dict[str, Any]]:
+    """Return the size key: the smallest and the largest dose marker, each named by its dose.
+
+    Each is a trace with no point, so it adds a legend entry and nothing to the
+    plot. A fit drawn at one dose has one entry, and one with no dosed well none.
+    """
+    if not fit.dosed.any():
+        return []
+    doses = fit.doses[fit.dosed]
+    sizes = fit.sizes[fit.dosed]
+    ends = sorted({float(doses.min()), float(doses.max())})
+    return [
+        {
+            "x": [None],
+            "y": [None],
+            "mode": "markers",
+            "name": _dose_label(dose),
+            "legendgroup": PCA_SIZE_KEY_GROUP,
+            "legendgrouptitle": {"text": PCA_SIZE_KEY_TITLE},
+            "legendrank": _PCA_SIZE_KEY_RANK,
+            "hoverinfo": "skip",
+            "marker": {
+                "symbol": "circle-open",
+                "color": PCA_OVERLAY_COLOUR,
+                "size": float(sizes[doses == dose][0]),
+                "line": {"width": 1},
+            },
+        }
+        for dose in ends
+    ]
+
+
+def _pca_legend(colouring: str, *, below_colour_bar: bool) -> dict[str, Any]:
+    """Return a view's legend: titled by its colouring, below the plot, in the pinned margin."""
+    top = _PCA_MARGIN_BOTTOM - _PCA_AXIS_ROOM
+    if below_colour_bar:
+        top -= _PCA_COLOUR_BAR_ROOM
+    return {
+        "title": {"text": PCA_LEGEND_TITLES[colouring], "side": "top"},
+        "orientation": "h",
+        "x": 0,
+        "xanchor": "left",
+        "xref": "container",
+        "y": top / PCA_FIGURE_HEIGHT,
+        "yanchor": "top",
+        "yref": "container",
+        "maxheight": top,
+    }
+
+
+def _draw_pca(fit: _PcaFit, treated_traces: list[dict[str, Any]], colouring: str) -> go.Figure:
     """Draw one view of the fit: its treated traces, then the controls and antivirals on top.
 
     Traces run bottom to top: the view's own treated traces, then the rest of
@@ -616,7 +715,9 @@ def _draw_pca(fit: _PcaFit, treated_traces: list[dict[str, Any]]) -> go.Figure:
     Populations are named by ``radar.population_label`` rather than by their raw
     ``pert_type`` token (FREYA-3009); an antiviral's wells leave their population
     at every dose. A treated or antiviral well's marker grows with its dose, the
-    controls keep one size, and the subtitle says so.
+    controls keep one size, and the subtitle and the size key say so. The legend
+    is titled by the colouring (``PCA_LEGEND_TITLES``), and the toolbar offers no
+    selection tool.
     """
     figure = go.Figure()
     for trace in treated_traces:
@@ -642,6 +743,8 @@ def _draw_pca(fit: _PcaFit, treated_traces: list[dict[str, Any]]) -> go.Figure:
             "line": {"color": PCA_ANTIVIRAL_OUTLINE, "width": 1},
         }
         figure.add_scatter(**_pca_trace(fit, mask, name, marker))
+    for trace in _size_key_traces(fit):
+        figure.add_scatter(**trace)
 
     title: dict[str, Any] = {"text": "PCA of well-level morphological profiles"}
     if fit.dosed.any():
@@ -656,7 +759,12 @@ def _draw_pca(fit: _PcaFit, treated_traces: list[dict[str, Any]]) -> go.Figure:
         title=title,
         xaxis_title=f"PC1 ({fit.explained[0] * 100:.1f}% of the fitted wells' variance)",
         yaxis_title=f"PC2 ({fit.explained[1] * 100:.1f}% of the fitted wells' variance)",
-        legend_title=POPULATION_LEGEND_TITLE,
+        legend=_pca_legend(
+            colouring,
+            below_colour_bar=any(trace["marker"].get("showscale") for trace in treated_traces),
+        ),
+        margin={"t": _PCA_MARGIN_TOP, "b": _PCA_MARGIN_BOTTOM},
+        modebar={"remove": list(PCA_MODEBAR_REMOVED)},
         plot_bgcolor="white",
     )
     return figure
@@ -695,13 +803,13 @@ def _pca_views(
     mechanisms: Mapping[str, str | None] | None,
 ) -> tuple[dict[str, go.Figure], dict[str, Any]]:
     """Draw one fit in every colouring there is something to draw by (``build_pca_views``)."""
-    views = {PCA_DEFAULT_COLOURING: _draw_pca(fit, _population_traces(fit))}
+    views = {PCA_DEFAULT_COLOURING: _draw_pca(fit, _population_traces(fit), PCA_DEFAULT_COLOURING)}
     report: dict[str, Any] = {}
     if morphology_scores is not None:
         traces, report["morphology"] = _morphology_traces(fit, morphology_scores)
-        views["morphology"] = _draw_pca(fit, traces)
+        views["morphology"] = _draw_pca(fit, traces, "morphology")
     traces, report["moa_groups"] = _moa_traces(fit, mechanisms or {})
-    views["moa"] = _draw_pca(fit, traces)
+    views["moa"] = _draw_pca(fit, traces, "moa")
 
     ordered = {colouring: views[colouring] for colouring in PCA_COLOURINGS if colouring in views}
     return ordered, {"written": list(ordered), **report}
@@ -713,7 +821,8 @@ def _pca_overlay(fit: _PcaFit, cbkid: str, name: str) -> go.Figure:
     The wells keep the size every view gives them, and each centroid takes its
     dose's size, so the line reads from low dose to high. A centroid is the mean
     PC1 and PC2 of the compound's fitted wells at one dose; the line joins them in
-    ascending dose, over a white halo that keeps it visible on dark points. The
+    ascending dose, over a white halo that keeps it visible on dark points, and
+    names its lowest and highest dose beside the first and last centroid. The
     halo is no legend entry of its own: it shares the line's legend group, so
     hiding the line hides it too. No trace depends on a colouring, so the overlay
     can be drawn over any view of the same fit.
@@ -750,12 +859,24 @@ def _pca_overlay(fit: _PcaFit, cbkid: str, name: str) -> go.Figure:
         hoverinfo="skip",
         line={"color": PCA_OVERLAY_HALO_COLOUR, "width": _PCA_OVERLAY_HALO_WIDTH},
     )
+    dose_labels = [""] * levels.size
+    dose_labels[0] = _dose_label(levels[0])
+    dose_labels[-1] = _dose_label(levels[-1])
+    label_positions = ["top center"] * levels.size
+    if levels.size > 1:
+        across, up = centroids[-1] - centroids[0]
+        label_positions[0] = f"{'bottom' if up > 0 else 'top'} {'left' if across > 0 else 'right'}"
+        label_positions[-1] = f"{'top' if up > 0 else 'bottom'} {'right' if across > 0 else 'left'}"
     figure.add_scatter(
         x=centroids[:, 0],
         y=centroids[:, 1],
-        mode="lines+markers",
+        mode="lines+markers+text",
         name=line_name,
         legendgroup=line_group,
+        text=dose_labels,
+        textposition=label_positions,
+        textfont=_PCA_DOSE_LABEL_FONT,
+        cliponaxis=False,
         line={"color": PCA_OVERLAY_COLOUR, "width": _PCA_OVERLAY_LINE_WIDTH},
         marker={
             "symbol": "diamond",
@@ -782,6 +903,18 @@ def _pca_overlays(fit: _PcaFit, labels: Mapping[str, str]) -> dict[str, go.Figur
     }
 
 
+def _faded(trace: dict[str, Any]) -> dict[str, Any]:
+    """Return a view's trace drawn at ``PCA_FADED_OPACITY_SHARE`` of its opacity.
+
+    The size key is a key, not a colouring, so it keeps its opacity.
+    """
+    marker = trace.get("marker")
+    if not isinstance(marker, dict) or trace.get("legendgroup") == PCA_SIZE_KEY_GROUP:
+        return trace
+    opacity = round(marker.get("opacity", 1) * PCA_FADED_OPACITY_SHARE, 6)
+    return {**trace, "marker": {**marker, "opacity": opacity}}
+
+
 def combine_pca_overlay(view: dict[str, Any], overlay: dict[str, Any]) -> dict[str, Any]:
     """Return a PCA view with one compound's overlay drawn above every trace it has.
 
@@ -790,10 +923,15 @@ def combine_pca_overlay(view: dict[str, Any], overlay: dict[str, Any]) -> dict[s
         overlay: One compound's precomputed overlay, which carries ``data`` only.
 
     Returns:
-        The view with its own traces and layout unchanged and the overlay's traces
-        appended last, since Plotly draws a later trace over an earlier one.
+        The view with its layout unchanged, its own traces fainter so the overlay
+        reads first, and the overlay's traces appended last, since Plotly draws a
+        later trace over an earlier one. With no compound the view is served as
+        it is, so this is never applied to it.
     """
-    return {**view, "data": [*view.get("data", []), *overlay.get("data", [])]}
+    return {
+        **view,
+        "data": [*map(_faded, view.get("data", [])), *overlay.get("data", [])],
+    }
 
 
 def _radar_caveat(prep: _Prepared) -> str:

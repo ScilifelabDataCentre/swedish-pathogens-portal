@@ -342,7 +342,9 @@ class TestDrrDatasetPageRender(DrrDatasetPageTestCase):
         # page's alt text; the PCA block left in content draws nothing (FREYA-3201).
         self.assertContains(response, 'id="drr-pca"', count=1)
         self.assertContains(response, 'class="plotly-figure"')
-        self.assertContains(response, f'aria-label="{_PCA_FIGURE["alt_text"]}"')
+        self.assertContains(
+            response, f'aria-label="{_PCA_FIGURE["alt_text"]}, coloured by population"'
+        )
         self.assertNotContains(response, 'aria-label="PCA plot"')
 
     def test_an_unnamed_population_renders_as_itself_rather_than_failing(self) -> None:

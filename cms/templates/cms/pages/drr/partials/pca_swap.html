@@ -1,0 +1,8 @@
+{% comment %}
+The PCA route's response (FREYA-3205): the figure partial, which replaces
+#drr-pca, and an out-of-band update to the page's live region. innerHTML swaps
+only the region's text, so the region itself stays in the page and a screen
+reader announces the view now shown.
+{% endcomment %}
+{% include "cms/pages/drr/partials/pca_figure.html" %}
+<span id="drr-pca-status" hx-swap-oob="innerHTML">{{ figure.status }}</span>

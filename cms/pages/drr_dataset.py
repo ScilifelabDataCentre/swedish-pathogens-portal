@@ -25,6 +25,7 @@ from dashboard_visualisation.drr import (
     HIT_THRESHOLD,
     PCA_COLOURINGS,
     PCA_DEFAULT_COLOURING,
+    PCA_FIGURE_HEIGHT,
     POPULATION_LABELS,
     SORT_OPTIONS,
     TABLE_HEADERS,
@@ -102,8 +103,13 @@ _PCA_FIGURE: dict[str, Any] = {
         "Scatter plot of the first two principal components of the well-level "
         "morphological profiles"
     ),
-    "height": 600,
+    "height": PCA_FIGURE_HEIGHT,
 }
+# The colouring shown, named in the alt text and in the sentence the page's live
+# region announces after each swap (FREYA-3205).
+_PCA_COLOURED_ALT_TEXT = "{alt_text}, coloured by {colouring}"
+_PCA_STATUS = "Showing the PCA coloured by {colouring}."
+_PCA_OVERLAY_STATUS = "Showing the PCA coloured by {colouring}, with {label} drawn on top."
 
 # The colourings in picker order: the key precompute writes, the picker's label,
 # and the caption the figure carries in that colouring. The keys are
@@ -660,22 +666,34 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
             compound: The chosen compound's picker option, or ``None``.
 
         Returns:
-            dict[str, Any]: ``_PCA_FIGURE`` plus the caption and the rendered
-                ``plot_html``, with the alt text naming the compound when one was
-                chosen. The colouring and the compound both key the cache, so no
-                render is served for another colouring or compound.
+            dict[str, Any]: ``_PCA_FIGURE`` plus the caption, the rendered
+                ``plot_html`` and the ``status`` sentence a swap announces, with
+                the alt text naming the colouring and, when one was chosen, the
+                compound. The colouring and the compound both key the cache, so
+                no render is served for another colouring or compound.
         """
-        caption = next(text for key, _, text in _PCA_COLOURING_CHOICES if key == colouring)
-        alt_text = _PCA_FIGURE["alt_text"]
+        label, caption = next(
+            (label, text) for key, label, text in _PCA_COLOURING_CHOICES if key == colouring
+        )
+        named = label.lower()
+        alt_text = _PCA_COLOURED_ALT_TEXT.format(alt_text=_PCA_FIGURE["alt_text"], colouring=named)
+        status = _PCA_STATUS.format(colouring=named)
         cbkid = ""
         if compound is not None:
             cbkid = compound["cbkid"]
             caption = f"{caption} {_PCA_OVERLAY_CAPTION.format(label=compound['label'])}"
             alt_text = _PCA_OVERLAY_ALT_TEXT.format(alt_text=alt_text, label=compound["label"])
+            status = _PCA_OVERLAY_STATUS.format(colouring=named, label=compound["label"])
         plot_html = self._cached_plot_html(
             "drr_pca_html", f"{colouring}:{cbkid}", figure_json, int(_PCA_FIGURE["height"])
         )
-        return {**_PCA_FIGURE, "alt_text": alt_text, "caption": caption, "plot_html": plot_html}
+        return {
+            **_PCA_FIGURE,
+            "alt_text": alt_text,
+            "caption": caption,
+            "status": status,
+            "plot_html": plot_html,
+        }
 
     def _pca_colouring_options(self) -> list[dict[str, str]]:
         """List the PCA colourings precompute wrote, as options for the colour-by picker.
@@ -794,8 +812,10 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
 
         The response goes through the same partial the page renders, so the
         swapped figure carries the same id and alt text, and repeated swaps keep
-        working. A chosen compound's overlay is drawn over the colouring here, on
-        the server, so any colouring combines with any compound.
+        working; beside it, an out-of-band update gives the page's live region
+        the view now shown. A chosen compound's overlay is drawn over the
+        colouring here, on the server, so any colouring combines with any
+        compound.
 
         Args:
             request: The incoming request; ``?colour=`` names the colouring and
@@ -804,7 +824,7 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
                 path segment.
 
         Returns:
-            HttpResponse: The PCA partial.
+            HttpResponse: The PCA partial and the live region's update.
 
         Raises:
             Http404: If the colouring is unknown or was not precomputed, or the
@@ -820,7 +840,7 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
             figure_json = combine_pca_overlay(figure_json, overlay)
         return render(
             request,
-            "cms/pages/drr/partials/pca_figure.html",
+            "cms/pages/drr/partials/pca_swap.html",
             {"figure": self._pca_figure(colouring, figure_json, compound)},
         )
 

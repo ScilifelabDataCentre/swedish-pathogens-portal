@@ -5,18 +5,22 @@ the colourings precompute wrote. Every colouring is drawn from one fit and recol
 the treated wells only: the controls and the three antivirals keep their traces,
 colours and place on top, so a reader comparing two views compares the treated
 wells and nothing else. A compound picker beside it draws one compound's wells and
-its dose line over whichever colouring is shown (FREYA-3202).
+its dose line over whichever colouring is shown (FREYA-3202). Each view titles its
+legend by its colouring, a chosen compound fades the view beneath it, the dose line
+names its end doses, and a live region announces each swap (FREYA-3205).
 """
 
 from __future__ import annotations
 
 import json
+import re
 import tempfile
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
 import plotly.graph_objects as go
+import plotly.io as pio
 import polars as pl
 from django.core.cache import cache
 from django.core.management import call_command
@@ -27,6 +31,7 @@ from django.utils.html import escape
 from openpyxl import Workbook
 
 from cms.pages.drr_dataset import (
+    _PCA_COLOURED_ALT_TEXT,
     _PCA_COLOURING_CHOICES,
     _PCA_FIGURE,
     _PCA_OVERLAY_ALT_TEXT,
@@ -37,7 +42,7 @@ from cms.services.file_downloads import resolve_file_in_directory
 from cms.snippets.drr_dataset_data import DrrDatasetData
 from cms.tests.drr.test_drr_dataset_page import DrrDatasetPageTestCase
 from cms.tests.drr.test_drr_figures import SLUG as FIGURES_SLUG
-from cms.tests.drr.test_drr_figures import _decode_array, _pca_table
+from cms.tests.drr.test_drr_figures import _decode_array, _pca_table, _size_key, _well_traces
 from cms.tests.drr.test_drr_precompute import FEATURE_CSV, METADATA_TSV, PLATE_METADATA_TSV
 from cms.tests.drr.test_drr_precompute import SLUG as PRECOMPUTE_SLUG
 from cms.tests.drr.test_drr_table import page_table
@@ -45,10 +50,13 @@ from cms.tests.utils import create_test_image, use_temp_media_root
 from dashboard_visualisation.drr import artefact_key
 from dashboard_visualisation.drr.channels import channel_map, figure_feature_columns
 from dashboard_visualisation.drr.figures import (
+    _PCA_COLOUR_BAR_ROOM,
     NEAR_EMPTY_NUCLEI_THRESHOLD,
     PCA_ANTIVIRAL_COLOUR,
     PCA_COLOURINGS,
     PCA_DEFAULT_COLOURING,
+    PCA_FADED_OPACITY_SHARE,
+    PCA_FIGURE_HEIGHT,
     PCA_MOA_COLOURS,
     PCA_MOA_GROUPS,
     PCA_NOT_ANNOTATED,
@@ -58,11 +66,13 @@ from dashboard_visualisation.drr.figures import (
     PCA_OVERLAY_COLOUR,
     PCA_OVERLAY_HALO_COLOUR,
     PCA_POPULATION_COLOURS,
+    PCA_SIZE_KEY_GROUP,
     FigureBundle,
     build_figure_bundle,
     combine_pca_overlay,
 )
 from dashboard_visualisation.drr.loader import FeatureTable
+from dashboard_visualisation.utils import plot_html_from_json
 
 # One well per entry: ``(pert_type, cbkid, dose in µM, nuclei)``. Compounds 11 to 21
 # carry nine mechanisms between them, so the top eight leave one over; 22 to 24 have
@@ -167,6 +177,11 @@ def _views(
     return views, bundle.pca_report
 
 
+# Every view's size key (FREYA-3205): the colouring fixture's dosed wells run from
+# 0.1 to 30 µM.
+SIZE_KEY = ["0.1 µM", "30 µM"]
+
+
 def _names(view: dict[str, Any]) -> list[str]:
     """Return a view's trace names, bottom to top."""
     return [trace["name"] for trace in view["data"]]
@@ -178,8 +193,19 @@ def _well_order(trace: dict[str, Any]) -> list[int]:
 
 
 def _wells_by_trace(view: dict[str, Any]) -> dict[str, list[int]]:
-    """Return the fixture wells each trace of a view draws, sorted."""
-    return {trace["name"]: sorted(_well_order(trace)) for trace in view["data"]}
+    """Return the fixture wells each well trace of a view draws, sorted."""
+    return {trace["name"]: sorted(_well_order(trace)) for trace in _well_traces(view)}
+
+
+def _faded(trace: dict[str, Any]) -> dict[str, Any]:
+    """Return a view's trace as a chosen compound leaves it: half as opaque, or as it is.
+
+    Restated here rather than imported, so the rule is checked and not echoed.
+    """
+    if trace.get("legendgroup") == PCA_SIZE_KEY_GROUP:
+        return trace
+    marker = trace["marker"]
+    return {**trace, "marker": {**marker, "opacity": round(marker["opacity"] / 2, 6)}}
 
 
 def _wells_of(*cbkids: str) -> list[int]:
@@ -201,25 +227,106 @@ class DrrPcaColouringTests(SimpleTestCase):
         self.assertEqual(set(self.views), set(PCA_COLOURINGS))
 
     def test_controls_and_antivirals_are_identical_in_every_view(self) -> None:
-        """Their traces equal the default's, in the same place on top."""
-        kept = self.views[PCA_DEFAULT_COLOURING]["data"][-len(KEPT_TRACES) :]
+        """Their traces equal the default's, in the same place on top of the wells."""
+        kept = _well_traces(self.views[PCA_DEFAULT_COLOURING])[-len(KEPT_TRACES) :]
         self.assertEqual([trace["name"] for trace in kept], KEPT_TRACES)
 
         for colouring, view in self.views.items():
             with self.subTest(colouring=colouring):
-                self.assertEqual(view["data"][-len(KEPT_TRACES) :], kept)
+                self.assertEqual(_well_traces(view)[-len(KEPT_TRACES) :], kept)
 
-    def test_every_view_shares_the_fit_the_axes_and_the_layout(self) -> None:
-        """One fit: the same layout, axis shares and subtitle, and the same wells drawn."""
-        default = self.views[PCA_DEFAULT_COLOURING]
+    def test_every_view_has_the_same_size_key_last(self) -> None:
+        """The key describes the fit's doses, which no colouring changes (FREYA-3205)."""
+        key = _size_key(self.views[PCA_DEFAULT_COLOURING])
+        self.assertEqual([trace["name"] for trace in key], SIZE_KEY)
 
         for colouring, view in self.views.items():
             with self.subTest(colouring=colouring):
-                self.assertEqual(view["layout"], default["layout"])
+                self.assertEqual(view["data"][-len(SIZE_KEY) :], key)
+
+    def test_every_view_shares_the_fit_the_axes_and_the_layout(self) -> None:
+        """One fit: the same layout, axis shares and subtitle, and the same wells drawn.
+
+        Only the legend differs: its title names the colouring, and the morphology
+        view's sits one colour bar lower, inside the same pinned margin.
+        """
+        default = self.views[PCA_DEFAULT_COLOURING]
+        shared = {key: value for key, value in default["layout"].items() if key != "legend"}
+        legend = default["layout"]["legend"]
+
+        for colouring, view in self.views.items():
+            with self.subTest(colouring=colouring):
+                own = view["layout"]["legend"]
+                drop = _PCA_COLOUR_BAR_ROOM if colouring == "morphology" else 0
                 self.assertEqual(
-                    sorted(well for trace in view["data"] for well in _well_order(trace)),
+                    {key: value for key, value in view["layout"].items() if key != "legend"},
+                    shared,
+                )
+                self.assertEqual(
+                    {**own, "y": None},
+                    {
+                        **legend,
+                        "title": {**legend["title"], "text": own["title"]["text"]},
+                        "y": None,
+                        "maxheight": legend["maxheight"] - drop,
+                    },
+                )
+                self.assertAlmostEqual(
+                    own["y"] * PCA_FIGURE_HEIGHT, legend["y"] * PCA_FIGURE_HEIGHT - drop
+                )
+                self.assertEqual(
+                    sorted(well for trace in _well_traces(view) for well in _well_order(trace)),
                     _DRAWN,
                 )
+
+    def test_each_view_titles_its_legend_by_what_colours_its_treated_wells(self) -> None:
+        """The population, the morphology score, or the mechanism of action (FREYA-3205)."""
+        self.assertEqual(
+            {
+                colouring: view["layout"]["legend"]["title"]["text"]
+                for colouring, view in self.views.items()
+            },
+            {
+                "population": "Well population",
+                "morphology": "Morphology score",
+                "moa": "Mechanism of action",
+            },
+        )
+
+    def test_no_view_offers_a_selection_tool(self) -> None:
+        """Box and lasso select are removed in every view's own layout (FREYA-3205)."""
+        for colouring, view in self.views.items():
+            with self.subTest(colouring=colouring):
+                self.assertEqual(view["layout"]["modebar"]["remove"], ["select2d", "lasso2d"])
+
+    def test_another_dashboard_s_render_is_untouched(self) -> None:
+        """The shared renderer adds nothing: another figure renders as plain Plotly does."""
+        other = go.Figure(go.Scatter(x=[1, 2], y=[3, 4], mode="markers")).to_plotly_json()
+        uuid = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
+
+        shared = plot_html_from_json(other, height="400px")
+        plain = pio.from_json(json.dumps(other)).to_html(
+            full_html=False, default_height="400px", include_plotlyjs=False
+        )
+
+        self.assertEqual(uuid.sub("ID", shared), uuid.sub("ID", plain))
+        self.assertNotIn("lasso2d", shared)
+        self.assertIn(
+            '"remove":["select2d","lasso2d"]',
+            plot_html_from_json(self.views["moa"], height="400px"),
+        )
+
+    def test_the_colour_bar_sits_below_the_axis_and_above_the_legend(self) -> None:
+        """Horizontal, under the axis title, so the plot area matches every other view."""
+        scored = {trace["name"]: trace for trace in self.views["morphology"]["data"]}[
+            "Morphology score"
+        ]
+        bar = scored["marker"]["colorbar"]
+
+        self.assertEqual(bar["orientation"], "h")
+        self.assertEqual((bar["x"], bar["xanchor"], bar["yanchor"]), (0, "left", "top"))
+        self.assertLess(bar["y"], 0)
+        self.assertNotIn("yref", bar)
 
     def test_marker_size_keeps_encoding_dose(self) -> None:
         """Each treated well keeps the size the default view gives it."""
@@ -280,7 +387,7 @@ class DrrPcaColouringTests(SimpleTestCase):
 
         self.assertEqual(
             _names(view),
-            [PCA_NOT_ANNOTATED, PCA_OTHER_MECHANISMS, *RANKED_GROUPS, *KEPT_TRACES],
+            [PCA_NOT_ANNOTATED, PCA_OTHER_MECHANISMS, *RANKED_GROUPS, *KEPT_TRACES, *SIZE_KEY],
         )
         self.assertEqual(wells["alpha"], _wells_of("CBK11", "CBK12"))
         self.assertEqual(wells["beta|gamma"], _wells_of("CBK13", "CBK14"))
@@ -303,7 +410,7 @@ class DrrPcaColouringTests(SimpleTestCase):
         """An index without ``broad_moa`` leaves every treated compound unannotated."""
         views, report = _views(_pca_table(COLOURING_WELLS), mechanisms=None)
 
-        self.assertEqual(_names(views["moa"]), [PCA_NOT_ANNOTATED, *KEPT_TRACES])
+        self.assertEqual(_names(views["moa"]), [PCA_NOT_ANNOTATED, *KEPT_TRACES, *SIZE_KEY])
         self.assertEqual(report["moa_groups"], [])
 
     def test_the_report_says_what_was_written_and_how_many_are_scored(self) -> None:
@@ -321,7 +428,7 @@ class DrrPcaColouringTests(SimpleTestCase):
     def _treated_sizes(view: dict[str, Any]) -> dict[int, float]:
         """Return the marker size of every treated, non-antiviral well a view draws."""
         sizes: dict[int, float] = {}
-        for trace in view["data"][: -len(KEPT_TRACES)]:
+        for trace in _well_traces(view)[: -len(KEPT_TRACES)]:
             values = _decode_array(trace["marker"]["size"]).tolist()
             sizes.update(zip(_well_order(trace), values, strict=True))
         return sizes
@@ -547,7 +654,7 @@ class DrrPcaPrecomputeTests(TestCase):
             [f"pca/{key}+compound" for key in sorted(PCA_COLOURINGS)],
         )
         combined = checked["pca/moa+compound"]["data"]
-        self.assertEqual(combined[:-3], checked["pca/moa"]["data"])
+        self.assertEqual(combined[:-3], [_faded(trace) for trace in checked["pca/moa"]["data"]])
         self.assertTrue(combined[-1]["name"].endswith(PCA_OVERLAY_CENTROID_SUFFIX))
 
 
@@ -674,11 +781,32 @@ class DrrPcaRouteTests(DrrPcaRouteTestCase):
                 self.assertNotIn("Principal component analysis", body)
 
     def test_the_swapped_figure_keeps_the_page_s_alt_text_and_height(self) -> None:
-        """Both come from the page code, so the figure holds its shape across a swap."""
+        """Both come from the page code, so the figure holds its shape across a swap.
+
+        The alt text names the colouring shown (FREYA-3205), and the height is the
+        one the figure's pinned margins are laid out against.
+        """
         body = self.pca(colour="moa").content.decode()
 
-        self.assertIn(f'aria-label="{_PCA_FIGURE["alt_text"]}"', body)
-        self.assertIn(f"{_PCA_FIGURE['height']}px", body)
+        self.assertIn(
+            'aria-label="Scatter plot of the first two principal components of the '
+            'well-level morphological profiles, coloured by mechanism of action"',
+            body,
+        )
+        self.assertEqual(_PCA_FIGURE["height"], PCA_FIGURE_HEIGHT)
+        self.assertIn(f"{PCA_FIGURE_HEIGHT}px", body)
+
+    def test_the_alt_text_names_each_colouring(self) -> None:
+        """Every colouring by the picker's own name for it, in lower case."""
+        for key, label, _ in _PCA_COLOURING_CHOICES:
+            with self.subTest(colouring=key):
+                body = self.pca(colour=key).content.decode()
+                alt_text = _PCA_COLOURED_ALT_TEXT.format(
+                    alt_text=_PCA_FIGURE["alt_text"], colouring=label.lower()
+                )
+
+                self.assertIn(f'aria-label="{escape(alt_text)}"', body)
+                self.assertEqual(body.count('aria-label="'), 1)
 
     def test_an_unknown_colouring_is_404_before_any_path_is_resolved(self) -> None:
         """Only an allow-listed key is looked up, so no request value reaches a path."""
@@ -748,6 +876,7 @@ class DrrPcaPickerTests(DrrPcaRouteTestCase):
         self.assertNotIn("pca_colourings", self.context())
         self.assertIn('id="drr-pca"', body)
         self.assertNotIn('id="drr-pca-colour"', body)
+        self.assertNotIn('id="drr-pca-status"', body)
 
     def test_the_rendered_picker_swaps_the_pca_over_get(self) -> None:
         """An htmx GET to the route, replacing that one figure, starting on the default."""
@@ -780,7 +909,7 @@ class DrrPcaPickerTests(DrrPcaRouteTestCase):
 
         self.assertEqual(body.count('id="drr-pca"'), 1)
         self.assertNotIn('aria-label="Editorial PCA block"', body)
-        self.assertIn(f'aria-label="{_PCA_FIGURE["alt_text"]}"', body)
+        self.assertIn(f'aria-label="{_PCA_FIGURE["alt_text"]}, coloured by population"', body)
         self.assertIn("Editorial prose.", body)
 
     def test_the_table_of_contents_path_skips_the_pca_block_too(self) -> None:
@@ -912,7 +1041,8 @@ class DrrPcaOverlayTests(SimpleTestCase):
         self.assertEqual(set(overlay), {"data"})
         self.assertEqual((wells["name"], wells["mode"]), ("CBK11", "markers"))
         self.assertEqual(
-            (line["name"], line["mode"]), (f"CBK11{PCA_OVERLAY_CENTROID_SUFFIX}", "lines+markers")
+            (line["name"], line["mode"]),
+            (f"CBK11{PCA_OVERLAY_CENTROID_SUFFIX}", "lines+markers+text"),
         )
         self.assertEqual(wells["marker"]["color"], PCA_OVERLAY_COLOUR)
         self.assertEqual(line["line"]["color"], PCA_OVERLAY_COLOUR)
@@ -958,7 +1088,7 @@ class DrrPcaOverlayTests(SimpleTestCase):
         """Each well where the default view draws it, as large as the view draws it."""
         default = self.bundle.figures["pca"]
         view_sizes: dict[int, float] = {}
-        for trace in default["data"]:
+        for trace in _well_traces(default):
             view_sizes.update(_sizes_by_well(trace))
 
         for cbkid in ("CBK11", "CBK310015", "DO8167002"):
@@ -993,8 +1123,32 @@ class DrrPcaOverlayTests(SimpleTestCase):
         sizes = _decode_array(line["marker"]["size"]).tolist()
         self.assertEqual(sizes, sorted(set(sizes)))
 
+    def test_the_dose_line_names_its_lowest_and_highest_dose_only(self) -> None:
+        """Text by the first and last centroid, with its unit; none between (FREYA-3205)."""
+        line = _bundle(OVERLAY_WELLS).pca_overlays["CBK31"]["data"][-1]
+
+        self.assertEqual(line["text"], ["0.1 µM", "", "10 µM"])
+        self.assertEqual(line["textfont"]["color"], PCA_OVERLAY_COLOUR)
+        self.assertIn("text", line["mode"].split("+"))
+        self.assertIs(line["cliponaxis"], False)
+
+    def test_the_end_labels_sit_outward_along_the_dose_line(self) -> None:
+        """The line runs right and level here, so the low label sits up-left, the high down-right.
+
+        Each end's label is pushed away from the rest of the line, so neither sits on it.
+        """
+        line = _bundle(OVERLAY_WELLS).pca_overlays["CBK31"]["data"][-1]
+
+        self.assertEqual(line["textposition"], ["top left", "top center", "bottom right"])
+
+    def test_a_compound_at_one_dose_carries_one_label(self) -> None:
+        """One centroid, one label."""
+        line = _bundle(OVERLAY_WELLS).pca_overlays["CBK32"]["data"][-1]
+
+        self.assertEqual(line["text"], ["3 µM"])
+
     def test_combining_draws_the_overlay_above_every_trace_of_the_view(self) -> None:
-        """The view's traces and layout unchanged, then the overlay's three traces last."""
+        """The view's layout unchanged, its traces fainter, then the overlay's three last."""
         overlay = self.bundle.pca_overlays["CBK11"]
 
         for colouring, view in (
@@ -1005,10 +1159,33 @@ class DrrPcaOverlayTests(SimpleTestCase):
                 traces = list(view["data"])
                 combined = combine_pca_overlay(view, overlay)
 
-                self.assertEqual(combined["data"][:-3], traces)
+                self.assertEqual(combined["data"][:-3], [_faded(trace) for trace in traces])
                 self.assertEqual(combined["data"][-3:], overlay["data"])
                 self.assertEqual(combined["layout"], view["layout"])
                 self.assertEqual(view["data"], traces)
+
+    def test_a_chosen_compound_fades_every_trace_of_the_colouring_beneath_it(self) -> None:
+        """Each well trace keeps half its opacity; the key and the overlay keep theirs."""
+        self.assertEqual(PCA_FADED_OPACITY_SHARE, 1 / 2)
+        overlay = self.bundle.pca_overlays["CBK11"]
+
+        for colouring, view in (
+            (PCA_DEFAULT_COLOURING, self.bundle.figures["pca"]),
+            *self.bundle.pca_colourings.items(),
+        ):
+            with self.subTest(colouring=colouring):
+                combined = combine_pca_overlay(view, overlay)["data"]
+                below = {"data": combined[: -len(overlay["data"])]}
+                opacities = {
+                    trace["name"]: trace["marker"]["opacity"] for trace in _well_traces(view)
+                }
+
+                self.assertEqual(
+                    {trace["name"]: trace["marker"]["opacity"] for trace in _well_traces(below)},
+                    {name: round(value / 2, 6) for name, value in opacities.items()},
+                )
+                self.assertEqual(_size_key(below), _size_key(view))
+                self.assertEqual(combined[-len(overlay["data"]) :], overlay["data"])
 
 
 STAU_KEY = artefact_key("[stau]")
@@ -1088,14 +1265,25 @@ class DrrPcaOverlayRouteTests(DrrPcaOverlayRouteTestCase):
         )
 
     def test_the_alt_text_names_the_compound(self) -> None:
-        """A screen reader hears what was drawn, not only the figure it was drawn over."""
+        """A screen reader hears what was drawn, and the colouring it was drawn over."""
         for cbkid, label in (("CBK1", "Remdesivir (CBK1)"), ("[stau]", "[stau] (control)")):
             with self.subTest(cbkid=cbkid):
                 body = self.pca(colour="moa", cbkid=cbkid).content.decode()
-                alt_text = _PCA_OVERLAY_ALT_TEXT.format(
-                    alt_text=_PCA_FIGURE["alt_text"], label=label
+                alt_text = (
+                    "Scatter plot of the first two principal components of the well-level "
+                    "morphological profiles, coloured by mechanism of action, with the wells "
+                    f"and dose line of {label} drawn on top"
                 )
 
+                self.assertEqual(
+                    alt_text,
+                    _PCA_OVERLAY_ALT_TEXT.format(
+                        alt_text=_PCA_COLOURED_ALT_TEXT.format(
+                            alt_text=_PCA_FIGURE["alt_text"], colouring="mechanism of action"
+                        ),
+                        label=label,
+                    ),
+                )
                 self.assertIn(f'aria-label="{escape(alt_text)}"', body)
                 self.assertEqual(body.count('aria-label="'), 1)
 
@@ -1107,7 +1295,37 @@ class DrrPcaOverlayRouteTests(DrrPcaOverlayRouteTestCase):
         self.assertNotIn("Remdesivir wells", body)
         self.assertIn(escape(CAPTIONS["moa"]), body)
         self.assertNotIn(escape(_PCA_OVERLAY_CAPTION.format(label="")), body)
-        self.assertIn(f'aria-label="{_PCA_FIGURE["alt_text"]}"', body)
+        self.assertIn(
+            f'aria-label="{_PCA_FIGURE["alt_text"]}, coloured by mechanism of action"', body
+        )
+
+    def test_no_compound_serves_the_colouring_exactly_as_written(self) -> None:
+        """Nothing fades without a compound: the stored view is what is rendered."""
+        stored = json.loads((self.pca_dir / "moa.json").read_text(encoding="utf-8"))
+
+        with (
+            patch("cms.pages.drr_dataset.combine_pca_overlay") as combine,
+            patch("cms.pages.drr_dataset.plot_html_from_json", wraps=plot_html_from_json) as render,
+        ):
+            self.assertEqual(self.pca(colour="moa", cbkid="").status_code, 200)
+
+        combine.assert_not_called()
+        self.assertEqual(render.call_args.args[0], stored)
+
+    def test_a_compound_is_drawn_over_a_faded_colouring(self) -> None:
+        """The route serves the combination the figures module fades, not the bare view."""
+        stored = json.loads((self.pca_dir / "moa.json").read_text(encoding="utf-8"))
+        stored["data"][0]["marker"] = {"opacity": 0.6}
+        self.write_colouring("moa", stored)
+
+        with patch(
+            "cms.pages.drr_dataset.plot_html_from_json", wraps=plot_html_from_json
+        ) as render:
+            self.assertEqual(self.pca(colour="moa", cbkid="CBK1").status_code, 200)
+
+        served = render.call_args.args[0]["data"]
+        self.assertEqual(served[0]["marker"]["opacity"], 0.3)
+        self.assertEqual([trace["name"] for trace in served[1:]], _names(_overlay("Remdesivir")))
 
     def test_a_bracketed_id_round_trips(self) -> None:
         """A control id such as ``[stau]`` travels in the query string and finds its overlay."""
@@ -1268,3 +1486,70 @@ class DrrPcaOverlayCacheTests(DrrPcaOverlayRouteTestCase):
         self.data.save()
 
         self.assertContains(self.pca(colour="moa", cbkid="CBK1"), "Rewritten wells")
+
+
+LIVE_REGION = '<p id="drr-pca-status" class="sr-only" role="status" aria-live="polite"></p>'
+
+
+def _status_update(sentence: str) -> str:
+    """Return the out-of-band update a swap carries for the page's live region."""
+    return f'<span id="drr-pca-status" hx-swap-oob="innerHTML">{escape(sentence)}</span>'
+
+
+class DrrPcaAnnouncementTests(DrrPcaOverlayRouteTestCase):
+    """The polite live region beside the PCA, and what each swap tells it (FREYA-3205)."""
+
+    def test_the_page_holds_one_empty_polite_live_region_outside_the_figure(self) -> None:
+        """One region, empty and outside the figure.
+
+        Empty, so loading the page announces nothing; outside the figure, so no
+        swap replaces it.
+        """
+        body = self.page_body()
+        region = body.index(LIVE_REGION)
+        figure = body.index('<figure id="drr-pca"')
+
+        self.assertEqual(body.count('id="drr-pca-status"'), 1)
+        self.assertLess(region, figure)
+        self.assertLess(body.index('id="drr-pca-compound"'), region)
+
+    def test_each_swap_states_the_view_shown(self) -> None:
+        """The colouring, and the compound when one is drawn on top."""
+        for params, sentence in (
+            ({"colour": "population"}, "Showing the PCA coloured by population."),
+            ({"colour": "moa", "cbkid": ""}, "Showing the PCA coloured by mechanism of action."),
+            (
+                {"colour": "morphology", "cbkid": "CBK1"},
+                "Showing the PCA coloured by morphology score, with Remdesivir (CBK1) "
+                "drawn on top.",
+            ),
+            (
+                {"colour": "moa", "cbkid": "[stau]"},
+                "Showing the PCA coloured by mechanism of action, with [stau] (control) "
+                "drawn on top.",
+            ),
+        ):
+            with self.subTest(**params):
+                body = self.pca(**params).content.decode()
+
+                self.assertEqual(body.count(_status_update(sentence)), 1)
+
+    def test_a_swap_updates_the_live_region_without_replacing_it(self) -> None:
+        """Out of band, by innerHTML, and after the figure.
+
+        The region keeps its node and its role, and the figure keeps its one label.
+        """
+        body = self.pca(colour="moa", cbkid="CBK1").content.decode()
+        update = body.index('<span id="drr-pca-status" hx-swap-oob="innerHTML">')
+
+        self.assertGreater(update, body.index("</figure>"))
+        self.assertEqual(body.count('id="drr-pca-status"'), 1)
+        self.assertNotIn('role="status"', body)
+        self.assertNotIn("aria-live", body)
+        self.assertEqual(body.count('aria-label="'), 1)
+
+    def test_the_figure_partial_the_page_renders_carries_no_update(self) -> None:
+        """Only a swap announces: the page's own figure has no out-of-band element."""
+        body = self.page_body()
+
+        self.assertNotIn("hx-swap-oob", body)
