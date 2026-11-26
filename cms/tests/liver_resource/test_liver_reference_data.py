@@ -69,7 +69,7 @@ class TestLiverReferenceData(SimpleTestCase):
     def test_load_hover_module_titles(self) -> None:
         """Test hover module titles load for titled modules and skip blanks."""
         titles = load_hover_module_titles()
-        self.assertEqual(len(titles), 66)
+        self.assertEqual(len(titles), 49)
         self.assertEqual(
             titles[3],
             (
@@ -81,6 +81,9 @@ class TestLiverReferenceData(SimpleTestCase):
         self.assertEqual(titles[12], "Cell cycle (I) - DNA replication")
         self.assertNotIn(1, titles)
         self.assertNotIn(2, titles)
+        # Placeholder low-expression labels cleared (Jackie request).
+        self.assertNotIn(7, titles)
+        self.assertTrue(all(not title.lstrip().startswith("*") for title in titles.values()))
 
     def test_list_example_files(self) -> None:
         """Test bundled DE fixture files are discoverable for tests."""

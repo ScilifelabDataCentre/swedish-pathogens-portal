@@ -5,13 +5,13 @@ module_id	title
 4	Amino acid catabolism and urea cycle
 5	
 6	
-7	* Low expression arm, annotation not liver-supported
+7	
 8	
 9	Mesenchymal (I)
 10	Mitochondrial energy metabolism (I)
 11	
 12	Cell cycle (I) - DNA replication
-13	* Low expression arm, annotation not liver-supported
+13	
 14	Proteasome catalytic core & N-glycosylation
 15	Protein trafficking (I)
 16	Immune response (II) - Lymphoid cells (B cells)
@@ -19,30 +19,30 @@ module_id	title
 18	Fatty acid beta-oxidation
 19	Immune response (III) - Lymphoid cells (T and NK cells)
 20	
-21	* Low expression, annotation not liver-supported
+21	
 22	Response to liver injury (I)
 23	Circadian rhythm
 24	Mesenchymal (II)
-25	* Low expression arm, annotation not liver-supported
+25	
 26	
 27	Cell cycle (II) - Mitosis
 28	
 29	Immune response (IV) - Myeloid cells
-30	* Low expression arm, annotation not liver-supported
+30	
 31	Vascular endothelium
 32	Mitochondrial energy metabolism (II) - Oxidative phosphorylation 
 33	
-34	* Low expression arm, annotation not liver-supported
+34	
 35	KRAB-ZFP retroelement silencing
 36	
 37	Tubulin subunits
 38	Cholangiocyte
 39	Hepatic xenobiotic metabolism (ADME) (II)
-40	* Low expression arm, annotation not liver-supported
-41	* Low expression arm, annotation not liver-supported
+40	
+41	
 42	tRNA aminoacylation
 43	Hepatocyte secreted plasma proteome
-44	* Low expression arm, annotation not liver-supported
+44	
 45	Mesenchymal (III)
 46	
 47	Response to liver injury (II) (Chronic)
@@ -50,7 +50,7 @@ module_id	title
 49	mRNA processing (I)
 50	
 51	 Protein trafficking (II)
-52	* Low expression arm, annotation not liver-supported
+52	
 53	
 54	
 55	Sinusiodal Endothelium (LSECs) 
@@ -69,15 +69,15 @@ module_id	title
 68	Proteasome alpha-ring and neddylation
 69	Mitochondrial energy metabolism (IV)
 70	Ribosome biogenesis (IV)
-71	* Low expression arm, annotation not liver-supported
+71	
 72	
-73	* Low expression arm, annotation not liver-supported
+73	
 74	
 75	
 76	
 77	
 78	Cytoplasmic ribosome and translation elongation
-79	* Low expression arm, annotation not liver-supported
+79	
 80	
 81	Hepatic xenobiotic metabolism (ADME) (III)
 82	Immune response (VI) - Myeloid cells (Kupffer cells)
@@ -85,18 +85,18 @@ module_id	title
 84	
 85	
 86	
-87	* Low expression arm, annotation not liver-supported
+87	
 88	Mesenchymal (V)
 89	Response to liver injury (V)
 90	
 91	Mitochondrial energy metabolism (II)
 92	
-93	* Low expression arm, annotation not liver-supported
+93	
 94	Ribosome biogenesis (V) (& translation inititation)
 95	
-96	* Low expression arm, annotation not liver-supported
+96	
 97	Cholesterol biosynthesis
-98	* Low expression arm, annotation not liver-supported
+98	
 99	
 100	
 101	Response to liver injury (VI)
