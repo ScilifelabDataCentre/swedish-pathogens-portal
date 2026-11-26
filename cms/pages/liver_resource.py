@@ -31,11 +31,7 @@ from dashboard_visualisation.liver_resource.plot_metric import (
     PLOT_METRIC_LABELS,
 )
 from dashboard_visualisation.liver_resource.plotly_tln import DEFAULT_PLOT_HEIGHT_PX
-from dashboard_visualisation.liver_resource.session import (
-    get_de_session,
-    get_session_plot_metric,
-    get_session_thresholds,
-)
+from dashboard_visualisation.liver_resource.session import clear_de_session
 from dashboard_visualisation.liver_resource.thresholds import (
     ADJ_P_CHOICES,
     DEFAULT_ADJ_P,
@@ -132,11 +128,20 @@ class LiverResourceDashboardPage(RoutablePageMixin, DashboardPage):
         verbose_name = "HepaGeNIE Dashboard"
 
     def get_context(self, request: HttpRequest) -> dict[str, Any]:
-        """Add liver-specific TLN and control metadata to template context."""
+        """Add liver-specific TLN and control metadata to template context.
+
+        Full-page SSR always shows the neutral base TLN. Clear any leftover DE
+        session so export links stay disabled until the visitor uploads a file
+        or loads an example again. HTMX upload/example/recompute keep the
+        session for that interactive visit.
+        """
         context = super().get_context(request)
         figure_data = get_figure_data(self.dashboard_data)
         base_figure_json = resolve_base_tln_figure(figure_data)
-        session = get_de_session(request)
+
+        # Landing plot and export controls must agree: no coloured analysis ⇒
+        # no CSV exports from a stale prior visit.
+        clear_de_session(request)
 
         context["base_tln_figure_json"] = base_figure_json
         context["base_plot_html"] = plot_html_from_json(
@@ -146,25 +151,19 @@ class LiverResourceDashboardPage(RoutablePageMixin, DashboardPage):
         )
         context["plot_height"] = DEFAULT_PLOT_HEIGHT_PX
         context["leaf_trace_index"] = LEAF_TRACE_INDEX
-        if session is not None:
-            current_adj_p, current_logfc_fold = get_session_thresholds(request)
-            current_plot_metric = get_session_plot_metric(request)
-        else:
-            current_adj_p, current_logfc_fold = DEFAULT_ADJ_P, DEFAULT_LOGFC_FOLD
-            current_plot_metric = DEFAULT_PLOT_METRIC
         context["adj_p_choices"] = ADJ_P_CHOICES
         context["logfc_fold_choices"] = LOGFC_FOLD_CHOICES
         context["plot_metric_choices"] = [
             {"value": value, "label": PLOT_METRIC_LABELS[value]} for value in PLOT_METRIC_CHOICES
         ]
-        context["current_adj_p"] = current_adj_p
-        context["current_logfc_fold"] = current_logfc_fold
-        context["current_plot_metric"] = current_plot_metric
+        context["current_adj_p"] = DEFAULT_ADJ_P
+        context["current_logfc_fold"] = DEFAULT_LOGFC_FOLD
+        context["current_plot_metric"] = DEFAULT_PLOT_METRIC
         context["default_adj_p"] = DEFAULT_ADJ_P
         context["default_logfc_fold"] = DEFAULT_LOGFC_FOLD
         context["default_plot_metric"] = DEFAULT_PLOT_METRIC
         context["default_threshold_key"] = DEFAULT_THRESHOLD_KEY
-        context["has_session"] = session is not None
+        context["has_session"] = False
         context["examples"] = list_examples(self.dashboard_data)
         return context
 

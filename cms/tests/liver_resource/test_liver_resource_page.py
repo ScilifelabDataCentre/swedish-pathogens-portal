@@ -11,6 +11,7 @@ from cms.pages.dashboard_index import DashboardIndexPage
 from cms.pages.liver_resource import LiverResourceDashboardPage
 from cms.snippets.dashboard_data import DashboardData
 from cms.tests.liver_resource.liver_helpers import (
+    create_liver_dashboard_data,
     create_published_liver_resource_page,
     liver_route_url,
 )
@@ -175,7 +176,7 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
         )
 
     def test_get_context_includes_session_flags(self) -> None:
-        """Test that get_context exposes session state for export controls."""
+        """Test landing context disables exports (has_session always false)."""
         request = self.client.get(self.page.url).wsgi_request
         context = self.page.get_context(request)
 
@@ -190,6 +191,32 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
             [choice["value"] for choice in context["plot_metric_choices"]],
             ["difference", "total"],
         )
+
+    def test_full_page_load_clears_stale_session_and_disables_exports(self) -> None:
+        """Test landing GET clears prior DE session so exports match the base plot."""
+        from dashboard_visualisation.liver_resource.session import SESSION_KEY
+
+        create_liver_dashboard_data(upload_name="obese-Control.txt")
+        self.page.__dict__.pop("dashboard_data", None)
+
+        example_url = liver_route_url(self.page, "load_example", "obese-control")
+        load = self.client.get(example_url)
+        self.assertEqual(load.status_code, 200)
+        self.assertIsNotNone(self.client.session.get(SESSION_KEY))
+
+        export_ok = self.client.get(liver_route_url(self.page, "export_module_scores"))
+        self.assertEqual(export_ok.status_code, 200)
+
+        landing = self.client.get(self.page.url)
+        self.assertEqual(landing.status_code, 200)
+        self.assertContains(landing, "Neutral base network")
+        self.assertContains(landing, 'id="liver-export-modules"')
+        self.assertContains(landing, "btn-disabled")
+        self.assertContains(landing, 'aria-disabled="true"')
+        self.assertIsNone(self.client.session.get(SESSION_KEY))
+
+        export_blocked = self.client.get(liver_route_url(self.page, "export_module_scores"))
+        self.assertEqual(export_blocked.status_code, 400)
 
     def test_get_context_includes_parent_heading(self) -> None:
         """Test that liver pages inherit the dashboard index heading."""
