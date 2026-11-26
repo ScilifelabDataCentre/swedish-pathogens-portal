@@ -46,3 +46,16 @@ cms/templates/cms/pages/serve_apps/partials/serve_listing.html
 Searching, filtering and sorting happen in Python on the cached list, as the whole catalogue
 is only a few hundred items. Facet values within a facet are OR-ed, facets are AND-ed, and
 each facet's counts are computed without its own selection.
+
+## Summary on the Available data page
+
+`ServeAppsSummaryBlock` (`cms/blocks/serve_apps_summary.py`) adds a section to the Available
+data page, styled like the EBI and Portal data sections: the number of apps on a chosen Models
+and apps page, with buttons for the most common pathogen keywords (or app types), each linking
+to the listing pre-filtered on that value.
+
+Unlike the Portal data summary, it is loaded via HTMX, so the Available data page doesn't wait
+for Serve when the catalogue isn't cached. The block requests the Models and apps page with a
+`summary` parameter (`?summary=keyword&rows=8`), and the page answers with
+`cms/templates/cms/pages/serve_apps/partials/serve_summary.html`. The counts follow that page's
+"Always show" and "Never show" settings, and the section is left out if Serve can't be reached.

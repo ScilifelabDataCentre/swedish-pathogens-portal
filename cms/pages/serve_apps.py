@@ -12,7 +12,12 @@ from wagtail.models import Page
 from wagtail.search import index
 
 from cms.blocks import AlertBlock, ServeAppsBlock
-from cms.services.serve_apps import MAX_SEARCH_LENGTH, build_context_dict
+from cms.services.serve_apps import (
+    MAX_SEARCH_LENGTH,
+    build_context_dict,
+    build_summary_section,
+    summary_params,
+)
 
 
 class ServeAppsPage(Page):
@@ -82,10 +87,24 @@ class ServeAppsPage(Page):
     def serve(self, request: HttpRequest, *args: Any, **kwargs: Any) -> HttpResponse:  # noqa: ANN401
         """Serve the models and apps page.
 
-        HTMX requests get just the listing partial (facets and apps). Anything else,
-        including HTMX history restores (which need a whole page), gets the full page.
+        HTMX requests get just the listing partial (facets and apps), or with a
+        ``summary`` parameter, the summary section for the Available data page (see
+        ``ServeAppsSummaryBlock``). Anything else, including HTMX history restores
+        (which need a whole page), gets the full page.
         """
         if request.htmx and not request.htmx.history_restore_request:
+            if "summary" in request.GET:
+                return render(
+                    request=request,
+                    template_name="cms/pages/serve_apps/partials/serve_summary.html",
+                    context={
+                        "section": build_summary_section(
+                            page=self,
+                            listing_url=self.get_url(request=request),
+                            **summary_params(request),
+                        )
+                    },
+                )
             return render(
                 request=request,
                 template_name="cms/pages/serve_apps/partials/serve_listing.html",

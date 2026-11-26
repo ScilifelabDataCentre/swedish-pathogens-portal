@@ -231,3 +231,68 @@ def build_context_dict(request: HttpRequest, page: ServeAppsPage) -> dict[str, A
         }
     )
     return context
+
+
+# --- Summary for the Available data page ------------------------------------------
+
+# Most breakdown buttons the summary shows (as for the Portal data summary block).
+MAX_SUMMARY_ROWS = 50
+DEFAULT_SUMMARY_ROWS = 8
+
+
+def build_summary_section(
+    page: ServeAppsPage,
+    listing_url: str,
+    *,
+    facet: str = "keyword",
+    title: str = "",
+    max_rows: int = DEFAULT_SUMMARY_ROWS,
+) -> dict[str, Any] | None:
+    """Build a section dict for the Available data page's category partial.
+
+    Same shape as ``portal_data.summary.build_portal_data_summary``: the number of
+    apps the page lists (with its editors' inclusions and exclusions), and up to
+    ``max_rows`` buttons for the most common values of ``facet``, largest first,
+    each linking to the page pre-filtered on that value.
+
+    Returns None if Serve couldn't be reached.
+    """
+    all_apps = fetch_public_apps()
+    if all_apps is None:
+        return None
+    apps = relevant_apps(
+        all_apps, include_ids=page.include_app_ids, exclude_ids=page.exclude_app_ids
+    )
+
+    facet_def = FACETS.get(facet) or FACETS["keyword"]
+    counts = Counter(value for app in apps for value in dict.fromkeys(facet_def.values_of(app)))
+    ranked = sorted(counts.items(), key=lambda vc: (-vc[1], vc[0].casefold()))
+    return {
+        "title": title or page.title,
+        "total_count": len(apps),
+        "total_url": listing_url,
+        "rows": [
+            {
+                "label": value,
+                "display_label": facet_def.value_label(value),
+                "count": count,
+                "url": f"{listing_url}?{urlencode({facet_def.field: value})}",
+            }
+            for value, count in ranked[:max_rows]
+        ],
+        "internal": True,
+    }
+
+
+def summary_params(request: HttpRequest) -> dict[str, Any]:
+    """Read the summary's facet, title and row count from the request, with safe fallbacks."""
+    facet = _clean(request.GET.get("summary", ""))
+    try:
+        max_rows = int(_clean(request.GET.get("rows", "")))
+    except ValueError:
+        max_rows = DEFAULT_SUMMARY_ROWS
+    return {
+        "facet": facet if facet in FACETS else "keyword",
+        "title": _clean(request.GET.get("title", ""))[:MAX_SEARCH_LENGTH],
+        "max_rows": min(max(max_rows, 1), MAX_SUMMARY_ROWS),
+    }

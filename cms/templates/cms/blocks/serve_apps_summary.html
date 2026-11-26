@@ -1,0 +1,14 @@
+{% comment %}
+    ServeAppsSummaryBlock template: a loading placeholder that HTMX replaces with the summary
+    section from the Models and apps page (see serve_apps/partials/serve_summary.html), so the
+    Available data page doesn't wait for Serve.
+{% endcomment %}
+
+{% if summary_url %}
+<div class="relative mt-8 flex min-h-24 items-center justify-center"
+    hx-get="{{ summary_url }}"
+    hx-trigger="load once"
+    hx-swap="outerHTML">
+    <span class="loading loading-spinner text-accent loading-lg" aria-label="Loading"></span>
+</div>
+{% endif %}
