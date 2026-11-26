@@ -10,7 +10,9 @@ single colouring there is nothing to pick, so a hidden field carries the
 default. It is progressive enhancement: the default view below is complete
 before a control is touched, and a 404 leaves that figure standing. The request
 is an ordinary GET answered with server-rendered HTML, as the radar picker's
-is: no client-side Plotly callback is involved.
+is: no client-side Plotly callback is involved. Each answer also fills the live
+region, which sits outside the swapped figure so it is never replaced and starts
+empty so loading the page announces nothing (FREYA-3205).
 {% endcomment %}
 {% if pca_figure %}
     <section aria-labelledby="drr-pca-heading" class="mt-10">
@@ -46,6 +48,7 @@ is: no client-side Plotly callback is involved.
                 <button type="submit" class="btn btn-primary btn-sm">Show</button>
                 <span id="drr-pca-indicator" class="htmx-indicator loading loading-spinner loading-sm"></span>
             </form>
+            <p id="drr-pca-status" class="sr-only" role="status" aria-live="polite"></p>
         {% endif %}
 
         {% include "cms/pages/drr/partials/pca_figure.html" with figure=pca_figure %}

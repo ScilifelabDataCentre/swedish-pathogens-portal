@@ -1,6 +1,8 @@
 """Tests for the channel map, the figure basis and its clip, and the PCA's fit and styling.
 
-FREYA-2923 and 2968 own the basis and the clip; FREYA-3200 the PCA's fit and styling.
+FREYA-2923 and 2968 own the basis and the clip; FREYA-3200 the PCA's fit and styling,
+which FREYA-3205 gives a size key, a legend below the plot and a toolbar without
+selection tools.
 Every fixture here carries a column in **each of the five** imaging channels. That
 is deliberate: the A549-ACE2 and Vero E6 screens name opposite stains with the same
 two tokens, so a fixture that omits a channel cannot tell an inverted map from a
@@ -29,6 +31,11 @@ from dashboard_visualisation.drr.figures import (
     FIGURE_CLIP_BOUND,
     NEAR_EMPTY_NUCLEI_THRESHOLD,
     PCA_CONTROL_MARKER_SIZE,
+    PCA_DOSE_MARKER_SIZES,
+    PCA_FIGURE_HEIGHT,
+    PCA_OVERLAY_COLOUR,
+    PCA_SIZE_KEY_GROUP,
+    PCA_SIZE_KEY_TITLE,
     build_all_figures,
     clip_figure_values,
     clip_report,
@@ -318,7 +325,10 @@ class DrrPopulationLabelTests(SimpleTestCase):
         self.assertEqual(population_label("trt"), "Treated")
 
     def test_the_pca_legend_names_every_population_and_no_token(self) -> None:
-        """One trace per population, bottom to top, so no control hides under Treated."""
+        """One trace per population, bottom to top, so no control hides under Treated.
+
+        The size key follows, named by the two doses it shows (FREYA-3205).
+        """
         pca = self._figures(self._table_with("poscon"))["pca"]
 
         self.assertEqual(
@@ -328,6 +338,8 @@ class DrrPopulationLabelTests(SimpleTestCase):
                 "Positive control",
                 "Infected control (DMSO)",
                 "Uninfected control (DMSO)",
+                "1 µM",
+                "10 µM",
             ],
         )
         self.assertEqual(pca["layout"]["legend"]["title"]["text"], "Well population")
@@ -379,9 +391,9 @@ class DrrFigureClipTests(SimpleTestCase):
 
     @staticmethod
     def _pc1_spread(figures: dict) -> float:
-        """Return the largest absolute PC1 score across a PCA figure's traces."""
+        """Return the largest absolute PC1 score across a PCA figure's well traces."""
         return max(
-            float(np.abs(_decode_array(trace["x"])).max()) for trace in figures["pca"]["data"]
+            float(np.abs(_decode_array(trace["x"])).max()) for trace in _well_traces(figures["pca"])
         )
 
     def test_the_bound_is_the_published_one(self) -> None:
@@ -577,6 +589,16 @@ def _traces(pca: dict) -> dict[str, dict]:
     return {trace["name"]: trace for trace in pca["data"]}
 
 
+def _well_traces(pca: dict) -> list[dict]:
+    """Return a PCA figure's traces that draw wells: every trace but the size key's."""
+    return [trace for trace in pca["data"] if trace.get("legendgroup") != PCA_SIZE_KEY_GROUP]
+
+
+def _size_key(pca: dict) -> list[dict]:
+    """Return a PCA figure's size key traces, in legend order."""
+    return [trace for trace in pca["data"] if trace.get("legendgroup") == PCA_SIZE_KEY_GROUP]
+
+
 def _pc1(trace: dict) -> list[float]:
     """Return one trace's PC1 scores, sorted."""
     return sorted(_decode_array(trace["x"]).tolist())
@@ -599,7 +621,7 @@ class DrrPcaFitTests(SimpleTestCase):
         Had the near-empty well been fitted, the centre would move and every
         score with it; had it been drawn, there would be one point more.
         """
-        drawn = sorted(score for trace in self.pca["data"] for score in _pc1(trace))
+        drawn = sorted(score for trace in _well_traces(self.pca) for score in _pc1(trace))
         fitted = [index for index in range(len(PCA_WELLS)) if index != NEAR_EMPTY_WELL]
 
         self.assertEqual(len(drawn), len(PCA_WELLS) - 1)
@@ -728,7 +750,10 @@ class DrrPcaStylingTests(SimpleTestCase):
         self.traces = _traces(self.pca)
 
     def test_the_traces_run_bottom_to_top_with_the_antivirals_last(self) -> None:
-        """Plotly draws later traces on top, so no control hides under Treated."""
+        """Plotly draws later traces on top, so no control hides under Treated.
+
+        The size key comes after every well, and draws none (FREYA-3205).
+        """
         self.assertEqual(
             [trace["name"] for trace in self.pca["data"]],
             [
@@ -739,13 +764,15 @@ class DrrPcaStylingTests(SimpleTestCase):
                 "Remdesivir",
                 "Nirmatrelvir",
                 "GC376",
+                "0.1 µM",
+                "30 µM",
             ],
         )
 
     def test_each_population_has_its_fixed_colour(self) -> None:
         """The portal's red and blue for the two DMSO controls, greys for the rest."""
         self.assertEqual(
-            {name: trace["marker"]["color"] for name, trace in self.traces.items()},
+            {trace["name"]: trace["marker"]["color"] for trace in _well_traces(self.pca)},
             {
                 "Treated": "#d8d8d8",
                 "Positive control": "#55585a",
@@ -809,6 +836,74 @@ class DrrPcaStylingTests(SimpleTestCase):
     def test_the_legend_keeps_its_title(self) -> None:
         """The legend still names what its entries are."""
         self.assertEqual(self.pca["layout"]["legend"]["title"]["text"], "Well population")
+
+    def test_the_size_key_is_the_smallest_and_the_largest_dose_marker(self) -> None:
+        """Two hollow markers at exactly the sizes the lowest and highest drawn dose take."""
+        key = _size_key(self.pca)
+        drawn: dict[float, float] = {}
+        for name in ("Treated", *ANTIVIRAL_WELLS):
+            trace = self.traces[name]
+            for score, size in zip(
+                _decode_array(trace["x"]).tolist(),
+                _decode_array(trace["marker"]["size"]).tolist(),
+                strict=True,
+            ):
+                index = next(
+                    index
+                    for index in range(len(PCA_WELLS))
+                    if abs(_expected_pc1([index])[0] - score) < 1e-9
+                )
+                drawn[PCA_WELLS[index][2]] = size
+
+        self.assertEqual([trace["name"] for trace in key], ["0.1 µM", "30 µM"])
+        self.assertEqual(
+            [trace["marker"]["size"] for trace in key], [drawn[min(drawn)], drawn[max(drawn)]]
+        )
+        self.assertEqual([trace["marker"]["size"] for trace in key], list(PCA_DOSE_MARKER_SIZES))
+        for trace in key:
+            self.assertEqual(trace["marker"]["symbol"], "circle-open")
+            self.assertEqual(trace["marker"]["color"], PCA_OVERLAY_COLOUR)
+            self.assertEqual(trace["legendgrouptitle"]["text"], PCA_SIZE_KEY_TITLE)
+
+    def test_the_size_key_draws_no_point_and_comes_last_in_the_legend(self) -> None:
+        """A key adds legend entries, not wells, and ranks after every other entry."""
+        for trace in _size_key(self.pca):
+            self.assertEqual((trace["x"], trace["y"]), ([None], [None]))
+            self.assertEqual(trace["hoverinfo"], "skip")
+            self.assertGreater(trace["legendrank"], 1000)
+        for trace in _well_traces(self.pca):
+            self.assertNotIn("legendrank", trace, trace["name"])
+
+    def test_a_fit_at_one_dose_has_a_one_entry_size_key(self) -> None:
+        """Every dosed well at 3 µM: one entry, at the size a single dose is drawn."""
+        wells = [(*well[:2], 3.0 if well[0] == "trt" else well[2], well[3]) for well in PCA_WELLS]
+        pca = _build(_pca_table(wells))["pca"]
+        key = _size_key(pca)
+
+        self.assertEqual([trace["name"] for trace in key], ["3 µM"])
+        self.assertEqual(key[0]["marker"]["size"], sum(PCA_DOSE_MARKER_SIZES) / 2)
+
+    def test_the_toolbar_offers_no_selection_tool(self) -> None:
+        """Box and lasso select select nothing here, so the figure's own layout drops them."""
+        self.assertEqual(self.pca["layout"]["modebar"], {"remove": ["select2d", "lasso2d"]})
+
+    def test_the_legend_sits_below_the_plot_inside_a_pinned_bottom_margin(self) -> None:
+        """Horizontal, under the axis, and capped to the margin it sits in.
+
+        So it never pushes the margin, and the plot area does not depend on how
+        many entries the legend has.
+        """
+        layout = self.pca["layout"]
+        legend = layout["legend"]
+        top = legend["y"] * PCA_FIGURE_HEIGHT
+
+        self.assertEqual(legend["orientation"], "h")
+        self.assertEqual(legend["title"]["side"], "top")
+        self.assertEqual((legend["xref"], legend["yref"]), ("container", "container"))
+        self.assertEqual(legend["yanchor"], "top")
+        self.assertLess(top, layout["margin"]["b"])
+        self.assertAlmostEqual(legend["maxheight"], top)
+        self.assertEqual(set(layout["margin"]), {"t", "b"})
 
 
 class DrrTwoDimensionalArraySerialisationTests(SimpleTestCase):
