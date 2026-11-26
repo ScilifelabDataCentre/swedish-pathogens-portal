@@ -9,7 +9,7 @@ dependencies = [
     "django-allauth[mfa]==65.22.1",
     "django-environ==0.14.0",
     "django-htmx==1.29.0",
-    "django-structlog==10.1.0",
+    "django-structlog==11.0.0",
     "fastexcel==0.21.0",
     "httpx==0.28.1",
     "nh3==0.3.8",
