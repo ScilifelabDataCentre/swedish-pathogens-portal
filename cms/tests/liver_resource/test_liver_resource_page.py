@@ -61,7 +61,7 @@ class TestLiverResourceDashboardPageModel(LiverResourcePageTestCase):
         """Test that the liver page uses its dedicated template."""
         self.assertEqual(
             LiverResourceDashboardPage.template,
-            "cms/pages/liver_resource.html",
+            "cms/pages/liver_resource/index.html",
         )
 
     def test_liver_content_stream_includes_hepagene_panel(self) -> None:

@@ -60,7 +60,7 @@ class LiverResourceDashboardPage(RoutablePageMixin, DashboardPage):
     sidebar example DE file is ``DashboardData.source_file`` for this slug.
     """
 
-    template = "cms/pages/liver_resource.html"
+    template = "cms/pages/liver_resource/index.html"
     max_count = 1
 
     # Liver-only StreamField: shared dashboard blocks + HepaGeNIE panel.
