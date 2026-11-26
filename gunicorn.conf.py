@@ -1,23 +1,11 @@
 """Gunicorn settings, loaded by prod-entrypoint.sh."""
 
-import structlog
+from core.settings.base import LOGGING as DJANGO_LOGGING
 
-# Log gunicorn's error log (startup, worker boots, errors) as JSON, matching Django's
-# json_formatter in core/settings/base.py. Configuring gunicorn.error replaces gunicorn's
-# own plain text handler.
+# Log gunicorn's error log (startup, worker boots, errors) as JSON instead of gunicorn's
+# default plain text. Reuses Django's json_formatter so both log in the same format.
 logconfig_dict = {
-    "formatters": {
-        "json": {
-            "()": structlog.stdlib.ProcessorFormatter,
-            "processor": structlog.processors.JSONRenderer(),
-            "foreign_pre_chain": [
-                structlog.stdlib.add_logger_name,
-                structlog.stdlib.add_log_level,
-                structlog.processors.TimeStamper(fmt="iso"),
-                structlog.processors.format_exc_info,
-            ],
-        },
-    },
+    "formatters": {"json": DJANGO_LOGGING["formatters"]["json_formatter"]},
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
