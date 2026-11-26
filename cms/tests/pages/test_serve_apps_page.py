@@ -104,7 +104,9 @@ class TestServeAppsPage(WagtailPageTestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertTemplateUsed(response, "cms/pages/serve_apps/index.html")
-        self.assertContains(response, '<h1 class="sr-only">Models and apps</h1>', count=1)
+        # the page's only <h1> is rendered by base.html, not by the Serve apps block
+        self.assertContains(response, "Models and apps</h1>")
+        self.assertContains(response, "<h1", count=1)
         self.assertContains(response, 'id="serve-search-input" name="q" value="malaria"')
         self.assertContains(response, 'hx-get="/models-and-apps/?q=malaria"')
         mock_fetch.assert_not_called()
