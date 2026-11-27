@@ -49,7 +49,7 @@ jobs:
     services:
       postgres:
         # Same image as compose.yaml
-        image: postgres:18.7-trixie@sha256:f5cbc081c25690710f3fc6f4c61a7565382bae01ca0d0f2028a53d7926b85a20
+        image: postgres:19.0-trixie@sha256:aaa10f7ba7328b4a221a6c3184d83eef885bd16bf1f6de864757863156b0a4d1
         env:
           POSTGRES_PASSWORD: ci-not-a-secret  # A throwaway service, not a credential
           POSTGRES_DB: pathogens_portal
