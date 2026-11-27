@@ -15,6 +15,7 @@ from pathlib import Path
 
 import environ
 import structlog
+from cryptography.fernet import Fernet
 
 from core.log_processors import drop_successful_health_checks
 
@@ -57,8 +58,20 @@ ACCOUNT_REAUTHENTICATION_REQUIRED = True
 # Django allauth MFA settings, can be overridden in environment-specific settings files.
 # Reference: https://docs.allauth.org/en/latest/mfa/configuration.html
 # ------------------------------------------------------------------------------
+MFA_ADAPTER = "core.allauth.adapters.SppMFAAdapter"
 MFA_ALLOW_UNVERIFIED_EMAIL = False
 MFA_REAUTHENTICATION_REQUIRED = True
+
+# This is not an official allauth setting, but the MFA_SECRET_KEY is used in the
+# SppMFAAdapter to encrypt/decrypt MFA secrets before storing them in the database.
+# It must be a list of 32-byte URL-safe base64-encoded secret keys generated using
+# Fernet.generate_key(). Though typically it will contain a single key, reading it
+# as list allows for multiple keys to be provided as a comma-separated list in the
+# .env file for key rotation.
+#
+# The MFA_SECRET_KEY is required in production, but for test and dev environments,
+# a new key is generated for each run to avoid depending on an environment variable.
+MFA_SECRET_KEY = [Fernet.generate_key().decode()]
 
 
 # Base WAGTAIL settings, can be overridden in environment-specific settings files.
