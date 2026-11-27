@@ -7,7 +7,7 @@ from unittest.mock import MagicMock, patch
 from django.core.cache import cache
 from django.test import SimpleTestCase
 
-from portal_data.ebi_search import (
+from portal_data.ebi.search import (
     BASE_QUERY,
     DATA_TYPES,
     EBI_SEARCH_URL,
@@ -212,7 +212,7 @@ class TestSearch(SimpleTestCase):
         """Clear the cache so results don't leak between tests."""
         cache.clear()
 
-    @patch("portal_data.ebi_search.fetch_json")
+    @patch("portal_data.ebi.search.fetch_json")
     def test_request_params(self, mock_fetch: MagicMock):
         """Test the domain, query, fields, paging, facets and sort are sent."""
         mock_fetch.return_value = ebi_response()
@@ -237,7 +237,7 @@ class TestSearch(SimpleTestCase):
         )
         self.assertEqual(params["sort"], "collection_date:descending")
 
-    @patch("portal_data.ebi_search.fetch_json")
+    @patch("portal_data.ebi.search.fetch_json")
     def test_unsortable_sort_unknown_facets_and_big_pages_are_dropped(self, mock_fetch: MagicMock):
         """Test only sortable fields, known facets and valid page sizes reach EBI Search."""
         mock_fetch.return_value = ebi_response()
@@ -252,7 +252,7 @@ class TestSearch(SimpleTestCase):
         self.assertNotIn("facets", params)
         self.assertEqual(params["size"], MAX_PAGE_SIZE)
 
-    @patch("portal_data.ebi_search.fetch_json")
+    @patch("portal_data.ebi.search.fetch_json")
     def test_bracketed_facet_values_are_added_to_the_query(self, mock_fetch: MagicMock):
         """Test regex facet filters are ANDed onto the search query, others stay facets."""
         mock_fetch.return_value = ebi_response()
@@ -268,7 +268,7 @@ class TestSearch(SimpleTestCase):
         )
         self.assertEqual(params["facets"], "classification:viruses")
 
-    @patch("portal_data.ebi_search.fetch_json")
+    @patch("portal_data.ebi.search.fetch_json")
     def test_records_are_parsed(self, mock_fetch: MagicMock):
         """Test entries become rows: dates formatted, lists joined, taxon ids linked."""
         mock_fetch.return_value = ebi_response(
@@ -309,7 +309,7 @@ class TestSearch(SimpleTestCase):
             ),
         )
 
-    @patch("portal_data.ebi_search.fetch_json")
+    @patch("portal_data.ebi.search.fetch_json")
     def test_facets_are_parsed_in_order_with_selection(self, mock_fetch: MagicMock):
         """Test facets follow FACET_FIELDS order, skip unknown/comma values, mark selection."""
         mock_fetch.return_value = ebi_response(
@@ -350,7 +350,7 @@ class TestSearch(SimpleTestCase):
         host = result.facets[2]
         self.assertEqual([v.value for v in host.values], ["Homo sapiens", "A, B"])
 
-    @patch("portal_data.ebi_search.fetch_json")
+    @patch("portal_data.ebi.search.fetch_json")
     def test_facet_value_labels_are_capitalised_but_values_unchanged(self, mock_fetch: MagicMock):
         """Test labels are shown cleaned up while the value sent as a filter stays as-is."""
         mock_fetch.return_value = ebi_response(
@@ -365,7 +365,7 @@ class TestSearch(SimpleTestCase):
         value = search(DATA_TYPES["sequences"]).facets[0].values[0]
         self.assertEqual((value.value, value.label), ("[mallard]", "Mallard"))
 
-    @patch("portal_data.ebi_search.fetch_json")
+    @patch("portal_data.ebi.search.fetch_json")
     def test_region_facet_is_labelled_location(self, mock_fetch: MagicMock):
         """Test the region facet is shown as "Location" rather than EBI's "Region"."""
         mock_fetch.return_value = ebi_response(
@@ -380,7 +380,7 @@ class TestSearch(SimpleTestCase):
         result = search(RAW_READS)
         self.assertEqual([(f.field, f.label) for f in result.facets], [("region", "Location")])
 
-    @patch("portal_data.ebi_search.fetch_json")
+    @patch("portal_data.ebi.search.fetch_json")
     def test_results_are_cached(self, mock_fetch: MagicMock):
         """Test identical searches are served from the cache."""
         mock_fetch.return_value = ebi_response()
@@ -389,14 +389,29 @@ class TestSearch(SimpleTestCase):
         search(RAW_READS, start=25)
         self.assertEqual(mock_fetch.call_count, 2)
 
-    @patch("portal_data.ebi_search.fetch_json")
+    @patch("portal_data.ebi.search.fetch_json")
     def test_failed_or_invalid_response_returns_none(self, mock_fetch: MagicMock):
         """Test a failed request or unexpected body returns None."""
         mock_fetch.return_value = None
         self.assertIsNone(search(RAW_READS))
         mock_fetch.return_value = {"diagnostics": {"message": "bad"}}
-        with self.assertLogs("portal_data.ebi_search", level="ERROR"):
+        with self.assertLogs("portal_data.ebi.search", level="ERROR"):
             self.assertIsNone(search(RAW_READS, start=1))
+
+    @patch("portal_data.ebi.search.SEARCH_CACHE_TTL_SECONDS", 0)
+    @patch("portal_data.ebi.search.fetch_json")
+    def test_last_good_results_are_served_marked_stale_when_ebi_fails(self, mock_fetch: MagicMock):
+        """Test a failed search falls back to the last good results, marked as stale."""
+        mock_fetch.return_value = ebi_response(total=5)
+        fresh = search(RAW_READS)
+        self.assertIsNone(fresh.stale_since)
+
+        mock_fetch.return_value = None
+        with self.assertLogs("cms.services.caching", level="WARNING"):
+            stale = search(RAW_READS)
+        self.assertEqual(mock_fetch.call_count, 2)
+        self.assertEqual(stale.total, 5)
+        self.assertIsNotNone(stale.stale_since)
 
 
 class TestFetchCount(SimpleTestCase):
@@ -406,7 +421,7 @@ class TestFetchCount(SimpleTestCase):
         """Clear the cache so results don't leak between tests."""
         cache.clear()
 
-    @patch("portal_data.ebi_search.fetch_json")
+    @patch("portal_data.ebi.search.fetch_json")
     def test_count(self, mock_fetch: MagicMock):
         """Test the hit count is returned, asking for no entries or facets."""
         mock_fetch.return_value = {"hitCount": 18960}
@@ -416,8 +431,18 @@ class TestFetchCount(SimpleTestCase):
         self.assertEqual(params["facetcount"], 0)
         self.assertEqual(params["query"], f"{BASE_QUERY} AND (coli*)")
 
-    @patch("portal_data.ebi_search.fetch_json")
+    @patch("portal_data.ebi.search.fetch_json")
     def test_failure_returns_none(self, mock_fetch: MagicMock):
         """Test a failed request returns None."""
         mock_fetch.return_value = None
         self.assertIsNone(fetch_count(RAW_READS))
+
+    @patch("portal_data.ebi.search.COUNT_CACHE_TTL_SECONDS", 0)
+    @patch("portal_data.ebi.search.fetch_json")
+    def test_failure_falls_back_to_last_good_count(self, mock_fetch: MagicMock):
+        """Test a failed count falls back to the last good count."""
+        mock_fetch.return_value = {"hitCount": 42}
+        self.assertEqual(fetch_count(RAW_READS), 42)
+        mock_fetch.return_value = None
+        with self.assertLogs("cms.services.caching", level="WARNING"):
+            self.assertEqual(fetch_count(RAW_READS), 42)

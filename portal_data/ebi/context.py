@@ -1,9 +1,11 @@
-"""Service functions for the Genomic data page.
+"""Template context builders for the Genomic data page.
 
 Responsible for:
 (1) reading the selected data type, search words, facets, sort and page from the request.
 (2) searching EBI Search's ENA pathogen indexes for one page of Swedish records.
 (3) building the context for the listing partial template.
+
+Downloads are served by ``portal_data.ebi.views``.
 """
 
 from __future__ import annotations
@@ -14,11 +16,13 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any
 
+import structlog
 from django.core.paginator import Paginator
 from django.http import HttpRequest
 from django.utils.http import urlencode
 
-from portal_data.ebi_search import (
+from portal_data.ebi.download import METADATA_FORMATS, data_formats
+from portal_data.ebi.search import (
     DATA_TYPES,
     DEFAULT_DATA_TYPE,
     FACET_FIELDS,
@@ -32,6 +36,8 @@ from portal_data.ebi_search import (
 
 if TYPE_CHECKING:
     from cms.pages.genomic_data import GenomicDataPage
+
+LOGGER = structlog.get_logger(__name__)
 
 # Results per page the visitor can choose from, and the one used by default.
 # The accession column is always first, always shown and always sortable.
@@ -223,6 +229,8 @@ def build_context_dict(request: HttpRequest, page: GenomicDataPage | None = None
         "facets_active": bool(state.facets),
         "clear_facets_url": state.url(path, facets={}),
         "fetch_error": result is None,
+        # when EBI Search is down, the last good results are shown instead, marked as such
+        "stale_since": None,
         "records": [],
         "page_obj": None,
         "sort_headers": [],
@@ -232,6 +240,7 @@ def build_context_dict(request: HttpRequest, page: GenomicDataPage | None = None
     if result is None:
         return context
 
+    context["stale_since"] = result.stale_since
     context["facets"] = []
     for facet in result.facets:
         values = [
@@ -282,6 +291,7 @@ def build_context_dict(request: HttpRequest, page: GenomicDataPage | None = None
     context.update(
         {
             "records": result.records,
+            "stale_since": result.stale_since,
             "page_obj": page_obj,
             "total_display": _format_count(result.total),
             "start_display": _format_count(page_obj.start_index()),
@@ -309,6 +319,10 @@ def build_context_dict(request: HttpRequest, page: GenomicDataPage | None = None
             ],
             # the columns visitors can show or hide (the accession is always shown)
             "columns": data_type.columns,
+            # the download dialog's options, matching the central Pathogens Portal
+            "total": result.total,
+            "download_data_formats": data_formats(data_type),
+            "download_metadata_formats": METADATA_FORMATS,
         }
     )
     return context

@@ -5,19 +5,20 @@ from __future__ import annotations
 import threading
 from unittest.mock import MagicMock, patch
 
+import httpx
 from django.core.cache import cache
 from django.test import RequestFactory
 from wagtail.models import Page, Site
 from wagtail.test.utils import WagtailPageTestCase
 
 from cms.pages import GenomicDataPage, HomePage
-from cms.services.genomic_data import (
+from portal_data.ebi.context import (
     DEFAULT_PAGE_SIZE,
     Sort,
     build_context_dict,
     resolve_state,
 )
-from portal_data.ebi_search import DATA_TYPES
+from portal_data.ebi.search import DATA_TYPES
 
 
 def fake_ebi_search(total: int = 3, facets: list[dict] | None = None) -> MagicMock:
@@ -110,7 +111,7 @@ class TestGenomicDataPage(WagtailPageTestCase):
         self.assertAllowedParentPageTypes(GenomicDataPage, {HomePage})
         self.assertAllowedSubpageTypes(GenomicDataPage, set())
 
-    @patch("portal_data.ebi_search.fetch_json")
+    @patch("portal_data.ebi.search.fetch_json")
     def test_full_page_renders_search_form_without_calling_ebi(self, mock_fetch: MagicMock):
         """Test the full page has the search box and lazy-load container, but no API calls."""
         response = self.client.get(self.page.url, {"q": "coli", "type": "samples"})
@@ -120,11 +121,13 @@ class TestGenomicDataPage(WagtailPageTestCase):
         # the page's only <h1> is the banner, rendered by base.html
         self.assertContains(response, "Genomic data</h1>")
         self.assertContains(response, "<h1", count=1)
-        self.assertContains(response, 'href="/genomic-data/" class="btn btn-outline btn-sm"')
+        self.assertContains(
+            response, 'href="/genomic-data/" class="btn btn-outline btn-sm hover:no-underline"'
+        )
         self.assertContains(response, 'hx-get="/genomic-data/?q=coli&amp;type=samples"')
         mock_fetch.assert_not_called()
 
-    @patch("portal_data.ebi_search.fetch_json")
+    @patch("portal_data.ebi.search.fetch_json")
     def test_htmx_history_restore_gets_full_page(self, mock_fetch: MagicMock):
         """Test an HTMX history restore request gets the full page, not the partial."""
         response = self.client.get(
@@ -135,7 +138,7 @@ class TestGenomicDataPage(WagtailPageTestCase):
 
     # --- Listing ------------------------------------------------------------------
 
-    @patch("portal_data.ebi_search.fetch_json")
+    @patch("portal_data.ebi.search.fetch_json")
     def test_default_listing(self, mock_fetch: MagicMock):
         """Test the default listing shows sequences, tab counts and linked rows."""
         mock_fetch.side_effect = fake_ebi_search(total=3).side_effect
@@ -152,7 +155,7 @@ class TestGenomicDataPage(WagtailPageTestCase):
             self.searches(mock_fetch)[0]["query"], '(country:"Sweden") AND tag:pathogen'
         )
 
-    @patch("portal_data.ebi_search.fetch_json")
+    @patch("portal_data.ebi.search.fetch_json")
     def test_counts_and_search_are_requested_concurrently(self, mock_fetch: MagicMock):
         """Test the search doesn't wait for the counts: all six requests are in flight at once.
 
@@ -172,7 +175,7 @@ class TestGenomicDataPage(WagtailPageTestCase):
         self.assertEqual(mock_fetch.call_count, len(DATA_TYPES) + 1)
         self.assertContains(response, "Showing 1 to 3 of 3 sequences from Sweden")
 
-    @patch("portal_data.ebi_search.fetch_json")
+    @patch("portal_data.ebi.search.fetch_json")
     def test_column_chooser_and_table_layout(self, mock_fetch: MagicMock):
         """Test the column chooser, per-column cell markers and the sticky accession column."""
         mock_fetch.side_effect = fake_ebi_search(total=3).side_effect
@@ -191,11 +194,9 @@ class TestGenomicDataPage(WagtailPageTestCase):
         self.assertIn('data-col="acc"', content)
         self.assertNotRegex(content, r'column-toggle"\s+data-col="acc"')
         self.assertIn('<table class="table table-sm" data-data-type="raw-reads">', content)
-        self.assertIn(
-            'class="sticky left-0 z-10 whitespace-nowrap bg-base-100 font-normal"', content
-        )
+        self.assertIn('class="sticky left-0 whitespace-nowrap bg-base-100 font-normal"', content)
 
-    @patch("portal_data.ebi_search.fetch_json")
+    @patch("portal_data.ebi.search.fetch_json")
     def test_long_text_is_capped_with_full_text_in_tooltip(self, mock_fetch: MagicMock):
         """Test descriptions are capped at two lines, with the full text kept in a tooltip."""
         description = "Influenza A virus (A/mallard/Sweden/101558/2009(mixed)) segment 4 " * 3
@@ -214,7 +215,7 @@ class TestGenomicDataPage(WagtailPageTestCase):
         response = self.get_htmx({"type": "sequences"})
         self.assertContains(response, f'<span class="line-clamp-2" title="{description.strip()}">')
 
-    @patch("portal_data.ebi_search.fetch_json")
+    @patch("portal_data.ebi.search.fetch_json")
     def test_long_facet_labels_can_wrap(self, mock_fetch: MagicMock):
         """Test facet labels may wrap anywhere, so very long names stay inside their box."""
         mock_fetch.side_effect = fake_ebi_search(facets=[CLASSIFICATION]).side_effect
@@ -223,7 +224,7 @@ class TestGenomicDataPage(WagtailPageTestCase):
             '<span class="min-w-0 text-sm [overflow-wrap:anywhere]">Bacteria</span>',
         )
 
-    @patch("portal_data.ebi_search.fetch_json")
+    @patch("portal_data.ebi.search.fetch_json")
     def test_data_type_selects_the_index(self, mock_fetch: MagicMock):
         """Test the ``type`` parameter picks the EBI Search domain."""
         mock_fetch.side_effect = fake_ebi_search().side_effect
@@ -233,7 +234,7 @@ class TestGenomicDataPage(WagtailPageTestCase):
         ]
         self.assertEqual(search_urls, ["https://www.ebi.ac.uk/ebisearch/ws/rest/sra-experiment"])
 
-    @patch("portal_data.ebi_search.fetch_json")
+    @patch("portal_data.ebi.search.fetch_json")
     def test_facets_are_rendered_as_labelled_checkboxes(self, mock_fetch: MagicMock):
         """Test facets render as fieldsets of checkboxes with counts and "Show more"."""
         mock_fetch.side_effect = fake_ebi_search(facets=[CLASSIFICATION, HOSTS]).side_effect
@@ -255,7 +256,7 @@ class TestGenomicDataPage(WagtailPageTestCase):
         self.assertIn('aria-expanded="false"', content)
         self.assertContains(response, "Clear all filters")
 
-    @patch("portal_data.ebi_search.fetch_json")
+    @patch("portal_data.ebi.search.fetch_json")
     def test_selected_hidden_facet_value_keeps_its_list_open(self, mock_fetch: MagicMock):
         """Test a ticked value beyond the first four keeps "Show more" expanded."""
         mock_fetch.side_effect = fake_ebi_search(facets=[HOSTS]).side_effect
@@ -264,7 +265,7 @@ class TestGenomicDataPage(WagtailPageTestCase):
         self.assertIn('aria-expanded="true"', content)
         self.assertIn("Show less", content)
 
-    @patch("portal_data.ebi_search.fetch_json")
+    @patch("portal_data.ebi.search.fetch_json")
     def test_selected_facets_and_search_are_sent(self, mock_fetch: MagicMock):
         """Test facet parameters and search words reach EBI Search."""
         mock_fetch.side_effect = fake_ebi_search().side_effect
@@ -273,7 +274,7 @@ class TestGenomicDataPage(WagtailPageTestCase):
         self.assertEqual(params["facets"], "classification:bacteria,classification:viruses")
         self.assertEqual(params["query"], '(country:"Sweden") AND tag:pathogen AND (coli*)')
 
-    @patch("portal_data.ebi_search.fetch_json")
+    @patch("portal_data.ebi.search.fetch_json")
     def test_pagination_requests_the_right_start(self, mock_fetch: MagicMock):
         """Test page 3 asks EBI Search for the third page, and links keep the state."""
         mock_fetch.side_effect = fake_ebi_search(total=DEFAULT_PAGE_SIZE * 10).side_effect
@@ -288,7 +289,7 @@ class TestGenomicDataPage(WagtailPageTestCase):
             response, "?type=raw-reads&amp;q=coli&amp;classification=bacteria&amp;page=4"
         )
 
-    @patch("portal_data.ebi_search.fetch_json")
+    @patch("portal_data.ebi.search.fetch_json")
     def test_page_size_can_be_chosen(self, mock_fetch: MagicMock):
         """Test a chosen page size is requested from EBI Search and kept in every link."""
         mock_fetch.side_effect = fake_ebi_search(total=500).side_effect
@@ -303,7 +304,7 @@ class TestGenomicDataPage(WagtailPageTestCase):
         self.assertContains(response, 'href="/genomic-data/?type=samples&amp;size=50"')
         self.assertContains(response, "sort=acc&amp;order=asc&amp;size=50")
 
-    @patch("portal_data.ebi_search.fetch_json")
+    @patch("portal_data.ebi.search.fetch_json")
     def test_default_page_size(self, mock_fetch: MagicMock):
         """Test the default page size is preselected and left out of links."""
         mock_fetch.side_effect = fake_ebi_search(total=500).side_effect
@@ -322,7 +323,7 @@ class TestGenomicDataPage(WagtailPageTestCase):
                 request = self.factory.get("/", {"size": size})
                 self.assertEqual(resolve_state(request).page_size, DEFAULT_PAGE_SIZE)
 
-    @patch("portal_data.ebi_search.fetch_json")
+    @patch("portal_data.ebi.search.fetch_json")
     def test_page_beyond_last_is_clamped(self, mock_fetch: MagicMock):
         """Test an out-of-range page shows the last page."""
         mock_fetch.side_effect = fake_ebi_search(total=30).side_effect
@@ -330,7 +331,7 @@ class TestGenomicDataPage(WagtailPageTestCase):
         self.assertContains(response, "Showing 26 to 30 of 30")
         self.assertEqual(self.searches(mock_fetch)[-1]["start"], DEFAULT_PAGE_SIZE)
 
-    @patch("portal_data.ebi_search.fetch_json")
+    @patch("portal_data.ebi.search.fetch_json")
     def test_sortable_headers(self, mock_fetch: MagicMock):
         """Test sortable columns link to sorting, the sorted one flips and has aria-sort."""
         mock_fetch.side_effect = fake_ebi_search().side_effect
@@ -345,7 +346,7 @@ class TestGenomicDataPage(WagtailPageTestCase):
         # checkbox changes keep the sort through hidden inputs
         self.assertContains(response, '<input type="hidden" name="sort" value="collection_date">')
 
-    @patch("portal_data.ebi_search.fetch_json")
+    @patch("portal_data.ebi.search.fetch_json")
     def test_type_tabs_keep_search_but_drop_facets_and_sort(self, mock_fetch: MagicMock):
         """Test switching data type keeps the search words only."""
         mock_fetch.side_effect = fake_ebi_search().side_effect
@@ -354,7 +355,7 @@ class TestGenomicDataPage(WagtailPageTestCase):
         )
         self.assertContains(response, 'href="/genomic-data/?type=samples&amp;q=coli"')
 
-    @patch("portal_data.ebi_search.fetch_json")
+    @patch("portal_data.ebi.search.fetch_json")
     def test_no_results(self, mock_fetch: MagicMock):
         """Test a search with no hits shows a message."""
         mock_fetch.side_effect = fake_ebi_search(total=0).side_effect
@@ -363,12 +364,158 @@ class TestGenomicDataPage(WagtailPageTestCase):
         self.assertContains(response, "No sequences from Sweden match your current search.")
         self.assertNotContains(response, "<table")
 
-    @patch("portal_data.ebi_search.fetch_json")
+    @patch("portal_data.ebi.search.fetch_json")
     def test_failure_shows_error(self, mock_fetch: MagicMock):
         """Test EBI Search being unreachable shows an error message."""
         mock_fetch.return_value = None
         response = self.get_htmx()
-        self.assertContains(response, "could not be loaded from ENA")
+        self.assertContains(response, "The sequences can't be shown right now")
+        self.assertContains(response, "isn't responding at the moment")
+        # with no facets to show, the filters column is left out and the message is full width
+        self.assertNotContains(response, 'aria-label="Filter results"')
+        self.assertContains(response, "lg:col-span-full")
+
+    @patch("portal_data.ebi.search.fetch_json")
+    def test_failure_with_filters_selected_keeps_clear_filters(self, mock_fetch: MagicMock):
+        """Test the filters column stays, with "Clear all filters", if filters are selected."""
+        mock_fetch.return_value = None
+        response = self.get_htmx({"host": "Homo sapiens"})
+        self.assertContains(response, "The sequences can't be shown right now")
+        self.assertContains(response, 'aria-label="Filter results"')
+        self.assertContains(response, "Clear all filters")
+        self.assertNotContains(response, "lg:col-span-full")
+
+    @patch("portal_data.ebi.search.COUNT_CACHE_TTL_SECONDS", 0)
+    @patch("portal_data.ebi.search.SEARCH_CACHE_TTL_SECONDS", 0)
+    @patch("portal_data.ebi.search.fetch_json")
+    def test_failure_shows_last_good_results_marked_out_of_date(self, mock_fetch: MagicMock):
+        """Test the last good results are shown, with a notice, when EBI Search fails."""
+        mock_fetch.side_effect = fake_ebi_search().side_effect
+        response = self.get_htmx()
+        self.assertNotContains(response, "may be out of date")
+
+        mock_fetch.side_effect = None
+        mock_fetch.return_value = None
+        with self.assertLogs("cms.services.caching", level="WARNING"):
+            response = self.get_htmx()
+        self.assertContains(response, "These results may be out of date")
+        self.assertContains(response, "<table")
+        self.assertNotContains(response, "can't be shown right now")
+
+    # --- Downloads ----------------------------------------------------------------
+
+    def download(self, data: dict, query: str = "") -> object:
+        """POST to the page's download route, with the view in the query string."""
+        return self.client.post(f"{self.page.url}download/{query}", data)
+
+    @patch("portal_data.ebi.search.fetch_json")
+    def test_listing_has_selection_and_download_dialog(self, mock_fetch: MagicMock):
+        """Test row checkboxes, the toolbar and the dialog with this data type's formats."""
+        mock_fetch.side_effect = fake_ebi_search(total=3).side_effect
+        content = self.get_htmx({"type": "sequences"}).content.decode()
+        self.assertIn('id="ena-select-page"', content)
+        self.assertIn('aria-label="Select all records on this page"', content)
+        self.assertRegex(content, r'class="ena-select[^"]*"\s+data-acc="ERX0"')
+        self.assertIn('id="ena-open-download"', content)
+        self.assertIn('<dialog id="ena-download-dialog"', content)
+        self.assertIn("All results (3)", content)
+        for key in ("embl", "fasta", "accessions", "tsv"):
+            self.assertRegex(content, rf'name="format" value="{key}" form="ena-download-form"')
+        self.assertNotIn('value="xml"', content)
+
+        content = self.get_htmx({"type": "raw-reads"}).content.decode()
+        self.assertIn('name="format" value="xml" form="ena-download-form"', content)
+        self.assertNotIn('value="fasta"', content)
+
+    @patch("portal_data.ebi.search.fetch_json")
+    def test_full_page_has_the_download_form(self, mock_fetch: MagicMock):
+        """Test the download form sits outside the search form, with a CSRF token."""
+        content = self.client.get(self.page.url).content.decode()
+        self.assertIn(
+            '<form id="ena-download-form" method="post" action="/genomic-data/download/"', content
+        )
+        form = content[content.index('<form id="ena-download-form"') :]
+        self.assertIn('name="csrfmiddlewaretoken"', form[: form.index("</form>")])
+        self.assertLess(content.index("</form>"), content.index('<form id="ena-download-form"'))
+
+    def test_download_requires_post(self):
+        """Test the download route only accepts POST."""
+        self.assertEqual(self.client.get(f"{self.page.url}download/").status_code, 405)
+
+    def test_download_rejects_invalid_requests(self):
+        """Test unknown formats and scopes, and an empty selection, are rejected."""
+        cases = [
+            ({"scope": "all", "format": "nonsense"}, "?type=raw-reads"),
+            ({"scope": "all", "format": "fasta"}, "?type=raw-reads"),  # FASTA is for sequences
+            ({"scope": "everything", "format": "tsv"}, ""),
+            ({"scope": "selected", "format": "tsv", "ids": ""}, ""),
+            ({"scope": "selected", "format": "tsv", "ids": "OR,AND"}, ""),
+        ]
+        for data, query in cases:
+            with self.subTest(data=data):
+                self.assertEqual(self.download(data, query).status_code, 400)
+
+    @patch("portal_data.ebi.download.CLIENT")
+    def test_download_selected_metadata_tsv(self, mock_client: MagicMock):
+        """Test selected records download as a TSV attachment named after the data type."""
+        mock_client.get.return_value = httpx.Response(
+            200,
+            text='"acc"\t"scientific_name"\n"ERX1"\t"Escherichia coli"\n',
+            request=httpx.Request("GET", "https://example.test"),
+        )
+        response = self.download(
+            {"scope": "selected", "format": "tsv", "ids": "ERX1,ERX2"}, "?type=raw-reads"
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/tab-separated-values; charset=utf-8")
+        self.assertRegex(
+            response["Content-Disposition"],
+            r'^attachment; filename="genomic-data-raw-reads-selected-metadata-'
+            r'\d{4}-\d{2}-\d{2}\.tsv"$',
+        )
+        body = b"".join(response.streaming_content).decode()
+        self.assertTrue(body.startswith("Accession\tOrganism\t"))
+        self.assertIn("ERX1\tEscherichia coli", body)
+        query = mock_client.get.call_args.kwargs["params"]["query"]
+        self.assertTrue(query.endswith("acc:(ERX1 OR ERX2)"))
+
+    @patch("portal_data.ebi.download.CLIENT")
+    def test_download_all_accessions_follows_the_current_view(self, mock_client: MagicMock):
+        """Test "all results" uses the search and facets from the query string."""
+        mock_client.get.return_value = httpx.Response(
+            200, text="ERX1\nERX2\n", request=httpx.Request("GET", "https://example.test")
+        )
+        response = self.download(
+            {"scope": "all", "format": "accessions"},
+            "?type=raw-reads&q=coli&classification=bacteria",
+        )
+        self.assertEqual(b"".join(response.streaming_content), b"ERX1\nERX2\n")
+        params = mock_client.get.call_args.kwargs["params"]
+        self.assertEqual(params["query"], '(country:"Sweden") AND tag:pathogen AND (coli*)')
+        self.assertEqual(params["facets"], "classification:bacteria")
+        self.assertIn("-all-accessions-", response["Content-Disposition"])
+
+    @patch("portal_data.ebi.download.CLIENT")
+    def test_download_selected_sequences_as_fasta(self, mock_client: MagicMock):
+        """Test sequence data comes from ENA's Browser API for the selected accessions."""
+        mock_client.post.return_value = httpx.Response(
+            200, content=b">PQ1\nACGT\n", request=httpx.Request("POST", "https://example.test")
+        )
+        response = self.download(
+            {"scope": "selected", "format": "fasta", "ids": "PQ1"}, "?type=sequences"
+        )
+        self.assertEqual(b"".join(response.streaming_content), b">PQ1\nACGT\n")
+        self.assertEqual(mock_client.post.call_args.kwargs["json"]["accessions"], "PQ1")
+        self.assertIn(".fasta", response["Content-Disposition"])
+
+    @patch("portal_data.ebi.download.CLIENT")
+    def test_download_when_ebi_is_down_shows_an_error(self, mock_client: MagicMock):
+        """Test a failure before any data is sent gives a 502 instead of a broken file."""
+        mock_client.get.side_effect = httpx.ConnectError("down")
+        with self.assertLogs(level="ERROR"):
+            response = self.download({"scope": "all", "format": "accessions"})
+        self.assertEqual(response.status_code, 502)
+        self.assertIn(b"Please try again later.", response.content)
 
     # --- Service helpers ----------------------------------------------------------
 
@@ -400,7 +547,7 @@ class TestGenomicDataPage(WagtailPageTestCase):
                 )
                 self.assertEqual(resolve_state(request).sort, Sort("acc", descending))
 
-    @patch("portal_data.ebi_search.fetch_json")
+    @patch("portal_data.ebi.search.fetch_json")
     def test_invalid_page_number_defaults_to_first_page(self, mock_fetch: MagicMock):
         """Test a non-numeric page parameter is treated as page 1."""
         mock_fetch.side_effect = fake_ebi_search(total=30).side_effect
