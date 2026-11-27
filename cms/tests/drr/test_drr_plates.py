@@ -14,6 +14,7 @@ from dashboard_visualisation.drr.plates import (
     exclude_plates,
     excluded_plates,
     load_plate_metadata,
+    plate_basis_token,
     unresolved_rows,
 )
 
@@ -58,6 +59,22 @@ class ExcludedPlatesTests(SimpleTestCase):
             self.assertIsInstance(stems, tuple, slug)
             for stem in stems:
                 self.assertNotIn("_", stem, slug)
+
+
+class PlateBasisTokenTests(SimpleTestCase):
+    """The digest token names a basis as a set of stems (FREYA-3128)."""
+
+    def test_the_token_is_the_sorted_stems(self) -> None:
+        """Declaration order does not reach the token."""
+        self.assertEqual(
+            plate_basis_token(("P103588", "P103572", "P103587", "P103573")),
+            "plate-basis:P103572,P103573,P103587,P103588",
+        )
+
+    def test_an_empty_basis_is_a_basis_of_its_own(self) -> None:
+        """Publishing every plate is a visible answer, distinct from any exclusion."""
+        self.assertEqual(plate_basis_token(()), "plate-basis:")
+        self.assertNotEqual(plate_basis_token(()), plate_basis_token(NEVER_DEPOSITED))
 
 
 class ExcludePlatesTests(SimpleTestCase):

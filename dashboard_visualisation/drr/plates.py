@@ -67,6 +67,25 @@ def excluded_plates(dataset_slug: str) -> tuple[str, ...]:
         ) from error
 
 
+def plate_basis_token(stems: tuple[str, ...]) -> str:
+    """Return a token naming the plate basis, for the digests.
+
+    Changing the basis moves every artefact while no input file moves, so
+    without it both digests would stay put: the render caches keyed on
+    ``source_file_hash`` would serve the previous figures for a day, and the
+    data-updated date would not see new data (FREYA-3128). The token goes into
+    the digests only; the stems themselves stay out of every artefact.
+
+    Args:
+        stems: The plate stems the run leaves out.
+
+    Returns:
+        The stems sorted, so declaration order is no change, and present even
+        when empty, so "no plate excluded" is a basis of its own.
+    """
+    return "plate-basis:" + ",".join(sorted(stems))
+
+
 def _plate_stem(column: str) -> pl.Expr:
     """Return the plate stem of a barcode column: everything before the first ``_``.
 

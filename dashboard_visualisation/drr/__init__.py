@@ -41,6 +41,7 @@ from .plates import (
     excluded_plates,
     load_plate_metadata,
     plate_basis_report,
+    plate_basis_token,
     unresolved_rows,
 )
 from .radar import (
@@ -114,6 +115,7 @@ __all__ = [
     "oversized_figures",
     "pca_fit_report",
     "plate_basis_report",
+    "plate_basis_token",
     "population_label",
     "present_channels",
     "reconciliation_report",

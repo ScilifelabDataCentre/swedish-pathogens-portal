@@ -30,6 +30,7 @@ from dashboard_visualisation.drr.figures import (
     clip_figure_values,
 )
 from dashboard_visualisation.drr.loader import load_feature_table
+from dashboard_visualisation.drr.plates import EXCLUDED_PLATES
 from dashboard_visualisation.drr.radar import POPULATION_LABELS
 
 # The registered screen: its channel-to-stain map is what the run resolves, and
@@ -1142,6 +1143,63 @@ class DrrPrecomputeTests(TestCase):
 
         self.assertEqual(second["sha256"], first["sha256"])
         self.assertNotEqual(second["inputs_sha256"], first["inputs_sha256"])
+
+    def _digests(self) -> tuple[str, str, str]:
+        """Return the feature, inputs and render-cache digests of the last run."""
+        source = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))["source"]
+        return (
+            source["sha256"],
+            source["inputs_sha256"],
+            DrrDatasetData.get_data(SLUG).source_file_hash,
+        )
+
+    def test_a_changed_plate_basis_moves_both_digests(self) -> None:
+        """Another basis on byte-identical files is another data set (FREYA-3128).
+
+        Every artefact moves with the basis while no input file does, so without
+        the basis in both digests the render caches would keep the old figures for
+        a day and the data-updated date would not see the change.
+        """
+        self._run()
+        feature_sha, inputs_sha, source_hash = self._digests()
+
+        registered = EXCLUDED_PLATES[SLUG]
+        for basis in (registered[1:], ()):
+            with self.subTest(basis=basis), patch.dict(EXCLUDED_PLATES, {SLUG: basis}):
+                self._run()
+                second_feature_sha, second_inputs_sha, second_source_hash = self._digests()
+
+                self.assertEqual(second_feature_sha, feature_sha)
+                self.assertNotEqual(second_inputs_sha, inputs_sha)
+                self.assertNotEqual(second_source_hash, source_hash)
+
+    def test_the_plate_basis_digest_ignores_the_order_of_its_stems(self) -> None:
+        """The basis is a set of plates, so declaring it in another order is no change."""
+        self._run()
+        first = self._digests()
+
+        with patch.dict(EXCLUDED_PLATES, {SLUG: tuple(reversed(EXCLUDED_PLATES[SLUG]))}):
+            self._run()
+
+        self.assertEqual(self._digests(), first)
+
+    def test_an_unchanged_basis_reproduces_both_digests(self) -> None:
+        """Same files, same basis: all three digests come out identical."""
+        self._run()
+        first = self._digests()
+
+        self._run()
+
+        self.assertEqual(self._digests(), first)
+
+    def test_summary_names_no_excluded_stem(self) -> None:
+        """The basis reaches the digests only: its stems stay out of summary.json (FREYA-3008)."""
+        self._run()
+        text = (self.out_dir / "summary.json").read_text(encoding="utf-8")
+
+        for stem in EXCLUDED_PLATES[SLUG]:
+            self.assertNotIn(stem, text)
+        self.assertNotIn("plate-basis", text)
 
     def test_table_s8_writes_one_row_per_treated_compound(self) -> None:
         """CBK1 and CBK3 are treated; CBK2 holds only controls and gets no row."""
