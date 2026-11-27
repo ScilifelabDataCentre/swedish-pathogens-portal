@@ -30,6 +30,7 @@ from dashboard_visualisation.drr.figures import (
     clip_figure_values,
 )
 from dashboard_visualisation.drr.loader import load_feature_table
+from dashboard_visualisation.drr.plates import EXCLUDED_PLATES
 from dashboard_visualisation.drr.radar import POPULATION_LABELS
 
 # The registered screen: its channel-to-stain map is what the run resolves, and
@@ -631,6 +632,23 @@ class DrrPrecomputeTests(TestCase):
 
         self.assertIn("compoundA (CBK1)", payload["layout"]["title"]["text"])
 
+    def test_a_radar_without_a_cbcs_name_is_titled_by_its_pert_iname(self) -> None:
+        """CBK3 has no CBCS row, so its radar is titled from the name lookup."""
+        names_path = self.base / "names.feather"
+        pl.DataFrame(
+            {
+                "cbkid": [*NAME_LOOKUP_ROWS["cbkid"], "CBK3"],
+                "pert_iname": [*NAME_LOOKUP_ROWS["pert_iname"], "nirmatrelvir"],
+                "pert_type": [*NAME_LOOKUP_ROWS["pert_type"], "trt"],
+            }
+        ).write_ipc(names_path, compression="zstd")
+        self._run(compound_names=str(names_path))
+        payload = json.loads(
+            (self.out_dir / "figures" / "radar" / "CBK3.json").read_text(encoding="utf-8")
+        )
+
+        self.assertIn("nirmatrelvir (CBK3)", payload["layout"]["title"]["text"])
+
     def test_the_index_records_each_radars_artefact_key(self) -> None:
         """The route resolves a reader's cbkid through this column, never by hand."""
         self._run()
@@ -851,7 +869,7 @@ class DrrPrecomputeTests(TestCase):
             ],
         )
         self.assertEqual(compounds["cbkid_normalized"].to_list(), ["CBK1", "CBK2", "CBK3"])
-        self.assertEqual(compounds["kind"].unique().to_list(), ["compound"])
+        self.assertEqual(compounds["kind"].to_list(), ["compound", "control", "compound"])
 
     def test_compound_names_are_joined_when_supplied(self) -> None:
         """The lookup adds pert_iname last; conditions and absent ids stay null."""
@@ -931,9 +949,9 @@ class DrrPrecomputeTests(TestCase):
         self._run()
         summary = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))
         recon = summary["compound_reconciliation"]
-        self.assertEqual(recon["n_compound_ids"], 3)
-        self.assertEqual(recon["n_control_ids"], 0)
-        self.assertEqual(recon["n_annotated"], 2)
+        self.assertEqual(recon["n_compound_ids"], 2)
+        self.assertEqual(recon["n_control_ids"], 1)
+        self.assertEqual(recon["n_annotated"], 1)
         self.assertEqual(recon["n_recovered"], 0)
         self.assertEqual(recon["n_unannotated"], 1)
         self.assertEqual(recon["unmatched_cbkids"], ["CBK3"])
@@ -1094,6 +1112,57 @@ class DrrPrecomputeTests(TestCase):
             self._run()
         self.assertFalse(self.out_dir.exists())
 
+    def test_a_zero_byte_plate_metadata_file_leaves_the_artefacts_untouched(self) -> None:
+        """An empty image-metadata file stops a re-run by name, before any write (FREYA-3129)."""
+        self._run()
+        before = self._artefact_bytes()
+        row = DrrDatasetData.get_data(SLUG)
+
+        self.plate_metadata_path.write_bytes(b"")
+        with self.assertRaisesMessage(CommandError, str(self.plate_metadata_path)):
+            self._run()
+
+        self.assertEqual(self._artefact_bytes(), before)
+        reloaded = DrrDatasetData.get_data(SLUG)
+        self.assertEqual(reloaded.source_file_hash, row.source_file_hash)
+        self.assertEqual(reloaded.data, row.data)
+
+    def test_a_missing_barcode_leaves_the_artefacts_untouched(self) -> None:
+        """Null and empty barcodes stop a re-run, counted, before any write (FREYA-3127)."""
+        self._run()
+        before = self._artefact_bytes()
+        row = DrrDatasetData.get_data(SLUG)
+
+        # A bare empty field reads as null, a quoted one as the empty string.
+        self.input_path.write_text(
+            FEATURE_CSV.replace("0;P1;A01;", "0;;A01;").replace("3;P2;B01;", '3;"";B01;'),
+            encoding="utf-8",
+        )
+        with self.assertRaisesMessage(CommandError, "2 row(s)"):
+            self._run()
+
+        self.assertEqual(self._artefact_bytes(), before)
+        reloaded = DrrDatasetData.get_data(SLUG)
+        self.assertEqual(reloaded.source_file_hash, row.source_file_hash)
+        self.assertEqual(reloaded.data, row.data)
+
+    def test_an_unclassifiable_id_leaves_the_artefacts_untouched(self) -> None:
+        """An id that is neither compound nor control stops a re-run by name (FREYA-3126)."""
+        self._run()
+        before = self._artefact_bytes()
+        row = DrrDatasetData.get_data(SLUG)
+
+        self.input_path.write_text(
+            FEATURE_CSV.replace(";trt;B1;10;CBK3;", ";av_con;B1;10;CBK3;"), encoding="utf-8"
+        )
+        with self.assertRaisesMessage(CommandError, "CBK3"):
+            self._run()
+
+        self.assertEqual(self._artefact_bytes(), before)
+        reloaded = DrrDatasetData.get_data(SLUG)
+        self.assertEqual(reloaded.source_file_hash, row.source_file_hash)
+        self.assertEqual(reloaded.data, row.data)
+
     def test_plate_metadata_is_an_input_to_the_digests(self) -> None:
         """A changed deposit record moves the inputs digest, as any input does."""
         self._run()
@@ -1108,6 +1177,72 @@ class DrrPrecomputeTests(TestCase):
 
         self.assertEqual(second["sha256"], first["sha256"])
         self.assertNotEqual(second["inputs_sha256"], first["inputs_sha256"])
+
+    def _digests(self) -> tuple[str, str, str]:
+        """Return the feature, inputs and render-cache digests of the last run."""
+        source = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))["source"]
+        return (
+            source["sha256"],
+            source["inputs_sha256"],
+            DrrDatasetData.get_data(SLUG).source_file_hash,
+        )
+
+    def test_a_changed_plate_basis_moves_both_digests(self) -> None:
+        """Another basis on byte-identical files is another data set (FREYA-3128).
+
+        Every artefact moves with the basis while no input file does, so without
+        the basis in both digests the render caches would keep the old figures for
+        a day and the data-updated date would not see the change.
+        """
+        self._run()
+        feature_sha, inputs_sha, source_hash = self._digests()
+
+        registered = EXCLUDED_PLATES[SLUG]
+        for basis in (registered[1:], ()):
+            with self.subTest(basis=basis), patch.dict(EXCLUDED_PLATES, {SLUG: basis}):
+                self._run()
+                second_feature_sha, second_inputs_sha, second_source_hash = self._digests()
+
+                self.assertEqual(second_feature_sha, feature_sha)
+                self.assertNotEqual(second_inputs_sha, inputs_sha)
+                self.assertNotEqual(second_source_hash, source_hash)
+
+    def test_the_plate_basis_digest_ignores_the_order_of_its_stems(self) -> None:
+        """The basis is a set of plates, so declaring it in another order is no change."""
+        self._run()
+        first = self._digests()
+
+        with patch.dict(EXCLUDED_PLATES, {SLUG: tuple(reversed(EXCLUDED_PLATES[SLUG]))}):
+            self._run()
+
+        self.assertEqual(self._digests(), first)
+
+        # No fixture row sits on an excluded plate, so only the basis itself can
+        # move the digests here.
+        with patch.dict(EXCLUDED_PLATES, {SLUG: ()}):
+            self._run()
+
+        _, inputs_sha, source_hash = self._digests()
+        self.assertNotEqual(inputs_sha, first[1])
+        self.assertNotEqual(source_hash, first[2])
+
+    def test_an_unchanged_basis_reproduces_both_digests(self) -> None:
+        """Same files, same basis: all three digests come out identical."""
+        self._run()
+        first = self._digests()
+
+        self._run()
+
+        self.assertEqual(self._digests(), first)
+
+    def test_summary_names_no_excluded_stem(self) -> None:
+        """The basis reaches the digests only: its stems stay out of summary.json (FREYA-3008)."""
+        self._run()
+        text = (self.out_dir / "summary.json").read_text(encoding="utf-8")
+
+        for stem in EXCLUDED_PLATES[SLUG]:
+            self.assertNotIn(stem, text)
+        self.assertNotIn("plate-basis", text)
 
     def test_table_s8_writes_one_row_per_treated_compound(self) -> None:
         """CBK1 and CBK3 are treated; CBK2 holds only controls and gets no row."""

@@ -50,12 +50,14 @@ LOGGER = structlog.get_logger(__name__)
 # legitimate ``cbkid`` values — so this sanitises the header only.
 _UNSAFE_FILENAME_CHARS = re.compile(r"[^A-Za-z0-9._-]")
 
-# The compound-index columns the pickers label from. ``name`` and ``kind`` are
-# read when present rather than required: an index built without CBCS metadata
-# carries neither, and the picker still has to offer every downloadable id.
+# The compound-index columns the pickers label from. Precompute always writes
+# ``cbkid`` and ``kind``; ``name`` and ``pert_iname`` are read when present rather
+# than required: an index built without CBCS metadata has no ``name``, one built
+# without the name lookup no ``pert_iname``, and the picker still has to offer
+# every downloadable id.
 # ``radar_key`` names the compound's per-compound radar on disk (FREYA-2636), and
 # ``pca_key`` its overlay on the PCA (FREYA-3202).
-_COMPOUND_OPTION_COLUMNS = ("cbkid", "name", "kind", "radar_key", "pca_key")
+_COMPOUND_OPTION_COLUMNS = ("cbkid", "name", "kind", "pert_iname", "radar_key", "pca_key")
 
 # The radars, in page order, rendered by the page's own radar partial rather
 # than placed as editorial PlotlyFigureBlocks, so the compound picker always
@@ -450,8 +452,10 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
         Reads ``compounds.parquet``, the index precompute builds by grouping the
         feature table, so the option set is exactly the set of ``cbkid`` values
         the per-compound slice can serve: no option 404s and no compound is
-        hidden behind one. Nothing is dropped — the compounds the CBCS join left
-        unannotated keep their bare id, and control placeholders keep theirs.
+        hidden behind one. Nothing is dropped — a compound the CBCS join left
+        unannotated is labelled by its ``pert_iname`` when the name lookup names
+        it and by its bare id when nothing does, and control placeholders keep
+        theirs.
 
         Every unreadable index yields no options rather than an exception: this
         read happens on each page view, precompute writes the file in place, and
@@ -509,17 +513,23 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
         """Return one compound's picker label.
 
         Args:
-            row: A ``compounds.parquet`` row: ``cbkid``, plus ``name`` and
-                ``kind`` when the index carries them.
+            row: A ``compounds.parquet`` row: ``cbkid``, plus ``name``, ``kind``
+                and ``pert_iname`` when the index carries them.
 
         Returns:
-            str: ``<name> (<cbkid>)`` once the CBCS join annotated the compound,
-                ``<cbkid> (control)`` for a non-CBCS control id, and the bare
-                ``cbkid`` for a compound the join did not annotate. The rule is
-                the precompute package's, so a swapped-in radar's title names
-                the compound exactly as the control that asked for it does.
+            str: ``<cbkid> (control)`` for a control id; otherwise
+                ``<name> (<cbkid>)`` once the CBCS join annotated the compound,
+                ``<pert_iname> (<cbkid>)`` when only the name lookup names it,
+                and the bare ``cbkid`` when neither does. The rule is the
+                precompute package's, so a swapped-in radar's title names the
+                compound exactly as the control that asked for it does.
         """
-        return compound_label(row["cbkid"], name=row.get("name"), kind=row.get("kind"))
+        return compound_label(
+            row["cbkid"],
+            name=row.get("name"),
+            kind=row.get("kind"),
+            pert_iname=row.get("pert_iname"),
+        )
 
     def _serve_artefact(self, request: HttpRequest, filename: str) -> FileResponse:
         """Serve one derived artefact from this dataset's directory.

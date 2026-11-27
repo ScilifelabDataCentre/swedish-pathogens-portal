@@ -514,9 +514,9 @@ class TestDrrCompoundPicker(DrrDatasetPageTestCase):
     offers is an id the route can serve, and every id it can serve is offered.
     That each one downloads is ``test_drr_compound_download.py``'s.
 
-    The fixture mirrors the real index's shape rather than only the three
-    columns the picker reads — including ``pert_iname``, which FREYA-2628 put
-    there and which this control deliberately does not label from.
+    The fixture mirrors the real index's shape rather than only the columns
+    the picker reads — including ``pert_iname``, which FREYA-2628 put there and
+    which labels a compound only when it has no CBCS name (FREYA-3126).
     """
 
     COMPOUND_INDEX_ROWS = {
@@ -594,6 +594,25 @@ class TestDrrCompoundPicker(DrrDatasetPageTestCase):
         self.write_compound_index()
 
         self.assertEqual([option["label"] for option in self.compounds()], self.EXPECTED_LABELS)
+
+    def test_a_compound_without_a_cbcs_name_is_labelled_by_its_pert_iname(self) -> None:
+        """Nirmatrelvir has no CBCS row, so the picker names it from the lookup."""
+        self.write_feature_table()
+        self.write_compound_index(
+            {
+                "cbkid": ["CBK1", "DO8167002"],
+                "cbkid_normalized": ["CBK1", None],
+                "kind": ["compound", "compound"],
+                "n_profiles": [2, 4],
+                "name": ["Remdesivir", None],
+                "pert_iname": ["gs-5734", "Nirmatrelvir"],
+            }
+        )
+
+        self.assertEqual(
+            [option["label"] for option in self.compounds()],
+            ["Nirmatrelvir (DO8167002)", "Remdesivir (CBK1)"],
+        )
 
     def test_every_downloadable_compound_is_offered_exactly_once(self) -> None:
         """The option set is the feature table's ``cbkid`` set: nothing hidden, nothing spurious."""

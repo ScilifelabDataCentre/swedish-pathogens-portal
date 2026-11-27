@@ -34,6 +34,8 @@ from typing import Any
 import polars as pl
 from django.utils.html import strip_tags
 
+from .compounds import compound_name
+
 # Table S8's own headers, mapped to ours. Its legend columns are ignored.
 S8_COLUMNS: dict[str, str] = {
     "Compound_name": "compound_name",
@@ -52,25 +54,23 @@ NOT_REPORTED = "not reported"
 TABLE_COLUMNS: list[str] = [
     "cbkid",
     "name",
+    "dose_um",
     "broad_moa",
     "broad_target",
     "morphology_score",
     "infection_rate_pct",
     "cell_count_pct",
-    "dose_um",
 ]
-_TEXT_COLUMNS = TABLE_COLUMNS[:4]
-_SCORE_COLUMNS = TABLE_COLUMNS[4:]
 
 TABLE_HEADERS: list[str] = [
     "Compound id",
     "Name",
+    "Dose (µM)",
     "Mechanism (broad MoA)",
     "Target",
     "Morphology score",
     "Infection rate (%)",
     "Cell count (%)",
-    "Dose (µM)",
 ]
 
 # Sort keys a reader may choose; a leading "-" sorts descending.
@@ -195,6 +195,10 @@ def build_compound_table(
     then on the index's CBCS ``name`` case-folded. Two ids may share one S8 name;
     both rows then show its score, and the name is reported.
 
+    The table's ``name`` is what the reader is shown, by the rule every compound
+    label uses (``compound_name``): the CBCS name, or ``pert_iname`` when that is
+    missing or blank, else null. No other column takes the fallback.
+
     Args:
         compound_index: The index precompute builds (``compounds.parquet``).
         treated: The treated ids, from ``treated_ids``.
@@ -218,11 +222,14 @@ def build_compound_table(
     for name in names:
         folded.setdefault(name.casefold(), name)
 
-    matches = [
-        _match_name((row["pert_iname"], row["name"]), exact, folded)
-        for row in index.select("pert_iname", "name").iter_rows(named=True)
-    ]
-    index = index.with_columns(pl.Series("compound_name", matches, dtype=pl.String))
+    rows = index.select("pert_iname", "name").rows(named=True)
+    matches = [_match_name((row["pert_iname"], row["name"]), exact, folded) for row in rows]
+    index = index.with_columns(
+        pl.Series("compound_name", matches, dtype=pl.String),
+        pl.Series(
+            "name", [compound_name(row["name"], row["pert_iname"]) for row in rows], dtype=pl.String
+        ),
+    )
 
     table = index.join(reduced, on="compound_name", how="left").select(TABLE_COLUMNS).sort("cbkid")
 
@@ -259,11 +266,13 @@ def table_rows(frame: pl.DataFrame) -> list[list[str]]:
         frame: A table with ``TABLE_COLUMNS``.
 
     Returns:
-        One list of strings per row; a missing score is ``NOT_REPORTED``.
+        One list of strings per row; a missing dose or score is ``NOT_REPORTED``.
     """
     return [
-        [row[column] or "" for column in _TEXT_COLUMNS]
-        + [_cell(row[column]) for column in _SCORE_COLUMNS]
+        [
+            _cell(row[column]) if column in _NUMERIC_COLUMNS else row[column] or ""
+            for column in TABLE_COLUMNS
+        ]
         for row in frame.select(TABLE_COLUMNS).iter_rows(named=True)
     ]
 
@@ -286,9 +295,9 @@ def select_rows(frame: pl.DataFrame, params: Mapping[str, str]) -> pl.DataFrame:
         params: The request's query parameters.
 
     Returns:
-        The selected rows, sorted, unscored rows last.
+        The selected rows in ``TABLE_COLUMNS`` order, sorted, unscored rows last.
     """
-    selected = frame
+    selected = frame.select(TABLE_COLUMNS)
     for parameter, (column, is_lower) in RANGE_FILTERS.items():
         bound = _number(params.get(parameter, ""))
         if bound is None:

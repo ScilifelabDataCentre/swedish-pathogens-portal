@@ -14,6 +14,7 @@ from dashboard_visualisation.drr.plates import (
     exclude_plates,
     excluded_plates,
     load_plate_metadata,
+    plate_basis_token,
     unresolved_rows,
 )
 
@@ -23,7 +24,7 @@ SLUG = "sars-cov2-a549-ace2-validation"
 NEVER_DEPOSITED = ("P103572", "P103573", "P103587", "P103588")
 
 
-def _table(barcodes: list[str], wells: list[str] | None = None) -> FeatureTable:
+def _table(barcodes: list[str | None], wells: list[str] | None = None) -> FeatureTable:
     """Build a minimal feature table with one row per barcode."""
     frame = pl.DataFrame(
         {
@@ -60,6 +61,26 @@ class ExcludedPlatesTests(SimpleTestCase):
                 self.assertNotIn("_", stem, slug)
 
 
+class PlateBasisTokenTests(SimpleTestCase):
+    """The digest token names a basis as a set of stems (FREYA-3128)."""
+
+    def test_the_token_is_the_sorted_stems(self) -> None:
+        """Declaration order does not reach the token."""
+        self.assertEqual(
+            plate_basis_token(("P103588", "P103572", "P103587", "P103573")),
+            "plate-basis:P103572,P103573,P103587,P103588",
+        )
+
+    def test_an_empty_basis_is_a_basis_of_its_own(self) -> None:
+        """Publishing every plate is a visible answer, distinct from any exclusion."""
+        self.assertEqual(plate_basis_token(()), "plate-basis:")
+        self.assertNotEqual(plate_basis_token(()), plate_basis_token(NEVER_DEPOSITED))
+
+    def test_a_repeated_stem_is_no_change(self) -> None:
+        """The basis is a set: naming a plate twice excludes nothing more."""
+        self.assertEqual(plate_basis_token(("P1", "P1")), plate_basis_token(("P1",)))
+
+
 class ExcludePlatesTests(SimpleTestCase):
     """The filter drops exactly the excluded stems and nothing else."""
 
@@ -92,6 +113,20 @@ class ExcludePlatesTests(SimpleTestCase):
 
         self.assertEqual(n_removed, 0)
         self.assertTrue(filtered.frame.equals(table.frame))
+
+    def test_a_null_barcode_raises_counting_the_rows(self) -> None:
+        """A row on no plate cannot be classified, so it is refused, not dropped (FREYA-3127)."""
+        table = _table([None, "P103554", *NEVER_DEPOSITED, None])
+
+        with self.assertRaisesMessage(ValueError, "2 row(s)"):
+            exclude_plates(table, NEVER_DEPOSITED)
+
+    def test_an_empty_barcode_raises_counting_the_rows(self) -> None:
+        """An empty barcode names no plate either, even with an empty basis (FREYA-3127)."""
+        table = _table(["P103554", ""])
+
+        with self.assertRaisesMessage(ValueError, "1 row(s)"):
+            exclude_plates(table, ())
 
 
 class UnresolvedRowsTests(SimpleTestCase):
@@ -138,3 +173,19 @@ class UnresolvedRowsTests(SimpleTestCase):
 
         with self.assertRaisesMessage(ValueError, "well_id"):
             load_plate_metadata(self.path)
+
+    def test_a_zero_byte_file_raises_naming_it(self) -> None:
+        """An empty file has no header to check, so it is refused by path (FREYA-3129)."""
+        self.path.write_bytes(b"")
+
+        with self.assertRaisesMessage(ValueError, str(self.path)):
+            load_plate_metadata(self.path)
+
+    def test_a_header_only_file_loads_as_zero_rows(self) -> None:
+        """A header without rows is still a file that answers: every row is unresolved."""
+        self.path.write_text("Files\tbarcode\twell_id\n", encoding="utf-8")
+
+        metadata = load_plate_metadata(self.path)
+
+        self.assertEqual(metadata.columns, ["plate_stem", "well_id", "archive_path"])
+        self.assertEqual(metadata.height, 0)

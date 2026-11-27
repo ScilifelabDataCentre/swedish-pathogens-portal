@@ -46,6 +46,7 @@ from dashboard_visualisation.drr import (
     name_lookup_report,
     oversized_figures,
     plate_basis_report,
+    plate_basis_token,
     reconciliation_report,
     reduce_to_compounds,
     require_populations,
@@ -142,9 +143,9 @@ class Command(BaseCommand):
         # (FREYA-3008).
         try:
             plate_stems = excluded_plates(slug)
+            table, n_rows_excluded = exclude_plates(table, plate_stems)
         except ValueError as error:
             raise CommandError(str(error)) from error
-        table, n_rows_excluded = exclude_plates(table, plate_stems)
         n_unresolved = unresolved_rows(table, plate_metadata)
         figure_columns = figure_feature_columns(table.feature_columns, channels)
         # Both radars are contrasts, so a table missing one of the populations
@@ -157,7 +158,10 @@ class Command(BaseCommand):
         except (ValueError, pl.exceptions.ColumnNotFoundError) as error:
             raise CommandError(str(error)) from error
 
-        compound_index = build_compound_index(table, metadata, names)
+        try:
+            compound_index = build_compound_index(table, metadata, names)
+        except ValueError as error:
+            raise CommandError(str(error)) from error
         reconciliation = reconciliation_report(compound_index)
         # The compound table (FREYA-3011): its rows are the treated compounds of
         # the published table, read from pert_type rather than from the id's
@@ -240,12 +244,13 @@ class Command(BaseCommand):
         feature_hash = self._hash_file(input_path)
         names_hash = self._hash_file(names_path) if names_path else None
         s8_hash = self._hash_file(s8_path) if s8_path else None
-        # Fixed order — feature table, metadata, plate metadata, name lookup, Table S8 — so
-        # the digest depends on the inputs and not on the order the optional ones
-        # were passed in. Two digests come out of it, and they answer different
-        # questions: the inputs-only one says whether the *data* moved, and the
-        # one with the figure-basis token appended says whether anything a
-        # rendered figure depends on moved.
+        # Fixed order — feature table, metadata, plate metadata, name lookup, Table S8,
+        # plate-basis token — so the digest depends on the inputs and not on the order
+        # the optional ones were passed in. The plate basis counts as an input: it
+        # decides which rows are published, though no file records it. Two digests
+        # come out of it, and they answer different questions: the inputs-only one
+        # says whether the *data* moved, and the one with the figure-basis token
+        # appended says whether anything a rendered figure depends on moved.
         input_hashes = [
             feature_hash,
             self._hash_file(metadata_path),
@@ -253,9 +258,11 @@ class Command(BaseCommand):
         ]
         if names_hash:
             input_hashes.append(names_hash)
-        # Appended last, so a run without the workbook keeps the digest it had.
+        # The optional digests sit in a fixed position, so the order they were
+        # passed in does not matter.
         if s8_hash:
             input_hashes.append(s8_hash)
+        input_hashes.append(plate_basis_token(plate_stems))
         inputs_hash = self._combine_hashes(input_hashes)
         source_hash = self._combine_hashes([*input_hashes, figure_basis_token(figure_columns)])
         generated_at = timezone.now()
@@ -378,10 +385,17 @@ class Command(BaseCommand):
     def _compound_labels(compound_index: pl.DataFrame) -> dict[str, str]:
         """Map each compound id to the name a reader sees, for the radars and PCA overlays."""
         columns = [
-            column for column in ("cbkid", "name", "kind") if column in compound_index.columns
+            column
+            for column in ("cbkid", "name", "kind", "pert_iname")
+            if column in compound_index.columns
         ]
         return {
-            row["cbkid"]: compound_label(row["cbkid"], name=row.get("name"), kind=row.get("kind"))
+            row["cbkid"]: compound_label(
+                row["cbkid"],
+                name=row.get("name"),
+                kind=row.get("kind"),
+                pert_iname=row.get("pert_iname"),
+            )
             for row in compound_index.select(columns).to_dicts()
         }
 
@@ -475,12 +489,13 @@ class Command(BaseCommand):
 
     @staticmethod
     def _combine_hashes(tokens: list[str]) -> str:
-        """Combine per-input digests and the figure-basis token into one hash.
+        """Combine per-input digests and the basis tokens into one hash.
 
         Folding every precompute input (feature table and metadata) into
         ``source_file_hash`` ensures the ``PlotlyFigureBlock`` render cache
         (keyed by slug + figure_id + source_file_hash) is busted whenever any
-        input that affects the figures changes. The last token describes the
+        input that affects the figures changes; the plate-basis token stands in
+        for the one input no file carries (FREYA-3128). The last token describes the
         figure basis instead of an input: a change to *how* the figures are
         computed moves no input digest, and the cache holds for 24 hours, so
         without it the page would serve the previous render for a day

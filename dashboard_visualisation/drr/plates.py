@@ -67,6 +67,26 @@ def excluded_plates(dataset_slug: str) -> tuple[str, ...]:
         ) from error
 
 
+def plate_basis_token(stems: tuple[str, ...]) -> str:
+    """Return a token naming the plate basis, for the digests.
+
+    Changing the basis moves every artefact while no input file moves, so
+    without it both digests would stay put: the render caches keyed on
+    ``source_file_hash`` would serve the previous figures for a day, and the
+    data-updated date would not see new data (FREYA-3128). The token goes into
+    the digests only; the stems themselves stay out of every artefact.
+
+    Args:
+        stems: The plate stems the run leaves out.
+
+    Returns:
+        The distinct stems sorted, so neither declaration order nor a repeated
+        stem is a change, and present even when empty, so "no plate excluded" is
+        a basis of its own.
+    """
+    return "plate-basis:" + ",".join(sorted(set(stems)))
+
+
 def _plate_stem(column: str) -> pl.Expr:
     """Return the plate stem of a barcode column: everything before the first ``_``.
 
@@ -86,7 +106,20 @@ def exclude_plates(table: FeatureTable, stems: tuple[str, ...]) -> tuple[Feature
     Returns:
         The table without those rows, with its column split unchanged, and the
         number of rows removed.
+
+    Raises:
+        ValueError: If any row has a null or empty barcode. Such a row is on no
+            plate, so it can be neither kept nor excluded; a null would otherwise
+            be dropped by the filter and counted as excluded (FREYA-3127).
     """
+    barcode = pl.col(_PLATE_COLUMN).cast(pl.String)
+    n_unplated = table.frame.select((barcode.is_null() | (barcode == "")).sum()).item()
+    if n_unplated:
+        raise ValueError(
+            f"Feature table has {n_unplated} row(s) with a null or empty '{_PLATE_COLUMN}'. "
+            "A row on no plate cannot be checked against the plate basis, so it is neither "
+            "published nor counted as excluded."
+        )
     kept = table.frame.filter(~_plate_stem(_PLATE_COLUMN).is_in(list(stems)))
     return dataclasses.replace(table, frame=kept), table.frame.height - kept.height
 
@@ -101,9 +134,12 @@ def load_plate_metadata(path: str | Path) -> pl.DataFrame:
         One row per deposited (plate stem, well), with its archive path.
 
     Raises:
-        ValueError: If a required column is missing.
+        ValueError: If the file is empty or a required column is missing.
     """
-    header = pl.read_csv(path, separator="\t", n_rows=0).columns
+    try:
+        header = pl.read_csv(path, separator="\t", n_rows=0).columns
+    except pl.exceptions.NoDataError as error:
+        raise ValueError(f"Plate metadata file {path} is empty: it has no header row.") from error
     missing = [column for column in PLATE_METADATA_COLUMNS if column not in header]
     if missing:
         raise ValueError(
