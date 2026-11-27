@@ -20,7 +20,7 @@ H1_ALLOWED_TEMPLATES = {
 }
 # Template directories to skip. Wagtail admin and account pages extend Wagtail's
 # admin templates, not cms/base.html, so they write their own <h1>.
-NON_PUBLIC_TEMPLATE_DIRS = ("wagtailadmin/", "account/")
+NON_PUBLIC_TEMPLATE_DIRS = ("wagtailadmin/", "account/", "mfa/")
 # Matches templates overriding the block in base.html that renders the <h1>.
 H1_BLOCK_OVERRIDE = re.compile(r"{%\s*block\s+page_title\b")
 

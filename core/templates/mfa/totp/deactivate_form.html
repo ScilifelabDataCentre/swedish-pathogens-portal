@@ -1,0 +1,43 @@
+{% extends "mfa/spp_mfa_base.html" %}
+{% load wagtailadmin_tags %}
+
+{% comment %}
+    This template is used to override django allauth's MFA deactivate template. It extends our
+    custom MFA base template. `block mfa_content` is used to add content to the MFA index page.
+
+    Django allauth MFA index template source code:
+    https://github.com/pennersr/django-allauth/blob/main/allauth/templates/mfa/totp/deactivate_form.html
+{% endcomment %}
+
+{% block titletag %}Multi-Factor Authentication - Deactivate TOTP{% endblock %}
+
+{% block extra_css %}
+<style>
+    div#deactivate-totp-wrapper .icon {
+        vertical-align: -0.12em !important;
+    }
+</style>
+{% endblock %}
+
+{% block mfa_content %}
+    <p>
+        Here you can deactivate your authenticator app (TOTP) for multi-factor authentication.
+        Visit the <a href="{% url 'mfa_index' %}">MFA overview</a> page to see your MFA
+        methods or visit the <a href="{% url 'wagtailadmin_account' %}"> account</a> page
+        to change other account settings, such as email, password or profile information.
+    </p>
+    <div id="deactivate-totp-wrapper" class="w-mt-8">
+        <h2 class="w-h3">Deactivate Authenticator App (TOTP)</h2>
+        <p class="w-font-semibold">
+            {% icon classname="w-max-w-[1em] w-max-h-[1em]" name="warning" %} NOTE:
+            Deactivating MFA will restrict access to your account. You will need to re-enable
+            MFA to regain access. Typically, you would only want to do this if you lost your
+            authenticator app or you are switching to a different authenticator app.
+        </p>
+
+        <form action="{% url 'mfa_deactivate_totp' %}" method="post" novalidate>
+            {% csrf_token %}
+            <button type="submit" class="button w-mt-5">Deactivate TOTP</button>
+        </form>
+    </div>
+{% endblock %}

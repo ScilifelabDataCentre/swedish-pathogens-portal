@@ -15,6 +15,7 @@ from pathlib import Path
 
 import environ
 import structlog
+from cryptography.fernet import Fernet
 
 from core.log_processors import drop_successful_health_checks
 
@@ -52,6 +53,30 @@ ACCOUNT_EMAIL_NOTIFICATIONS = True
 ACCOUNT_EMAIL_CONFIRMATION_AUTHENTICATED_REDIRECT_URL = f"/{ALLAUTH_BASE_URL}email/"
 ACCOUNT_AUTHENTICATED_LOGIN_REDIRECTS = False
 ACCOUNT_REAUTHENTICATION_REQUIRED = True
+
+
+# Django allauth MFA settings, can be overridden in environment-specific settings files.
+# Reference: https://docs.allauth.org/en/latest/mfa/configuration.html
+# ------------------------------------------------------------------------------
+MFA_ADAPTER = "core.allauth.adapters.SppMFAAdapter"
+MFA_ALLOW_UNVERIFIED_EMAIL = False
+MFA_REAUTHENTICATION_REQUIRED = True
+
+# This is not an official allauth setting, but the MFA_SECRET_KEY is used in the
+# SppMFAAdapter to encrypt/decrypt MFA secrets before storing them in the database.
+# It must be a list of 32-byte URL-safe base64-encoded secret keys generated using
+# Fernet.generate_key(). Though typically it will contain a single key, reading it
+# as list allows for multiple keys to be provided as a comma-separated list in the
+# .env file for key rotation.
+#
+# The MFA_SECRET_KEY is required in production, but for test and dev environments,
+# a new key is generated for each run to avoid depending on an environment variable.
+MFA_SECRET_KEY = [Fernet.generate_key().decode()]
+
+# This setting is not an official allauth setting, but it is used in the
+# `RequireMFASetupMiddleware` to determine whether MFA enforcement is enabled.
+# It can be overridden in environment-specific settings files.
+MFA_ENFORCE = False
 
 
 # Base WAGTAIL settings, can be overridden in environment-specific settings files.
@@ -113,6 +138,7 @@ WAGTAIL_APPS = [
 THIRD_PARTY_APPS = [
     "allauth",
     "allauth.account",
+    "allauth.mfa",
     "django_htmx",
     "django_structlog",
 ]
@@ -133,6 +159,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "allauth.account.middleware.AccountMiddleware",
+    "core.allauth.middleware.RequireMFASetupMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "django_htmx.middleware.HtmxMiddleware",
     "wagtail.contrib.redirects.middleware.RedirectMiddleware",
