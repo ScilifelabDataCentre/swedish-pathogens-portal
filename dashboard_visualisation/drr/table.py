@@ -52,25 +52,23 @@ NOT_REPORTED = "not reported"
 TABLE_COLUMNS: list[str] = [
     "cbkid",
     "name",
+    "dose_um",
     "broad_moa",
     "broad_target",
     "morphology_score",
     "infection_rate_pct",
     "cell_count_pct",
-    "dose_um",
 ]
-_TEXT_COLUMNS = TABLE_COLUMNS[:4]
-_SCORE_COLUMNS = TABLE_COLUMNS[4:]
 
 TABLE_HEADERS: list[str] = [
     "Compound id",
     "Name",
+    "Dose (µM)",
     "Mechanism (broad MoA)",
     "Target",
     "Morphology score",
     "Infection rate (%)",
     "Cell count (%)",
-    "Dose (µM)",
 ]
 
 # Sort keys a reader may choose; a leading "-" sorts descending.
@@ -259,11 +257,13 @@ def table_rows(frame: pl.DataFrame) -> list[list[str]]:
         frame: A table with ``TABLE_COLUMNS``.
 
     Returns:
-        One list of strings per row; a missing score is ``NOT_REPORTED``.
+        One list of strings per row; a missing dose or score is ``NOT_REPORTED``.
     """
     return [
-        [row[column] or "" for column in _TEXT_COLUMNS]
-        + [_cell(row[column]) for column in _SCORE_COLUMNS]
+        [
+            _cell(row[column]) if column in _NUMERIC_COLUMNS else row[column] or ""
+            for column in TABLE_COLUMNS
+        ]
         for row in frame.select(TABLE_COLUMNS).iter_rows(named=True)
     ]
 
@@ -286,9 +286,9 @@ def select_rows(frame: pl.DataFrame, params: Mapping[str, str]) -> pl.DataFrame:
         params: The request's query parameters.
 
     Returns:
-        The selected rows, sorted, unscored rows last.
+        The selected rows in ``TABLE_COLUMNS`` order, sorted, unscored rows last.
     """
-    selected = frame
+    selected = frame.select(TABLE_COLUMNS)
     for parameter, (column, is_lower) in RANGE_FILTERS.items():
         bound = _number(params.get(parameter, ""))
         if bound is None:

@@ -1,4 +1,4 @@
-"""Tests for the DRR compound table built from the paper's Table S8 (FREYA-3011)."""
+"""Tests for the DRR compound table built from the paper's Table S8 (FREYA-3011, FREYA-3206)."""
 
 from __future__ import annotations
 
@@ -14,6 +14,7 @@ from cms.tests.drr.test_drr_downloads import DrrDownloadRouteTestCase
 from dashboard_visualisation.drr.table import (
     HIT_THRESHOLD,
     NOT_REPORTED,
+    TABLE_COLUMNS,
     TABLE_HEADERS,
     build_compound_table,
     load_table_s8,
@@ -283,11 +284,52 @@ class SelectRowsTests(SimpleTestCase):
         self.assertEqual(self._cbkids({"search": "not reported"}), ["CBK4"])
 
 
+NUMERIC_COLUMNS = ["dose_um", "morphology_score", "infection_rate_pct", "cell_count_pct"]
+
+
 class TableRowsTests(SimpleTestCase):
-    """Display cells: a missing score reads 'not reported', never zero."""
+    """Display cells: dose straight after the name, a missing score 'not reported', never zero."""
+
+    def test_the_headers_are_the_eight_with_dose_third(self) -> None:
+        """Dose follows Name, and its header carries the micromolar unit."""
+        self.assertEqual(
+            TABLE_HEADERS,
+            [
+                "Compound id",
+                "Name",
+                "Dose (µM)",
+                "Mechanism (broad MoA)",
+                "Target",
+                "Morphology score",
+                "Infection rate (%)",
+                "Cell count (%)",
+            ],
+        )
+        self.assertEqual(TABLE_COLUMNS.index("dose_um"), 2)
+
+    def test_a_scored_row_follows_the_header_order(self) -> None:
+        """Each cell sits under its own header, whatever order the frame holds."""
+        frame = pl.DataFrame(
+            {
+                "cbkid": ["CBK1"],
+                "name": ["alpha"],
+                "broad_moa": ["kinase inhibitor"],
+                "broad_target": [None],
+                "morphology_score": [0.9],
+                "infection_rate_pct": [20.0],
+                "cell_count_pct": [95.0],
+                "dose_um": [3.0],
+            },
+            schema_overrides={"broad_target": pl.String},
+        )
+
+        self.assertEqual(
+            table_rows(frame)[0],
+            ["CBK1", "alpha", "3", "kinase inhibitor", "", "0.9", "20", "95"],
+        )
 
     def test_missing_scores_render_not_reported_and_never_zero(self) -> None:
-        """Every score cell of an unscored row says so in words."""
+        """Every numeric cell of an unscored row says so in words, wherever it sits."""
         frame = pl.DataFrame(
             {
                 "cbkid": ["CBK4"],
@@ -309,12 +351,18 @@ class TableRowsTests(SimpleTestCase):
         row = table_rows(frame)[0]
 
         self.assertEqual(len(row), len(TABLE_HEADERS))
-        self.assertEqual(row[-4:], [NOT_REPORTED] * 4)
+        self.assertEqual(
+            [row[TABLE_COLUMNS.index(column)] for column in NUMERIC_COLUMNS], [NOT_REPORTED] * 4
+        )
+        self.assertEqual(row.count(NOT_REPORTED), 4)
         self.assertNotIn("0", row)
 
 
 def page_table(n_rows: int = 30) -> pl.DataFrame:
-    """Build a compound table as precompute writes it: scores descend, the last row unscored."""
+    """Build a compound table with dose last, the column order older artefacts carry.
+
+    Scores descend and the last row is unscored.
+    """
     scores = [round(1 - index / n_rows, 3) for index in range(n_rows - 1)] + [None]
     return pl.DataFrame(
         {
@@ -435,3 +483,23 @@ class TestDrrCompoundTablePage(DrrDownloadRouteTestCase):
 
         self.assertEqual(exported.height, self.total(self.htmx("search=compound 1")))
         self.assertLess(exported.height, page_table().height)
+
+    def test_the_export_takes_its_column_order_from_the_code(self) -> None:
+        """An artefact written with dose last still exports dose third."""
+        frame = self.write_table()
+        self.assertNotEqual(frame.columns, TABLE_COLUMNS)
+
+        exported = pl.read_csv(self.download("download/filtered/csv/").content)
+
+        self.assertEqual(exported.columns, TABLE_COLUMNS)
+
+    def test_the_header_row_opts_out_of_upper_case_with_dose_third(self) -> None:
+        """The DRR wrapper keeps the header's case, so µM never renders as a capital Mu."""
+        self.write_table()
+
+        html = self.client.get(self.page.url).content.decode()
+        wrapper = re.search(r'<div id="data-table-drr-compounds-content"[^>]*>', html).group(0)
+        headers = re.findall(r'<th scope="col">(.*?)</th>', html)
+
+        self.assertIn("[&_thead_tr]:normal-case", wrapper)
+        self.assertEqual(headers[2], "Dose (µM)")

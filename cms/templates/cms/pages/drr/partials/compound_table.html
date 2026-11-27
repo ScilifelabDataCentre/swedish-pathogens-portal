@@ -5,7 +5,9 @@ A549-ACE2 summary scores Table S8 publishes.
 The body is the portal's shared data_table_content.html partial, so this wrapper
 recreates the three ids that partial and its htmx controls key on — the controls
 form (read by hx-include only, never swapped), the loading overlay, and the
-content container every control and pagination button swaps into. The controls
+content container every control and pagination button swaps into. That container
+also opts the header row out of the partial's upper-casing, which would render
+µM as a capital Mu; other tables keep it. The controls
 are a plain GET form whose submit is the filtered CSV download: the export reads
 the same query string the table does, through the same selection, so the file
 always carries the rows the table counts.
@@ -138,7 +140,7 @@ always carries the rows the table counts.
                  class="htmx-indicator absolute inset-0 z-10 flex items-center justify-center rounded-box bg-base-100/60">
                 <span class="loading loading-spinner loading-lg text-accent" aria-label="Loading"></span>
             </div>
-            <div id="data-table-{{ t.table_id }}-content" aria-live="polite">
+            <div id="data-table-{{ t.table_id }}-content" aria-live="polite" class="[&_thead_tr]:normal-case">
                 {% include "cms/components/data_table_content.html" %}
             </div>
         </div>
