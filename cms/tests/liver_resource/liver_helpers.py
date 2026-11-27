@@ -31,7 +31,7 @@ def create_liver_dashboard_data(
     )
     return DashboardData.objects.create(
         dashboard_title="HepaGeNIE",
-        dashboard_slug="liver-resource",
+        dashboard_slug="hepagenie-tln",
         source_file=upload,
         data_updated_at=data_updated_at or date(2026, 4, 20),
     )
@@ -40,10 +40,10 @@ def create_liver_dashboard_data(
 def create_published_liver_resource_page(
     *,
     title: str = "Liver Resource",
-    slug: str = "liver-resource",
+    slug: str = "hepagenie-tln",
     description: str = "HepaGeNIE dashboard",
 ) -> LiverResourceDashboardPage:
-    """Create home → dashboards → liver-resource page tree and publish it.
+    """Create home → dashboards → hepagenie-tln page tree and publish it.
 
     Also configures the default Site so ``page.url`` / ``reverse_subpage`` work.
     """

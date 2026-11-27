@@ -32,7 +32,7 @@ When researchers deliver a new data package:
 2. Replace cyjs + `modules/` contents (keep the `modules/` directory name)
 3. Re-run parity tests against R reference outputs
 4. Update expected counts in `reference_data.py` and this README
-5. Re-save Wagtail `DashboardData` (`liver-resource`) so base/example figures regenerate
+5. Re-save Wagtail `DashboardData` (`hepagenie-tln`) so base/example figures regenerate
 
 ## Configuration
 

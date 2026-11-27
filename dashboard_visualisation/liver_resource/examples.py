@@ -1,7 +1,7 @@
 """Sidebar example DE dataset for the liver dashboard.
 
 The example DE file is the Wagtail ``DashboardData.source_file`` for slug
-``liver-resource`` (same pattern as the card image / Documents workbook).
+``hepagenie-tln`` (same pattern as the card image / Documents workbook).
 No go-live example file is bundled in the repo.
 """
 
