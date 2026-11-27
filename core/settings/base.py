@@ -54,6 +54,13 @@ ACCOUNT_AUTHENTICATED_LOGIN_REDIRECTS = False
 ACCOUNT_REAUTHENTICATION_REQUIRED = True
 
 
+# Django allauth MFA settings, can be overridden in environment-specific settings files.
+# Reference: https://docs.allauth.org/en/latest/mfa/configuration.html
+# ------------------------------------------------------------------------------
+MFA_ALLOW_UNVERIFIED_EMAIL = False
+MFA_REAUTHENTICATION_REQUIRED = True
+
+
 # Base WAGTAIL settings, can be overridden in environment-specific settings files.
 # ------------------------------------------------------------------------------
 WAGTAIL_SITE_NAME = "Swedish Pathogens Portal"
@@ -113,6 +120,7 @@ WAGTAIL_APPS = [
 THIRD_PARTY_APPS = [
     "allauth",
     "allauth.account",
+    "allauth.mfa",
     "django_htmx",
     "django_structlog",
 ]
@@ -133,6 +141,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "allauth.account.middleware.AccountMiddleware",
+    "core.allauth.middleware.RequireMFASetupMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "django_htmx.middleware.HtmxMiddleware",
     "wagtail.contrib.redirects.middleware.RedirectMiddleware",
