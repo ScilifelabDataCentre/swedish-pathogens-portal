@@ -14,6 +14,8 @@ DEBUG = False
 ALLAUTH_BASE_URL = env("ALLAUTH_BASE_URL").rstrip("/") + "/"
 ACCOUNT_EMAIL_CONFIRMATION_AUTHENTICATED_REDIRECT_URL = f"/{ALLAUTH_BASE_URL}email/"
 MFA_SECRET_KEY = env.list("MFA_SECRET_KEY")
+MFA_ENFORCE = env.bool("MFA_ENFORCE", default=True)
+
 
 # WAGTAIL (Production)
 # ------------------------------------------------------------------------------

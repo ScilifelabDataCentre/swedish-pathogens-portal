@@ -73,6 +73,11 @@ MFA_REAUTHENTICATION_REQUIRED = True
 # a new key is generated for each run to avoid depending on an environment variable.
 MFA_SECRET_KEY = [Fernet.generate_key().decode()]
 
+# This setting is not an official allauth setting, but it is used in the
+# `RequireMFASetupMiddleware` to determine whether MFA enforcement is enabled.
+# It can be overridden in environment-specific settings files.
+MFA_ENFORCE = False
+
 
 # Base WAGTAIL settings, can be overridden in environment-specific settings files.
 # ------------------------------------------------------------------------------
