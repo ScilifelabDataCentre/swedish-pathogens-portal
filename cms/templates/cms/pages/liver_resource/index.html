@@ -1,0 +1,33 @@
+{% extends "cms/base.html" %}
+
+{% load static wagtailcore_tags wagtailroutablepage_tags %}
+
+{% block content %}
+
+<div
+    id="liver-dashboard"
+    class="liver-dashboard"
+    data-recompute-url="{% routablepageurl page 'recompute' %}"
+    data-has-session="{% if has_session %}true{% else %}false{% endif %}"
+>
+
+    <p class="text-pp-dark-grey mb-6 flex items-center gap-2 flex-wrap">
+        <span class="badge badge-ghost badge-lg">{{ page.get_data_status_display }}</span>
+        {% if page.dashboard_data_updated_at %}
+        <span>
+            Data last updated:
+            <time datetime="{{ page.dashboard_data_updated_at|date:"Y-m-d" }}">
+                {{ page.dashboard_data_updated_at|date:"F j, Y" }}
+            </time>
+        </span>
+        {% endif %}
+    </p>
+
+    {% for block in page.liver_content %}
+        {% include_block block %}
+    {% endfor %}
+</div>
+
+<script src="{% static 'cms/js/liver_resource.js' %}" defer></script>
+
+{% endblock %}

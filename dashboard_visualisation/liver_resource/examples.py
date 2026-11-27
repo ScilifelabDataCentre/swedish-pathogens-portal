@@ -1,14 +1,17 @@
-"""Bundled example DE dataset for the liver dashboard sidebar."""
+"""Sidebar example DE dataset for the liver dashboard.
+
+The example DE file is the Wagtail ``DashboardData.source_file`` for slug
+``liver-resource`` (same pattern as the card image / Documents workbook).
+No go-live example file is bundled in the repo.
+"""
 
 from __future__ import annotations
 
 import re
 from pathlib import Path
 
-from dashboard_visualisation.liver_resource.reference_data import get_data_root
-
-EXAMPLE_SLUG = "hcc-control"
-EXAMPLE_FILENAME = "HCC-Control.txt"
+EXAMPLE_SLUG = "obese-control"
+EXAMPLE_LABEL = "Obese vs control (GSE126848)"
 
 # Django FileSystemStorage may append ``_<7 alphanum>`` before the extension.
 _STORAGE_SUFFIX_RE = re.compile(r"_([A-Za-z0-9]{7})(\.[^.]+)$")
@@ -17,22 +20,6 @@ _STORAGE_SUFFIX_RE = re.compile(r"_([A-Za-z0-9]{7})(\.[^.]+)$")
 def list_example_slugs() -> list[str]:
     """Return example slugs shown in the sidebar."""
     return [EXAMPLE_SLUG]
-
-
-def get_example_path(slug: str) -> Path | None:
-    """Return the bundled path for the sidebar example, or None when unknown."""
-    if slug != EXAMPLE_SLUG:
-        return None
-    path = get_data_root() / "examples" / EXAMPLE_FILENAME
-    return path if path.is_file() else None
-
-
-def get_example_uploads(slug: str) -> list[tuple[str, Path]] | None:
-    """Return ``(filename, path)`` pairs for the sidebar example slug."""
-    path = get_example_path(slug)
-    if path is None:
-        return None
-    return [(path.name, path)]
 
 
 def storage_display_filename(filename: str) -> str:
@@ -48,30 +35,64 @@ def example_label_from_filename(filename: str) -> str:
     return stem or "Example dataset"
 
 
-def resolve_example_label(dashboard_data: object | None = None) -> str:
-    """Return the sidebar example label from DashboardData or the bundled filename."""
+def _is_obese_example_filename(filename: str) -> bool:
+    """Return True when ``filename`` is the GSE126848 obese example."""
+    stem = Path(storage_display_filename(filename)).stem.lower().replace("_", "-")
+    return stem in {"obese-control", "gse126848-obese-control", "gse126848 obese-control"}
+
+
+def _dashboard_source_file(dashboard_data: object | None) -> object | None:
+    """Return DashboardData.source_file when it has a stored name."""
     source_file = getattr(dashboard_data, "source_file", None)
     if source_file is not None and getattr(source_file, "name", ""):
-        return example_label_from_filename(source_file.name)
-    return example_label_from_filename(EXAMPLE_FILENAME)
+        return source_file
+    return None
+
+
+def resolve_example_label(dashboard_data: object | None = None) -> str:
+    """Return the sidebar example label from DashboardData (obese → canonical label)."""
+    source_file = _dashboard_source_file(dashboard_data)
+    if source_file is None:
+        return EXAMPLE_LABEL
+    if _is_obese_example_filename(source_file.name):
+        return EXAMPLE_LABEL
+    return example_label_from_filename(source_file.name)
+
+
+def get_example_uploads(
+    slug: str,
+    dashboard_data: object | None = None,
+) -> list[tuple[str, Path]] | None:
+    """Return ``(filename, path)`` for the sidebar example from DashboardData.
+
+    Uses the Wagtail-uploaded ``source_file``. Returns ``None`` when the slug is
+    unknown or no DashboardData source file is configured.
+    """
+    if slug != EXAMPLE_SLUG:
+        return None
+    source_file = _dashboard_source_file(dashboard_data)
+    if source_file is None:
+        return None
+    try:
+        path = Path(source_file.path)
+    except AttributeError, NotImplementedError, ValueError:
+        return None
+    if not path.is_file():
+        return None
+    return [(storage_display_filename(source_file.name), path)]
 
 
 def list_examples(dashboard_data: object | None = None) -> list[dict[str, str]]:
-    """Return metadata for the sidebar example button."""
-    if get_example_path(EXAMPLE_SLUG) is None:
+    """Return metadata for the sidebar example button when DashboardData is set."""
+    source_file = _dashboard_source_file(dashboard_data)
+    if source_file is None:
         return []
-
-    label = resolve_example_label(dashboard_data)
-    filename = EXAMPLE_FILENAME
-    source_file = getattr(dashboard_data, "source_file", None)
-    if source_file is not None and getattr(source_file, "name", ""):
-        filename = storage_display_filename(source_file.name)
 
     return [
         {
             "slug": EXAMPLE_SLUG,
-            "label": label,
+            "label": resolve_example_label(dashboard_data),
             "kind": "single",
-            "filename": filename,
+            "filename": storage_display_filename(source_file.name),
         }
     ]

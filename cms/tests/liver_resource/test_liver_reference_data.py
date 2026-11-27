@@ -13,7 +13,7 @@ from dashboard_visualisation.liver_resource.reference_data import (
     get_template_path,
     list_example_files,
     load_cyjs_layout,
-    load_module_labels,
+    load_hover_module_titles,
     load_modules,
     load_symbol_map,
     load_tln_graph,
@@ -66,17 +66,32 @@ class TestLiverReferenceData(SimpleTestCase):
         symbol_map = load_symbol_map()
         self.assertGreater(len(symbol_map), 40_000)
 
-    def test_load_module_labels(self) -> None:
-        """Test module label mapping loads."""
-        labels = load_module_labels()
-        self.assertGreater(len(labels), 0)
+    def test_load_hover_module_titles(self) -> None:
+        """Test hover module titles load for titled modules and skip blanks."""
+        titles = load_hover_module_titles()
+        self.assertEqual(len(titles), 49)
+        self.assertEqual(
+            titles[3],
+            (
+                "Immune response (I) -  Myeliod cells "
+                "(Phagocytosis & MHC class II antigen presentation)"
+            ),
+        )
+        self.assertEqual(titles[4], "Amino acid catabolism and urea cycle")
+        self.assertEqual(titles[12], "Cell cycle (I) - DNA replication")
+        self.assertNotIn(1, titles)
+        self.assertNotIn(2, titles)
+        # Placeholder low-expression labels cleared (Jackie request).
+        self.assertNotIn(7, titles)
+        self.assertTrue(all(not title.lstrip().startswith("*") for title in titles.values()))
 
     def test_list_example_files(self) -> None:
-        """Test bundled example DE files are discoverable."""
+        """Test bundled DE fixture files are discoverable for tests."""
         examples = list_example_files()
         self.assertEqual(len(examples), 3)
         names = {path.name for path in examples}
         self.assertIn("HCC-Control.txt", names)
+        self.assertNotIn("obese-Control.txt", names)
 
     def test_template_path(self) -> None:
         """Test upload template file exists."""

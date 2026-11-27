@@ -1,37 +1,32 @@
-"""DINA Liver TLN computation pipeline — port of run_tln_analysis.R."""
+"""HepaGeNIE TLN computation pipeline — port of run_tln_analysis.R."""
 
 from __future__ import annotations
 
 import csv
-import math
 from io import StringIO
 from pathlib import Path
 from typing import BinaryIO
 
+from dashboard_visualisation.liver_resource.plot_metric import (
+    DEFAULT_PLOT_METRIC,
+    PlotMetric,
+)
 from dashboard_visualisation.liver_resource.reference_data import load_modules as _load_module_lists
+from dashboard_visualisation.liver_resource.thresholds import (
+    ADJ_P_CHOICES,
+    DEFAULT_ADJ_P,
+    DEFAULT_LOGFC_FOLD,
+    LOGFC_FOLD_CHOICES,
+    logfc_threshold,
+    parse_adj_p,
+    parse_logfc_fold,
+)
 
 type DeFileSource = str | Path | BinaryIO
 
-VALID_CUTOFFS = (
-    "standard",
-    "sensitive",
-    "stringent",
-    "stringent_2",
-    "max",
-    "Ponly",
-    "unadj",
-    "top3",
-    "top50",
-    "top100",
-    "top200",
-    "top500",
-    "top1000",
-)
-
-LOG2_1_5 = math.log2(1.5)
-LOG2_0_5 = math.log2(0.5)
-LOG2_2 = math.log2(2)
-LOG2_5 = math.log2(5)
+# Re-exported for callers that previously imported VALID_CUTOFFS / defaults.
+VALID_ADJ_P = ADJ_P_CHOICES
+VALID_LOGFC_FOLD = LOGFC_FOLD_CHOICES
 
 # Researcher default (TLN_Analyses_DataCenter.R f.TLNplot)
 R_PALETTE = (
@@ -108,89 +103,32 @@ def _parse_de_lines(lines: list[str]) -> dict:
     return {"header": header, "genes": genes, "data": data}
 
 
-def classify_genes(de_data: dict, cutoff: str) -> dict[str, set[str]]:
-    """Classify genes as up-regulated or down-regulated for a DEcutoff mode."""
-    if cutoff not in VALID_CUTOFFS:
-        msg = f"Invalid cutoff '{cutoff}'. Must be one of: {list(VALID_CUTOFFS)}"
-        raise ValueError(msg)
+def classify_genes(
+    de_data: dict,
+    *,
+    adj_p: float = DEFAULT_ADJ_P,
+    logfc_fold: float = DEFAULT_LOGFC_FOLD,
+) -> dict[str, set[str]]:
+    """Classify genes as up/down using Adj P.val and LogFC fold thresholds."""
+    adj_p = parse_adj_p(adj_p)
+    logfc_fold = parse_logfc_fold(logfc_fold)
+    abs_logfc = logfc_threshold(logfc_fold)
 
     genes = de_data["genes"]
     data = de_data["data"]
     up: set[str] = set()
     down: set[str] = set()
 
-    if cutoff == "standard":
-        for gene_id in genes:
-            row = data[gene_id]
-            if row["adj.P.Val"] is not None and row["logFC"] is not None:
-                if row["adj.P.Val"] < 0.05 and row["logFC"] > LOG2_1_5:
-                    up.add(gene_id)
-                elif row["adj.P.Val"] < 0.05 and row["logFC"] < -LOG2_1_5:
-                    down.add(gene_id)
-
-    elif cutoff == "sensitive":
-        for gene_id in genes:
-            row = data[gene_id]
-            if row["adj.P.Val"] is not None and row["logFC"] is not None:
-                if row["adj.P.Val"] < 0.05 and row["logFC"] > LOG2_0_5:
-                    up.add(gene_id)
-                elif row["adj.P.Val"] < 0.05 and row["logFC"] < -LOG2_0_5:
-                    down.add(gene_id)
-
-    elif cutoff == "stringent":
-        for gene_id in genes:
-            row = data[gene_id]
-            if row["adj.P.Val"] is not None and row["logFC"] is not None:
-                if row["adj.P.Val"] < 0.0001 and row["logFC"] > LOG2_1_5:
-                    up.add(gene_id)
-                elif row["adj.P.Val"] < 0.0001 and row["logFC"] < -LOG2_1_5:
-                    down.add(gene_id)
-
-    elif cutoff == "stringent_2":
-        for gene_id in genes:
-            row = data[gene_id]
-            if row["adj.P.Val"] is not None and row["logFC"] is not None:
-                if row["adj.P.Val"] < 0.0001 and row["logFC"] > LOG2_2:
-                    up.add(gene_id)
-                elif row["adj.P.Val"] < 0.0001 and row["logFC"] < -LOG2_2:
-                    down.add(gene_id)
-
-    elif cutoff == "max":
-        for gene_id in genes:
-            row = data[gene_id]
-            if row["adj.P.Val"] is not None and row["logFC"] is not None:
-                if row["adj.P.Val"] < 0.0001 and row["logFC"] > LOG2_5:
-                    up.add(gene_id)
-                elif row["adj.P.Val"] < 0.0001 and row["logFC"] < -LOG2_5:
-                    down.add(gene_id)
-
-    elif cutoff == "Ponly":
-        for gene_id in genes:
-            row = data[gene_id]
-            if row["adj.P.Val"] is not None and row["logFC"] is not None:
-                if row["adj.P.Val"] < 0.05 and row["logFC"] > 0:
-                    up.add(gene_id)
-                elif row["adj.P.Val"] < 0.05 and row["logFC"] < 0:
-                    down.add(gene_id)
-
-    elif cutoff == "unadj":
-        for gene_id in genes:
-            row = data[gene_id]
-            if row["P.Value"] is not None and row["logFC"] is not None:
-                if row["P.Value"] < 0.05 and row["logFC"] > LOG2_1_5:
-                    up.add(gene_id)
-                elif row["P.Value"] < 0.05 and row["logFC"] < -LOG2_1_5:
-                    down.add(gene_id)
-
-    elif cutoff.startswith("top"):
-        top_n = int(cutoff[3:])
-        valid = [
-            (gene_id, data[gene_id]["t"]) for gene_id in genes if data[gene_id].get("t") is not None
-        ]
-        sorted_desc = sorted(valid, key=lambda item: item[1], reverse=True)
-        up = {gene_id for gene_id, _ in sorted_desc[:top_n]}
-        sorted_asc = sorted(valid, key=lambda item: item[1])
-        down = {gene_id for gene_id, _ in sorted_asc[:top_n]}
+    for gene_id in genes:
+        row = data[gene_id]
+        adj = row.get("adj.P.Val")
+        log_fc = row.get("logFC")
+        if adj is None or log_fc is None:
+            continue
+        if adj < adj_p and log_fc > abs_logfc:
+            up.add(gene_id)
+        elif adj < adj_p and log_fc < -abs_logfc:
+            down.add(gene_id)
 
     return {"up": up, "down": down}
 
@@ -204,8 +142,10 @@ def compute_module_ratios(
     de_genes: list[str],
     classified: dict[str, set[str]],
     modules: dict[int, set[str]],
+    *,
+    plot_metric: PlotMetric = DEFAULT_PLOT_METRIC,
 ) -> dict[int, float | None]:
-    """Compute per-module DE ratio aligned with f.CalculateModRatios2."""
+    """Compute per-module DE ratio for Difference or Total scoring."""
     all_genes = set(de_genes)
     up = classified["up"]
     down = classified["down"]
@@ -219,7 +159,10 @@ def compute_module_ratios(
             continue
         up_count = len(up & module_genes)
         down_count = len(down & module_genes)
-        ratios[module_id] = (up_count - down_count) / genes_in_module
+        if plot_metric == "total":
+            ratios[module_id] = (up_count + down_count) / genes_in_module
+        else:
+            ratios[module_id] = (up_count - down_count) / genes_in_module
 
     return ratios
 
@@ -227,11 +170,24 @@ def compute_module_ratios(
 def map_ratios_to_colours(
     ratios: dict[int, float | None],
     max_abs: float | None = None,
+    *,
+    plot_metric: PlotMetric = DEFAULT_PLOT_METRIC,
 ) -> dict[int, str]:
-    """Map module ratios to hex colour strings."""
+    """Map module ratios to hex colour strings.
+
+    Difference uses a divergent −max→+max scale; Total uses 0→max on the
+    positive half of the palette (white → darkred).
+    """
     valid_ratios = [value for value in ratios.values() if value is not None]
     if not valid_ratios:
         return dict.fromkeys(ratios, "#ffffff")
+
+    if plot_metric == "total":
+        if max_abs is None:
+            max_abs = max(valid_ratios)
+        if max_abs == 0:
+            return dict.fromkeys(ratios, "#ffffff")
+        return _map_total_ratios(ratios, max_abs=max_abs)
 
     if max_abs is None:
         max_abs = max(abs(value) for value in valid_ratios)
@@ -250,6 +206,23 @@ def map_ratios_to_colours(
         red, green, blue = colour_scale[index]
         colours[module_id] = f"#{red:02x}{green:02x}{blue:02x}"
 
+    return colours
+
+
+def _map_total_ratios(ratios: dict[int, float | None], *, max_abs: float) -> dict[int, str]:
+    """Map non-negative Total ratios onto the white→darkred half of the ramp."""
+    colour_scale = _get_color_scale()
+    half_bins = (len(colour_scale) - 1) // 2
+    positive_span = len(colour_scale) - 1 - half_bins
+    colours: dict[int, str] = {}
+    for module_id, ratio in ratios.items():
+        if ratio is None:
+            colours[module_id] = "#ffffff"
+            continue
+        fraction = max(0.0, min(1.0, ratio / max_abs))
+        index = half_bins + int(round(fraction * positive_span))
+        red, green, blue = colour_scale[index]
+        colours[module_id] = f"#{red:02x}{green:02x}{blue:02x}"
     return colours
 
 

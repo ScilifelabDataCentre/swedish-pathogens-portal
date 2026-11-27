@@ -53,7 +53,7 @@ class TestLiverViews(TestCase):
         )
         response = self.client.post(
             self.upload_url,
-            {"de_files": upload, "cutoff": "standard"},
+            {"de_files": upload, "adj_p": "0.05", "logfc_fold": "1.5"},
         )
         self.assertEqual(response.status_code, 200)
 
@@ -68,7 +68,8 @@ class TestLiverViews(TestCase):
                     content=self.example_path.read_bytes(),
                     content_type="text/plain",
                 ),
-                "cutoff": "standard",
+                "adj_p": "0.05",
+                "logfc_fold": "1.5",
             },
         )
 
@@ -80,7 +81,9 @@ class TestLiverViews(TestCase):
         session = self.client.session.get(SESSION_KEY)
         self.assertIsNotNone(session)
         self.assertEqual(session["files"][0]["filename"], "HCC-Control.txt")
-        self.assertEqual(session["cutoff"], "standard")
+        self.assertEqual(session["cutoff"], "0.05_1.5")
+        self.assertEqual(session["adj_p"], 0.05)
+        self.assertEqual(session["logfc_fold"], 1.5)
         self.assertIn("storage_id", session)
 
         hydrated = self._hydrated_session()
@@ -113,26 +116,39 @@ class TestLiverViews(TestCase):
         self.assertEqual(response.status_code, 405)
 
     def test_load_example_returns_plot(self) -> None:
-        """Test bundled example endpoint stores session and returns plot."""
-        url = liver_route_url(self.page, "load_example", example_slug="hcc-control")
+        """Test DashboardData example endpoint stores session and returns plot."""
+        from cms.tests.liver_resource.liver_helpers import create_liver_dashboard_data
+        from dashboard_visualisation.liver_resource.examples import EXAMPLE_SLUG
+
+        create_liver_dashboard_data(upload_name="obese-Control.txt")
+        url = liver_route_url(self.page, "load_example", example_slug=EXAMPLE_SLUG)
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "liver-tln-result")
-        self.assertContains(response, "HCC-Control.txt")
+        self.assertContains(response, "obese-Control.txt")
         session_filename = self.client.session[SESSION_KEY]["files"][0]["filename"]
-        self.assertEqual(session_filename, "HCC-Control.txt")
+        self.assertEqual(session_filename, "obese-Control.txt")
+
+    def test_load_example_without_dashboard_data_returns_error(self) -> None:
+        """Test example load fails clearly when DashboardData source is missing."""
+        from dashboard_visualisation.liver_resource.examples import EXAMPLE_SLUG
+
+        url = liver_route_url(self.page, "load_example", example_slug=EXAMPLE_SLUG)
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, 400)
+        self.assertContains(response, "unconfigured example dataset", status_code=400)
 
     def test_load_unknown_example_returns_error(self) -> None:
         """Test unknown example slug returns validation error."""
         url = liver_route_url(self.page, "load_example", example_slug="missing-example")
         response = self.client.get(url)
         self.assertEqual(response.status_code, 400)
-        self.assertContains(response, "Unknown example dataset", status_code=400)
+        self.assertContains(response, "unconfigured example dataset", status_code=400)
 
     def test_recompute_requires_session(self) -> None:
         """Test recompute without upload returns JSON error."""
-        response = self.client.get(self.recompute_url, {"cutoff": "top500"})
+        response = self.client.get(self.recompute_url, {"adj_p": "0.01", "logfc_fold": "2"})
         self.assertEqual(response.status_code, 400)
         payload = json.loads(response.content)
         self.assertIn("error", payload)
@@ -140,13 +156,46 @@ class TestLiverViews(TestCase):
     def test_recompute_returns_colours_array(self) -> None:
         """Test recompute returns updated colours for all modules."""
         self._upload_example_file()
-        response = self.client.get(self.recompute_url, {"cutoff": "top500"})
+        response = self.client.get(self.recompute_url, {"adj_p": "0.01", "logfc_fold": "2"})
         self.assertEqual(response.status_code, 200)
 
         payload = json.loads(response.content)
         self.assertEqual(len(payload["colours_array"]), EXPECTED_MODULE_COUNT)
-        self.assertEqual(payload["stats"]["cutoff"], "top500")
-        self.assertEqual(self.client.session[SESSION_KEY]["cutoff"], "top500")
+        self.assertIn("adj.P<0.01", payload["stats"]["cutoff"])
+        self.assertEqual(payload["stats"]["adj_p"], 0.01)
+        self.assertEqual(payload["stats"]["logfc_fold"], 2.0)
+        self.assertEqual(payload["stats"]["plot_metric"], "difference")
+        self.assertEqual(self.client.session[SESSION_KEY]["cutoff"], "0.01_2")
+        self.assertEqual(self.client.session[SESSION_KEY]["adj_p"], 0.01)
+        self.assertEqual(self.client.session[SESSION_KEY]["logfc_fold"], 2.0)
+
+    def test_recompute_total_plot_metric_returns_non_negative_ratios(self) -> None:
+        """Test Plot=Total recomputes module scores as (up+down)/overlap."""
+        self._upload_example_file()
+        response = self.client.get(
+            self.recompute_url,
+            {"adj_p": "0.05", "logfc_fold": "1.5", "plot_metric": "total"},
+        )
+        self.assertEqual(response.status_code, 200)
+
+        payload = json.loads(response.content)
+        self.assertEqual(payload["stats"]["plot_metric"], "total")
+        self.assertEqual(self.client.session[SESSION_KEY]["plot_metric"], "total")
+        for value in payload["ratios"].values():
+            if value is not None:
+                self.assertGreaterEqual(value, 0.0)
+
+    def test_recompute_total_accepts_html_plot_swap(self) -> None:
+        """Test Total mode can return a full plot partial for colourbar rebuild."""
+        self._upload_example_file()
+        response = self.client.get(
+            self.recompute_url,
+            {"adj_p": "0.05", "logfc_fold": "1.5", "plot_metric": "total"},
+            HTTP_ACCEPT="text/html",
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "liver-tln-plot")
+        self.assertContains(response, "Total DE genes")
 
     def test_download_template_returns_file(self) -> None:
         """Test template download returns the bundled DE template."""
@@ -219,7 +268,8 @@ class TestLiverViews(TestCase):
                         content_type="text/plain",
                     ),
                 ],
-                "cutoff": "standard",
+                "adj_p": "0.05",
+                "logfc_fold": "1.5",
             },
         )
 
@@ -240,28 +290,18 @@ class TestLiverViewsWithDashboardData(TestCase):
         cls.page = create_published_liver_resource_page()
 
     def setUp(self) -> None:
-        """Create liver DashboardData row from bundled DE file."""
-        from datetime import date
-
-        from cms.snippets.dashboard_data import DashboardData
+        """Create liver DashboardData row from a DE fixture."""
+        from cms.tests.liver_resource.liver_helpers import create_liver_dashboard_data
+        from dashboard_visualisation.liver_resource.examples import EXAMPLE_SLUG
 
         self.client = Client()
-        self.example_path = get_data_root() / "examples" / "HCC-Control.txt"
-        upload = SimpleUploadedFile(
-            name="HCC-Control.txt",
-            content=self.example_path.read_bytes(),
-            content_type="text/plain",
-        )
-        DashboardData.objects.create(
-            dashboard_title="DINA Liver Resource",
-            dashboard_slug="liver-resource",
-            source_file=upload,
-            data_updated_at=date(2026, 4, 20),
-        )
+        self.example_slug = EXAMPLE_SLUG
+        self.example_filename = "obese-Control.txt"
+        create_liver_dashboard_data(upload_name=self.example_filename)
 
     def test_load_example_uses_dashboard_data_without_analyse(self) -> None:
         """Test example button renders stored figure and keeps session for exports."""
-        url = liver_route_url(self.page, "load_example", example_slug="hcc-control")
+        url = liver_route_url(self.page, "load_example", example_slug=self.example_slug)
         with patch(
             "cms.views.liver_resource.analyse_de_uploads",
             side_effect=AssertionError("analyse_de_uploads should not run"),
@@ -269,5 +309,5 @@ class TestLiverViewsWithDashboardData(TestCase):
             response = self.client.get(url)
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "HCC-Control.txt")
+        self.assertContains(response, self.example_filename)
         self.assertIsNotNone(self.client.session.get(SESSION_KEY))

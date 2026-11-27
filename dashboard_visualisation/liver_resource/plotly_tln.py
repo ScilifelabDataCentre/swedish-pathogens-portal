@@ -1,7 +1,8 @@
-"""Build Plotly figures for the DINA Liver Tree-Leaf Network."""
+"""Build Plotly figures for the HepaGeNIE Tree-Leaf Network."""
 
 from __future__ import annotations
 
+import html
 import math
 from functools import lru_cache
 from typing import Any
@@ -9,8 +10,13 @@ from typing import Any
 import plotly.graph_objects as go
 
 from dashboard_visualisation.liver_resource.computation import R_PALETTE, map_ratios_to_colours
+from dashboard_visualisation.liver_resource.plot_metric import (
+    DEFAULT_PLOT_METRIC,
+    PlotMetric,
+)
 from dashboard_visualisation.liver_resource.reference_data import (
     load_cyjs_layout,
+    load_hover_module_titles,
     load_tln_graph,
 )
 from dashboard_visualisation.utils.plotly import figure_to_json
@@ -18,9 +24,60 @@ from dashboard_visualisation.utils.plotly import figure_to_json
 ComparisonRow = tuple[str, dict[int, float | None], dict[int, str]]
 
 BASE_LEAF_COLOUR = "lightskyblue"
-DEFAULT_FIGURE_HEIGHT = 800
 DEFAULT_FIGURE_WIDTH = 900
-DEFAULT_PLOT_HEIGHT_PX = 700
+# Keep Plotly layout height in sync with the template wrapper height.
+DEFAULT_PLOT_HEIGHT_PX = 560
+DEFAULT_FIGURE_HEIGHT = DEFAULT_PLOT_HEIGHT_PX
+
+
+def _tln_axis(**extra: Any) -> dict[str, Any]:  # noqa: ANN401
+    """Axis settings for the TLN: no ticks/grid, no subplot edge drag handles."""
+    axis: dict[str, Any] = {
+        "showgrid": False,
+        "zeroline": False,
+        "showticklabels": False,
+        # Hides Plotly's bottom/corner axis drag rects (ewdrag / sedrag).
+        "fixedrange": True,
+    }
+    axis.update(extra)
+    return axis
+
+
+def normalize_tln_figure_layout(figure_json: dict[str, Any]) -> dict[str, Any]:
+    """Force display height / axis flags on stored or freshly built figure JSON.
+
+    Older ``DashboardData`` rows may still embed ``layout.height`` 800, which
+    overflows the 560px wrapper and leaves an empty strip inside the plot card.
+    """
+    layout = figure_json.get("layout")
+    if not isinstance(layout, dict):
+        layout = {}
+        figure_json["layout"] = layout
+
+    layout["height"] = DEFAULT_FIGURE_HEIGHT
+    layout["width"] = layout.get("width") or DEFAULT_FIGURE_WIDTH
+    margin = layout.get("margin")
+    if not isinstance(margin, dict):
+        margin = {}
+    margin.setdefault("l", 20)
+    margin.setdefault("r", 20)
+    margin.setdefault("t", 50)
+    margin["b"] = max(int(margin.get("b") or 0), 40)
+    layout["margin"] = margin
+
+    for axis_name in ("xaxis", "yaxis"):
+        axis = layout.get(axis_name)
+        if not isinstance(axis, dict):
+            axis = {}
+        axis["fixedrange"] = True
+        axis.setdefault("showgrid", False)
+        axis.setdefault("zeroline", False)
+        axis.setdefault("showticklabels", False)
+        layout[axis_name] = axis
+    if "scaleanchor" not in layout["xaxis"]:
+        layout["xaxis"]["scaleanchor"] = "y"
+
+    return figure_json
 
 
 @lru_cache(maxsize=1)
@@ -38,7 +95,7 @@ def build_base_figure() -> go.Figure:
         layout=layout,
         leaf_colours={},
         leaf_ratios={},
-        title="DINA Liver TLN — Upload a DE file to colour modules",
+        title="HepaGeNIE TLN — Upload a DE file to colour modules",
         show_colorbar=False,
     )
 
@@ -46,22 +103,26 @@ def build_base_figure() -> go.Figure:
 def build_coloured_figure(
     ratios: dict[int, float | None],
     *,
-    title: str = "DINA Liver TLN",
-    cutoff: str = "standard",
+    title: str = "HepaGeNIE TLN",
+    threshold_label: str = "",
     max_abs: float | None = None,
+    plot_metric: PlotMetric = DEFAULT_PLOT_METRIC,
 ) -> go.Figure:
     """Build a TLN figure with module leaves coloured by DE ratios."""
     graph = load_tln_graph()
     layout = get_normalised_layout()
-    colours = map_ratios_to_colours(ratios, max_abs=max_abs)
+    colours = map_ratios_to_colours(ratios, max_abs=max_abs, plot_metric=plot_metric)
     leaf_colours = {str(module_id): colour for module_id, colour in colours.items()}
     leaf_ratios = {
         str(module_id): (ratio if ratio is not None else 0.0) for module_id, ratio in ratios.items()
     }
-    display_title = f"{title} ({cutoff} cutoff)" if cutoff else title
+    display_title = f"{title} ({threshold_label})" if threshold_label else title
     if max_abs is None:
         valid_ratios = [value for value in ratios.values() if value is not None]
-        max_abs = max((abs(value) for value in valid_ratios), default=1.0)
+        if plot_metric == "total":
+            max_abs = max(valid_ratios, default=1.0)
+        else:
+            max_abs = max((abs(value) for value in valid_ratios), default=1.0)
     return _build_figure(
         graph=graph,
         layout=layout,
@@ -70,28 +131,31 @@ def build_coloured_figure(
         title=display_title,
         show_colorbar=True,
         max_abs=max_abs,
+        plot_metric=plot_metric,
     )
 
 
 def build_multi_coloured_figure(
     comparisons: list[ComparisonRow],
     *,
-    title: str = "DINA Liver TLN",
-    cutoff: str = "standard",
+    title: str = "HepaGeNIE TLN",
+    threshold_label: str = "",
     max_abs: float | None = None,
+    plot_metric: PlotMetric = DEFAULT_PLOT_METRIC,
 ) -> go.Figure:
     """Build a TLN figure with pie-chart leaves for multiple DE comparisons."""
     graph = load_tln_graph()
     layout = get_normalised_layout()
-    display_title = f"{title} ({cutoff} cutoff)" if cutoff else title
+    display_title = f"{title} ({threshold_label})" if threshold_label else title
     if max_abs is None:
-        max_abs = _max_abs_from_comparisons(comparisons)
+        max_abs = _max_abs_from_comparisons(comparisons, plot_metric=plot_metric)
     return _build_multi_figure(
         graph=graph,
         layout=layout,
         comparisons=comparisons,
         title=display_title,
         max_abs=max_abs,
+        plot_metric=plot_metric,
     )
 
 
@@ -103,30 +167,39 @@ def build_base_figure_json() -> dict[str, Any]:
 def build_coloured_figure_json(
     ratios: dict[int, float | None],
     *,
-    title: str = "DINA Liver TLN",
-    cutoff: str = "standard",
+    title: str = "HepaGeNIE TLN",
+    threshold_label: str = "",
     max_abs: float | None = None,
+    plot_metric: PlotMetric = DEFAULT_PLOT_METRIC,
 ) -> dict[str, Any]:
     """Return JSON-safe Plotly figure for a coloured TLN view."""
     return figure_to_json(
-        build_coloured_figure(ratios, title=title, cutoff=cutoff, max_abs=max_abs)
+        build_coloured_figure(
+            ratios,
+            title=title,
+            threshold_label=threshold_label,
+            max_abs=max_abs,
+            plot_metric=plot_metric,
+        )
     )
 
 
 def build_multi_coloured_figure_json(
     comparisons: list[ComparisonRow],
     *,
-    title: str = "DINA Liver TLN",
-    cutoff: str = "standard",
+    title: str = "HepaGeNIE TLN",
+    threshold_label: str = "",
     max_abs: float | None = None,
+    plot_metric: PlotMetric = DEFAULT_PLOT_METRIC,
 ) -> dict[str, Any]:
     """Return JSON-safe Plotly figure for a multi-comparison pie TLN view."""
     return figure_to_json(
         build_multi_coloured_figure(
             comparisons,
             title=title,
-            cutoff=cutoff,
+            threshold_label=threshold_label,
             max_abs=max_abs,
+            plot_metric=plot_metric,
         )
     )
 
@@ -166,6 +239,7 @@ def _build_figure(
     title: str,
     show_colorbar: bool,
     max_abs: float = 1.0,
+    plot_metric: PlotMetric = DEFAULT_PLOT_METRIC,
 ) -> go.Figure:
     vertices = graph["vertices"]
     edges = graph["edges"]
@@ -192,26 +266,21 @@ def _build_figure(
 
     traces: list[go.Scatter] = [edge_trace, internal_trace, leaf_trace]
     if show_colorbar:
-        traces.append(_build_colorbar_trace(max_abs))
+        traces.append(_build_colorbar_trace(max_abs, plot_metric=plot_metric))
 
     figure = go.Figure(
         data=traces,
         layout=go.Layout(
             title={"text": title, "x": 0.5},
-            xaxis={
-                "showgrid": False,
-                "zeroline": False,
-                "showticklabels": False,
-                "scaleanchor": "y",
-            },
-            yaxis={"showgrid": False, "zeroline": False, "showticklabels": False},
+            xaxis=_tln_axis(scaleanchor="y"),
+            yaxis=_tln_axis(),
             plot_bgcolor="white",
             hovermode="closest",
             dragmode="pan",
             clickmode="event",
             width=DEFAULT_FIGURE_WIDTH,
             height=DEFAULT_FIGURE_HEIGHT,
-            margin={"l": 20, "r": 20, "t": 50, "b": 20},
+            margin={"l": 20, "r": 20, "t": 50, "b": 40},
         ),
     )
     return figure
@@ -224,6 +293,7 @@ def _build_multi_figure(
     comparisons: list[ComparisonRow],
     title: str,
     max_abs: float,
+    plot_metric: PlotMetric = DEFAULT_PLOT_METRIC,
 ) -> go.Figure:
     vertices = graph["vertices"]
     edges = graph["edges"]
@@ -247,26 +317,21 @@ def _build_multi_figure(
     )
 
     traces: list[go.Scatter] = [edge_trace, internal_trace, leaf_trace, label_trace]
-    traces.append(_build_colorbar_trace(max_abs))
+    traces.append(_build_colorbar_trace(max_abs, plot_metric=plot_metric))
 
     figure = go.Figure(
         data=traces,
         layout=go.Layout(
             title={"text": title, "x": 0.5},
-            xaxis={
-                "showgrid": False,
-                "zeroline": False,
-                "showticklabels": False,
-                "scaleanchor": "y",
-            },
-            yaxis={"showgrid": False, "zeroline": False, "showticklabels": False},
+            xaxis=_tln_axis(scaleanchor="y"),
+            yaxis=_tln_axis(),
             plot_bgcolor="white",
             hovermode="closest",
             dragmode="pan",
             clickmode="event",
             width=DEFAULT_FIGURE_WIDTH,
             height=DEFAULT_FIGURE_HEIGHT,
-            margin={"l": 20, "r": 20, "t": 50, "b": 20},
+            margin={"l": 20, "r": 20, "t": 50, "b": 40},
             shapes=pie_shapes,
         ),
     )
@@ -311,6 +376,15 @@ def _build_internal_trace(
     )
 
 
+def _module_hover_heading(module_name: str, titles: dict[int, str]) -> str:
+    """Build the Module N heading, appending the hover title when present."""
+    heading = f"<b>Module {module_name}</b>"
+    title = titles.get(int(module_name))
+    if not title:
+        return heading
+    return f"{heading}<br>{html.escape(title)}"
+
+
 def _build_leaf_trace(
     *,
     leaves: set[str],
@@ -327,6 +401,7 @@ def _build_leaf_trace(
     labels: list[str] = []
     hovers: list[str] = []
     customdata: list[str] = []
+    hover_titles = load_hover_module_titles()
 
     for name in sorted(leaves, key=lambda value: int(value)):
         if name not in layout:
@@ -343,14 +418,13 @@ def _build_leaf_trace(
         marker_sizes.append(max(8.0, math.sqrt(gene_count) * 2.5))
         labels.append(str(name))
         customdata.append(name)
+        heading = _module_hover_heading(name, hover_titles)
         if base_view:
             hovers.append(
-                f"<b>Module {name}</b><br>"
-                f"Genes: {gene_count}<br>"
-                "<i>Upload DE file to see ratios</i>"
+                f"{heading}<br>Genes: {gene_count}<br><i>Upload DE file to see ratios</i>"
             )
         else:
-            hovers.append(f"<b>Module {name}</b><br>Genes: {gene_count}<br>DE ratio: {ratio:+.4f}")
+            hovers.append(f"{heading}<br>Genes: {gene_count}<br>DE ratio: {ratio:+.4f}")
 
     return go.Scatter(
         x=leaf_x,
@@ -372,25 +446,45 @@ def _build_leaf_trace(
     )
 
 
-def _build_colorbar_trace(max_abs: float) -> go.Scatter:
+def _build_colorbar_trace(
+    max_abs: float,
+    *,
+    plot_metric: PlotMetric = DEFAULT_PLOT_METRIC,
+) -> go.Scatter:
+    if plot_metric == "total":
+        colorscale = [
+            [0.0, R_PALETTE[3]],
+            [0.33, R_PALETTE[4]],
+            [0.66, R_PALETTE[5]],
+            [1.0, R_PALETTE[6]],
+        ]
+        cmin = 0.0
+        cmax = max_abs
+        title = "Total DE Ratio"
+    else:
+        colorscale = [
+            [0, R_PALETTE[0]],
+            [0.167, R_PALETTE[1]],
+            [0.333, R_PALETTE[2]],
+            [0.5, R_PALETTE[3]],
+            [0.667, R_PALETTE[4]],
+            [0.833, R_PALETTE[5]],
+            [1.0, R_PALETTE[6]],
+        ]
+        cmin = -max_abs
+        cmax = max_abs
+        title = "DE Ratio"
+
     return go.Scatter(
         x=[None],
         y=[None],
         mode="markers",
         marker={
-            "colorscale": [
-                [0, R_PALETTE[0]],
-                [0.167, R_PALETTE[1]],
-                [0.333, R_PALETTE[2]],
-                [0.5, R_PALETTE[3]],
-                [0.667, R_PALETTE[4]],
-                [0.833, R_PALETTE[5]],
-                [1.0, R_PALETTE[6]],
-            ],
-            "cmin": -max_abs,
-            "cmax": max_abs,
+            "colorscale": colorscale,
+            "cmin": cmin,
+            "cmax": cmax,
             "colorbar": {
-                "title": {"text": "DE Ratio", "side": "right"},
+                "title": {"text": title, "side": "right"},
                 "thickness": 15,
                 "len": 0.6,
             },
@@ -419,6 +513,7 @@ def _build_pie_leaf_layers(
     label_y: list[float] = []
     labels: list[str] = []
     shapes: list[dict[str, Any]] = []
+    hover_titles = load_hover_module_titles()
 
     for name in sorted(leaves, key=lambda value: int(value)):
         if name not in layout:
@@ -438,11 +533,11 @@ def _build_pie_leaf_layers(
         label_y.append(y_value)
         labels.append(str(name))
 
-        hover_lines = [f"<b>Module {name}</b>", f"Genes: {gene_count}"]
+        hover_lines = [_module_hover_heading(name, hover_titles), f"Genes: {gene_count}"]
         for filename, ratios, _colours in comparisons:
             ratio = ratios.get(module_id)
             ratio_text = "—" if ratio is None else f"{ratio:+.4f}"
-            hover_lines.append(f"{filename}: {ratio_text}")
+            hover_lines.append(f"{html.escape(filename)}: {ratio_text}")
         hovers.append("<br>".join(hover_lines))
 
         for slice_index, (_, _, colours) in enumerate(comparisons):
@@ -520,12 +615,18 @@ def _marker_radius_data(gene_count: int, *, x_span: float = 2.0) -> float:
     return (diameter_px / 2) / (DEFAULT_FIGURE_WIDTH / x_span)
 
 
-def _max_abs_from_comparisons(comparisons: list[ComparisonRow]) -> float:
+def _max_abs_from_comparisons(
+    comparisons: list[ComparisonRow],
+    *,
+    plot_metric: PlotMetric = DEFAULT_PLOT_METRIC,
+) -> float:
     valid = [
         value for _, ratios, _ in comparisons for value in ratios.values() if value is not None
     ]
     if not valid:
         return 1.0
+    if plot_metric == "total":
+        return max(valid) or 1.0
     return max(abs(value) for value in valid) or 1.0
 
 

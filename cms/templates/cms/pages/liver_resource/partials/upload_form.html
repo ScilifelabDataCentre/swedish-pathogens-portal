@@ -1,19 +1,19 @@
 {% load wagtailroutablepage_tags %}
 
-<aside class="card bg-base-100 border border-base-300 shadow-sm">
-    <div class="card-body gap-5 p-5">
+<aside class="card bg-base-100 border border-base-300 shadow-sm w-full h-full">
+    <div class="card-body gap-3 p-4 flex flex-col h-full">
         <div>
             <h2 class="card-title text-base mb-1">Upload DE file(s)</h2>
             <p class="text-sm text-pp-dark-grey">
-                Upload one or more tab- or comma-separated limma-style tables with Ensembl gene IDs
-                and columns <code class="text-xs">logFC</code> and <code class="text-xs">adj.P.Val</code>.
-                Multiple files are shown as pie slices on each module leaf.
+                Limma-style table with Ensembl IDs,
+                <code class="text-xs">logFC</code>, and
+                <code class="text-xs">adj.P.Val</code>.
             </p>
         </div>
 
         <form
             id="liver-upload-form"
-            class="flex flex-col gap-4"
+            class="flex flex-col gap-3"
             method="post"
             enctype="multipart/form-data"
             action="{% routablepageurl page 'upload_de' %}"
@@ -40,15 +40,48 @@
             </label>
 
             <label class="form-control w-full">
-                <span class="label-text font-medium">DEcutoff</span>
+                <span class="label-text font-medium">Adj P.val</span>
                 <select
-                    name="cutoff"
-                    id="liver-cutoff-select"
-                    class="select select-bordered select-sm w-full"
+                    name="adj_p"
+                    id="liver-adj-p-select"
+                    class="select select-bordered select-sm w-full liver-threshold-select"
                 >
-                    {% for cutoff in cutoff_choices %}
-                    <option value="{{ cutoff }}" {% if cutoff == current_cutoff %}selected{% endif %}>
-                        {{ cutoff }}
+                    {% for value in adj_p_choices %}
+                    <option value="{{ value }}" {% if value == current_adj_p %}selected{% endif %}>
+                        {{ value }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </label>
+
+            <label class="form-control w-full">
+                <span class="label-text font-medium">LogFC fold</span>
+                <select
+                    name="logfc_fold"
+                    id="liver-logfc-fold-select"
+                    class="select select-bordered select-sm w-full liver-threshold-select"
+                >
+                    {% for value in logfc_fold_choices %}
+                    <option value="{{ value }}" {% if value == current_logfc_fold %}selected{% endif %}>
+                        {{ value }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </label>
+
+            <label class="form-control w-full">
+                <span class="label-text font-medium">Plot</span>
+                <select
+                    name="plot_metric"
+                    id="liver-plot-metric-select"
+                    class="select select-bordered select-sm w-full liver-threshold-select"
+                >
+                    {% for choice in plot_metric_choices %}
+                    <option
+                        value="{{ choice.value }}"
+                        {% if choice.value == current_plot_metric %}selected{% endif %}
+                    >
+                        {{ choice.label }}
                     </option>
                     {% endfor %}
                 </select>
@@ -73,7 +106,7 @@
                     hx-get="{% routablepageurl page 'load_example' example.slug %}"
                     hx-target="#liver-tln-panel"
                     hx-target-error="#liver-validation-errors"
-                    hx-include="#liver-cutoff-select"
+                    hx-include=".liver-threshold-select"
                     hx-swap="innerHTML"
                     hx-indicator="#liver-tln-loading"
                 >
@@ -82,11 +115,9 @@
                 {% endfor %}
             </div>
         </div>
-
-        <div class="divider my-0"></div>
         {% endif %}
 
-        <div class="flex flex-col gap-2">
+        <div class="flex flex-col gap-2 mt-auto pt-2 border-t border-base-300">
             <a
                 href="{% routablepageurl page 'download_template' %}"
                 class="btn btn-ghost btn-sm justify-start"
@@ -110,9 +141,5 @@
                 Export gene classifications (CSV)
             </a>
         </div>
-
-        <p id="liver-export-hint" class="text-xs text-pp-dark-grey" {% if has_session %}hidden{% endif %}>
-            Upload a file or load an example before exporting results.
-        </p>
     </div>
 </aside>

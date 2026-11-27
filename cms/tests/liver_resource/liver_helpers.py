@@ -2,19 +2,46 @@
 
 from __future__ import annotations
 
+from datetime import date
+
+from django.core.files.uploadedfile import SimpleUploadedFile
 from wagtail.models import Page, Site
 
 from cms.pages.dashboard_index import DashboardIndexPage
 from cms.pages.home import HomePage
 from cms.pages.liver_resource import LiverResourceDashboardPage
+from cms.snippets.dashboard_data import DashboardData
 from cms.tests.utils import create_test_image
+from dashboard_visualisation.liver_resource.reference_data import get_data_root
+
+
+def create_liver_dashboard_data(
+    *,
+    fixture_name: str = "HCC-Control.txt",
+    upload_name: str | None = None,
+    data_updated_at: date | None = None,
+) -> DashboardData:
+    """Create liver DashboardData from a bundled DE fixture (test helper)."""
+    fixture_path = get_data_root() / "examples" / fixture_name
+    name = upload_name or fixture_name
+    upload = SimpleUploadedFile(
+        name=name,
+        content=fixture_path.read_bytes(),
+        content_type="text/plain",
+    )
+    return DashboardData.objects.create(
+        dashboard_title="HepaGeNIE",
+        dashboard_slug="liver-resource",
+        source_file=upload,
+        data_updated_at=data_updated_at or date(2026, 4, 20),
+    )
 
 
 def create_published_liver_resource_page(
     *,
     title: str = "Liver Resource",
     slug: str = "liver-resource",
-    description: str = "DINA Liver Resource dashboard",
+    description: str = "HepaGeNIE dashboard",
 ) -> LiverResourceDashboardPage:
     """Create home → dashboards → liver-resource page tree and publish it.
 
@@ -43,7 +70,10 @@ def create_published_liver_resource_page(
         description=description,
         image=image,
         data_status="active",
-        content=[("text", "<p>Upload a limma-style DE file to colour the TLN.</p>")],
+        liver_content=[
+            ("text", "<p>Upload a limma-style DE file to colour the TLN.</p>"),
+            ("hepagene_panel", None),
+        ],
     )
     index.add_child(instance=page)
     page.save_revision().publish()

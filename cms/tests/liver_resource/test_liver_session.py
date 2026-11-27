@@ -16,7 +16,7 @@ from dashboard_visualisation.liver_resource.session import (
     get_session_cutoff,
     store_de_session,
     store_de_uploads,
-    update_session_cutoff,
+    update_session_controls,
 )
 from dashboard_visualisation.liver_resource.session_storage import (
     get_sessions_root,
@@ -48,7 +48,13 @@ class TestLiverSession(TestCase):
             "genes": ["ENSG00000000003"],
             "data": {"ENSG00000000003": {"logFC": 1.0, "adj.P.Val": 0.01}},
         }
-        store_de_session(self.request, de_data=de_data, filename="example.txt", cutoff="standard")
+        store_de_session(
+            self.request,
+            de_data=de_data,
+            filename="example.txt",
+            adj_p=0.05,
+            logfc_fold=1.5,
+        )
 
         session_meta = self.request.session[SESSION_KEY]
         self.assertIn("storage_id", session_meta)
@@ -58,7 +64,9 @@ class TestLiverSession(TestCase):
         if session is None:
             self.fail("Expected session data after store_de_session")
         self.assertEqual(session["files"][0]["filename"], "example.txt")
-        self.assertEqual(session["cutoff"], "standard")
+        self.assertEqual(session["cutoff"], "0.05_1.5")
+        self.assertEqual(session["adj_p"], 0.05)
+        self.assertEqual(session["logfc_fold"], 1.5)
         self.assertEqual(de_data_from_session(session), de_data)
 
     def test_store_multiple_uploads(self) -> None:
@@ -81,11 +89,12 @@ class TestLiverSession(TestCase):
                 },
             ),
         ]
-        store_de_uploads(self.request, uploads=uploads, cutoff="top500")
+        store_de_uploads(self.request, uploads=uploads, adj_p=0.01, logfc_fold=2.0)
         session = get_de_session(self.request)
         if session is None:
             self.fail("Expected session data after store_de_uploads")
         self.assertEqual(len(session["files"]), 2)
+        self.assertEqual(session["cutoff"], "0.01_2")
         self.assertEqual(de_uploads_from_session(session)[1][0], "b.txt")
 
     def test_legacy_inline_session_payload(self) -> None:
@@ -96,7 +105,7 @@ class TestLiverSession(TestCase):
             "data": {"ENSG00000000003": {"logFC": 1.0, "adj.P.Val": 0.01}},
         }
         self.request.session[SESSION_KEY] = {
-            "cutoff": "standard",
+            "cutoff": "0.05_1.5",
             "files": [{"filename": "legacy.txt", **de_data}],
         }
         session = get_de_session(self.request)
@@ -105,16 +114,21 @@ class TestLiverSession(TestCase):
         self.assertEqual(session["files"][0]["filename"], "legacy.txt")
         self.assertEqual(de_data_from_session(session), de_data)
 
-    def test_update_session_cutoff(self) -> None:
-        """Test cutoff can be changed without re-uploading."""
+    def test_update_session_controls(self) -> None:
+        """Test thresholds can be changed without re-uploading."""
         de_data = {
             "header": ["logFC", "adj.P.Val"],
             "genes": ["ENSG00000000003"],
             "data": {"ENSG00000000003": {"logFC": 1.0, "adj.P.Val": 0.01}},
         }
         store_de_session(self.request, de_data=de_data, filename="example.txt")
-        update_session_cutoff(self.request, "top500")
-        self.assertEqual(get_session_cutoff(self.request), "top500")
+        update_session_controls(self.request, adj_p=0.001, logfc_fold=5.0)
+        self.assertEqual(get_session_cutoff(self.request), "0.001_5")
+        session = get_de_session(self.request)
+        if session is None:
+            self.fail("Expected session data after update_session_controls")
+        self.assertEqual(session["adj_p"], 0.001)
+        self.assertEqual(session["logfc_fold"], 5.0)
 
     def test_clear_de_session(self) -> None:
         """Test session data is removed on clear."""

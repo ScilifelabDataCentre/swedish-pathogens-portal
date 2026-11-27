@@ -11,16 +11,17 @@ from cms.pages.dashboard_index import DashboardIndexPage
 from cms.pages.liver_resource import LiverResourceDashboardPage
 from cms.snippets.dashboard_data import DashboardData
 from cms.tests.liver_resource.liver_helpers import (
+    create_liver_dashboard_data,
     create_published_liver_resource_page,
     liver_route_url,
 )
 from cms.tests.utils import create_test_image
-from dashboard_visualisation.liver_resource.computation import VALID_CUTOFFS
 from dashboard_visualisation.liver_resource.examples import list_example_slugs, list_examples
 from dashboard_visualisation.liver_resource.reference_data import (
     clear_reference_data_cache,
     get_data_root,
 )
+from dashboard_visualisation.liver_resource.thresholds import ADJ_P_CHOICES, LOGFC_FOLD_CHOICES
 
 
 class LiverResourcePageTestCase(WagtailPageTestCase):
@@ -61,7 +62,59 @@ class TestLiverResourceDashboardPageModel(LiverResourcePageTestCase):
         """Test that the liver page uses its dedicated template."""
         self.assertEqual(
             LiverResourceDashboardPage.template,
-            "cms/pages/liver_resource.html",
+            "cms/pages/liver_resource/index.html",
+        )
+
+    def test_liver_content_stream_includes_hepagene_panel(self) -> None:
+        """Test liver-only StreamField offers the HepaGeNIE panel block."""
+        block_names = list(self.page.liver_content.stream_block.child_blocks)
+        self.assertNotIn(
+            "hepagene_panel",
+            DashboardPage._meta.get_field("content").stream_block.child_blocks,
+        )
+        self.assertIn("hepagene_panel", block_names)
+        for shared in (
+            "text",
+            "alert",
+            "collapsible",
+            "data_table",
+            "last_updated",
+            "plotly_figure",
+            "static_figure",
+        ):
+            self.assertIn(shared, block_names)
+
+    def test_liver_content_requires_exactly_one_hepagene_panel(self) -> None:
+        """Test StreamField enforces a single HepaGeNIE panel (contact pattern)."""
+        stream_block = LiverResourceDashboardPage._meta.get_field("liver_content").stream_block
+        self.assertEqual(
+            stream_block.meta.block_counts,
+            {"hepagene_panel": {"min_num": 1, "max_num": 1}},
+        )
+
+    def test_hepagene_panel_is_inline_static_block(self) -> None:
+        """Test panel is an inline StaticBlock (contact pattern), not a cms.blocks class."""
+        from pathlib import Path
+
+        from wagtail.blocks import StaticBlock
+
+        panel = LiverResourceDashboardPage._meta.get_field(
+            "liver_content"
+        ).stream_block.child_blocks["hepagene_panel"]
+        self.assertIsInstance(panel, StaticBlock)
+        self.assertEqual(
+            panel.meta.template,
+            "cms/pages/liver_resource/partials/hepagene_panel.html",
+        )
+        self.assertIn("exactly once", panel.meta.admin_text)
+        template = (
+            Path(__file__).resolve().parents[2]
+            / "templates/cms/pages/liver_resource/partials/hepagene_panel.html"
+        )
+        source = template.read_text(encoding="utf-8")
+        self.assertIn(
+            "cms/pages/liver_resource/partials/interactive_grid.html",
+            source,
         )
 
     def test_dashboard_index_allows_liver_child(self) -> None:
@@ -85,12 +138,13 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
         self.assertIn("layout", figure)
         self.assertGreater(len(figure["data"]), 0)
 
-    def test_get_context_includes_cutoff_choices(self) -> None:
-        """Test that get_context exposes all valid DEcutoff modes."""
+    def test_get_context_includes_threshold_choices(self) -> None:
+        """Test that get_context exposes Adj P.val and LogFC choices."""
         request = self.client.get(self.page.url).wsgi_request
         context = self.page.get_context(request)
 
-        self.assertEqual(context["cutoff_choices"], VALID_CUTOFFS)
+        self.assertEqual(context["adj_p_choices"], ADJ_P_CHOICES)
+        self.assertEqual(context["logfc_fold_choices"], LOGFC_FOLD_CHOICES)
 
     def test_get_context_includes_base_plot_html(self) -> None:
         """Test that get_context exposes server-rendered base Plotly HTML."""
@@ -98,26 +152,71 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
         context = self.page.get_context(request)
 
         self.assertIn("plotly-graph-div", context["base_plot_html"])
-        self.assertEqual(context["plot_height"], 700)
+        self.assertEqual(context["plot_height"], 560)
         self.assertEqual(context["leaf_trace_index"], 2)
 
     def test_get_context_includes_examples(self) -> None:
-        """Test that get_context exposes example dataset metadata."""
+        """Test examples come from DashboardData; empty without a source file."""
         request = self.client.get(self.page.url).wsgi_request
         context = self.page.get_context(request)
 
+        self.assertEqual(context["examples"], [])
         self.assertEqual(context["examples"], list_examples(self.page.dashboard_data))
-        slugs = [example["slug"] for example in context["examples"]]
-        self.assertEqual(slugs, list_example_slugs())
+        self.assertEqual(list_example_slugs(), ["obese-control"])
+
+        from cms.tests.liver_resource.liver_helpers import create_liver_dashboard_data
+
+        create_liver_dashboard_data(upload_name="obese-Control.txt")
+        self.page.__dict__.pop("dashboard_data", None)
+        request = self.client.get(self.page.url).wsgi_request
+        context = self.page.get_context(request)
+        self.assertEqual(
+            [example["slug"] for example in context["examples"]],
+            list_example_slugs(),
+        )
 
     def test_get_context_includes_session_flags(self) -> None:
-        """Test that get_context exposes session state for export controls."""
+        """Test landing context disables exports (has_session always false)."""
         request = self.client.get(self.page.url).wsgi_request
         context = self.page.get_context(request)
 
         self.assertFalse(context["has_session"])
-        self.assertEqual(context["current_cutoff"], "standard")
-        self.assertEqual(context["default_cutoff"], "standard")
+        self.assertEqual(context["current_adj_p"], 0.05)
+        self.assertEqual(context["current_logfc_fold"], 1.5)
+        self.assertEqual(context["current_plot_metric"], "difference")
+        self.assertEqual(context["default_adj_p"], 0.05)
+        self.assertEqual(context["default_logfc_fold"], 1.5)
+        self.assertEqual(context["default_plot_metric"], "difference")
+        self.assertEqual(
+            [choice["value"] for choice in context["plot_metric_choices"]],
+            ["difference", "total"],
+        )
+
+    def test_full_page_load_clears_stale_session_and_disables_exports(self) -> None:
+        """Test landing GET clears prior DE session so exports match the base plot."""
+        from dashboard_visualisation.liver_resource.session import SESSION_KEY
+
+        create_liver_dashboard_data(upload_name="obese-Control.txt")
+        self.page.__dict__.pop("dashboard_data", None)
+
+        example_url = liver_route_url(self.page, "load_example", "obese-control")
+        load = self.client.get(example_url)
+        self.assertEqual(load.status_code, 200)
+        self.assertIsNotNone(self.client.session.get(SESSION_KEY))
+
+        export_ok = self.client.get(liver_route_url(self.page, "export_module_scores"))
+        self.assertEqual(export_ok.status_code, 200)
+
+        landing = self.client.get(self.page.url)
+        self.assertEqual(landing.status_code, 200)
+        self.assertContains(landing, "Neutral base network")
+        self.assertContains(landing, 'id="liver-export-modules"')
+        self.assertContains(landing, "btn-disabled")
+        self.assertContains(landing, 'aria-disabled="true"')
+        self.assertIsNone(self.client.session.get(SESSION_KEY))
+
+        export_blocked = self.client.get(liver_route_url(self.page, "export_module_scores"))
+        self.assertEqual(export_blocked.status_code, 400)
 
     def test_get_context_includes_parent_heading(self) -> None:
         """Test that liver pages inherit the dashboard index heading."""
@@ -126,48 +225,108 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
 
         self.assertEqual(context["page_heading"], "Dashboards")
 
-    def test_get_context_includes_liver_endpoint_urls(self) -> None:
-        """Test that get_context exposes client-side liver endpoint URLs."""
+    def test_get_context_omits_unused_endpoint_url_keys(self) -> None:
+        """Test get_context does not inject unused liver_*_url keys."""
         request = self.client.get(self.page.url).wsgi_request
         context = self.page.get_context(request)
 
-        self.assertEqual(context["liver_upload_url"], liver_route_url(self.page, "upload_de"))
-        self.assertEqual(context["liver_recompute_url"], liver_route_url(self.page, "recompute"))
-        self.assertIn("/upload/", context["liver_upload_url"])
-        self.assertIn("/recompute/", context["liver_recompute_url"])
-        self.assertNotIn("/cms/liver/", context["liver_upload_url"])
+        self.assertNotIn("liver_upload_url", context)
+        self.assertNotIn("liver_recompute_url", context)
+        self.assertNotIn("liver_reference_figure_url", context)
+        self.assertNotIn("liver_supplementary_url", context)
 
     def test_get_context_example_label_uses_dashboard_data_filename(self) -> None:
-        """Test example button label comes from the DashboardData source file name."""
-        example_path = get_data_root() / "examples" / "HCC-Control.txt"
-        from django.core.files.uploadedfile import SimpleUploadedFile
+        """Test example button uses GSE126848 label for an obese-named DashboardData file."""
+        from cms.tests.liver_resource.liver_helpers import create_liver_dashboard_data
+        from dashboard_visualisation.liver_resource.examples import EXAMPLE_LABEL
 
-        upload = SimpleUploadedFile(
-            name="HCC-Control.txt",
-            content=example_path.read_bytes(),
-            content_type="text/plain",
-        )
-        DashboardData.objects.create(
-            dashboard_title="DINA Liver Resource",
-            dashboard_slug="liver-resource",
-            source_file=upload,
-            data_updated_at=date(2026, 4, 20),
-        )
+        create_liver_dashboard_data(upload_name="obese-Control.txt")
         self.page.__dict__.pop("dashboard_data", None)
 
         request = self.client.get(self.page.url).wsgi_request
         context = self.page.get_context(request)
 
-        self.assertEqual(context["examples"][0]["label"], "HCC Control")
+        self.assertEqual(context["examples"][0]["label"], EXAMPLE_LABEL)
+        self.assertEqual(context["examples"][0]["slug"], "obese-control")
+        self.assertEqual(context["examples"][0]["filename"], "obese-Control.txt")
 
     def test_page_includes_htmx_and_plotly_wiring(self) -> None:
         """Test that the page template includes htmx upload wiring and liver JS."""
         response = self.client.get(self.page.url)
-        self.assertContains(response, f'hx-post="{liver_route_url(self.page, "upload_de")}"')
+        upload_url = liver_route_url(self.page, "upload_de")
+        recompute_url = liver_route_url(self.page, "recompute")
+        self.assertContains(response, f'hx-post="{upload_url}"')
+        self.assertContains(response, f'data-recompute-url="{recompute_url}"')
         self.assertContains(response, 'hx-target="#liver-tln-panel"')
         self.assertContains(response, 'hx-target-error="#liver-validation-errors"')
         self.assertContains(response, 'id="liver-dashboard"')
         self.assertContains(response, "liver_resource.js")
+        self.assertNotIn("/cms/liver/", upload_url)
+        self.assertNotIn("/cms/liver/", recompute_url)
+
+    def test_page_colour_legend_uses_up_down_regulated_labels(self) -> None:
+        """Test colour legend spells out up/down regulated (not bare Up/Down)."""
+        response = self.client.get(self.page.url)
+        self.assertContains(response, 'id="liver-colour-legend"')
+        self.assertContains(response, "Up regulated")
+        self.assertContains(response, "Down regulated")
+        self.assertContains(response, "Neutral / no data")
+        self.assertNotContains(response, "> Up</span>")
+        self.assertNotContains(response, "> Down</span>")
+
+    def test_stream_order_places_blocks_around_hepagene_panel(self) -> None:
+        """Test StreamField order alone places intro above and footer below the panel."""
+        self.page.liver_content = [
+            ("text", "<p>Intro copy for HepaGeNIE.</p>"),
+            ("alert", {"alert_type": "info", "message": "<p>Upload help.</p>"}),
+            ("hepagene_panel", None),
+            (
+                "text",
+                (
+                    '<p>Download the <a href="/documents/1/tln.jpg">'
+                    "HepaGeNIE reference TLN map</a>.</p>"
+                ),
+            ),
+            (
+                "text",
+                (
+                    '<p>Download the <a href="/documents/2/supp.xlsx">'
+                    "supplementary workbook</a>.</p>"
+                ),
+            ),
+            (
+                "text",
+                "<h3>How to cite the example dataset</h3><p>Suppli et al. (2019).</p>",
+            ),
+        ]
+        self.page.save_revision().publish()
+        self.page.refresh_from_db()
+
+        block_types = [block.block_type for block in self.page.liver_content]
+        self.assertEqual(block_types.count("hepagene_panel"), 1)
+        panel_index = block_types.index("hepagene_panel")
+        self.assertEqual(block_types[:panel_index], ["text", "alert"])
+        self.assertEqual(block_types[panel_index + 1 :], ["text", "text", "text"])
+
+        response = self.client.get(self.page.url)
+        html = response.content.decode()
+        self.assertEqual(html.count('id="tln-container"'), 1)
+        intro_pos = html.index("Intro copy for HepaGeNIE")
+        plot_pos = html.index('id="tln-container"')
+        ref_pos = html.index("reference TLN map")
+        supp_pos = html.index("supplementary workbook")
+        cite_pos = html.index("How to cite the example dataset")
+        self.assertLess(intro_pos, plot_pos)
+        self.assertGreater(ref_pos, plot_pos)
+        self.assertGreater(supp_pos, ref_pos)
+        self.assertGreater(cite_pos, supp_pos)
+
+    def test_get_context_does_not_expose_marker_split_lists(self) -> None:
+        """Test phrase-marker above/below context keys are gone."""
+        request = self.client.get(self.page.url).wsgi_request
+        context = self.page.get_context(request)
+        self.assertNotIn("liver_content_above", context)
+        self.assertNotIn("liver_content_below", context)
 
     def test_page_renders_successfully(self) -> None:
         """Test that the liver dashboard page returns HTTP 200."""
@@ -180,7 +339,7 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
             content_type="text/plain",
         )
         row = DashboardData.objects.create(
-            dashboard_title="DINA Liver Resource",
+            dashboard_title="HepaGeNIE",
             dashboard_slug="liver-resource",
             source_file=upload,
             data_updated_at=date(2026, 4, 20),
@@ -217,7 +376,7 @@ class TestLiverResourceDashboardDataIntegration(LiverResourcePageTestCase):
             content_type="text/plain",
         )
         DashboardData.objects.create(
-            dashboard_title="DINA Liver Resource",
+            dashboard_title="HepaGeNIE",
             dashboard_slug="liver-resource",
             source_file=upload,
             data_updated_at=date(2026, 4, 20),
@@ -243,7 +402,7 @@ class TestLiverResourceDashboardDataIntegration(LiverResourcePageTestCase):
             content_type="text/plain",
         )
         row = DashboardData.objects.create(
-            dashboard_title="DINA Liver Resource",
+            dashboard_title="HepaGeNIE",
             dashboard_slug="liver-resource",
             source_file=upload,
             data_updated_at=date(2026, 5, 1),

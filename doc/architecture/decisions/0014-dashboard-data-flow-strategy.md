@@ -65,11 +65,11 @@ flowchart TD
 
 **Offline preparation.** Several inputs, files too large for an editorial request, or a derived artefact set that must persist on disk and be downloaded as files — not only as figures. Preparation is a deliberate, repeatable batch step. The page then reads the prepared figures and points downloads at the prepared artefacts. Example: the Drug Repurposing Resource (DRR) dataset pages.
 
-**Visitor-time computation.** The chart depends on a file the visitor provides. Reference material may be bundled with the application; the visitor’s file is session-scoped and is not the editorial source of record for the dashboard. Figures for that visit are computed at request time rather than stored for every visitor. Example: the DINA Liver Resource, whose interactive analysis is driven by the visitor’s differential-expression file.
+**Visitor-time computation.** The chart depends on a file the visitor provides. Reference material may be bundled with the application; the visitor’s file is session-scoped and is not the editorial source of record for the dashboard. Figures for that visit are computed at request time rather than stored for every visitor. Example: HepaGeNIE, whose interactive analysis is driven by the visitor’s differential-expression file.
 
 **Authored figures.** There is no live generation step. Editors store finished figure data. Used for historic or frozen visualisations. Examples: historic influenza and SARS-CoV-2 wastewater, CRUSH Covid, the Symptom Study Sweden, and other dashboards whose plots are no longer regenerated from a live source file.
 
-A dashboard may combine paths where the roles differ — for example the DINA Liver Resource uses visitor-time analysis on the page, plus an editorial upload that only seeds curated examples.
+A dashboard may combine paths where the roles differ — for example HepaGeNIE uses visitor-time analysis on the page, plus an editorial upload that only seeds curated examples.
 
 Where figures are stored for later page views, the public page resolves them by the page’s identity. That stored record holds Plotly figure data, a public “data updated” date when we have one, and a digest of the inputs that produced the figures. Visitor-time dashboards do not rely on that stored record for the visitor’s own file; they compute for the current session.
 
@@ -79,7 +79,7 @@ Where figures are stored for later page views, the public page resolves them by 
 |-----------|----------------|----------|
 | One file that fits an editorial save; output is figures | Editorial upload | Serology, SLU wastewater, Uppsala variants, Recovac |
 | Multiple large inputs and/or downloadable derived artefacts | Offline preparation | DRR dataset pages |
-| Each visitor’s file drives the chart | Visitor-time computation | DINA Liver Resource |
+| Each visitor’s file drives the chart | Visitor-time computation | HepaGeNIE |
 | Frozen visualisations, no generator | Authored figures | Historic wastewater, CRUSH Covid, Symptom Study Sweden |
 
 Stretch the editorial-upload path only while its assumptions remain true. When they break, use another path rather than forcing the new shape through the same save cycle.

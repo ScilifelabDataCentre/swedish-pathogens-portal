@@ -41,9 +41,9 @@ class TestLiverPlotlyTln(SimpleTestCase):
         """Test coloured figure adds a colorbar trace."""
         example_path = get_data_root() / "examples" / "HCC-Control.txt"
         de_data = parse_de_file(example_path)
-        classified = classify_genes(de_data, "standard")
+        classified = classify_genes(de_data, adj_p=0.05, logfc_fold=1.5)
         ratios = compute_module_ratios(de_data["genes"], classified, get_module_gene_sets())
-        figure = build_coloured_figure(ratios, cutoff="standard")
+        figure = build_coloured_figure(ratios, threshold_label="adj.P<0.05, fold 1.5")
         self.assertEqual(len(figure.data), 4)
 
     def test_base_figure_json_has_leaf_customdata(self) -> None:
@@ -57,13 +57,27 @@ class TestLiverPlotlyTln(SimpleTestCase):
         self.assertEqual(len(leaf_trace["customdata"]), EXPECTED_LEAF_COUNT)
         self.assertEqual(leaf_trace["customdata"][0], "1")
 
+    def test_leaf_hovertext_includes_module_titles_when_present(self) -> None:
+        """Test modules 3/4/12 show titles; blank modules stay number-only."""
+        figure_json = build_base_figure_json()
+        leaf_trace = next(trace for trace in figure_json["data"] if trace.get("customdata"))
+        hover_by_module = dict(zip(leaf_trace["customdata"], leaf_trace["hovertext"], strict=True))
+
+        self.assertIn("Myeliod cells", hover_by_module["3"])
+        self.assertIn("Amino acid catabolism and urea cycle", hover_by_module["4"])
+        self.assertIn("Cell cycle (I) - DNA replication", hover_by_module["12"])
+        self.assertIn("&amp;", hover_by_module["3"])  # HTML-escaped ampersand
+
+        blank_hover = hover_by_module["1"]
+        self.assertTrue(blank_hover.startswith("<b>Module 1</b><br>Genes:"))
+
     def test_coloured_figure_json_leaf_colours_are_hex(self) -> None:
         """Test coloured figure serialises hex marker colours for all modules."""
         example_path = get_data_root() / "examples" / "HCC-Control.txt"
         de_data = parse_de_file(example_path)
-        classified = classify_genes(de_data, "standard")
+        classified = classify_genes(de_data, adj_p=0.05, logfc_fold=1.5)
         ratios = compute_module_ratios(de_data["genes"], classified, get_module_gene_sets())
-        figure_json = build_coloured_figure_json(ratios, cutoff="standard")
+        figure_json = build_coloured_figure_json(ratios, threshold_label="adj.P<0.05, fold 1.5")
 
         leaf_trace = next(trace for trace in figure_json["data"] if trace.get("customdata"))
         colours = leaf_trace["marker"]["color"]
@@ -75,7 +89,7 @@ class TestLiverPlotlyTln(SimpleTestCase):
         """Test multi-comparison figure adds pie wedge shapes and click targets."""
         example_path = get_data_root() / "examples" / "HCC-Control.txt"
         de_data = parse_de_file(example_path)
-        classified = classify_genes(de_data, "standard")
+        classified = classify_genes(de_data, adj_p=0.05, logfc_fold=1.5)
         ratios = compute_module_ratios(de_data["genes"], classified, get_module_gene_sets())
         colours = dict.fromkeys(ratios, "#ffffff")
         figure_json = build_multi_coloured_figure_json(
@@ -83,7 +97,7 @@ class TestLiverPlotlyTln(SimpleTestCase):
                 ("file-a.txt", ratios, colours),
                 ("file-b.txt", ratios, colours),
             ],
-            cutoff="standard",
+            threshold_label="adj.P<0.05, fold 1.5",
         )
 
         self.assertGreater(len(figure_json["layout"]["shapes"]), EXPECTED_LEAF_COUNT)

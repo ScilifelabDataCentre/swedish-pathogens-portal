@@ -80,7 +80,7 @@ class TestLiverComputation(SimpleTestCase):
         """Test HCC-Control ratios with standard cutoff match R output."""
         example_path = get_data_root() / "examples" / "HCC-Control.txt"
         de_data = parse_de_file(example_path)
-        classified = classify_genes(de_data, "standard")
+        classified = classify_genes(de_data, adj_p=0.05, logfc_fold=1.5)
         modules = get_module_gene_sets()
         ratios = compute_module_ratios(de_data["genes"], classified, modules)
         r_ratios = self._load_r_reference("HCC-Control_module_scores.csv")
@@ -88,27 +88,57 @@ class TestLiverComputation(SimpleTestCase):
         self.assertEqual(len(r_ratios), EXPECTED_MODULE_COUNT)
         self._compare_ratios(ratios, r_ratios)
 
-    def test_sleep_deprived_top500_matches_r(self) -> None:
-        """Test sleep.deprived ratios with top500 cutoff match R output."""
-        example_path = get_data_root() / "examples" / "sleep.deprived.AK-control.AK.txt"
+    def test_stricter_fold_reduces_de_calls(self) -> None:
+        """Test a higher LogFC fold threshold classifies fewer DE genes."""
+        example_path = get_data_root() / "examples" / "HCC-Control.txt"
         de_data = parse_de_file(example_path)
-        classified = classify_genes(de_data, "top500")
-        modules = get_module_gene_sets()
-        ratios = compute_module_ratios(de_data["genes"], classified, modules)
-        r_ratios = self._load_r_reference("sleep.deprived.AK-control.AK_module_scores.csv")
-
-        self.assertEqual(len(r_ratios), EXPECTED_MODULE_COUNT)
-        self._compare_ratios(ratios, r_ratios)
+        default = classify_genes(de_data, adj_p=0.05, logfc_fold=1.5)
+        strict = classify_genes(de_data, adj_p=0.05, logfc_fold=5.0)
+        self.assertGreaterEqual(len(default["up"]), len(strict["up"]))
+        self.assertGreaterEqual(len(default["down"]), len(strict["down"]))
+        self.assertGreater(len(default["up"]) + len(default["down"]), 0)
 
     def test_map_ratios_to_colours_returns_hex_for_all_modules(self) -> None:
         """Test colour mapping returns a hex colour for every module."""
         example_path = get_data_root() / "examples" / "HCC-Control.txt"
         de_data = parse_de_file(example_path)
-        classified = classify_genes(de_data, "standard")
+        classified = classify_genes(de_data, adj_p=0.05, logfc_fold=1.5)
         modules = get_module_gene_sets()
         ratios = compute_module_ratios(de_data["genes"], classified, modules)
         colours = map_ratios_to_colours(ratios)
 
+        self.assertEqual(len(colours), EXPECTED_MODULE_COUNT)
+        for colour in colours.values():
+            self.assertRegex(colour, r"^#[0-9a-f]{6}$")
+
+    def test_total_plot_metric_uses_absolute_de_counts(self) -> None:
+        """Test Total scoring is (up+down)/overlap and never negative."""
+        example_path = get_data_root() / "examples" / "HCC-Control.txt"
+        de_data = parse_de_file(example_path)
+        classified = classify_genes(de_data, adj_p=0.05, logfc_fold=1.5)
+        modules = get_module_gene_sets()
+        difference = compute_module_ratios(de_data["genes"], classified, modules)
+        total = compute_module_ratios(
+            de_data["genes"],
+            classified,
+            modules,
+            plot_metric="total",
+        )
+
+        compared = 0
+        for module_id, total_ratio in total.items():
+            if total_ratio is None:
+                self.assertIsNone(difference[module_id])
+                continue
+            self.assertGreaterEqual(total_ratio, 0.0)
+            diff_ratio = difference[module_id]
+            if diff_ratio is None:
+                self.fail(f"Expected difference ratio for module {module_id}")
+            self.assertGreaterEqual(total_ratio, abs(diff_ratio) - 1e-12)
+            compared += 1
+        self.assertGreater(compared, 0)
+
+        colours = map_ratios_to_colours(total, plot_metric="total")
         self.assertEqual(len(colours), EXPECTED_MODULE_COUNT)
         for colour in colours.values():
             self.assertRegex(colour, r"^#[0-9a-f]{6}$")

@@ -7,22 +7,44 @@ import io
 from typing import Any
 
 from dashboard_visualisation.liver_resource.computation import classify_genes, compute_module_ratios
+from dashboard_visualisation.liver_resource.plot_metric import (
+    DEFAULT_PLOT_METRIC,
+    PlotMetric,
+)
 from dashboard_visualisation.liver_resource.reference_data import (
     EXPECTED_MODULE_COUNT,
     load_modules,
     load_symbol_map,
 )
+from dashboard_visualisation.liver_resource.thresholds import (
+    DEFAULT_ADJ_P,
+    DEFAULT_LOGFC_FOLD,
+    format_threshold_label,
+)
 
 
-def build_module_scores_csv(de_data: dict[str, Any], cutoff: str) -> str:
+def build_module_scores_csv(
+    de_data: dict[str, Any],
+    *,
+    adj_p: float = DEFAULT_ADJ_P,
+    logfc_fold: float = DEFAULT_LOGFC_FOLD,
+    plot_metric: PlotMetric = DEFAULT_PLOT_METRIC,
+) -> str:
     """Build module scores CSV matching R ``*_module_scores.csv`` format."""
-    classified = classify_genes(de_data, cutoff)
+    classified = classify_genes(de_data, adj_p=adj_p, logfc_fold=logfc_fold)
     modules = {module_id: set(genes) for module_id, genes in load_modules().items()}
-    ratios = compute_module_ratios(de_data["genes"], classified, modules)
+    ratios = compute_module_ratios(
+        de_data["genes"],
+        classified,
+        modules,
+        plot_metric=plot_metric,
+    )
     module_gene_counts = load_modules()
+    label = format_threshold_label(adj_p, logfc_fold)
 
     buffer = io.StringIO()
     writer = csv.writer(buffer, quoting=csv.QUOTE_MINIMAL)
+    # Column name ``DEcutoff`` kept for R parity; UI copy says "DE threshold".
     writer.writerow(["Module", "GeneCount", "DERatio", "DEcutoff"])
 
     for module_id in range(1, EXPECTED_MODULE_COUNT + 1):
@@ -33,16 +55,21 @@ def build_module_scores_csv(de_data: dict[str, Any], cutoff: str) -> str:
                 module_id,
                 len(module_gene_counts[module_id]),
                 ratio_value,
-                cutoff,
+                label,
             ]
         )
 
     return buffer.getvalue()
 
 
-def build_genes_csv(de_data: dict[str, Any], cutoff: str) -> str:
-    """Build gene classification CSV matching R ``*_genes.csv`` format."""
-    classified = classify_genes(de_data, cutoff)
+def build_genes_csv(
+    de_data: dict[str, Any],
+    *,
+    adj_p: float = DEFAULT_ADJ_P,
+    logfc_fold: float = DEFAULT_LOGFC_FOLD,
+) -> str:
+    """Build gene classification CSV (R ``*_genes.csv`` format)."""
+    classified = classify_genes(de_data, adj_p=adj_p, logfc_fold=logfc_fold)
     symbol_map = load_symbol_map()
     gene_module_map = _build_gene_module_map(de_data["genes"])
 

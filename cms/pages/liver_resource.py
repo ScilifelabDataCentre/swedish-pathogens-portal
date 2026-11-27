@@ -1,53 +1,147 @@
-"""CMS page for the DINA Liver Resource interactive dashboard."""
+"""CMS page for the HepaGeNIE interactive dashboard."""
 
 from typing import Any
 
 from django.http import HttpRequest, HttpResponse
+from wagtail.admin.panels import FieldPanel, MultiFieldPanel
+from wagtail.blocks import RichTextBlock, StaticBlock
 from wagtail.contrib.routable_page.models import RoutablePageMixin, path
+from wagtail.fields import StreamField
+from wagtail.search import index
 
+from cms.blocks import (
+    AlertBlock,
+    CollapsibleBlock,
+    DataTableBlock,
+    LastUpdatedBlock,
+    PlotlyFigureBlock,
+    StaticFigureBlock,
+)
 from cms.pages.dashboard import DashboardPage
 from cms.views import liver_resource as liver_views
 from dashboard_visualisation.liver_resource.analysis import LEAF_TRACE_INDEX
-from dashboard_visualisation.liver_resource.computation import VALID_CUTOFFS
 from dashboard_visualisation.liver_resource.dashboard_figures import (
     get_figure_data,
     resolve_base_tln_figure,
 )
 from dashboard_visualisation.liver_resource.examples import list_examples
+from dashboard_visualisation.liver_resource.plot_metric import (
+    DEFAULT_PLOT_METRIC,
+    PLOT_METRIC_CHOICES,
+    PLOT_METRIC_LABELS,
+)
 from dashboard_visualisation.liver_resource.plotly_tln import DEFAULT_PLOT_HEIGHT_PX
-from dashboard_visualisation.liver_resource.session import (
-    DEFAULT_CUTOFF,
-    get_de_session,
-    get_session_cutoff,
+from dashboard_visualisation.liver_resource.session import clear_de_session
+from dashboard_visualisation.liver_resource.thresholds import (
+    ADJ_P_CHOICES,
+    DEFAULT_ADJ_P,
+    DEFAULT_LOGFC_FOLD,
+    DEFAULT_THRESHOLD_KEY,
+    LOGFC_FOLD_CHOICES,
 )
 from dashboard_visualisation.utils.plotly import plot_html_from_json
 
 
 class LiverResourceDashboardPage(RoutablePageMixin, DashboardPage):
-    """Visitor-driven liver TLN dashboard with session-scoped DE uploads.
+    """Visitor-driven HepaGeNIE TLN dashboard with session-scoped DE uploads.
 
-    Shares card fields with :class:`DashboardPage` for the index listing.
-    The page body is rendered from a custom template with upload controls,
-    Plotly TLN, and htmx partial updates rather than StreamField figures.
+    Reuses :class:`DashboardPage` card fields. Uses a liver-only
+    ``liver_content`` StreamField (same idea as SLU ``slu_content``) so
+    ``hepagene_panel`` is not added to other dashboards. Django MTI forbids
+    redefining the inherited ``content`` field on this subclass.
 
-    HTMX / download endpoints live as sub-routes on this page (same pattern as
-    :class:`~cms.pages.portal_data.PortalDataPage`), not under ``/cms/liver/``.
+    Layout follows StreamField order: blocks before the inline
+    ``hepagene_panel`` StaticBlock render above the interactive sidebar+TLN;
+    blocks after render below. ``image`` is the index thumbnail only. The
+    sidebar example DE file is ``DashboardData.source_file`` for this slug.
     """
 
-    template = "cms/pages/liver_resource.html"
+    template = "cms/pages/liver_resource/index.html"
     max_count = 1
+
+    # Liver-only StreamField: shared dashboard blocks + HepaGeNIE panel.
+    # Parent DashboardPage.content is unused in the editor (see content_panels).
+    liver_content = StreamField(
+        [
+            ("text", RichTextBlock()),
+            ("alert", AlertBlock()),
+            ("collapsible", CollapsibleBlock()),
+            ("data_table", DataTableBlock()),
+            ("last_updated", LastUpdatedBlock()),
+            ("plotly_figure", PlotlyFigureBlock()),
+            ("static_figure", StaticFigureBlock()),
+            (
+                "hepagene_panel",
+                StaticBlock(
+                    admin_text=(
+                        "Place exactly once; renders the interactive HepaGeNIE "
+                        "sidebar + TLN. Drag StreamField blocks above or below "
+                        "it for layout."
+                    ),
+                    template="cms/pages/liver_resource/partials/hepagene_panel.html",
+                ),
+            ),
+        ],
+        blank=False,
+        default=list,
+        block_counts={"hepagene_panel": {"min_num": 1, "max_num": 1}},
+    )
+
+    search_fields = DashboardPage.search_fields + [
+        index.SearchField("liver_content"),
+        index.AutocompleteField("liver_content"),
+    ]
+
+    # Drop parent ``content`` panel; show ``liver_content`` instead (SLU pattern).
+    content_panels = [
+        *DashboardPage.content_panels[:1],
+        MultiFieldPanel(
+            [
+                FieldPanel(
+                    "description",
+                    help_text="Brief text displayed on the dashboard index card.",
+                ),
+                FieldPanel(
+                    "image",
+                    help_text=(
+                        "Thumbnail on the dashboard index card only. Link the "
+                        "reference TLN map and supplementary workbook as Documents "
+                        "in liver_content (below the HepaGeNIE panel)."
+                    ),
+                ),
+            ],
+            heading="Card details",
+        ),
+        *DashboardPage.content_panels[2:-1],
+        FieldPanel(
+            "liver_content",
+            help_text=(
+                "Main HepaGeNIE content. Exactly one HepaGeNIE interactive panel "
+                "is required; drag other blocks above or below it for layout."
+            ),
+        ),
+    ]
 
     class Meta:
         """Meta options for the LiverResourceDashboardPage model."""
 
-        verbose_name = "Liver Resource Dashboard"
+        verbose_name = "HepaGeNIE Dashboard"
 
     def get_context(self, request: HttpRequest) -> dict[str, Any]:
-        """Add liver-specific TLN and control metadata to template context."""
+        """Add liver-specific TLN and control metadata to template context.
+
+        Full-page SSR always shows the neutral base TLN. Clear any leftover DE
+        session so export links stay disabled until the visitor uploads a file
+        or loads an example again. HTMX upload/example/recompute keep the
+        session for that interactive visit.
+        """
         context = super().get_context(request)
         figure_data = get_figure_data(self.dashboard_data)
         base_figure_json = resolve_base_tln_figure(figure_data)
-        session = get_de_session(request)
+
+        # Landing plot and export controls must agree: no coloured analysis ⇒
+        # no CSV exports from a stale prior visit.
+        clear_de_session(request)
 
         context["base_tln_figure_json"] = base_figure_json
         context["base_plot_html"] = plot_html_from_json(
@@ -57,13 +151,20 @@ class LiverResourceDashboardPage(RoutablePageMixin, DashboardPage):
         )
         context["plot_height"] = DEFAULT_PLOT_HEIGHT_PX
         context["leaf_trace_index"] = LEAF_TRACE_INDEX
-        context["cutoff_choices"] = VALID_CUTOFFS
-        context["default_cutoff"] = DEFAULT_CUTOFF
-        context["current_cutoff"] = get_session_cutoff(request) if session else DEFAULT_CUTOFF
-        context["has_session"] = session is not None
+        context["adj_p_choices"] = ADJ_P_CHOICES
+        context["logfc_fold_choices"] = LOGFC_FOLD_CHOICES
+        context["plot_metric_choices"] = [
+            {"value": value, "label": PLOT_METRIC_LABELS[value]} for value in PLOT_METRIC_CHOICES
+        ]
+        context["current_adj_p"] = DEFAULT_ADJ_P
+        context["current_logfc_fold"] = DEFAULT_LOGFC_FOLD
+        context["current_plot_metric"] = DEFAULT_PLOT_METRIC
+        context["default_adj_p"] = DEFAULT_ADJ_P
+        context["default_logfc_fold"] = DEFAULT_LOGFC_FOLD
+        context["default_plot_metric"] = DEFAULT_PLOT_METRIC
+        context["default_threshold_key"] = DEFAULT_THRESHOLD_KEY
+        context["has_session"] = False
         context["examples"] = list_examples(self.dashboard_data)
-        context["liver_upload_url"] = self.url + self.reverse_subpage("upload_de")
-        context["liver_recompute_url"] = self.url + self.reverse_subpage("recompute")
         return context
 
     # ------------------------------------------------------------------ #
@@ -72,30 +173,30 @@ class LiverResourceDashboardPage(RoutablePageMixin, DashboardPage):
 
     @path("upload/")
     def upload_de(self, request: HttpRequest) -> HttpResponse:
-        """Accept DE upload(s) and return the TLN plot partial."""
+        """HTMX/JSON: validate upload, store session, return coloured figure."""
         return liver_views.upload_de(request)
-
-    @path("recompute/")
-    def recompute(self, request: HttpRequest) -> HttpResponse:
-        """Recompute colours / plot for the active session DEcutoff."""
-        return liver_views.recompute(request)
 
     @path("example/<slug:example_slug>/")
     def load_example(self, request: HttpRequest, example_slug: str) -> HttpResponse:
-        """Load a bundled example dataset into session and return the plot."""
+        """HTMX/JSON: load a curated example DE file into the session."""
         return liver_views.load_example(request, example_slug)
 
-    @path("template/")
+    @path("recompute/")
+    def recompute(self, request: HttpRequest) -> HttpResponse:
+        """HTMX/JSON: recolour the TLN from the current session thresholds."""
+        return liver_views.recompute(request)
+
+    @path("download-template/")
     def download_template(self, request: HttpRequest) -> HttpResponse:
-        """Serve the bundled DE upload template."""
+        """Download the empty DE upload template."""
         return liver_views.download_template(request)
 
     @path("export/modules/")
     def export_module_scores(self, request: HttpRequest) -> HttpResponse:
-        """Download module scores CSV for the session upload."""
+        """Download module scores CSV for the current session."""
         return liver_views.export_module_scores(request)
 
     @path("export/genes/")
     def export_genes(self, request: HttpRequest) -> HttpResponse:
-        """Download gene classification CSV for the session upload."""
+        """Download gene classification CSV for the current session."""
         return liver_views.export_genes(request)

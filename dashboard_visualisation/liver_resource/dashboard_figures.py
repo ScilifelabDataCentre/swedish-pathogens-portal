@@ -11,7 +11,10 @@ from dashboard_visualisation.liver_resource.analysis import (
     LiverAnalysisResult,
     PlotMode,
 )
-from dashboard_visualisation.liver_resource.plotly_tln import build_base_figure_json
+from dashboard_visualisation.liver_resource.plotly_tln import (
+    build_base_figure_json,
+    normalize_tln_figure_layout,
+)
 
 LIVER_DASHBOARD_SLUG = "liver-resource"
 
@@ -23,13 +26,16 @@ class StoredExampleFigure:
     figure_json: dict[str, Any]
     plot_mode: PlotMode
     leaf_trace_index: int
+    adj_p: float
+    logfc_fold: float
     cutoff: str
     comparisons: tuple[ComparisonStats, ...]
 
     def to_analysis_result(self) -> LiverAnalysisResult:
         """Build a template-friendly analysis result without recomputing the figure."""
         return LiverAnalysisResult(
-            cutoff=self.cutoff,
+            adj_p=self.adj_p,
+            logfc_fold=self.logfc_fold,
             comparisons=self.comparisons,
             plot_mode=self.plot_mode,
             figure_json=self.figure_json,
@@ -51,8 +57,8 @@ def resolve_base_tln_figure(data: dict[str, Any]) -> dict[str, Any]:
     """Return stored base TLN JSON or build from bundled reference data."""
     stored = data.get("base_tln")
     if _is_plotly_figure(stored):
-        return stored
-    return build_base_figure_json()
+        return normalize_tln_figure_layout(stored)
+    return normalize_tln_figure_layout(build_base_figure_json())
 
 
 def get_stored_example(
@@ -60,18 +66,37 @@ def get_stored_example(
     *,
     slug: str,
     cutoff: str,
+    adj_p: float | None = None,
+    logfc_fold: float | None = None,
 ) -> StoredExampleFigure | None:
-    """Return a stored example figure for a sidebar slug and cutoff, if present."""
+    """Return a stored example figure for a sidebar slug and threshold key."""
+    from dashboard_visualisation.liver_resource.thresholds import (
+        DEFAULT_ADJ_P,
+        DEFAULT_LOGFC_FOLD,
+        parse_adj_p,
+        parse_logfc_fold,
+        threshold_key,
+    )
+
     examples = data.get("examples")
     if not isinstance(examples, dict):
         return None
     slug_entry = examples.get(slug)
     if not isinstance(slug_entry, dict):
         return None
-    cutoff_entry = slug_entry.get(cutoff)
+
+    resolved_adj = parse_adj_p(adj_p if adj_p is not None else DEFAULT_ADJ_P)
+    resolved_fold = parse_logfc_fold(logfc_fold if logfc_fold is not None else DEFAULT_LOGFC_FOLD)
+    key = cutoff or threshold_key(resolved_adj, resolved_fold)
+    cutoff_entry = slug_entry.get(key)
     if not isinstance(cutoff_entry, dict):
         return None
-    return _parse_stored_example(cutoff_entry, cutoff=cutoff)
+    return _parse_stored_example(
+        cutoff_entry,
+        adj_p=resolved_adj,
+        logfc_fold=resolved_fold,
+        cutoff=key,
+    )
 
 
 def stored_example_entry_from_analysis(analysis: LiverAnalysisResult) -> dict[str, Any]:
@@ -89,11 +114,20 @@ def stored_example_entry_from_analysis(analysis: LiverAnalysisResult) -> dict[st
             "file_count": len(analysis.comparisons),
             "filenames": [comparison.filename for comparison in analysis.comparisons],
             "cutoff": analysis.cutoff,
+            "adj_p": analysis.adj_p,
+            "logfc_fold": analysis.logfc_fold,
+            "threshold_key": analysis.threshold_key,
         },
     }
 
 
-def _parse_stored_example(entry: dict[str, Any], *, cutoff: str) -> StoredExampleFigure | None:
+def _parse_stored_example(
+    entry: dict[str, Any],
+    *,
+    adj_p: float,
+    logfc_fold: float,
+    cutoff: str,
+) -> StoredExampleFigure | None:
     figure = entry.get("figure")
     if not _is_plotly_figure(figure):
         return None
@@ -142,10 +176,20 @@ def _parse_stored_example(entry: dict[str, Any], *, cutoff: str) -> StoredExampl
             for filename in display_filenames
         )
 
+    stats_adj = stats.get("adj_p", adj_p)
+    stats_fold = stats.get("logfc_fold", logfc_fold)
+    try:
+        resolved_adj = float(stats_adj)
+        resolved_fold = float(stats_fold)
+    except TypeError, ValueError:
+        resolved_adj, resolved_fold = adj_p, logfc_fold
+
     return StoredExampleFigure(
         figure_json=figure,
         plot_mode=plot_mode,
         leaf_trace_index=int(leaf_trace_index),
+        adj_p=resolved_adj,
+        logfc_fold=resolved_fold,
         cutoff=cutoff,
         comparisons=comparisons,
     )
