@@ -80,10 +80,11 @@ def plate_basis_token(stems: tuple[str, ...]) -> str:
         stems: The plate stems the run leaves out.
 
     Returns:
-        The stems sorted, so declaration order is no change, and present even
-        when empty, so "no plate excluded" is a basis of its own.
+        The distinct stems sorted, so neither declaration order nor a repeated
+        stem is a change, and present even when empty, so "no plate excluded" is
+        a basis of its own.
     """
-    return "plate-basis:" + ",".join(sorted(stems))
+    return "plate-basis:" + ",".join(sorted(set(stems)))
 
 
 def _plate_stem(column: str) -> pl.Expr:

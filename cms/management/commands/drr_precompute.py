@@ -158,7 +158,10 @@ class Command(BaseCommand):
         except (ValueError, pl.exceptions.ColumnNotFoundError) as error:
             raise CommandError(str(error)) from error
 
-        compound_index = build_compound_index(table, metadata, names)
+        try:
+            compound_index = build_compound_index(table, metadata, names)
+        except ValueError as error:
+            raise CommandError(str(error)) from error
         reconciliation = reconciliation_report(compound_index)
         # The compound table (FREYA-3011): its rows are the treated compounds of
         # the published table, read from pert_type rather than from the id's
@@ -255,8 +258,8 @@ class Command(BaseCommand):
         ]
         if names_hash:
             input_hashes.append(names_hash)
-        # Appended after the other files, so a run without the workbook keeps the
-        # digest it had.
+        # The optional digests sit in a fixed position, so the order they were
+        # passed in does not matter.
         if s8_hash:
             input_hashes.append(s8_hash)
         input_hashes.append(plate_basis_token(plate_stems))

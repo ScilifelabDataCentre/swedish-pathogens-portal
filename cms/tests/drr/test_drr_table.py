@@ -11,6 +11,7 @@ from django.test import SimpleTestCase
 from openpyxl import Workbook
 
 from cms.tests.drr.test_drr_downloads import DrrDownloadRouteTestCase
+from dashboard_visualisation.drr.compounds import compound_label
 from dashboard_visualisation.drr.table import (
     HIT_THRESHOLD,
     NOT_REPORTED,
@@ -248,6 +249,16 @@ class BuildCompoundTableTests(TableS8Case):
         table, _ = build_compound_table(index, ["DO8167002"], self.reduced)
 
         self.assertEqual(table["name"].to_list(), ["Nirmatrelvir"])
+
+    def test_a_blank_pert_iname_is_no_name_either(self) -> None:
+        """With no CBCS name and a whitespace-only pert_iname the Name is null, as the label is."""
+        index = compound_index([{"cbkid": "DO8167002", "kind": "compound", "pert_iname": " "}])
+        table, _ = build_compound_table(index, ["DO8167002"], self.reduced)
+
+        self.assertEqual(table["name"].to_list(), [None])
+        self.assertEqual(
+            compound_label("DO8167002", name=None, pert_iname=" ", kind="compound"), "DO8167002"
+        )
 
 
 class SelectRowsTests(SimpleTestCase):

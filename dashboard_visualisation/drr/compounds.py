@@ -19,8 +19,9 @@ authors' own compound name, read from the companion repository's Arrow file as a
 lookup over its hit set (FREYA-2628). It is never merged into ``name`` — that is
 the CBCS annotation dictionary's name, and only ``pert_iname`` is expected to
 join the paper's Table S8. Because the lookup keys on the same ids the feature
-table uses, it joins on the raw ``cbkid`` rather than on the stem. Only a
-compound's display label falls back to it (``compound_label``).
+table uses, it joins on the raw ``cbkid`` rather than on the stem. Only what a
+reader is shown falls back to it, through one rule (``compound_name``): a
+compound's display label (``compound_label``) and the compound table's Name.
 """
 
 from __future__ import annotations
@@ -209,7 +210,8 @@ def compound_label(
     One rule, used wherever a compound is named to a reader: the on-page picker
     (FREYA-2583), each per-compound radar's title (FREYA-2636) and each PCA
     overlay's legend, so the control and the figure it swaps in cannot name the
-    same compound differently.
+    same compound differently. The name inside it is ``compound_name``'s, the
+    same rule the compound table's Name uses.
 
     Args:
         cbkid: The compound id.
@@ -225,10 +227,27 @@ def compound_label(
     """
     if kind == "control":
         return f"{cbkid} (control)"
+    display_name = compound_name(name, pert_iname)
+    return f"{display_name} ({cbkid})" if display_name else cbkid
+
+
+def compound_name(name: str | None, pert_iname: str | None) -> str | None:
+    """Return the name a compound is shown under, or ``None`` if it has none.
+
+    The CBCS name wins; the name lookup's ``pert_iname`` stands in when the CBCS
+    name is missing or blank (FREYA-3126). A whitespace-only value is no name.
+
+    Args:
+        name: The CBCS annotation's name.
+        pert_iname: The name lookup's name.
+
+    Returns:
+        The first of the two that is neither missing nor blank, as given.
+    """
     for candidate in (name, pert_iname):
         if candidate and str(candidate).strip():
-            return f"{candidate} ({cbkid})"
-    return cbkid
+            return candidate
+    return None
 
 
 def _drop_condition_rows(names: pl.DataFrame) -> pl.DataFrame:

@@ -17,6 +17,7 @@ from dashboard_visualisation.drr import (
     normalize_cbkid,
     reconciliation_report,
 )
+from dashboard_visualisation.drr.compounds import compound_name
 from dashboard_visualisation.drr.loader import NAME_LOOKUP_COLUMNS, FeatureTable
 
 # One metadata row per bare stem; a duplicate stem with a different name is
@@ -132,9 +133,9 @@ class BuildCompoundIndexTests(SimpleTestCase):
     def test_control_tokens_classified(self) -> None:
         """Non-CBCS ids with only control wells are controls, with a null stem and no annotation."""
         index = build_compound_index(
-            _feature_table(["[stau]", "DO8167002"], ["poscon", "poscon"]), METADATA
+            _feature_table(["[stau]", "[etop]"], ["poscon", "poscon"]), METADATA
         )
-        for token in ("[stau]", "DO8167002"):
+        for token in ("[stau]", "[etop]"):
             row = _row(index, token)
             self.assertEqual(row["kind"], "control")
             self.assertIsNone(row["cbkid_normalized"])
@@ -194,10 +195,9 @@ class BuildCompoundIndexTests(SimpleTestCase):
     def test_id_mixing_control_and_treated_wells_is_a_compound(self) -> None:
         """One treated well is enough to make an id a compound."""
         index = build_compound_index(
-            _feature_table(["CBK000155", "CBK000155", "CBK000155"], ["negcon", "trt", "non-inf"]),
-            METADATA,
+            _feature_table(["DO8167002", "DO8167002"], ["negcon", "trt"]), METADATA
         )
-        self.assertEqual(_row(index, "CBK000155")["kind"], "compound")
+        self.assertEqual(_row(index, "DO8167002")["kind"], "compound")
 
     def test_positive_control_id_stays_a_control(self) -> None:
         """An id holding only poscon wells is a control."""
@@ -388,7 +388,9 @@ class CompoundIndexNameLookupTests(SimpleTestCase):
     def test_condition_ids_end_with_no_name(self) -> None:
         """The negative-control id is left unnamed: DMSO/non-inf name a condition."""
         index = build_compound_index(
-            _feature_table(["CBK281357", "CBK008271"]), METADATA, NAME_LOOKUP
+            _feature_table(["CBK281357", "CBK281357", "CBK008271"], ["negcon", "non-inf", "trt"]),
+            METADATA,
+            NAME_LOOKUP,
         )
         self.assertIsNone(_row(index, "CBK281357")["pert_iname"])
         self.assertEqual(_row(index, "CBK008271")["pert_iname"], "alpha-iname")
@@ -423,7 +425,9 @@ class CompoundIndexNameLookupTests(SimpleTestCase):
 
     def test_names_are_stable_across_runs(self) -> None:
         """Two runs over the same lookup agree on every name, in any row order."""
-        table = _feature_table(["CBK008271", "CBK000155", "CBK281357", "[flup]"])
+        table = _feature_table(
+            ["CBK008271", "CBK000155", "CBK281357", "[flup]"], ["trt", "trt", "negcon", "poscon"]
+        )
         first = build_compound_index(table, METADATA, NAME_LOOKUP)
         second = build_compound_index(table, METADATA, NAME_LOOKUP.reverse())
 
@@ -436,7 +440,9 @@ class NameLookupReportTests(SimpleTestCase):
     def test_report_counts(self) -> None:
         """Provenance, lookup size, named/unnamed rows and the excluded conditions."""
         index = build_compound_index(
-            _feature_table(["CBK008271", "CBK281357", "CBK999999"]), METADATA, NAME_LOOKUP
+            _feature_table(["CBK008271", "CBK281357", "CBK999999"], ["trt", "negcon", "trt"]),
+            METADATA,
+            NAME_LOOKUP,
         )
         report = name_lookup_report(
             index, NAME_LOOKUP, source_filename="lookup.feather", source_hash="a" * 64
@@ -506,3 +512,22 @@ class CompoundLabelTests(SimpleTestCase):
         self.assertEqual(
             compound_label("CBK999999", name=None, pert_iname=" ", kind="compound"), "CBK999999"
         )
+
+
+class CompoundNameTests(SimpleTestCase):
+    """The name half of the naming rule, shared by the label and the table's Name (FREYA-3126)."""
+
+    def test_the_cbcs_name_wins(self) -> None:
+        """The fallback is only a fallback."""
+        self.assertEqual(compound_name("alpha", "alpha-iname"), "alpha")
+
+    def test_a_blank_or_missing_cbcs_name_falls_back_to_pert_iname(self) -> None:
+        """A missing or whitespace-only name is no name."""
+        self.assertEqual(compound_name(None, "Nirmatrelvir"), "Nirmatrelvir")
+        self.assertEqual(compound_name("  ", "Nirmatrelvir"), "Nirmatrelvir")
+
+    def test_two_blank_names_are_no_name(self) -> None:
+        """Neither a missing nor a whitespace-only value is returned."""
+        for name, pert_iname in ((None, None), (" ", None), (None, " "), ("", "  ")):
+            with self.subTest(name=name, pert_iname=pert_iname):
+                self.assertIsNone(compound_name(name, pert_iname))

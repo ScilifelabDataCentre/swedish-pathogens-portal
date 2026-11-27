@@ -34,6 +34,8 @@ from typing import Any
 import polars as pl
 from django.utils.html import strip_tags
 
+from .compounds import compound_name
+
 # Table S8's own headers, mapped to ours. Its legend columns are ignored.
 S8_COLUMNS: dict[str, str] = {
     "Compound_name": "compound_name",
@@ -193,6 +195,10 @@ def build_compound_table(
     then on the index's CBCS ``name`` case-folded. Two ids may share one S8 name;
     both rows then show its score, and the name is reported.
 
+    The table's ``name`` is what the reader is shown, by the rule every compound
+    label uses (``compound_name``): the CBCS name, or ``pert_iname`` when that is
+    missing or blank, else null. No other column takes the fallback.
+
     Args:
         compound_index: The index precompute builds (``compounds.parquet``).
         treated: The treated ids, from ``treated_ids``.
@@ -216,16 +222,13 @@ def build_compound_table(
     for name in names:
         folded.setdefault(name.casefold(), name)
 
-    matches = [
-        _match_name((row["pert_iname"], row["name"]), exact, folded)
-        for row in index.select("pert_iname", "name").iter_rows(named=True)
-    ]
+    rows = index.select("pert_iname", "name").rows(named=True)
+    matches = [_match_name((row["pert_iname"], row["name"]), exact, folded) for row in rows]
     index = index.with_columns(
         pl.Series("compound_name", matches, dtype=pl.String),
-        pl.when(pl.col("name").str.strip_chars() != "")
-        .then(pl.col("name"))
-        .otherwise(pl.col("pert_iname"))
-        .alias("name"),
+        pl.Series(
+            "name", [compound_name(row["name"], row["pert_iname"]) for row in rows], dtype=pl.String
+        ),
     )
 
     table = index.join(reduced, on="compound_name", how="left").select(TABLE_COLUMNS).sort("cbkid")

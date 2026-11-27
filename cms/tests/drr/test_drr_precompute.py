@@ -1146,6 +1146,23 @@ class DrrPrecomputeTests(TestCase):
         self.assertEqual(reloaded.source_file_hash, row.source_file_hash)
         self.assertEqual(reloaded.data, row.data)
 
+    def test_an_unclassifiable_id_leaves_the_artefacts_untouched(self) -> None:
+        """An id that is neither compound nor control stops a re-run by name (FREYA-3126)."""
+        self._run()
+        before = self._artefact_bytes()
+        row = DrrDatasetData.get_data(SLUG)
+
+        self.input_path.write_text(
+            FEATURE_CSV.replace(";trt;B1;10;CBK3;", ";av_con;B1;10;CBK3;"), encoding="utf-8"
+        )
+        with self.assertRaisesMessage(CommandError, "CBK3"):
+            self._run()
+
+        self.assertEqual(self._artefact_bytes(), before)
+        reloaded = DrrDatasetData.get_data(SLUG)
+        self.assertEqual(reloaded.source_file_hash, row.source_file_hash)
+        self.assertEqual(reloaded.data, row.data)
+
     def test_plate_metadata_is_an_input_to_the_digests(self) -> None:
         """A changed deposit record moves the inputs digest, as any input does."""
         self._run()
@@ -1199,6 +1216,15 @@ class DrrPrecomputeTests(TestCase):
             self._run()
 
         self.assertEqual(self._digests(), first)
+
+        # No fixture row sits on an excluded plate, so only the basis itself can
+        # move the digests here.
+        with patch.dict(EXCLUDED_PLATES, {SLUG: ()}):
+            self._run()
+
+        _, inputs_sha, source_hash = self._digests()
+        self.assertNotEqual(inputs_sha, first[1])
+        self.assertNotEqual(source_hash, first[2])
 
     def test_an_unchanged_basis_reproduces_both_digests(self) -> None:
         """Same files, same basis: all three digests come out identical."""

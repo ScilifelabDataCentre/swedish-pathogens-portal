@@ -76,6 +76,10 @@ class PlateBasisTokenTests(SimpleTestCase):
         self.assertEqual(plate_basis_token(()), "plate-basis:")
         self.assertNotEqual(plate_basis_token(()), plate_basis_token(NEVER_DEPOSITED))
 
+    def test_a_repeated_stem_is_no_change(self) -> None:
+        """The basis is a set: naming a plate twice excludes nothing more."""
+        self.assertEqual(plate_basis_token(("P1", "P1")), plate_basis_token(("P1",)))
+
 
 class ExcludePlatesTests(SimpleTestCase):
     """The filter drops exactly the excluded stems and nothing else."""

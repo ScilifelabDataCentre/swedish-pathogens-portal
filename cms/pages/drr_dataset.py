@@ -50,9 +50,11 @@ LOGGER = structlog.get_logger(__name__)
 # legitimate ``cbkid`` values — so this sanitises the header only.
 _UNSAFE_FILENAME_CHARS = re.compile(r"[^A-Za-z0-9._-]")
 
-# The compound-index columns the pickers label from. ``name`` and ``kind`` are
-# read when present rather than required: an index built without CBCS metadata
-# carries neither, and the picker still has to offer every downloadable id.
+# The compound-index columns the pickers label from. Precompute always writes
+# ``cbkid`` and ``kind``; ``name`` and ``pert_iname`` are read when present rather
+# than required: an index built without CBCS metadata has no ``name``, one built
+# without the name lookup no ``pert_iname``, and the picker still has to offer
+# every downloadable id.
 # ``radar_key`` names the compound's per-compound radar on disk (FREYA-2636), and
 # ``pca_key`` its overlay on the PCA (FREYA-3202).
 _COMPOUND_OPTION_COLUMNS = ("cbkid", "name", "kind", "pert_iname", "radar_key", "pca_key")
@@ -450,8 +452,10 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
         Reads ``compounds.parquet``, the index precompute builds by grouping the
         feature table, so the option set is exactly the set of ``cbkid`` values
         the per-compound slice can serve: no option 404s and no compound is
-        hidden behind one. Nothing is dropped — the compounds the CBCS join left
-        unannotated keep their bare id, and control placeholders keep theirs.
+        hidden behind one. Nothing is dropped — a compound the CBCS join left
+        unannotated is labelled by its ``pert_iname`` when the name lookup names
+        it and by its bare id when nothing does, and control placeholders keep
+        theirs.
 
         Every unreadable index yields no options rather than an exception: this
         read happens on each page view, precompute writes the file in place, and
