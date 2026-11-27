@@ -1,0 +1,61 @@
+{% extends "mfa/spp_mfa_base.html" %}
+{% load wagtailadmin_tags %}
+
+{% comment %}
+    This template is used to override django allauth's MFA index template. It extends our custom
+    MFA base template. `block mfa_content` is used to add content to the MFA index page.
+
+    Django allauth MFA index template source code:
+    https://github.com/pennersr/django-allauth/blob/main/allauth/templates/mfa/index.html
+{% endcomment %}
+
+{% block mfa_content %}
+
+    <p>
+        Here you can get an overview of your multi-factor authentication settings. Follow
+        the links below to activate or deactivate MFA methods, and manage your recovery codes.
+        Visit the <a href="{% url 'wagtailadmin_account' %}">account</a> page to change other
+        account settings, such as your password or profile information.
+    </p>
+    {% if "totp" in MFA_SUPPORTED_TYPES %}
+        <div class="w-mt-8">
+            <h2 class="w-h3">Authenticator App</h2>
+            <p>
+                An authenticator app is used to generate time-based one-time passwords (TOTP)
+                for multi-factor authentication.
+            </p>
+            {% if authenticators.totp %}
+                <div class="w-flex w-items-center w-gap-2 w-font-bold">
+                    {% icon classname="w-max-w-[1em] w-max-h-[1em]" name="check" %} MFA is Enabled
+                </div>
+                <a href="{% url 'mfa_deactivate_totp' %}" class="button w-mt-6">Deactivate MFA</a>
+            {% else %}
+                <a href="{% url 'mfa_activate_totp' %}" class="button w-mt-6">Activate MFA</a>
+            {% endif %}
+        </div>
+    {% endif %}
+
+    {% if "recovery_codes" in MFA_SUPPORTED_TYPES and authenticators.recovery_codes %}
+        {% with total_count=authenticators.recovery_codes.generate_codes|length unused_count=authenticators.recovery_codes.get_unused_codes|length %}
+            <div class="w-mt-8">
+                <h2 class="w-h3">Recovery Codes</h2>
+                <p>
+                    Recovery codes are one-time use codes that can be used to access your account if you
+                    lose access to your primary MFA method.
+                </p>
+                <p>
+                    <span class="w-font-semibold">Generated codes:</span> {{ total_count }}
+                    <span class="w-font-semibold w-pl-5">Unused codes:</span> {{ unused_count }}
+                </p>
+                <div class="w-mt-6">
+                    {% if unused_count > 0 and not MFA_RECOVERY_CODES_SHOW_ONCE %}
+                        <a href="{% url 'mfa_view_recovery_codes' %}" class="button">View Codes</a>
+                        <a href="{% url 'mfa_download_recovery_codes' %}" class="button">Download Codes</a>
+                    {% endif %}
+                    <a href="{% url 'mfa_generate_recovery_codes' %}" class="button">Re-Generate Codes</a>
+                </div>
+            </div>
+        {% endwith %}
+    {% endif %}
+
+{% endblock %}

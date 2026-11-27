@@ -1,0 +1,25 @@
+{% extends "wagtailadmin/base.html" %}
+{% load wagtailadmin_tags %}
+
+{% comment %}
+    This template is used as a base template to override other django allauth's MFA templates.
+    It extends wagtailadmin's base template to keep the UI consistent with the rest of the
+    Wagtail admin pages. `block content` is overridden with django allauth's content and
+    `block mfa_page_title` and `block mfa_content` are provided to be overridden by the child
+    MFA templates that extend this base template.
+
+    Wagtailadmin base template source code:
+    https://github.com/wagtail/wagtail/blob/main/wagtail/admin/templates/wagtailadmin/base.html
+{% endcomment %}
+
+{% block titletag %}Multi-Factor Authentication{% endblock %}
+
+{% block content %}
+    <section class="nice-padding w-mt-8 w-max-w-6xl">
+        <div class="w-flex w-h1 w-items-center w-gap-2 w-mb-4">
+            {% icon classname="w-max-w-[1em] w-max-h-[1em]" name="lock" %}
+            <div>{% block mfa_page_title %}Multi-Factor Authentication{% endblock %}</div>
+        </div>
+        {% block mfa_content %}{% endblock %}
+    </section>
+{% endblock %}

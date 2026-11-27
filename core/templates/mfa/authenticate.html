@@ -1,0 +1,70 @@
+{% extends "wagtailadmin/admin_base.html" %}
+{% load wagtailadmin_tags %}
+
+{% comment %}
+    This template is used to override django allauth's MFA authenticate template. It just
+    extends wagtailadmin's admin_base template to keep the same layout and styling.
+    Modified the `block furniture` to display the authenticate form. Kept the `block js`
+    empty to avoid loading wagtailadmin's js which is not needed for this template.
+
+    Django allauth authenticate template source code:
+    https://github.com/pennersr/django-allauth/blob/master/allauth/templates/mfa/authenticate.html
+
+    Wagtailadmin admin_base template source code:
+    https://github.com/wagtail/wagtail/blob/main/wagtail/admin/templates/wagtailadmin/admin_base.html
+{% endcomment %}
+
+{% block titletag %}Multi-Factor Authentication{% endblock %}
+{% block bodyclass %}login{% endblock %}
+{% block js %}{% endblock %}
+
+{% block extra_css %}
+<style>
+    #authenticate-wrapper .messages ul {
+        opacity: 1 !important;
+        position: static !important;
+    }
+    #authenticate-wrapper h1 {
+        font-size: 1.5rem;
+    }
+    .w-field > * + *,
+    .w-field__wrapper > * + * {
+        margin-top: 0.75rem !important;
+    }
+</style>
+{% endblock  %}
+
+{% block furniture %}
+    <main class="content-wrapper" id="main">
+        <div id="authenticate-wrapper">
+            {% if messages or form.non_field_errors %}
+                <div class="messages" role="status">
+                    <ul>
+                        {% if form.non_field_errors %}
+                            {% for error in form.non_field_errors %}
+                                <li class="error">{{ error }}</li>
+                            {% endfor %}
+                        {% endif %}
+                        {% for message in messages %}
+                            <li class="{{ message.tags }}">{{ message }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endif %}
+
+            <h1>Multi-Factor Authentication</h1>
+
+            <form method="post" action="{% url 'mfa_authenticate' %}" novalidate>
+                {% csrf_token %}
+                {% formattedfield form.code label_text="Enter the code from your authenticator app to complete the login process" %}
+                <button type="submit" class="button w-mt-4">Authenticate</button>
+            </form>
+
+            <form method="post" action="{% url 'account_logout' %}" class="w-mt-4">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{% url 'account_login' %}" />
+                <button type="submit" class="button">Cancel</button>
+            </form>
+        </div>
+    </main>
+{% endblock %}

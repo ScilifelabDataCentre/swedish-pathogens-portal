@@ -1,0 +1,78 @@
+{% extends "mfa/spp_mfa_base.html" %}
+{% load static wagtailadmin_tags %}
+
+{% comment %}
+    This template is used to override django allauth's MFA recovery codes index template.
+    It extends our custom MFA base template. `block mfa_content` is used to add content
+    to the MFA recovery codes index page.
+
+    Django allauth MFA recovery codes index template source code:
+    https://github.com/pennersr/django-allauth/blob/main/allauth/templates/mfa/recovery_codes/index.html
+{% endcomment %}
+
+{% block titletag %}Multi-Factor Authentication - Recovery Codes{% endblock %}
+
+{% block extra_css %}
+<style>
+    ul#unused-codes {
+        list-style: none;
+        padding: 0.75em 1.5em;
+        margin: 1em 0 2.5em;
+        width: fit-content;
+        background-color: var(--w-color-surface-page);
+        box-shadow: inset 0 0 0.3em 0 var(--w-color-black-20);
+        border-radius: 0.3em;
+        color: var(--w-color-text-context);
+        font-family: var(--w-font-mono);
+    }
+</style>
+{% endblock  %}
+
+{% block mfa_content %}
+    <p>
+        Here you can view your recovery codes for multi-factor authentication. Visit the
+        <a href="{% url 'mfa_index' %}">MFA overview</a> page to see your MFA methods or
+        visit the <a href="{% url 'wagtailadmin_account' %}"> account</a> page to change
+        other account settings, such as email, password or profile information.
+    </p>
+    <div id="recovery-codes-wrapper" class="w-mt-8">
+        <h2 class="w-h3">Unused Recovery Codes</h2>
+        {% if unused_codes %}
+            <p>
+                <span class="w-font-semibold">Generated codes:</span> {{ total_count }}
+                <span class="w-font-semibold w-pl-5">Unused codes:</span> {{ unused_codes|length }}
+            </p>
+            {% if can_view_codes %}
+                <p>These codes can be used to access your account if you lose access to your authenticator app.</p>
+                <ul id="unused-codes" class="w-border-solid">
+                    {% for code in unused_codes %}
+                    <li>{{ code }}</li>
+                    {% endfor %}
+                </ul>
+            {% endif %}
+        {% else %}
+            <p class="w-mb-8">
+                You have no unused recovery codes.
+                {% if can_download_codes %}You can generate new codes via the link below.{% endif %}
+            </p>
+        {% endif %}
+
+        {% if can_download_codes %}
+            <a href="{% url 'mfa_download_recovery_codes' %}" class="button">Download Codes</a>
+        {% endif %}
+        {% if can_generate_codes %}
+            <a href="{% url 'mfa_generate_recovery_codes' %}" class="button">Generate New Codes</a>
+        {% endif %}
+    </div>
+
+    <script src="{% static 'mfa/js/recovery_codes.js' %}"></script>
+    <script src="{% static 'account/js/onload.js' %}"></script>
+    <script data-allauth-onload="allauth.recoveryCodes.forms.viewForm" type="application/json">
+        {
+            "ids": {
+                "saveConfirmation": "codes_saved",
+                "recoveryCodes": "recovery_codes"
+            }
+        }
+    </script>
+{% endblock %}
