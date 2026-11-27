@@ -1,0 +1,10 @@
+{% comment %}
+    Summary section of the "Models and apps" page, returned via HTMX for the Available data
+    page's ServeAppsSummaryBlock (replacing its loading placeholder). Reuses the Available data
+    page's category partial, so it looks like the EBI and Portal data sections.
+    Renders nothing if Serve couldn't be reached.
+{% endcomment %}
+
+{% if section %}
+{% include "cms/pages/available_data/partials/available_data_counts.html#available_data_category" with section=section %}
+{% endif %}
