@@ -382,10 +382,17 @@ class Command(BaseCommand):
     def _compound_labels(compound_index: pl.DataFrame) -> dict[str, str]:
         """Map each compound id to the name a reader sees, for the radars and PCA overlays."""
         columns = [
-            column for column in ("cbkid", "name", "kind") if column in compound_index.columns
+            column
+            for column in ("cbkid", "name", "kind", "pert_iname")
+            if column in compound_index.columns
         ]
         return {
-            row["cbkid"]: compound_label(row["cbkid"], name=row.get("name"), kind=row.get("kind"))
+            row["cbkid"]: compound_label(
+                row["cbkid"],
+                name=row.get("name"),
+                kind=row.get("kind"),
+                pert_iname=row.get("pert_iname"),
+            )
             for row in compound_index.select(columns).to_dicts()
         }
 

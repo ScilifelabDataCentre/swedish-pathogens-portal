@@ -11,6 +11,7 @@ from django.test import SimpleTestCase
 from dashboard_visualisation.drr import (
     build_compound_index,
     build_name_lookup,
+    compound_label,
     load_compound_names,
     name_lookup_report,
     normalize_cbkid,
@@ -62,11 +63,21 @@ EXPECTED_INDEX_COLUMNS = [
 ]
 
 
-def _feature_table(cbkids: list[str]) -> FeatureTable:
-    """Build a minimal FeatureTable whose only relevant column is ``cbkid``."""
+def _feature_table(cbkids: list[str], pert_types: list[str | None] | None = None) -> FeatureTable:
+    """Build a minimal FeatureTable whose only relevant columns are ``cbkid`` and ``pert_type``.
+
+    Args:
+        cbkids: One id per well.
+        pert_types: Each well's ``pert_type``, aligned with ``cbkids``; every
+            well is treated (``trt``) when omitted.
+    """
+    types = pert_types if pert_types is not None else ["trt"] * len(cbkids)
     return FeatureTable(
-        frame=pl.DataFrame({"cbkid": cbkids}),
-        metadata_columns=["cbkid"],
+        frame=pl.DataFrame(
+            {"cbkid": cbkids, "pert_type": types},
+            schema={"cbkid": pl.String, "pert_type": pl.String},
+        ),
+        metadata_columns=["cbkid", "pert_type"],
         feature_columns=[],
     )
 
@@ -119,8 +130,10 @@ class BuildCompoundIndexTests(SimpleTestCase):
         self.assertEqual(_row(index, "CBK000155")["name"], "beta")
 
     def test_control_tokens_classified(self) -> None:
-        """Non-CBCS tokens are controls with a null stem and no annotation."""
-        index = build_compound_index(_feature_table(["[stau]", "DO8167002"]), METADATA)
+        """Non-CBCS ids with only control wells are controls, with a null stem and no annotation."""
+        index = build_compound_index(
+            _feature_table(["[stau]", "DO8167002"], ["poscon", "poscon"]), METADATA
+        )
         for token in ("[stau]", "DO8167002"):
             row = _row(index, token)
             self.assertEqual(row["kind"], "control")
@@ -152,10 +165,70 @@ class BuildCompoundIndexTests(SimpleTestCase):
 
     def test_without_metadata_cbkid_column(self) -> None:
         """With no metadata cbkid column the index still classifies ids."""
-        index = build_compound_index(_feature_table(["CBK000155", "[stau]"]), pl.DataFrame())
+        index = build_compound_index(
+            _feature_table(["CBK000155", "[stau]"], ["trt", "poscon"]), pl.DataFrame()
+        )
         self.assertEqual(index.columns, ["cbkid", "cbkid_normalized", "kind", "n_profiles"])
         self.assertEqual(_row(index, "CBK000155")["kind"], "compound")
         self.assertEqual(_row(index, "[stau]")["kind"], "control")
+
+    def test_cbcs_shaped_id_with_only_control_wells_is_a_control(self) -> None:
+        """DMSO's CBCS-shaped id is a control: its wells decide, not its shape."""
+        index = build_compound_index(
+            _feature_table(["CBK281357", "CBK281357"], ["negcon", "non-inf"]), METADATA
+        )
+        row = _row(index, "CBK281357")
+        self.assertEqual(row["kind"], "control")
+        self.assertEqual(row["cbkid_normalized"], "CBK281357")
+
+    def test_non_cbcs_id_with_treated_wells_is_a_compound(self) -> None:
+        """Nirmatrelvir's prefixless id is a compound, its stem still null."""
+        index = build_compound_index(
+            _feature_table(["DO8167002", "DO8167002"], ["trt", "trt"]), METADATA
+        )
+        row = _row(index, "DO8167002")
+        self.assertEqual(row["kind"], "compound")
+        self.assertIsNone(row["cbkid_normalized"])
+        self.assertIsNone(row["name"])
+
+    def test_id_mixing_control_and_treated_wells_is_a_compound(self) -> None:
+        """One treated well is enough to make an id a compound."""
+        index = build_compound_index(
+            _feature_table(["CBK000155", "CBK000155", "CBK000155"], ["negcon", "trt", "non-inf"]),
+            METADATA,
+        )
+        self.assertEqual(_row(index, "CBK000155")["kind"], "compound")
+
+    def test_positive_control_id_stays_a_control(self) -> None:
+        """An id holding only poscon wells is a control."""
+        index = build_compound_index(
+            _feature_table(["[stau]", "[stau]"], ["poscon", "poscon"]), METADATA
+        )
+        self.assertEqual(_row(index, "[stau]")["kind"], "control")
+
+    def test_table_without_pert_type_raises(self) -> None:
+        """Without pert_type the rule has nothing to read, so it fails rather than guesses."""
+        table = FeatureTable(
+            frame=pl.DataFrame({"cbkid": ["CBK000155", "[stau]"]}),
+            metadata_columns=["cbkid"],
+            feature_columns=[],
+        )
+        with self.assertRaisesMessage(ValueError, "pert_type"):
+            build_compound_index(table, METADATA)
+
+    def test_unclassifiable_id_raises_naming_it(self) -> None:
+        """An id with no treated well and a null or unknown pert_type is neither kind."""
+        table = _feature_table(
+            ["CBK000155", "CBK008271", "CBK008271", "CBK011567", "[stau]"],
+            ["trt", "negcon", None, "mystery", "poscon"],
+        )
+        with self.assertRaises(ValueError) as caught:
+            build_compound_index(table, METADATA)
+        message = str(caught.exception)
+        self.assertIn("CBK008271", message)
+        self.assertIn("CBK011567", message)
+        self.assertNotIn("CBK000155", message)
+        self.assertNotIn("[stau]", message)
 
 
 class ReconciliationReportTests(SimpleTestCase):
@@ -163,7 +236,10 @@ class ReconciliationReportTests(SimpleTestCase):
 
     def test_report_counts(self) -> None:
         """Counts split annotated/recovered/unannotated compounds from controls."""
-        table = _feature_table(["CBK000155", "CBK008271G", "CBK999999", "[stau]", "DO8167002"])
+        table = _feature_table(
+            ["CBK000155", "CBK008271G", "CBK999999", "[stau]", "DO8167002"],
+            ["trt", "trt", "trt", "poscon", "poscon"],
+        )
         report = reconciliation_report(build_compound_index(table, METADATA))
         self.assertEqual(report["n_compound_ids"], 3)
         self.assertEqual(report["n_control_ids"], 2)
@@ -174,13 +250,32 @@ class ReconciliationReportTests(SimpleTestCase):
 
     def test_unmatched_cbkids_sorted_and_excludes_controls(self) -> None:
         """Unmatched list is sorted and never includes control tokens."""
-        table = _feature_table(["CBK999999", "CBK000900", "[stau]"])
+        table = _feature_table(["CBK999999", "CBK000900", "[stau]"], ["trt", "trt", "poscon"])
         report = reconciliation_report(build_compound_index(table, METADATA))
         self.assertEqual(report["unmatched_cbkids"], ["CBK000900", "CBK999999"])
 
+    def test_report_follows_the_wells_not_the_id_shape(self) -> None:
+        """Nirmatrelvir's id is the unannotated compound; DMSO's is a control."""
+        table = _feature_table(
+            ["CBK281357", "CBK281357", "DO8167002", "DO8167002", "CBK000155", "[stau]"],
+            ["negcon", "non-inf", "trt", "trt", "trt", "poscon"],
+        )
+        names = pl.concat(
+            [
+                NAME_LOOKUP,
+                pl.DataFrame(
+                    {"cbkid": ["DO8167002"], "pert_iname": ["Nirmatrelvir"], "pert_type": ["trt"]}
+                ),
+            ]
+        )
+        report = reconciliation_report(build_compound_index(table, METADATA, names))
+        self.assertEqual(report["unmatched_cbkids"], ["DO8167002"])
+        self.assertEqual(report["n_compound_ids"], 2)
+        self.assertEqual(report["n_control_ids"], 2)
+
     def test_report_without_metadata(self) -> None:
         """With no annotations every compound is reported unannotated."""
-        table = _feature_table(["CBK000155", "[stau]"])
+        table = _feature_table(["CBK000155", "[stau]"], ["trt", "poscon"])
         report = reconciliation_report(build_compound_index(table, pl.DataFrame()))
         self.assertEqual(report["n_annotated"], 0)
         self.assertEqual(report["n_recovered"], 0)
@@ -301,7 +396,8 @@ class CompoundIndexNameLookupTests(SimpleTestCase):
     def test_bracketed_control_keeps_its_own_name(self) -> None:
         """A bracketed positive control is named by the lookup, though it has no CBCS row."""
         row = _row(
-            build_compound_index(_feature_table(["[flup]"]), METADATA, NAME_LOOKUP), "[flup]"
+            build_compound_index(_feature_table(["[flup]"], ["poscon"]), METADATA, NAME_LOOKUP),
+            "[flup]",
         )
         self.assertEqual(row["kind"], "control")
         self.assertIsNone(row["name"])
@@ -372,3 +468,41 @@ class NameLookupReportTests(SimpleTestCase):
         self.assertEqual(report["n_unnamed"], 0)
         self.assertEqual(report["n_condition_rows_excluded"], 0)
         self.assertEqual(report["n_conflicting_ids"], 0)
+
+
+class CompoundLabelTests(SimpleTestCase):
+    """The one naming rule every reader-facing compound name goes through (FREYA-3126)."""
+
+    def test_a_compound_without_a_cbcs_name_falls_back_to_pert_iname(self) -> None:
+        """Nirmatrelvir has no CBCS row, so its own name labels it."""
+        self.assertEqual(
+            compound_label("DO8167002", name=None, pert_iname="Nirmatrelvir", kind="compound"),
+            "Nirmatrelvir (DO8167002)",
+        )
+
+    def test_a_blank_cbcs_name_falls_back_too(self) -> None:
+        """A whitespace-only name is no name."""
+        self.assertEqual(
+            compound_label("DO8167002", name="  ", pert_iname="Nirmatrelvir", kind="compound"),
+            "Nirmatrelvir (DO8167002)",
+        )
+
+    def test_the_cbcs_name_wins_over_pert_iname(self) -> None:
+        """The fallback is only a fallback."""
+        self.assertEqual(
+            compound_label("CBK008271", name="alpha", pert_iname="alpha-iname", kind="compound"),
+            "alpha (CBK008271)",
+        )
+
+    def test_a_control_keeps_its_control_label(self) -> None:
+        """A control with a pert_iname still reads '<id> (control)'."""
+        self.assertEqual(
+            compound_label("[flup]", name=None, pert_iname="Fluphenazine", kind="control"),
+            "[flup] (control)",
+        )
+
+    def test_a_compound_with_neither_name_is_its_bare_id(self) -> None:
+        """No name and a blank pert_iname leave the id alone."""
+        self.assertEqual(
+            compound_label("CBK999999", name=None, pert_iname=" ", kind="compound"), "CBK999999"
+        )

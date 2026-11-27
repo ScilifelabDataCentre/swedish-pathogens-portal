@@ -233,6 +233,22 @@ class BuildCompoundTableTests(TableS8Case):
         self.assertEqual(self.report["shared_names"], ["toremifene"])
         self.assertEqual(self._row("CBK5")["morphology_score"], 0.7)
 
+    def test_a_row_without_a_cbcs_name_is_named_by_its_pert_iname(self) -> None:
+        """Nirmatrelvir's Name cell reads its own name; a CBCS name still wins."""
+        self.assertEqual(self._row("DO8167002")["name"], "Nirmatrelvir")
+        self.assertEqual(self._row("CBK2")["name"], "Fluphenazine")
+        self.assertEqual(self._row("CBK1")["name"], "Aspirin")
+        self.assertEqual(self._row("CBK3")["name"], "triparanol")
+
+    def test_a_blank_cbcs_name_falls_back_too(self) -> None:
+        """A whitespace-only name is no name."""
+        index = compound_index(
+            [{"cbkid": "DO8167002", "kind": "compound", "name": " ", "pert_iname": "Nirmatrelvir"}]
+        )
+        table, _ = build_compound_table(index, ["DO8167002"], self.reduced)
+
+        self.assertEqual(table["name"].to_list(), ["Nirmatrelvir"])
+
 
 class SelectRowsTests(SimpleTestCase):
     """One selection serves the view and the export."""
@@ -483,6 +499,34 @@ class TestDrrCompoundTablePage(DrrDownloadRouteTestCase):
 
         self.assertEqual(exported.height, self.total(self.htmx("search=compound 1")))
         self.assertLess(exported.height, page_table().height)
+
+    def test_a_compound_without_a_cbcs_name_is_named_in_the_table_and_the_export(self) -> None:
+        """The table built by precompute carries the pert_iname fallback to both readers."""
+        index = compound_index(
+            [
+                {"cbkid": "CBK1", "kind": "compound", "name": "Aspirin", "pert_iname": "aspirin"},
+                {"cbkid": "DO8167002", "kind": "compound", "pert_iname": "Nirmatrelvir"},
+            ]
+        )
+        reduced = pl.DataFrame(
+            {
+                "compound_name": ["aspirin"],
+                "dose_um": [1.0],
+                "morphology_score": [0.8],
+                "cell_count_pct": [100.0],
+                "infection_rate_pct": [20.0],
+            }
+        )
+        table, _ = build_compound_table(index, ["CBK1", "DO8167002"], reduced)
+        table.write_parquet(self.artefacts / "table.parquet")
+
+        exported = pl.read_csv(self.download("download/filtered/csv/").content)
+
+        self.assertEqual(
+            dict(zip(exported["cbkid"], exported["name"], strict=True)),
+            {"CBK1": "Aspirin", "DO8167002": "Nirmatrelvir"},
+        )
+        self.assertEqual(self.total(self.htmx("search=Nirmatrelvir")), 1)
 
     def test_the_export_takes_its_column_order_from_the_code(self) -> None:
         """An artefact written with dose last still exports dose third."""

@@ -7,14 +7,20 @@ The join therefore happens on a normalised stem so a variant inherits its base
 compound's annotation, while the original ``cbkid`` is kept as the compound
 identity (profile counts and per-``cbkid`` downloads are unchanged). Non-CBCS
 tokens (control placeholders like ``[stau]`` or foreign ids like ``DO8167002``)
-have no stem, never join, and are classified as controls (FREYA-2557).
+have no stem and never join (FREYA-2557).
+
+Whether an id is a compound or a control is read from its wells' ``pert_type``,
+never from the shape of the id (FREYA-3126): DMSO's vehicle id ``CBK281357`` is
+CBCS-shaped but holds only control wells, and Nirmatrelvir's ``DO8167002`` is
+prefixless but treated.
 
 The index can carry a second, independent naming system: ``pert_iname``, the
 authors' own compound name, read from the companion repository's Arrow file as a
 lookup over its hit set (FREYA-2628). It is never merged into ``name`` — that is
 the CBCS annotation dictionary's name, and only ``pert_iname`` is expected to
 join the paper's Table S8. Because the lookup keys on the same ids the feature
-table uses, it joins on the raw ``cbkid`` rather than on the stem.
+table uses, it joins on the raw ``cbkid`` rather than on the stem. Only a
+compound's display label falls back to it (``compound_label``).
 """
 
 from __future__ import annotations
@@ -48,6 +54,11 @@ COMPOUND_NAME_COLUMN = "pert_iname"
 # them would stamp 640 non-infected wells ``DMSO`` (FREYA-2628).
 _CONDITION_PERT_TYPES = ["negcon", "non-inf"]
 
+# An id is a compound when any of its wells is treated, and a control when every
+# one of its wells is one of the control types.
+_TREATMENT_PERT_TYPE = "trt"
+_CONTROL_PERT_TYPES = [*_CONDITION_PERT_TYPES, "poscon"]
+
 # Compound index column order (annotation columns appended when available).
 _INDEX_COLUMNS = [
     "cbkid",
@@ -67,7 +78,7 @@ def normalize_cbkid(value: str | None) -> str | None:
     Strips a trailing salt/form suffix so a variant (``CBK008271G``) reconciles
     with its base compound (``CBK008271``). Non-CBCS tokens (control
     placeholders like ``[stau]``, foreign ids like ``DO8167002``) and empty
-    values return ``None`` so they never join and are treated as controls.
+    values return ``None`` so they never join.
 
     Args:
         value: A raw ``cbkid`` from the feature table or the metadata.
@@ -89,15 +100,17 @@ def build_compound_index(
     """Build a per-compound index for the dataset.
 
     Groups the feature table by its original ``cbkid`` (the compound identity),
-    derives a normalised stem, classifies each id as ``compound`` or ``control``,
-    and left-joins the CBCS ``name`` / ``broad_moa`` / ``broad_target``
-    annotations on the stem so salt/form variants inherit their base compound's
-    annotation. When a name lookup is supplied its ``pert_iname`` is joined on
-    the raw ``cbkid`` and appended last; ids outside the lookup keep an explicit
-    null rather than being dropped.
+    derives a normalised stem, classifies each id from its wells' ``pert_type``
+    — ``compound`` with at least one ``trt`` well, ``control`` when every well is
+    ``negcon``, ``non-inf`` or ``poscon`` — and left-joins the CBCS ``name`` /
+    ``broad_moa`` / ``broad_target`` annotations on the stem so salt/form
+    variants inherit their base compound's annotation. When a name lookup is
+    supplied its ``pert_iname`` is joined on the raw ``cbkid`` and appended
+    last; ids outside the lookup keep an explicit null rather than being
+    dropped.
 
     Args:
-        table: The loaded feature table.
+        table: The loaded feature table; needs ``cbkid`` and ``pert_type``.
         metadata: The loaded compound metadata (see ``load_metadata``).
         names: Optional name lookup (see ``load_compound_names``); omitted, the
             index carries no ``pert_iname`` column at all.
@@ -106,18 +119,46 @@ def build_compound_index(
         A DataFrame with one row per original ``cbkid`` (``cbkid``,
         ``cbkid_normalized``, ``kind``, ``n_profiles``, and the available
         annotation columns), sorted by ``cbkid``.
+
+    Raises:
+        ValueError: If the table has no ``pert_type`` column, or an id has no
+            ``trt`` well and a well whose ``pert_type`` is null or not a control
+            type — it is then neither kind, and is named rather than guessed.
     """
+    if "pert_type" not in table.frame.columns:
+        raise ValueError(
+            "The feature table has no 'pert_type' column, which decides whether an id is a "
+            "compound or a control."
+        )
     counts = (
         table.frame.group_by("cbkid")
-        .agg(pl.len().alias("n_profiles"))
-        .with_columns(pl.col("cbkid").str.extract(_CBKID_STEM_PATTERN, 1).alias("cbkid_normalized"))
-        .with_columns(
-            pl.when(pl.col("cbkid_normalized").is_null())
-            .then(pl.lit("control"))
-            .otherwise(pl.lit("compound"))
-            .alias("kind")
+        .agg(
+            pl.len().alias("n_profiles"),
+            (pl.col("pert_type") == _TREATMENT_PERT_TYPE).any().alias("is_treated"),
+            pl.col("pert_type")
+            .is_in(_CONTROL_PERT_TYPES)
+            .fill_null(False)
+            .all()
+            .alias("is_control"),
         )
+        .with_columns(pl.col("cbkid").str.extract(_CBKID_STEM_PATTERN, 1).alias("cbkid_normalized"))
     )
+    unclassifiable = sorted(
+        counts.filter(~pl.col("is_treated") & ~pl.col("is_control"))["cbkid"].to_list(),
+        key=str,
+    )
+    if unclassifiable:
+        raise ValueError(
+            f"These ids are neither compound nor control: {unclassifiable}. None has a "
+            f"'{_TREATMENT_PERT_TYPE}' well, and each has a well whose 'pert_type' is null or "
+            f"not one of {_CONTROL_PERT_TYPES}."
+        )
+    counts = counts.with_columns(
+        pl.when(pl.col("is_treated"))
+        .then(pl.lit("compound"))
+        .otherwise(pl.lit("control"))
+        .alias("kind")
+    ).drop("is_treated", "is_control")
 
     annotations = _annotation_lookup(metadata)
     index = (
@@ -156,26 +197,38 @@ def build_name_lookup(names: pl.DataFrame) -> pl.DataFrame:
     )
 
 
-def compound_label(cbkid: str, *, name: str | None = None, kind: str | None = None) -> str:
+def compound_label(
+    cbkid: str,
+    *,
+    name: str | None = None,
+    kind: str | None = None,
+    pert_iname: str | None = None,
+) -> str:
     """Return one compound's display name.
 
     One rule, used wherever a compound is named to a reader: the on-page picker
-    (FREYA-2583) and each per-compound radar's title (FREYA-2636), so the
-    control and the figure it swaps in cannot name the same compound
-    differently.
+    (FREYA-2583), each per-compound radar's title (FREYA-2636) and each PCA
+    overlay's legend, so the control and the figure it swaps in cannot name the
+    same compound differently.
 
     Args:
         cbkid: The compound id.
         name: The CBCS annotation's name, when the join found one.
-        kind: ``"control"`` for a non-CBCS control id.
+        kind: ``"control"`` for an id whose wells are all control wells.
+        pert_iname: The name lookup's name, used when the CBCS name is missing
+            or blank (FREYA-3126).
 
     Returns:
-        ``<name> (<cbkid>)`` once annotated, ``<cbkid> (control)`` for a control
-        id, and the bare id for a compound the join did not annotate.
+        ``<cbkid> (control)`` for a control id; otherwise ``<name> (<cbkid>)``
+        once annotated, ``<pert_iname> (<cbkid>)`` when only the lookup names
+        it, and the bare id when neither does.
     """
     if kind == "control":
         return f"{cbkid} (control)"
-    return f"{name} ({cbkid})" if name and str(name).strip() else cbkid
+    for candidate in (name, pert_iname):
+        if candidate and str(candidate).strip():
+            return f"{candidate} ({cbkid})"
+    return cbkid
 
 
 def _drop_condition_rows(names: pl.DataFrame) -> pl.DataFrame:

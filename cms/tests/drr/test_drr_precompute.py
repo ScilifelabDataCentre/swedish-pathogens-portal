@@ -632,6 +632,23 @@ class DrrPrecomputeTests(TestCase):
 
         self.assertIn("compoundA (CBK1)", payload["layout"]["title"]["text"])
 
+    def test_a_radar_without_a_cbcs_name_is_titled_by_its_pert_iname(self) -> None:
+        """CBK3 has no CBCS row, so its radar is titled from the name lookup."""
+        names_path = self.base / "names.feather"
+        pl.DataFrame(
+            {
+                "cbkid": [*NAME_LOOKUP_ROWS["cbkid"], "CBK3"],
+                "pert_iname": [*NAME_LOOKUP_ROWS["pert_iname"], "nirmatrelvir"],
+                "pert_type": [*NAME_LOOKUP_ROWS["pert_type"], "trt"],
+            }
+        ).write_ipc(names_path, compression="zstd")
+        self._run(compound_names=str(names_path))
+        payload = json.loads(
+            (self.out_dir / "figures" / "radar" / "CBK3.json").read_text(encoding="utf-8")
+        )
+
+        self.assertIn("nirmatrelvir (CBK3)", payload["layout"]["title"]["text"])
+
     def test_the_index_records_each_radars_artefact_key(self) -> None:
         """The route resolves a reader's cbkid through this column, never by hand."""
         self._run()
@@ -852,7 +869,7 @@ class DrrPrecomputeTests(TestCase):
             ],
         )
         self.assertEqual(compounds["cbkid_normalized"].to_list(), ["CBK1", "CBK2", "CBK3"])
-        self.assertEqual(compounds["kind"].unique().to_list(), ["compound"])
+        self.assertEqual(compounds["kind"].to_list(), ["compound", "control", "compound"])
 
     def test_compound_names_are_joined_when_supplied(self) -> None:
         """The lookup adds pert_iname last; conditions and absent ids stay null."""
@@ -932,9 +949,9 @@ class DrrPrecomputeTests(TestCase):
         self._run()
         summary = json.loads((self.out_dir / "summary.json").read_text(encoding="utf-8"))
         recon = summary["compound_reconciliation"]
-        self.assertEqual(recon["n_compound_ids"], 3)
-        self.assertEqual(recon["n_control_ids"], 0)
-        self.assertEqual(recon["n_annotated"], 2)
+        self.assertEqual(recon["n_compound_ids"], 2)
+        self.assertEqual(recon["n_control_ids"], 1)
+        self.assertEqual(recon["n_annotated"], 1)
         self.assertEqual(recon["n_recovered"], 0)
         self.assertEqual(recon["n_unannotated"], 1)
         self.assertEqual(recon["unmatched_cbkids"], ["CBK3"])

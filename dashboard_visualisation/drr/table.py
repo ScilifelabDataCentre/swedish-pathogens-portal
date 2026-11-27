@@ -220,7 +220,13 @@ def build_compound_table(
         _match_name((row["pert_iname"], row["name"]), exact, folded)
         for row in index.select("pert_iname", "name").iter_rows(named=True)
     ]
-    index = index.with_columns(pl.Series("compound_name", matches, dtype=pl.String))
+    index = index.with_columns(
+        pl.Series("compound_name", matches, dtype=pl.String),
+        pl.when(pl.col("name").str.strip_chars() != "")
+        .then(pl.col("name"))
+        .otherwise(pl.col("pert_iname"))
+        .alias("name"),
+    )
 
     table = index.join(reduced, on="compound_name", how="left").select(TABLE_COLUMNS).sort("cbkid")
 

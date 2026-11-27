@@ -55,7 +55,7 @@ _UNSAFE_FILENAME_CHARS = re.compile(r"[^A-Za-z0-9._-]")
 # carries neither, and the picker still has to offer every downloadable id.
 # ``radar_key`` names the compound's per-compound radar on disk (FREYA-2636), and
 # ``pca_key`` its overlay on the PCA (FREYA-3202).
-_COMPOUND_OPTION_COLUMNS = ("cbkid", "name", "kind", "radar_key", "pca_key")
+_COMPOUND_OPTION_COLUMNS = ("cbkid", "name", "kind", "pert_iname", "radar_key", "pca_key")
 
 # The radars, in page order, rendered by the page's own radar partial rather
 # than placed as editorial PlotlyFigureBlocks, so the compound picker always
@@ -509,17 +509,23 @@ class DrrDatasetPage(RoutablePageMixin, DashboardPage):
         """Return one compound's picker label.
 
         Args:
-            row: A ``compounds.parquet`` row: ``cbkid``, plus ``name`` and
-                ``kind`` when the index carries them.
+            row: A ``compounds.parquet`` row: ``cbkid``, plus ``name``, ``kind``
+                and ``pert_iname`` when the index carries them.
 
         Returns:
-            str: ``<name> (<cbkid>)`` once the CBCS join annotated the compound,
-                ``<cbkid> (control)`` for a non-CBCS control id, and the bare
-                ``cbkid`` for a compound the join did not annotate. The rule is
-                the precompute package's, so a swapped-in radar's title names
-                the compound exactly as the control that asked for it does.
+            str: ``<cbkid> (control)`` for a control id; otherwise
+                ``<name> (<cbkid>)`` once the CBCS join annotated the compound,
+                ``<pert_iname> (<cbkid>)`` when only the name lookup names it,
+                and the bare ``cbkid`` when neither does. The rule is the
+                precompute package's, so a swapped-in radar's title names the
+                compound exactly as the control that asked for it does.
         """
-        return compound_label(row["cbkid"], name=row.get("name"), kind=row.get("kind"))
+        return compound_label(
+            row["cbkid"],
+            name=row.get("name"),
+            kind=row.get("kind"),
+            pert_iname=row.get("pert_iname"),
+        )
 
     def _serve_artefact(self, request: HttpRequest, filename: str) -> FileResponse:
         """Serve one derived artefact from this dataset's directory.
