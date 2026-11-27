@@ -340,7 +340,7 @@ class TestLiverResourceDashboardPageContext(LiverResourcePageTestCase):
         )
         row = DashboardData.objects.create(
             dashboard_title="HepaGeNIE",
-            dashboard_slug="liver-resource",
+            dashboard_slug="hepagenie-tln",
             source_file=upload,
             data_updated_at=date(2026, 4, 20),
         )
@@ -377,7 +377,7 @@ class TestLiverResourceDashboardDataIntegration(LiverResourcePageTestCase):
         )
         DashboardData.objects.create(
             dashboard_title="HepaGeNIE",
-            dashboard_slug="liver-resource",
+            dashboard_slug="hepagenie-tln",
             source_file=upload,
             data_updated_at=date(2026, 4, 20),
         )
@@ -403,7 +403,7 @@ class TestLiverResourceDashboardDataIntegration(LiverResourcePageTestCase):
         )
         row = DashboardData.objects.create(
             dashboard_title="HepaGeNIE",
-            dashboard_slug="liver-resource",
+            dashboard_slug="hepagenie-tln",
             source_file=upload,
             data_updated_at=date(2026, 5, 1),
         )

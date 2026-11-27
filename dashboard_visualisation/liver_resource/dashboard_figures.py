@@ -16,7 +16,7 @@ from dashboard_visualisation.liver_resource.plotly_tln import (
     normalize_tln_figure_layout,
 )
 
-LIVER_DASHBOARD_SLUG = "liver-resource"
+LIVER_DASHBOARD_SLUG = "hepagenie-tln"
 
 
 @dataclass(frozen=True)

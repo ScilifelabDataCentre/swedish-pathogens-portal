@@ -25,7 +25,7 @@ class TestLiverDashboardDataSnippet(TestCase):
         )
         row = DashboardData.objects.create(
             dashboard_title="HepaGeNIE",
-            dashboard_slug="liver-resource",
+            dashboard_slug="hepagenie-tln",
             source_file=upload,
             data_updated_at=date(2026, 4, 20),
         )
@@ -40,7 +40,7 @@ class TestLiverDashboardDataSnippet(TestCase):
     def test_generate_figures_registry_entry(self) -> None:
         """Test registry dispatch builds expected figure keys from a DE upload."""
         example_path = get_data_root() / "examples" / "HCC-Control.txt"
-        figures = generate_figures("liver-resource", example_path)
+        figures = generate_figures("hepagenie-tln", example_path)
 
         self.assertIn("base_tln", figures)
         self.assertIn("examples", figures)

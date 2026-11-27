@@ -17,7 +17,7 @@ LOGGER = structlog.get_logger(__name__)
 # Register active (non-historic) dashboard slugs here, e.g.:
 # "serology-statistics": "dashboard_visualisation.serology_statistics",
 VIZ_MODULES: dict[str, str] = {
-    "liver-resource": "dashboard_visualisation.liver_resource.figures",
+    "hepagenie-tln": "dashboard_visualisation.liver_resource.figures",
     "recovac": "dashboard_visualisation.recovac",
     "serology-statistics": "dashboard_visualisation.serology_statistics",
     "slu-wastewater": "dashboard_visualisation.slu_wastewater",
