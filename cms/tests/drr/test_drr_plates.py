@@ -23,7 +23,7 @@ SLUG = "sars-cov2-a549-ace2-validation"
 NEVER_DEPOSITED = ("P103572", "P103573", "P103587", "P103588")
 
 
-def _table(barcodes: list[str], wells: list[str] | None = None) -> FeatureTable:
+def _table(barcodes: list[str | None], wells: list[str] | None = None) -> FeatureTable:
     """Build a minimal feature table with one row per barcode."""
     frame = pl.DataFrame(
         {
@@ -92,6 +92,20 @@ class ExcludePlatesTests(SimpleTestCase):
 
         self.assertEqual(n_removed, 0)
         self.assertTrue(filtered.frame.equals(table.frame))
+
+    def test_a_null_barcode_raises_counting_the_rows(self) -> None:
+        """A row on no plate cannot be classified, so it is refused, not dropped (FREYA-3127)."""
+        table = _table([None, "P103554", *NEVER_DEPOSITED, None])
+
+        with self.assertRaisesMessage(ValueError, "2 row(s)"):
+            exclude_plates(table, NEVER_DEPOSITED)
+
+    def test_an_empty_barcode_raises_counting_the_rows(self) -> None:
+        """An empty barcode names no plate either, even with an empty basis (FREYA-3127)."""
+        table = _table(["P103554", ""])
+
+        with self.assertRaisesMessage(ValueError, "1 row(s)"):
+            exclude_plates(table, ())
 
 
 class UnresolvedRowsTests(SimpleTestCase):

@@ -1109,6 +1109,25 @@ class DrrPrecomputeTests(TestCase):
         self.assertEqual(reloaded.source_file_hash, row.source_file_hash)
         self.assertEqual(reloaded.data, row.data)
 
+    def test_a_missing_barcode_leaves_the_artefacts_untouched(self) -> None:
+        """Null and empty barcodes stop a re-run, counted, before any write (FREYA-3127)."""
+        self._run()
+        before = self._artefact_bytes()
+        row = DrrDatasetData.get_data(SLUG)
+
+        # A bare empty field reads as null, a quoted one as the empty string.
+        self.input_path.write_text(
+            FEATURE_CSV.replace("0;P1;A01;", "0;;A01;").replace("3;P2;B01;", '3;"";B01;'),
+            encoding="utf-8",
+        )
+        with self.assertRaisesMessage(CommandError, "2 row(s)"):
+            self._run()
+
+        self.assertEqual(self._artefact_bytes(), before)
+        reloaded = DrrDatasetData.get_data(SLUG)
+        self.assertEqual(reloaded.source_file_hash, row.source_file_hash)
+        self.assertEqual(reloaded.data, row.data)
+
     def test_plate_metadata_is_an_input_to_the_digests(self) -> None:
         """A changed deposit record moves the inputs digest, as any input does."""
         self._run()

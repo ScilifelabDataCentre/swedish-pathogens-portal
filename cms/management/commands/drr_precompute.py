@@ -142,9 +142,9 @@ class Command(BaseCommand):
         # (FREYA-3008).
         try:
             plate_stems = excluded_plates(slug)
+            table, n_rows_excluded = exclude_plates(table, plate_stems)
         except ValueError as error:
             raise CommandError(str(error)) from error
-        table, n_rows_excluded = exclude_plates(table, plate_stems)
         n_unresolved = unresolved_rows(table, plate_metadata)
         figure_columns = figure_feature_columns(table.feature_columns, channels)
         # Both radars are contrasts, so a table missing one of the populations

@@ -86,7 +86,20 @@ def exclude_plates(table: FeatureTable, stems: tuple[str, ...]) -> tuple[Feature
     Returns:
         The table without those rows, with its column split unchanged, and the
         number of rows removed.
+
+    Raises:
+        ValueError: If any row has a null or empty barcode. Such a row is on no
+            plate, so it can be neither kept nor excluded; a null would otherwise
+            be dropped by the filter and counted as excluded (FREYA-3127).
     """
+    barcode = pl.col(_PLATE_COLUMN).cast(pl.String)
+    n_unplated = table.frame.select((barcode.is_null() | (barcode == "")).sum()).item()
+    if n_unplated:
+        raise ValueError(
+            f"Feature table has {n_unplated} row(s) with a null or empty '{_PLATE_COLUMN}'. "
+            "A row on no plate cannot be checked against the plate basis, so it is neither "
+            "published nor counted as excluded."
+        )
     kept = table.frame.filter(~_plate_stem(_PLATE_COLUMN).is_in(list(stems)))
     return dataclasses.replace(table, frame=kept), table.frame.height - kept.height
 
