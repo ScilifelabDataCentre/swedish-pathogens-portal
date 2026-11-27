@@ -30,7 +30,7 @@ class AllauthLinksPanel(BaseSettingsPanel):
     """
 
     name = "allauth_links"
-    title = "Email and Password"
+    title = "Email, Password and MFA"
     description = "Display django-allauth's management links."
     order = 150
 

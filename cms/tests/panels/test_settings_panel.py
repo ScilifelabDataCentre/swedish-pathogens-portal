@@ -13,7 +13,7 @@ class TestAllauthLinksPanel(SimpleTestCase):
     def test_panel_configuration(self):
         """Test the panel configuration."""
         self.assertEqual(AllauthLinksPanel.name, "allauth_links")
-        self.assertEqual(AllauthLinksPanel.title, "Email and Password")
+        self.assertEqual(AllauthLinksPanel.title, "Email, Password and MFA")
         self.assertEqual(
             AllauthLinksPanel.description, "Display django-allauth's management links."
         )
@@ -54,5 +54,7 @@ class TestEmailPasswordPanelRendering(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Manage email address")
         self.assertContains(response, "Change password")
+        self.assertContains(response, "Manage MFA")
         self.assertContains(response, f'href="{reverse("account_email")}"')
         self.assertContains(response, f'href="{reverse("account_change_password")}"')
+        self.assertContains(response, f'href="{reverse("mfa_index")}"')
