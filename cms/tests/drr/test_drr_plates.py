@@ -138,3 +138,19 @@ class UnresolvedRowsTests(SimpleTestCase):
 
         with self.assertRaisesMessage(ValueError, "well_id"):
             load_plate_metadata(self.path)
+
+    def test_a_zero_byte_file_raises_naming_it(self) -> None:
+        """An empty file has no header to check, so it is refused by path (FREYA-3129)."""
+        self.path.write_bytes(b"")
+
+        with self.assertRaisesMessage(ValueError, str(self.path)):
+            load_plate_metadata(self.path)
+
+    def test_a_header_only_file_loads_as_zero_rows(self) -> None:
+        """A header without rows is still a file that answers: every row is unresolved."""
+        self.path.write_text("Files\tbarcode\twell_id\n", encoding="utf-8")
+
+        metadata = load_plate_metadata(self.path)
+
+        self.assertEqual(metadata.columns, ["plate_stem", "well_id", "archive_path"])
+        self.assertEqual(metadata.height, 0)

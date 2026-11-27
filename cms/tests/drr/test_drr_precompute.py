@@ -1094,6 +1094,21 @@ class DrrPrecomputeTests(TestCase):
             self._run()
         self.assertFalse(self.out_dir.exists())
 
+    def test_a_zero_byte_plate_metadata_file_leaves_the_artefacts_untouched(self) -> None:
+        """An empty image-metadata file stops a re-run by name, before any write (FREYA-3129)."""
+        self._run()
+        before = self._artefact_bytes()
+        row = DrrDatasetData.get_data(SLUG)
+
+        self.plate_metadata_path.write_bytes(b"")
+        with self.assertRaisesMessage(CommandError, str(self.plate_metadata_path)):
+            self._run()
+
+        self.assertEqual(self._artefact_bytes(), before)
+        reloaded = DrrDatasetData.get_data(SLUG)
+        self.assertEqual(reloaded.source_file_hash, row.source_file_hash)
+        self.assertEqual(reloaded.data, row.data)
+
     def test_plate_metadata_is_an_input_to_the_digests(self) -> None:
         """A changed deposit record moves the inputs digest, as any input does."""
         self._run()

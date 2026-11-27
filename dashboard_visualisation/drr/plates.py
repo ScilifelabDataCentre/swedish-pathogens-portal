@@ -101,9 +101,12 @@ def load_plate_metadata(path: str | Path) -> pl.DataFrame:
         One row per deposited (plate stem, well), with its archive path.
 
     Raises:
-        ValueError: If a required column is missing.
+        ValueError: If the file is empty or a required column is missing.
     """
-    header = pl.read_csv(path, separator="\t", n_rows=0).columns
+    try:
+        header = pl.read_csv(path, separator="\t", n_rows=0).columns
+    except pl.exceptions.NoDataError as error:
+        raise ValueError(f"Plate metadata file {path} is empty: it has no header row.") from error
     missing = [column for column in PLATE_METADATA_COLUMNS if column not in header]
     if missing:
         raise ValueError(
